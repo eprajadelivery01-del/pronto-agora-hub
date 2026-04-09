@@ -11,18 +11,27 @@ import {
   Zap,
   Menu,
   X,
+  Building2,
+  Bike,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllRealtime } from "@/services/realtime";
 import { useState } from "react";
+import { APP_TYPE, APP_PROJECT_ID, APP_COLOR } from "@/constants/app-config";
 
 const tabs = [
   { label: "Pedidos", icon: ShoppingBag, href: "/business" },
+  { label: "Cardápio", icon: Zap, href: "/business/products" },
   { label: "Mapa", icon: Map, href: "/business/map" },
+
   { label: "Clientes", icon: Users, href: "/business/customers" },
+  { label: "Lojas", icon: Building2, href: "/business/companies" },
+  { label: "Equipe", icon: Bike, href: "/business/drivers" },
   { label: "Financeiro", icon: DollarSign, href: "/business/finance" },
   { label: "Histórico", icon: ClipboardList, href: "/business/history" },
+  { label: "Ocorrências", icon: AlertTriangle, href: "/business/occurrences" },
   { label: "Perfil", icon: User, href: "/business/profile" },
 ];
 
@@ -128,8 +137,17 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 pb-24 lg:pb-6 overflow-auto">
-          {children}
+        <main className="flex-1 p-4 pb-24 lg:pb-6 overflow-auto flex flex-col">
+          <div className="flex-1">
+            {children}
+          </div>
+          
+          {/* Global Branding Footer */}
+          <div className="w-full py-12 flex justify-center opacity-10 pointer-events-none select-none mt-auto">
+            <p className="text-[10px] font-black tracking-[0.4em] text-muted-foreground uppercase">
+              BONASOFT
+            </p>
+          </div>
         </main>
       </div>
 
@@ -152,6 +170,15 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           );
         })}
       </nav>
+
+      {/* Persistence Safety Badge - DEV ONLY */}
+      <div 
+        className="fixed bottom-20 right-4 z-[9999] px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest text-white shadow-2xl flex items-center gap-2 pointer-events-none select-none opacity-80 lg:bottom-6"
+        style={{ backgroundColor: APP_COLOR, border: "2px solid white" }}
+      >
+        <span className="animate-pulse">●</span>
+        APP: {APP_TYPE} ({APP_PROJECT_ID})
+      </div>
     </div>
   );
 }

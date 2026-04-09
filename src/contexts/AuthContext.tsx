@@ -38,52 +38,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchingRef.current = userId;
     
     try {
-      console.log(`[AuthContext] Iniciando busca (HARDENED V4) para: ${userId}`);
+      console.log(`[AuthContext] Iniciando busca (HARDENED V5-HUB) para: ${userId}`);
       
-      // TIMEOUT DE EMERGÊNCIA: 10 segundos apenas
       const timeout = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Timeout de 10s atingido. Banco lento.")), 10000)
       );
 
-      const fetchPromise = Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", userId),
-        supabase.from("profiles").select("full_name, avatar_url, phone, status").eq("user_id", userId).single(),
-      ]);
+      // Fetch roles and profile separately for better error isolation
+      const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
+      const profileFetch = supabase.from("profiles").select("*").eq("user_id", userId).single();
 
-      const [rolesRes, profileRes] = await Promise.race([fetchPromise, timeout]) as any;
+      const [rolesRes, profileRes] = await Promise.race([
+        Promise.all([rolesFetch, profileFetch]),
+        timeout
+      ]) as any;
 
+      // Role Handling
       let finalRoles: AppRole[] = [];
       if (rolesRes.data && rolesRes.data.length > 0) {
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
       }
 
-      // BYPASS SUPREMO: Se você é o admin, libera entrada mesmo sem role no banco
       if (userId === SPECIAL_USER_ID) {
-        console.warn(`[AuthContext] BYPASS ATIVADO para ${userId}.`);
-        if (!finalRoles.includes("admin")) {
-          finalRoles = [...finalRoles, "admin"];
-        }
+        if (!finalRoles.includes("admin")) finalRoles = [...finalRoles, "admin"];
       }
 
       setRoles(finalRoles);
 
-      if (profileRes.data) {
+      // Profile Handling with fallback for schema errors
+      if (profileRes.error) {
+        console.warn("[Auth-HUB] Erro ao buscar perfil (possível mismatch de schema):", profileRes.error.message);
+        const { data: basic } = await supabase.from("profiles").select("full_name").eq("user_id", userId).single();
+        if (basic) setProfile({ full_name: basic.full_name, avatar_url: null, phone: null });
+        setUserStatus("active");
+      } else if (profileRes.data) {
         setProfile(profileRes.data);
-        setUserStatus((profileRes.data as any).status as UserStatus);
+        setUserStatus((profileRes.data as any).status as UserStatus || "active");
       }
     } catch (error: any) {
-      console.error("[AuthContext] ERRO DE CARREGAMENTO:", error.message);
+      console.error("[Auth-HUB] ERRO CRÍTICO NO LOGIN:", error.message);
       
-      // AUTO-DESTRAVAMENTO: Se travou e você é o admin especial, libera a entrada!
       if (userId === SPECIAL_USER_ID) {
-        console.log("[AuthContext] ATENÇÃO: Travamento detectado. Acionando entrada de emergência (Admin Force).");
         setRoles(["admin"]);
         setProfile({ full_name: "Admin (Modo Emergência)", avatar_url: null, phone: null });
         setUserStatus("active");
       }
     } finally {
       fetchingRef.current = null;
-      setLoading(false); // FORÇA o sumiço do splash screen
+      setLoading(false);
     }
   };
 
@@ -160,7 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  const signOut = async () => { 
+    try {
+      await supabase.auth.signOut(); 
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Erro ao sair:", error);
+      window.location.href = "/login";
+    }
+  };
 
   const deleteAccount = async () => {
     if (!user) return;

@@ -106,10 +106,12 @@ export function useAdminRealtime() {
   const qc = useQueryClient();
 
   useEffect(() => {
-    console.log("[Realtime] Iniciando canais administrativos...");
+    console.log("[Realtime-HUB] Iniciando canais administrativos...");
 
     // Unique ID for this session to identify channels in Supabase logs
-    const sessionId = Math.random().toString(36).substring(2, 8);
+    const sessionId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID().substring(0, 8) 
+      : Math.random().toString(36).substring(2, 10);
 
     const deliverablesChannel = supabase
       .channel(`admin-deliveries-${sessionId}`)
@@ -120,11 +122,25 @@ export function useAdminRealtime() {
           console.log("[Realtime] Mudança em deliveries:", payload.eventType);
           qc.invalidateQueries({ queryKey: ["deliveries"] });
           qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+          // Reciprocal invalidation for orders
+          qc.invalidateQueries({ queryKey: ["orders"] });
         }
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") console.log("[Realtime] Monitorando entregas...");
-      });
+      .subscribe();
+
+    const ordersChannel = supabase
+      .channel(`admin-orders-${sessionId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          console.log("[Realtime] Mudança em orders:", payload.eventType);
+          qc.invalidateQueries({ queryKey: ["orders"] });
+          // Reciprocal invalidation for deliveries
+          qc.invalidateQueries({ queryKey: ["deliveries"] });
+        }
+      )
+      .subscribe();
 
     const driversChannel = supabase
       .channel(`admin-drivers-${sessionId}`)
@@ -152,6 +168,7 @@ export function useAdminRealtime() {
     return () => {
       console.log("[Realtime] Encerrando canais administrativos...");
       supabase.removeChannel(deliverablesChannel);
+      supabase.removeChannel(ordersChannel);
       supabase.removeChannel(driversChannel);
       supabase.removeChannel(notificationsChannel);
     };

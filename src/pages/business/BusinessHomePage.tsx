@@ -13,9 +13,9 @@ import { useQueryClient } from "@tanstack/react-query";
 type Delivery = {
   id: string;
   customer_name: string;
-  address: string;
+  dropoff_address: string;
   status: string;
-  value: number;
+  price: number;
   created_at: string;
 };
 
@@ -56,7 +56,7 @@ export default function BusinessOrdersPage() {
 
     supabase
       .from("deliveries")
-      .select("id, customer_name, address, status, value, created_at")
+      .select("id, customer_name, dropoff_address, status, price, created_at")
       .eq("company_id", companyId)
       .not("status", "in", '("delivered","cancelled")')
       .order("created_at", { ascending: false })
@@ -65,19 +65,15 @@ export default function BusinessOrdersPage() {
         setLoadingDeliveries(false);
       });
 
-    const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
-      ? crypto.randomUUID() 
-      : Math.random().toString(36).substring(2, 11);
-
     const channel = supabase
-      .channel(`deliveries-business-${companyId}-${uuid}`)
+      .channel(`deliveries-business-${companyId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` },
         () => {
           supabase
             .from("deliveries")
-            .select("id, customer_name, address, status, value, created_at")
+            .select("id, customer_name, dropoff_address, status, price, created_at")
             .eq("company_id", companyId)
             .not("status", "in", '("delivered","cancelled")')
             .order("created_at", { ascending: false })
@@ -109,7 +105,7 @@ export default function BusinessOrdersPage() {
       ) : (
         <div className="space-y-6 max-w-2xl mx-auto">
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: "Pendentes", value: pending, icon: Clock, color: "text-yellow-500", bg: "bg-yellow-500/10" },
               { label: "Em Rota", value: inRoute, icon: Truck, color: "text-primary", bg: "bg-primary/10" },
@@ -163,13 +159,13 @@ export default function BusinessOrdersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-semibold text-foreground truncate">{d.customer_name}</p>
-                        <span className="text-sm font-bold text-primary shrink-0">
-                          R$ {Number((d as any).value ?? 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
-                        <MapPin className="h-3 w-3 shrink-0" /> {(d as any).address}
-                      </p>
+                          <span className="text-sm font-bold text-primary shrink-0">
+                            R$ {Number(d.price || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                          <MapPin className="h-3 w-3 shrink-0" /> {d.dropoff_address}
+                        </p>
                         <span className={`text-[10px] font-semibold ${st.color} mt-1 block`}>
                           ● {st.label}
                         </span>
@@ -217,7 +213,7 @@ function NewDeliveryForm({
   const [geocoding, setGeocoding] = useState(false);
 
   // Region detection
-  const [regionInfo, setRegionInfo] = useState<{ id: string; name: string; price: number; color: string } | null>(null);
+  const [regionInfo, setRegionInfo] = useState<{ name: string; price: number; color: string } | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
@@ -277,10 +273,10 @@ function NewDeliveryForm({
       if (regionId) {
         const { data: region } = await supabase
           .from("regions")
-          .select("id, name, price, color")
+          .select("name, price, color")
           .eq("id", regionId)
           .single();
-        if (region) setRegionInfo({ id: region.id, name: region.name, price: Number(region.price), color: region.color });
+        if (region) setRegionInfo({ name: region.name, price: Number(region.price), color: region.color });
       } else {
         toast({ title: "Endereço fora das regiões cadastradas", description: "Preço será R$ 0,00" });
       }
@@ -328,23 +324,21 @@ function NewDeliveryForm({
     }
 
     setSubmitting(true);
-    // Cria address virtual caso precise persistir para histórico ou pegar IDs
-    // Mas simplificado, envia a Ordem pura com status 'ready' para dar bind na Trigger.
-    const { error } = await supabase.from("orders").insert({
+    const { error } = await supabase.from("deliveries").insert({
       company_id: companyId,
-      customer_id: customer.id !== "temp" ? customer.id : null, // Idealmente cadastra cliente novo
-      total: (regionInfo as any)?.price ?? 0,
-      delivery_fee: (regionInfo as any)?.price ?? 0,
-      status: "ready", // ATIVADOR DA SUA TRIGGER
-      region_id: (regionInfo as any)?.id ?? null,
+      customer_name: customer.name,
+      dropoff_address: address.trim(),
+      price: regionInfo?.price ?? 0,
+      pickup_latitude: coords?.lat ?? null,
+      pickup_longitude: coords?.lng ?? null,
+      notes: notes.trim() || null,
     });
 
     if (error) {
       toast({ title: "Erro ao criar pedido", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Pedido criado!", description: "Sua automação disparou a busca pelo entregador!" });
+      toast({ title: "Pedido criado!", description: "Aguardando entregador" });
       qc.invalidateQueries({ queryKey: ["deliveries"] });
-      qc.invalidateQueries({ queryKey: ["orders"] });
       onClose();
     }
     setSubmitting(false);
@@ -417,7 +411,7 @@ function NewDeliveryForm({
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">CPF</label>
                     <div className="relative">
