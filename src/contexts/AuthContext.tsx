@@ -188,7 +188,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
-      if (authListener && authListener.data && authListener.data.subscription) { authListener.data.if (authListener && authListener.data && authListener.data.subscription) { authListener.data.subscription.unsubscribe(); } }
+      if (authListener?.data?.subscription) {
+        authListener.data.subscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -257,4 +259,5 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
 
