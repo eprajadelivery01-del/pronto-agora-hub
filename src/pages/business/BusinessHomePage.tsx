@@ -41,17 +41,38 @@ export default function BusinessOrdersPage() {
   // Fetch company
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("companies")
-      .select("id")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => { if (data) setCompanyId(data.id); });
+    
+    const fetchCompany = async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data) {
+        setCompanyId(data.id);
+      } else if (user.id === "1044ade5-6510-4aa5-96e6-6c5fb3aaa8b3") {
+        // Fallback para Admin Supremo: pegar a primeira empresa ativa
+        console.log("[Lojista-Fallback] Admin sem empresa vinculada. Buscando primeira empresa...");
+        const { data: fallback } = await supabase
+          .from("companies")
+          .select("id")
+          .limit(1)
+          .maybeSingle();
+        
+        if (fallback) setCompanyId(fallback.id);
+      }
+    };
+
+    fetchCompany();
   }, [user]);
 
   // Real-time deliveries
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId) {
+      if (!user) setLoadingDeliveries(false);
+      return;
+    }
     setLoadingDeliveries(true);
 
     supabase
@@ -83,15 +104,17 @@ export default function BusinessOrdersPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [companyId]);
+  }, [companyId, user]);
 
   const statusLabel: Record<string, { label: string; color: string }> = {
     pending: { label: "Aguardando", color: "text-yellow-500" },
     broadcasted: { label: "Buscando entregador", color: "text-blue-400" },
     accepted: { label: "Entregador a caminho", color: "text-primary" },
     collecting: { label: "Coletando", color: "text-primary" },
+    in_transit: { label: "Em trânsito", color: "text-primary" },
     in_route: { label: "Em rota", color: "text-primary" },
     completed: { label: "Concluído", color: "text-green-500" },
+    delivered: { label: "Entregue", color: "text-green-500" },
     cancelled: { label: "Cancelado", color: "text-red-400" },
   };
 
