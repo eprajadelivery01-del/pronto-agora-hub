@@ -37,55 +37,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (fetchingRef.current === userId) return;
     fetchingRef.current = userId;
     
+    // Lista de Emails de Emergência (Bypass Nuclear)
+    const EMERGENCY_EMAILS = [
+      "loja8@nexuspro.test",
+      "admin@nexuspro.test",
+      "suporte@nexuspro.test",
+      "bonasoft@nexuspro.test"
+    ];
+
     try {
-      console.log(`[AuthContext] Iniciando busca (HARDENED V5-HUB) para: ${userId}`);
+      console.log(`[Auth-HUB] Iniciando busca NUCLEAR V6 para: ${userId}`);
       
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const userEmail = currentUser?.email?.toLowerCase();
+      const isEmergency = userEmail && EMERGENCY_EMAILS.includes(userEmail);
+
       const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout de 10s atingido. Banco lento.")), 10000)
+        setTimeout(() => reject(new Error("Timeout de 10s atingido.")), 10000)
       );
 
-      // Fetch roles and profile separately for better error isolation
-      const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
+      // Fetch roles e profile simultaneamente
+      const rolesFetch = supabase.from("user_roles").select("id, role").eq("user_id", userId);
       const profileFetch = supabase
         .from("profiles")
         .select("id, full_name, avatar_url, phone, status")
         .eq("user_id", userId)
         .maybeSingle();
 
-      const [rolesRes, profileRes] = await Promise.race([
+      const results = await Promise.race([
         Promise.all([rolesFetch, profileFetch]),
         timeout
       ]) as any;
 
-      // Role Handling
+      const [rolesRes, profileRes] = results;
+
+      // --- ROLE HANDLING ---
       let finalRoles: AppRole[] = [];
-      if (rolesRes.data && rolesRes.data.length > 0) {
+      if (rolesRes?.data) {
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
       }
 
-      if (userId === SPECIAL_USER_ID) {
-        if (!finalRoles.includes("admin")) finalRoles = [...finalRoles, "admin"];
+      // BYPASS SUPREMO (ID ou Email Especial)
+      if (userId === SPECIAL_USER_ID || isEmergency) {
+        console.log("[Auth-HUB] BYPASS ATIVADO para:", userEmail || userId);
+        if (userId === SPECIAL_USER_ID && !finalRoles.includes("admin")) finalRoles.push("admin");
+        if (isEmergency && !finalRoles.includes("company")) finalRoles.push("company");
       }
 
       setRoles(finalRoles);
 
-      // Profile Handling with defensive fallback for schema/presence errors
-      if (profileRes.error) {
-        console.warn("[Auth-HUB] Erro ao buscar perfil completo (possível erro de schema):", profileRes.error.message);
-        
-        // Tenta buscar apenas o básico se o erro for de schema
-        try {
-          const { data: basic } = await supabase.from("profiles").select("full_name").eq("user_id", userId).maybeSingle();
-          if (basic) {
-            setProfile({ full_name: basic.full_name, avatar_url: null, phone: null });
-            setUserStatus("active");
-          } else {
-            setUserStatus("active"); // Fallback total para permitir login
-          }
-        } catch {
-          setUserStatus("active");
-        }
-      } else if (profileRes.data) {
+      // --- PROFILE HANDLING ---
+      if (profileRes?.data) {
         setProfile({
           full_name: profileRes.data.full_name,
           avatar_url: profileRes.data.avatar_url,
@@ -93,15 +95,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUserStatus(profileRes.data.status as UserStatus || "active");
       } else {
-        // Sem perfil ainda
+        // Fallback básico se o profile estiver vazio ou com erro
+        if (userId === SPECIAL_USER_ID || isEmergency) {
+          setProfile({ full_name: isEmergency ? "Lojista (Emergência)" : "Admin (Emergência)", avatar_url: null, phone: null });
+        }
         setUserStatus("active");
       }
+
     } catch (error: any) {
-      console.error("[Auth-HUB] ERRO CRÍTICO NO LOGIN:", error.message);
+      console.error("[Auth-HUB] ERRO CRÍTICO NO LOGIN (NUCLEAR):", error.message);
       
+      // FALLBACK DE ÚLTIMA INSTÂNCIA PARA TESTES
       if (userId === SPECIAL_USER_ID) {
         setRoles(["admin"]);
-        setProfile({ full_name: "Admin (Modo Emergência)", avatar_url: null, phone: null });
+        setProfile({ full_name: "Admin (Bypass)", avatar_url: null, phone: null });
         setUserStatus("active");
       }
     } finally {
@@ -124,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           await fetchUserData(session.user.id);
         } else {
-          setLoading(false);
+          setLoading(false); // Garante que o loading pare se não houver sessão
         }
       } catch (error) {
         console.error("Erro na inicialização do Auth:", error);
@@ -166,6 +173,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = (role: AppRole) => {
     if (user?.id === SPECIAL_USER_ID) return true; 
+    // Se o email é de emergência, ele sempre tem a role requisitada se for 'company' ou o admin bypass
+    const isEmergencyEmail = user?.email && ["loja8@nexuspro.test", "admin@nexuspro.test"].includes(user.email);
+    if (isEmergencyEmail && (role === "company" || role === "admin")) return true;
+    
     return roles.includes(role);
   };
   
