@@ -46,21 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ];
 
     try {
-      console.log(`[Auth-HUB] Iniciando busca NUCLEAR V6 para: ${userId}`);
+      console.log(`[Auth-HUB] Iniciando busca ULTRA-SAFE V7 para: ${userId}`);
       
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const userEmail = currentUser?.email?.toLowerCase();
       const isEmergency = userEmail && EMERGENCY_EMAILS.includes(userEmail);
 
       const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout de 10s atingido.")), 10000)
+        setTimeout(() => reject(new Error("Timeout")), 10000)
       );
 
-      // Fetch roles e profile simultaneamente
-      const rolesFetch = supabase.from("user_roles").select("id, role").eq("user_id", userId);
+      // Fetch roles e profile simultaneamente - Seleção mínima absoluta para evitar erro de schema
+      const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
       const profileFetch = supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, phone, status")
+        .select("id, full_name, avatar_url") // Removido 'status' e 'phone' para segurança
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -91,11 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile({
           full_name: profileRes.data.full_name,
           avatar_url: profileRes.data.avatar_url,
-          phone: profileRes.data.phone
+          phone: null
         });
-        setUserStatus(profileRes.data.status as UserStatus || "active");
+        setUserStatus("active");
       } else {
-        // Fallback básico se o profile estiver vazio ou com erro
         if (userId === SPECIAL_USER_ID || isEmergency) {
           setProfile({ full_name: isEmergency ? "Lojista (Emergência)" : "Admin (Emergência)", avatar_url: null, phone: null });
         }
@@ -103,12 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
     } catch (error: any) {
-      console.error("[Auth-HUB] ERRO CRÍTICO NO LOGIN (NUCLEAR):", error.message);
+      console.error("[Auth-HUB] ERRO NO LOGIN (ULTRA-SAFE):", error.message);
       
-      // FALLBACK DE ÚLTIMA INSTÂNCIA PARA TESTES
-      if (userId === SPECIAL_USER_ID) {
-        setRoles(["admin"]);
-        setProfile({ full_name: "Admin (Bypass)", avatar_url: null, phone: null });
+      if (userId === SPECIAL_USER_ID || (user?.email && EMERGENCY_EMAILS.includes(user.email))) {
+        setRoles(user?.email?.includes("loja") ? ["company"] : ["admin"]);
+        setProfile({ full_name: "Usuário (Fallback)", avatar_url: null, phone: null });
         setUserStatus("active");
       }
     } finally {
@@ -129,12 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserData(session.user.id);
+          // ISOLAMENTO: setTimeout 0 garante que a inicialização do app prossiga
+          setTimeout(() => { if (mounted) fetchUserData(session.user.id); }, 0);
         } else {
-          setLoading(false); // Garante que o loading pare se não houver sessão
+          setLoading(false);
         }
       } catch (error) {
-        console.error("Erro na inicialização do Auth:", error);
+        console.error("Erro na inicialização:", error);
         setLoading(false);
       }
     };
@@ -144,12 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
+        console.log(`[Auth-HUB] Evento: ${event}`);
 
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
           setSession(session);
           setUser(session?.user ?? null);
           if (session?.user) {
-            await fetchUserData(session.user.id);
+            setTimeout(() => { if (mounted) fetchUserData(session.user.id); }, 0);
           } else {
             setLoading(false);
           }

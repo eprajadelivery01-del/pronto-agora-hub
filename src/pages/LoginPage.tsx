@@ -124,6 +124,21 @@ export default function LoginPage() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             <span>{loading ? "Entrando..." : "Entrar"}</span>
           </button>
+
+          {/* Botão de Emergência para Erros de Schema */}
+          <button
+            type="button"
+            onClick={async () => {
+              console.log("[LoginPage] Reset de Sessão solicitado.");
+              await supabase.auth.signOut();
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="w-full py-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest font-bold"
+          >
+            Problemas ao entrar? Limpar Sessão
+          </button>
         </form>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
