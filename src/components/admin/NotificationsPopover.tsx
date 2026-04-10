@@ -1,8 +1,9 @@
-import { Bell, Check, Trash2, X } from "lucide-react";
+import { Bell, Check, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface Notification {
   id: string;
@@ -13,33 +14,25 @@ interface Notification {
   type: "info" | "success" | "warning";
 }
 
+const STORAGE_KEY = "epj_notifications_cleared";
+
 export function NotificationsPopover() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "Novo Entregador",
-      message: "João Silva acabou de se cadastrar via link.",
-      time: "5 min atrás",
-      read: false,
-      type: "info"
-    },
-    {
-      id: "2",
-      title: "Alerta de Região",
-      message: "A região 'Centro' atingiu o limite de pedidos.",
-      time: "20 min atrás",
-      read: false,
-      type: "warning"
-    },
-    {
-      id: "3",
-      title: "Sistema Atualizado",
-      message: "As novas funções de Chat e Regiões foram ativadas.",
-      time: "1 hora atrás",
-      read: true,
-      type: "success"
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>(() => {
+    try {
+      const cleared = localStorage.getItem(STORAGE_KEY);
+      if (cleared === "true") return [];
+      const saved = localStorage.getItem("epj_notifications");
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  // Persist state
+  useEffect(() => {
+    try {
+      localStorage.setItem("epj_notifications", JSON.stringify(notifications));
+    } catch { /* ignore */ }
+  }, [notifications]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -49,6 +42,10 @@ export function NotificationsPopover() {
 
   const clearAll = () => {
     setNotifications([]);
+    try {
+      localStorage.setItem(STORAGE_KEY, "true");
+      localStorage.setItem("epj_notifications", "[]");
+    } catch { /* ignore */ }
   };
 
   return (
@@ -111,7 +108,9 @@ export function NotificationsPopover() {
           
           {notifications.length > 0 && (
             <div className="p-3 border-t border-border bg-muted/20 text-center">
-              <Button variant="link" className="text-xs h-auto p-0 font-bold">Ver todo o histórico</Button>
+              <Link to="/admin/logs">
+                <Button variant="link" className="text-xs h-auto p-0 font-bold">Ver todo o histórico</Button>
+              </Link>
             </div>
           )}
         </div>

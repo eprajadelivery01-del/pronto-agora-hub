@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { UnifiedMap } from "./UnifiedMap";
-import { Maximize2, MapPin, Search, Navigation } from "lucide-react";
+import { MapPin, Search, Navigation, Maximize2 } from "lucide-react";
 import { useRegions } from "@/services/regions";
 import { useCity } from "@/contexts/CityContext";
+import { useNavigate } from "react-router-dom";
+import { UnifiedMap } from "./UnifiedMap";
 
 interface HeroMapSectionProps {
   title?: string;
@@ -15,13 +15,11 @@ export function HeroMapSection({
 }: HeroMapSectionProps) {
   const { selectedCity } = useCity();
   const { data: regions } = useRegions(selectedCity || undefined);
-  const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <section 
-      className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] overflow-hidden bg-background border-b border-border transition-all"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className="relative w-full h-[350px] md:h-[450px] lg:h-[500px] overflow-hidden bg-background border-b border-border transition-all"
     >
       {/* Background Interactive Map */}
       <div className="absolute inset-0 z-0 opacity-40 dark:opacity-30 grayscale-[0.2] contrast-[1.1]">
@@ -33,7 +31,7 @@ export function HeroMapSection({
       <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-r from-background via-background/20 to-transparent" />
 
       {/* Content Overlay */}
-      <div className="relative z-20 h-full max-w-7xl mx-auto px-6 flex flex-col justify-center items-start">
+      <div className="relative z-20 h-full w-full px-6 flex flex-col justify-center items-start">
         <div className="max-w-2xl animate-in fade-in slide-in-from-left-8 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6 backdrop-blur-md">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -49,12 +47,18 @@ export function HeroMapSection({
           </p>
 
           <div className="flex flex-wrap gap-4 pointer-events-auto">
-            <button className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group">
+            <button 
+              onClick={() => navigate("/admin/map")}
+              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group"
+            >
               <Search className="h-5 w-5 group-hover:rotate-12 transition-transform" />
               Explorar Estabelecimentos
             </button>
             
-            <button className="px-8 py-4 rounded-2xl bg-card border border-border text-foreground font-bold shadow-lg hover:bg-muted/50 transition-all flex items-center gap-3">
+            <button 
+              onClick={() => navigate("/admin/map")}
+              className="px-8 py-4 rounded-2xl bg-card border border-border text-foreground font-bold shadow-lg hover:bg-muted/50 transition-all flex items-center gap-3"
+            >
               <Navigation className="h-5 w-5" />
               Ver Raio de Entrega
             </button>
@@ -65,6 +69,7 @@ export function HeroMapSection({
       {/* Floating Controls */}
       <div className="absolute top-8 right-8 z-30 flex flex-col gap-3">
         <button 
+          onClick={() => navigate("/admin/map")}
           className="p-4 rounded-2xl bg-background/80 backdrop-blur-xl border border-border shadow-2xl hover:scale-110 active:scale-95 transition-all group"
           title="Abrir Mapa em Tela Cheia"
         >

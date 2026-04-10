@@ -278,7 +278,7 @@ function InviteDialog() {
           <Plus className="h-4 w-4" /> Convidar Usuário
         </button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Convidar Usuário</DialogTitle>
         </DialogHeader>

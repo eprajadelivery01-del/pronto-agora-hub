@@ -106,12 +106,10 @@ export function useAdminRealtime() {
   const qc = useQueryClient();
 
   useEffect(() => {
-    console.log("[Realtime-HUB] Iniciando canais administrativos...");
+    console.log("[Realtime] Iniciando canais administrativos...");
 
     // Unique ID for this session to identify channels in Supabase logs
-    const sessionId = typeof crypto !== 'undefined' && crypto.randomUUID 
-      ? crypto.randomUUID().substring(0, 8) 
-      : Math.random().toString(36).substring(2, 10);
+    const sessionId = Math.random().toString(36).substring(2, 8);
 
     const deliverablesChannel = supabase
       .channel(`admin-deliveries-${sessionId}`)
@@ -121,9 +119,8 @@ export function useAdminRealtime() {
         (payload) => {
           console.log("[Realtime] Mudança em deliveries:", payload.eventType);
           qc.invalidateQueries({ queryKey: ["deliveries"] });
-          qc.invalidateQueries({ queryKey: ["delivery-stats"] });
-          // Reciprocal invalidation for orders
           qc.invalidateQueries({ queryKey: ["orders"] });
+          qc.invalidateQueries({ queryKey: ["delivery-stats"] });
         }
       )
       .subscribe();
@@ -133,10 +130,9 @@ export function useAdminRealtime() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          console.log("[Realtime] Mudança em orders:", payload.eventType);
+        () => {
+          console.log("[Realtime] Mudança em orders detectada.");
           qc.invalidateQueries({ queryKey: ["orders"] });
-          // Reciprocal invalidation for deliveries
           qc.invalidateQueries({ queryKey: ["deliveries"] });
         }
       )

@@ -7,10 +7,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserPlus, Copy, Check, Link as LinkIcon } from "lucide-react";
 
-export function GenerateInviteDialog() {
+interface GenerateInviteDialogProps {
+  fixedRole?: "driver" | "company";
+  triggerLabel?: string;
+}
+
+export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<"driver" | "company">("driver");
+  const [role, setRole] = useState<"driver" | "company">(fixedRole || "driver");
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -19,18 +24,17 @@ export function GenerateInviteDialog() {
     try {
       const token = crypto.randomUUID();
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
+      expiresAt.setDate(expiresAt.getDate() + 7);
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("invitations").insert({
+      const { error } = await (supabase as any).from("invitations").insert({
         token,
-        role,
-        email: `pending_${token.slice(0, 8)}@nexus.pro`, // Placeholder as email is required in some schemas
+        role: fixedRole || role,
+        email: `pending_${token.slice(0, 8)}@nexus.pro`,
         invited_by: user.id,
         expires_at: expiresAt.toISOString(),
-        status: "pending"
       });
 
       if (error) throw error;
@@ -60,30 +64,39 @@ export function GenerateInviteDialog() {
     setCopied(false);
   };
 
+  const roleLabel = (fixedRole || role) === "driver" ? "Entregador" : "Empresa (Lojista)";
+
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/5">
-          <UserPlus className="h-4 w-4" />Convidar Parceiro
+          <UserPlus className="h-4 w-4" />{triggerLabel || "Gerar Link de Convite"}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl w-[95vw]">
         <DialogHeader>
           <DialogTitle>Gerar Link de Convite</DialogTitle>
         </DialogHeader>
 
         {!inviteLink ? (
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Tipo de parceiro</Label>
-              <Select value={role} onValueChange={(v: any) => setRole(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="driver">🏍️ Entregador</SelectItem>
-                  <SelectItem value="company">🏪 Empresa (Lojista)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!fixedRole && (
+              <div className="space-y-2">
+                <Label>Tipo de parceiro</Label>
+                <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="driver">🏍️ Entregador</SelectItem>
+                    <SelectItem value="company">🏪 Empresa (Lojista)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {fixedRole && (
+              <div className="p-3 bg-muted rounded-xl text-sm text-foreground">
+                Convite para: <strong>{roleLabel}</strong>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               O link gerado será válido por 7 dias e permitirá que o parceiro realize o próprio cadastro no sistema.
             </p>
@@ -92,16 +105,20 @@ export function GenerateInviteDialog() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-muted rounded-xl border border-border break-all text-sm font-mono flex items-center justify-between gap-3">
-              <span className="truncate flex-1">{inviteLink}</span>
-              <Button size="icon" variant="ghost" onClick={copyToClipboard} className="shrink-0">
-                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
-              </Button>
+          <div className="space-y-5 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Link de convite gerado com sucesso:</Label>
+              <div className="p-4 bg-muted rounded-xl border border-border">
+                <p className="text-sm font-mono break-all select-all text-foreground mb-3">{inviteLink}</p>
+                <Button variant="outline" size="sm" onClick={copyToClipboard} className="w-full gap-2">
+                  {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                  {copied ? "Link copiado!" : "Copiar link"}
+                </Button>
+              </div>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={reset}>Gerar outro</Button>
-              <Button className="flex-1 gap-2" onClick={() => setOpen(false)}>Concluído</Button>
+              <Button className="flex-1" onClick={() => setOpen(false)}>Concluído</Button>
             </div>
           </div>
         )}

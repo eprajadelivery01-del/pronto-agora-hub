@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Truck, Map, Users, Building2, Bike,
+  LayoutDashboard, Truck, Map, Building2, Bike, ShoppingBag,
   MapPin, DollarSign, AlertTriangle, Settings, Menu, X, LogOut, User, MessageSquare, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,9 +13,9 @@ const navItems = [
   { label: "Corridas (OS)", icon: Truck, href: "/admin/deliveries" },
   { label: "Chat", icon: MessageSquare, href: "/admin/chat" },
   { label: "Mapa", icon: Map, href: "/admin/map" },
-  { label: "Usuários", icon: Users, href: "/admin/users" },
   { label: "Empresas", icon: Building2, href: "/admin/companies" },
   { label: "Entregadores", icon: Bike, href: "/admin/drivers" },
+  { label: "Clientes", icon: ShoppingBag, href: "/admin/customers" },
   { label: "Regiões", icon: MapPin, href: "/admin/regions" },
   { label: "Financeiro", icon: DollarSign, href: "/admin/reports" },
   { label: "Ocorrências", icon: AlertTriangle, href: "/admin/occurrences" },
@@ -84,7 +84,7 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
           <button 
             onClick={toggleSidebar}
             className={cn(
-              "hidden lg:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-primary border-2 border-background items-center justify-center text-primary-foreground transform transition-transform duration-300 hover:scale-110 z-10",
+              "hidden lg:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-primary border-2 border-background items-center justify-center text-primary-foreground transform transition-transform duration-300 hover:scale-110 z-50",
               collapsed && "rotate-180"
             )}
           >

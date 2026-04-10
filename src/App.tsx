@@ -15,6 +15,7 @@ import DashboardPage from "./pages/DashboardPage";
 import DeliveriesPage from "./pages/DeliveriesPage";
 import MapPage from "./pages/MapPage";
 import UsersPage from "./pages/UsersPage";
+import CustomersPage from "./pages/CustomersPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import DriversPage from "./pages/DriversPage";
 import RegionsPage from "./pages/RegionsPage";
@@ -22,17 +23,19 @@ import OccurrencesPage from "./pages/OccurrencesPage";
 import ReviewsPage from "./pages/ReviewsPage";
 import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
+import SystemLogsPage from "./pages/SystemLogsPage";
+import PendingApprovalPage from "./pages/PendingApprovalPage";
 import NotFound from "./pages/NotFound";
-import DriverHomePage from "./pages/driver/DriverHomePage";
+import BusinessLoginPage from "./pages/BusinessLoginPage";
 import BusinessHomePage from "./pages/business/BusinessHomePage";
-import BusinessMapPage from "./pages/business/BusinessMapPage";
-import BusinessCustomersPage from "./pages/business/BusinessCustomersPage";
-import BusinessFinancePage from "./pages/business/BusinessFinancePage";
-import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
+import BusinessProductsPage from "./pages/business/BusinessProductsPage";
 import BusinessProfilePage from "./pages/business/BusinessProfilePage";
 
 import ChatPage from "./pages/ChatPage";
 
+
+import ScrollToTop from "@/components/shared/ScrollToTop";
+import { PageTransition } from "@/components/shared/PageTransition";
 
 const queryClient = new QueryClient();
 
@@ -43,36 +46,36 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <CityProvider>
             <AuthProvider>
               <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/invite/:token" element={<InvitePage />} />
-                <Route path="/" element={<Navigate to="/business" replace />} />
+                <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
+                <Route path="/login/business" element={<PageTransition><BusinessLoginPage /></PageTransition>} />
+                <Route path="/invite/:token" element={<PageTransition><InvitePage /></PageTransition>} />
+                <Route path="/pending-approval" element={<PageTransition><PendingApprovalPage /></PageTransition>} />
+                <Route path="/business" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHomePage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/products" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProductsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/profile" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProfilePage /></ProtectedRoute></PageTransition>} />
+                <Route path="/" element={<Navigate to="/admin" replace />} />
 
-                <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><DashboardPage /></ProtectedRoute>} />
-                <Route path="/admin/deliveries" element={<ProtectedRoute requiredRole="admin"><DeliveriesPage /></ProtectedRoute>} />
-                <Route path="/admin/chat" element={<ProtectedRoute requiredRole="admin"><ChatPage /></ProtectedRoute>} />
-                <Route path="/admin/map" element={<ProtectedRoute requiredRole="admin"><MapPage /></ProtectedRoute>} />
-                <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute>} />
-                <Route path="/admin/companies" element={<ProtectedRoute requiredRole="admin"><CompaniesPage /></ProtectedRoute>} />
-                <Route path="/admin/drivers" element={<ProtectedRoute requiredRole="admin"><DriversPage /></ProtectedRoute>} />
-                <Route path="/admin/regions" element={<ProtectedRoute requiredRole="admin"><RegionsPage /></ProtectedRoute>} />
-                <Route path="/admin/occurrences" element={<ProtectedRoute requiredRole="admin"><OccurrencesPage /></ProtectedRoute>} />
-                <Route path="/admin/reviews" element={<ProtectedRoute requiredRole="admin"><ReviewsPage /></ProtectedRoute>} />
-                <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><ReportsPage /></ProtectedRoute>} />
-                <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><SettingsPage /></ProtectedRoute>} />
-                <Route path="/admin/profile" element={<ProtectedRoute requiredRole="admin"><ProfilePage /></ProtectedRoute>} />
+                <Route path="/admin" element={<PageTransition><ProtectedRoute requiredRole="admin"><DashboardPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/deliveries" element={<PageTransition><ProtectedRoute requiredRole="admin"><DeliveriesPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/chat" element={<PageTransition><ProtectedRoute requiredRole="admin"><ChatPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/map" element={<PageTransition><ProtectedRoute requiredRole="admin"><MapPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/users" element={<PageTransition><ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/customers" element={<PageTransition><ProtectedRoute requiredRole="admin"><CustomersPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/companies" element={<PageTransition><ProtectedRoute requiredRole="admin"><CompaniesPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/drivers" element={<PageTransition><ProtectedRoute requiredRole="admin"><DriversPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/regions" element={<PageTransition><ProtectedRoute requiredRole="admin"><RegionsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/occurrences" element={<PageTransition><ProtectedRoute requiredRole="admin"><OccurrencesPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/reviews" element={<PageTransition><ProtectedRoute requiredRole="admin"><ReviewsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/reports" element={<PageTransition><ProtectedRoute requiredRole="admin"><ReportsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/settings" element={<PageTransition><ProtectedRoute requiredRole="admin"><SettingsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/logs" element={<PageTransition><ProtectedRoute requiredRole="admin"><SystemLogsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/profile" element={<PageTransition><ProtectedRoute requiredRole="admin"><ProfilePage /></ProtectedRoute></PageTransition>} />
 
-                <Route path="/driver" element={<ProtectedRoute requiredRole="driver"><DriverHomePage /></ProtectedRoute>} />
-                <Route path="/business" element={<ProtectedRoute requiredRole="company"><BusinessHomePage /></ProtectedRoute>} />
-                <Route path="/business/map" element={<ProtectedRoute requiredRole="company"><BusinessMapPage /></ProtectedRoute>} />
-                <Route path="/business/customers" element={<ProtectedRoute requiredRole="company"><BusinessCustomersPage /></ProtectedRoute>} />
-                <Route path="/business/finance" element={<ProtectedRoute requiredRole="company"><BusinessFinancePage /></ProtectedRoute>} />
-                <Route path="/business/history" element={<ProtectedRoute requiredRole="company"><BusinessHistoryPage /></ProtectedRoute>} />
-                <Route path="/business/profile" element={<ProtectedRoute requiredRole="company"><BusinessProfilePage /></ProtectedRoute>} />
-
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
               </Routes>
             </AuthProvider>
           </CityProvider>

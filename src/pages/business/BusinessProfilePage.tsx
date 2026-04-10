@@ -1,212 +1,267 @@
 import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Building2, Phone, MapPin, User, Mail, Edit2, Save, Loader2, X } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-type Company = {
-  id: string;
-  name: string;
-  phone: string | null;
-  address: string | null;
-  logo_url: string | null;
-};
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  Store, Camera, ImagePlus, Loader2, Save, User, MapPin, Phone
+} from "lucide-react";
 
 export default function BusinessProfilePage() {
-  const { user, profile, signOut } = useAuth();
-  const { toast } = useToast();
-
-  const [company, setCompany] = useState<Company | null>(null);
-  const [loadingCompany, setLoadingCompany] = useState(true);
-  const [editingCompany, setEditingCompany] = useState(false);
-
-  // Form
-  const [compName, setCompName] = useState("");
-  const [compPhone, setCompPhone] = useState("");
-  const [compAddress, setCompAddress] = useState("");
+  const { user, profile } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Company data
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
+
   useEffect(() => {
-    if (!user) return;
-    setLoadingCompany(true);
-    supabase
-      .from("companies")
-      .select("id, name, phone, address, logo_url")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setCompany(data as Company);
-          setCompName(data.name);
-          setCompPhone(data.phone ?? "");
-          setCompAddress(data.address ?? "");
-        }
-        setLoadingCompany(false);
-      });
+    fetchCompanyData();
   }, [user]);
+
+  const fetchCompanyData = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (company) {
+        setCompanyId(company.id);
+        setStoreName(company.name || "");
+        setPhone(company.phone || "");
+        setAddress(company.address || "");
+        setLogoUrl(company.logo_url || "");
+        // cover_url might not exist in schema yet, store in logo_url as JSON or separate
+        // For now, we'll use a convention: if logo_url is JSON, parse it
+        try {
+          const parsed = JSON.parse(company.logo_url || "");
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            setLogoUrl(parsed.logo || "");
+            setCoverUrl(parsed.cover || "");
+          }
+        } catch {
+          // logo_url is a plain string
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!company) return;
+    if (!companyId) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("companies")
-      .update({ name: compName.trim(), phone: compPhone.trim() || null, address: compAddress.trim() || null })
-      .eq("id", company.id);
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Perfil atualizado!" });
-      setCompany((prev) => prev ? { ...prev, name: compName, phone: compPhone, address: compAddress } : prev);
-      setEditingCompany(false);
+
+    try {
+      // Package logo + cover as JSON so both are stored
+      const logoPayload = JSON.stringify({ logo: logoUrl, cover: coverUrl });
+
+      const { error } = await (supabase as any)
+        .from("companies")
+        .update({
+          name: storeName,
+          phone,
+          address,
+          logo_url: logoPayload,
+        })
+        .eq("id", companyId);
+
+      if (error) throw error;
+      toast.success("Identidade visual atualizada com sucesso!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
+  if (loading) {
+    return (
+      <BusinessLayout title="Perfil da Loja">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </BusinessLayout>
+    );
+  }
+
   return (
-    <BusinessLayout title="Perfil">
-      <div className="max-w-xl mx-auto space-y-5">
-        {/* Company card */}
-        <div className="bg-card rounded-2xl p-5 shadow-card space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" /> Estabelecimento
-            </p>
-            {!editingCompany && company && (
-              <button
-                onClick={() => setEditingCompany(true)}
-                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-              >
-                <Edit2 className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-
-          {loadingCompany ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => <div key={i} className="animate-pulse bg-muted rounded-lg h-10" />)}
-            </div>
-          ) : !company ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Empresa não encontrada</p>
-          ) : editingCompany ? (
-            <form onSubmit={handleSave} className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome do estabelecimento</label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    value={compName}
-                    onChange={(e) => setCompName(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Telefone</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    value={compPhone}
-                    onChange={(e) => setCompPhone(e.target.value)}
-                    placeholder="(00) 00000-0000"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Endereço</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    value={compAddress}
-                    onChange={(e) => setCompAddress(e.target.value)}
-                    placeholder="Rua, número, bairro..."
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingCompany(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2"
-                >
-                  <X className="h-4 w-4" /> Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar
-                </button>
-              </div>
-            </form>
+    <BusinessLayout title="Perfil & Identidade Visual">
+      <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Cover Photo Preview */}
+        <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-border bg-muted aspect-[3/1]">
+          {coverUrl ? (
+            <img src={coverUrl} alt="Capa da Loja" className="w-full h-full object-cover" />
           ) : (
-            <div className="space-y-3">
-              {/* Company avatar */}
-              <div className="flex items-center gap-4 pb-3 border-b border-border">
-                <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center text-primary-foreground text-xl font-bold shadow-glow">
-                  {company.name[0].toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-base font-bold text-foreground">{company.name}</p>
-                  <p className="text-xs text-muted-foreground">Estabelecimento</p>
-                </div>
-              </div>
-
-              {[
-                { icon: Phone, label: "Telefone", value: company.phone || "Não informado" },
-                { icon: MapPin, label: "Endereço", value: company.address || "Não informado" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <item.icon className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                    <p className="text-sm text-foreground font-medium">{item.value}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/40">
+              <Camera className="h-12 w-12 mb-2" />
+              <span className="text-sm font-bold">Imagem de Capa</span>
             </div>
           )}
-        </div>
 
-        {/* User info card */}
-        <div className="bg-card rounded-2xl p-5 shadow-card space-y-3">
-          <p className="text-sm font-bold text-foreground flex items-center gap-2">
-            <User className="h-4 w-4 text-primary" /> Minha Conta
-          </p>
-          <div className="space-y-3">
-            {[
-              { icon: User, label: "Nome", value: profile?.full_name || "—" },
-              { icon: Mail, label: "E-mail", value: user?.email || "—" },
-              { icon: Phone, label: "Telefone", value: profile?.phone || "Não informado" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                  <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                  <p className="text-sm text-foreground font-medium">{item.value}</p>
-                </div>
+          {/* Store Logo Overlay */}
+          <div className="absolute -bottom-10 left-8 w-24 h-24 rounded-3xl border-4 border-card bg-card shadow-xl overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <Store className="h-8 w-8 text-muted-foreground/40" />
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Sign out */}
-        <button
-          onClick={signOut}
-          className="w-full py-3 rounded-2xl border-2 border-red-500/30 text-red-500 text-sm font-semibold hover:bg-red-500/5 transition-colors"
-        >
-          Sair da Conta
-        </button>
+        {/* Spacer for overlapping logo */}
+        <div className="h-8" />
+
+        {/* Form */}
+        <form onSubmit={handleSave} className="bg-card border border-border rounded-[2.5rem] p-8 shadow-card space-y-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+              <Store className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <h2 className="text-2xl font-black text-foreground">Identidade da Loja</h2>
+          </div>
+
+          {/* Store Name */}
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+              Nome da Loja no Marketplace *
+            </label>
+            <div className="relative">
+              <Store className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="Nome visível para os clientes"
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+              Telefone / WhatsApp
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(65) 99999-9999"
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-base"
+              />
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+              Endereço da Loja
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Rua, número, bairro, cidade"
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-base"
+              />
+            </div>
+          </div>
+
+          {/* Visual Identity Images */}
+          <div className="border-t border-border pt-8 space-y-6">
+            <h3 className="text-lg font-black text-foreground flex items-center gap-2">
+              <Camera className="h-5 w-5 text-primary" />
+              Imagens da Loja
+            </h3>
+
+            {/* Logo URL */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+                Foto de Perfil / Logo da Loja
+              </label>
+              <div className="flex gap-4 items-center">
+                <div className="w-20 h-20 rounded-2xl border border-border overflow-hidden bg-muted shrink-0">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImagePlus className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                  )}
+                </div>
+                <input
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="Cole a URL do logo/foto de perfil aqui..."
+                  className="flex-1 px-4 py-3.5 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Cover URL */}
+            <div>
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+                Imagem de Capa (Banner)
+              </label>
+              <div className="flex gap-4 items-start">
+                <div className="w-28 h-16 rounded-xl border border-border overflow-hidden bg-muted shrink-0">
+                  {coverUrl ? (
+                    <img src={coverUrl} alt="Capa" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Camera className="h-5 w-5 text-muted-foreground/40" />
+                    </div>
+                  )}
+                </div>
+                <input
+                  value={coverUrl}
+                  onChange={(e) => setCoverUrl(e.target.value)}
+                  placeholder="Cole a URL do banner/capa aqui..."
+                  className="flex-1 px-4 py-3.5 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-sm"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Recomendação: 1200×400 pixels. Essa imagem será exibida no topo da sua página no marketplace.</p>
+            </div>
+          </div>
+
+          {/* Save */}
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={saving || !storeName}
+              className="w-full py-5 rounded-2xl gradient-primary text-primary-foreground text-lg font-black shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-95 transition-all"
+            >
+              {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
+              {saving ? "Salvando..." : "Salvar Identidade Visual"}
+            </button>
+          </div>
+        </form>
+
+        {/* Info card */}
+        <div className="bg-primary/5 border border-primary/10 rounded-2xl p-5 flex items-start gap-4">
+          <User className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-foreground">Dono da conta</p>
+            <p className="text-sm text-muted-foreground">{profile?.full_name || "—"} • {user?.email || "—"}</p>
+          </div>
+        </div>
       </div>
     </BusinessLayout>
   );

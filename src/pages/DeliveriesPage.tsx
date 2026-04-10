@@ -432,7 +432,7 @@ export default function DeliveriesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DetailField label="Cliente" value={detailDelivery.customer_name} />
                 <DetailField label="Empresa" value={(detailDelivery as any).companies?.name || "—"} />
                 <DetailField label="Valor" value={`R$ ${Number(detailDelivery.price ?? 0).toFixed(2)}`} />
@@ -445,7 +445,7 @@ export default function DeliveriesPage() {
                 <DetailField label="Observações" value={detailDelivery.notes} />
               )}
 
-              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
                 {detailDelivery.accepted_at && <span>Aceita: {format(new Date(detailDelivery.accepted_at), "dd/MM HH:mm")}</span>}
                 {detailDelivery.collected_at && <span>Coletada: {format(new Date(detailDelivery.collected_at), "dd/MM HH:mm")}</span>}
                 {detailDelivery.delivered_at && <span>Finalizada: {format(new Date(detailDelivery.delivered_at), "dd/MM HH:mm")}</span>}

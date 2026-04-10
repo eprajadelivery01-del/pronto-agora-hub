@@ -20,7 +20,7 @@ function useOccurrences() {
   return useQuery({
     queryKey: ["occurrences"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("delivery_occurrences")
         .select("*, delivery_drivers!delivery_occurrences_driver_id_fkey(id, profiles:user_id(full_name))")
         .order("created_at", { ascending: false });
@@ -34,7 +34,7 @@ function useUpdateOccurrenceStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("delivery_occurrences")
         .update({ resolved: status === "resolved", resolved_at: status === "resolved" ? new Date().toISOString() : null } as any)
         .eq("id", id);
@@ -48,7 +48,7 @@ function useCreateOccurrence() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (occ: { type: string; description: string; driver_id: string; delivery_id?: string }) => {
-      const { error } = await supabase.from("delivery_occurrences").insert([{
+      const { error } = await (supabase as any).from("delivery_occurrences").insert([{
         type: occ.type as any,
         description: occ.description,
         driver_id: occ.driver_id,
@@ -164,7 +164,10 @@ export default function OccurrencesPage() {
 
       {/* Create occurrence dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent 
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="max-w-md"
+        >
           <DialogHeader>
             <DialogTitle>Registrar Ocorrência</DialogTitle>
           </DialogHeader>

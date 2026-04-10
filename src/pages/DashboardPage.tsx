@@ -19,8 +19,8 @@ export default function DashboardPage() {
   const { data: stats } = useDeliveryStats();
   const { data: onlineDrivers } = useOnlineDrivers();
   const { data: companies } = useCompanies();
-  const { data: inTransitData } = useDeliveries({ status: "in_transit" });
-  const { data: deliveredData } = useDeliveries({ status: "delivered" });
+  const { data: inTransitData } = useDeliveries({ status: "in_route" });
+  const { data: deliveredData } = useDeliveries({ status: "completed" });
 
   const { selectedCity, setCity } = useCity();
   const { data: regions } = useRegions(selectedCity || undefined);
@@ -63,7 +63,7 @@ export default function DashboardPage() {
         title="Central de Comando Lojista" 
         subtitle="Gestão da sua loja e entregas em tempo real." 
       />
-      <div className="flex gap-4 p-4 md:p-6 h-[calc(100vh-400px)]">
+      <div className="flex flex-col xl:flex-row gap-8 p-4 md:p-6 w-full min-h-0">
         <div className="hidden xl:block w-72 flex-shrink-0">
           <MotoboysSidebar />
         </div>
@@ -71,7 +71,7 @@ export default function DashboardPage() {
         <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* City selector moved to Hero or shared context */}
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard icon={<Package className="h-5 w-5" />} label="Corridas Hoje" value={stats?.today ?? 0} iconBg="bg-warning/10" iconColor="text-warning" />
             <StatCard icon={<Clock className="h-5 w-5" />} label="Em Trânsito" value={inTransitCount} iconBg="bg-primary/10" iconColor="text-primary" pulse />
             <StatCard icon={<Bike className="h-5 w-5" />} label="Motoboys Online" value={onlineDrivers?.length ?? 0} iconBg="bg-success/10" iconColor="text-success" pulse />

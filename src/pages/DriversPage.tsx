@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { EditDriverDialog } from "@/components/admin/EditDriverDialog";
+import { GenerateInviteDialog } from "@/components/admin/GenerateInviteDialog";
 
 export default function DriversPage() {
   const { data: drivers, isLoading } = useDrivers();
@@ -53,19 +54,25 @@ export default function DriversPage() {
     <AdminLayout title="Entregadores" subtitle="Gestão de motoboys e frota">
       <div className="flex items-center justify-between mb-6">
         <div />
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <div className="flex items-center gap-2">
+          <GenerateInviteDialog fixedRole="driver" triggerLabel="Convidar Entregador" />
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
               <Plus className="h-4 w-4" /> Cadastrar Entregador
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent 
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+          >
             <DialogHeader>
               <DialogTitle>Cadastrar Entregador</DialogTitle>
             </DialogHeader>
             <CreateDriverForm onSuccess={() => setCreateOpen(false)} />
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading ? (

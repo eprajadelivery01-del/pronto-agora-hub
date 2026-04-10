@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   ShoppingBag,
@@ -8,30 +8,20 @@ import {
   ClipboardList,
   User,
   LogOut,
-  Zap,
   Menu,
-  X,
-  Building2,
-  Bike,
-  AlertTriangle,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllRealtime } from "@/services/realtime";
-import { useState } from "react";
-import { APP_TYPE, APP_PROJECT_ID, APP_COLOR } from "@/constants/app-config";
 
 const tabs = [
   { label: "Pedidos", icon: ShoppingBag, href: "/business" },
-  { label: "Cardápio", icon: Zap, href: "/business/products" },
+  { label: "Produtos", icon: Package, href: "/business/products" },
   { label: "Mapa", icon: Map, href: "/business/map" },
-
   { label: "Clientes", icon: Users, href: "/business/customers" },
-  { label: "Lojas", icon: Building2, href: "/business/companies" },
-  { label: "Equipe", icon: Bike, href: "/business/drivers" },
   { label: "Financeiro", icon: DollarSign, href: "/business/finance" },
   { label: "Histórico", icon: ClipboardList, href: "/business/history" },
-  { label: "Ocorrências", icon: AlertTriangle, href: "/business/occurrences" },
   { label: "Perfil", icon: User, href: "/business/profile" },
 ];
 
@@ -54,7 +44,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row font-sans">
       {/* Sidebar overlay (mobile) */}
       {sidebarOpen && (
         <div
@@ -74,12 +64,12 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         {/* Brand */}
         <div className="px-5 py-5 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-md p-1">
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-lg p-1.5 border border-border">
               <img src="/logo.png" alt="É Pra Já" className="w-full h-full object-contain" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground leading-none mb-0.5 font-bold uppercase tracking-widest">É Pra Já</p>
-              <p className="text-sm font-semibold text-foreground leading-none truncate max-w-[130px] mt-0.5">
+            <div className="min-w-0">
+              <p className="text-[10px] text-primary leading-none mb-1 font-black uppercase tracking-[0.2em]">É Pra Já</p>
+              <p className="text-sm font-bold text-foreground leading-none truncate mt-0.5">
                 {profile?.full_name || "Lojista"}
               </p>
             </div>
@@ -87,7 +77,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto custom-scrollbar">
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
@@ -96,13 +86,13 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                 to={tab.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                  "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200",
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >
-                <tab.icon className="h-4.5 w-4.5 shrink-0" />
+                <tab.icon className={cn("h-5 w-5 shrink-0", active ? "text-primary-foreground" : "text-muted-foreground")} />
                 <span>{tab.label}</span>
               </Link>
             );
@@ -110,75 +100,70 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </nav>
 
         {/* Sign out */}
-        <div className="p-3 border-t border-border">
+        <div className="p-4 border-t border-border">
           <button
             onClick={signOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all duration-200"
           >
-            <LogOut className="h-4.5 w-4.5 shrink-0" />
+            <LogOut className="h-5 w-5 shrink-0" />
             <span>Sair</span>
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-4">
+      <div className="flex-1 flex flex-col min-w-0 bg-muted/20">
+        {/* Header (Desktop: title and toggle, Mobile: menu icon) */}
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center gap-4">
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+            className="lg:hidden p-2.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             onClick={() => setSidebarOpen(true)}
           >
-            <Menu className="h-5 w-5 text-muted-foreground" />
+            <Menu className="h-6 w-6 text-foreground" />
           </button>
-          <h1 className="text-base font-display font-bold text-foreground flex-1 truncate">
-            {title || "Painel Lojista"}
-          </h1>
+          
+          <div className="flex-1">
+            <h1 className="text-xl font-display font-black text-foreground tracking-tight">
+              {title || "Painel Lojista"}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                <span className="text-xs font-black text-primary uppercase">
+                   {profile?.full_name?.charAt(0) || "L"}
+                </span>
+             </div>
+          </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 pb-24 lg:pb-6 overflow-auto flex flex-col">
-          <div className="flex-1">
+        <main className="flex-1 p-6 pb-24 lg:pb-8 overflow-auto">
+          <div className="max-w-7xl mx-auto h-full">
             {children}
-          </div>
-          
-          {/* Global Branding Footer */}
-          <div className="w-full py-12 flex justify-center opacity-10 pointer-events-none select-none mt-auto">
-            <p className="text-[10px] font-black tracking-[0.4em] text-muted-foreground uppercase">
-              BONASOFT
-            </p>
           </div>
         </main>
       </div>
 
-      {/* Bottom nav (mobile only) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-card border-t border-border flex items-center justify-around py-1 px-2">
-        {tabs.map((tab) => {
+      {/* Mobile Bar Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-background/90 backdrop-blur-lg border-t border-border flex items-center justify-around py-3 px-4 safe-area-bottom shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+        {tabs.slice(0, 4).map((tab) => {
           const active = isActive(tab.href);
           return (
             <Link
               key={tab.href}
               to={tab.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all min-w-0",
-                active ? "text-primary" : "text-muted-foreground"
+                "flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all",
+                active ? "text-primary scale-110" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <tab.icon className={cn("h-5 w-5", active && "scale-110 transition-transform")} />
-              <span className="text-[9px] font-medium truncate">{tab.label}</span>
+              <tab.icon className={cn("h-6 w-6", active && "stroke-[2.5px]")} />
+              <span className="text-[10px] font-black uppercase tracking-tighter">{tab.label}</span>
             </Link>
           );
         })}
       </nav>
-
-      {/* Persistence Safety Badge - DEV ONLY */}
-      <div 
-        className="fixed bottom-20 right-4 z-[9999] px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest text-white shadow-2xl flex items-center gap-2 pointer-events-none select-none opacity-80 lg:bottom-6"
-        style={{ backgroundColor: APP_COLOR, border: "2px solid white" }}
-      >
-        <span className="animate-pulse">●</span>
-        APP: {APP_TYPE} ({APP_PROJECT_ID})
-      </div>
     </div>
   );
 }

@@ -117,4 +117,23 @@
   .shadow-card-hover {
     box-shadow: 0 4px 16px 0 hsl(220, 20%, 14%, 0.08), 0 1px 4px 0 hsl(220, 20%, 14%, 0.04);
   }
+
+  /* ── Page Transitions ─────────────────────────────────── */
+  .page-transition-wrapper {
+    animation: page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity, transform;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.99);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
 }

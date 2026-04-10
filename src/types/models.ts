@@ -17,6 +17,8 @@ export interface Company {
   phone: string;
   address: string;
   region_id: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface DeliveryDriver {

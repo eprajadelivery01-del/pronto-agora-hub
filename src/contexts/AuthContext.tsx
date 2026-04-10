@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userEmail = (forceEmail || currentUser?.email)?.toLowerCase();
       const isEmergency = userEmail && EMERGENCY_EMAILS.includes(userEmail);
 
-      console.log(`[Auth-HUB] V11-INSTANT-GUARD - Buscando metadados para: ${userEmail || userId}`);
+      console.log(`[Auth-9c1a49c1] V11-INSTANT-GUARD - Buscando metadados para: ${userEmail || userId}`);
 
       const timeout = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Timeout")), 10000)
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
       const profileFetch = supabase
         .from("profiles")
-        .select("id, full_name, avatar_url") 
+        .select("id, full_name, avatar_url, status, phone") 
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
       }
 
-      // Se for emergência ou ID especial, garantimos os papéis
+      // Se for emergência, garantimos os papéis
       if (isEmergency || userId === SPECIAL_USER_ID) {
         if (isEmergency && !finalRoles.includes("company")) finalRoles.push("company");
         if (userId === SPECIAL_USER_ID && !finalRoles.includes("admin")) finalRoles.push("admin");
@@ -90,9 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile({
           full_name: profileRes.data.full_name,
           avatar_url: profileRes.data.avatar_url,
-          phone: null
+          phone: profileRes.data.phone
         });
-        setUserStatus("active");
+        setUserStatus(profileRes.data.status);
       } else if (isEmergency || userId === SPECIAL_USER_ID) {
         setProfile({ 
           full_name: isEmergency ? "Lojista (Emergência)" : "Admin (Emergência)", 
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
     } catch (error: any) {
-      console.error("[Auth-HUB] ERRO NO METADATA (Bypassed):", error.message);
+      console.error("[Auth-9c1a49c1] ERRO NO METADATA (Bypassed):", error.message);
     } finally {
       fetchingRef.current = null;
       // IMPORTANTE: setLoading(false) já deve ter sido chamado antes para emergência
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserStatus("active");
           }
           
-          console.log(`[Auth-HUB] V12: Liberando loading para usuário logado: ${email}`);
+          console.log(`[Auth-9c1a49c1] V12: Liberando loading para usuário logado: ${email}`);
           setLoading(false); // LIBERAÇÃO TOTAL
           
           // Busca o resto em background
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authListener = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        console.log(`[Auth-HUB] Evento V17: ${event}`);
+        console.log(`[Auth-9c1a49c1] Evento V17: ${event}`);
 
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
           const currentUser = session?.user;
@@ -196,10 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = (role: AppRole) => {
     if (user?.id === SPECIAL_USER_ID) return true; 
-    // Se o email é de emergência, ele sempre tem a role requisitada se for 'company' ou o admin bypass
-    const isEmergencyEmail = user?.email && ["loja8@nexuspro.test", "admin@nexuspro.test"].includes(user.email);
-    if (isEmergencyEmail && (role === "company" || role === "admin")) return true;
-    
     return roles.includes(role);
   };
   

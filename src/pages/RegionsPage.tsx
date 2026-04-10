@@ -4,6 +4,7 @@ import { useRegions, useCreateRegion, useUpdateRegion, useDeleteRegion } from "@
 import type { RegionRow } from "@/services/regions";
 import { MapPin, Plus, Trash2, Save, Pencil, Loader2, DollarSign, Search, X, MousePointer, PenTool } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CityServiceList } from "@/components/admin/CityServiceList";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -38,6 +39,7 @@ export default function RegionsPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const renderedRegionIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -57,13 +59,14 @@ export default function RegionsPage() {
     const m = mapRef.current;
     if (!m || !regions) return;
     const handleLoad = () => {
-      // Clean old layers
-      regions.forEach((r) => {
-        [`region-fill-${r.id}`, `region-line-${r.id}`, `region-highlight-${r.id}`].forEach((l) => {
+      // Clean old layers (using tracking ref to catch deletions)
+      renderedRegionIdsRef.current.forEach((id) => {
+        [`region-fill-${id}`, `region-line-${id}`, `region-highlight-${id}`].forEach((l) => {
           if (m.getLayer(l)) m.removeLayer(l);
         });
-        if (m.getSource(`region-${r.id}`)) m.removeSource(`region-${r.id}`);
+        if (m.getSource(`region-${id}`)) m.removeSource(`region-${id}`);
       });
+      renderedRegionIdsRef.current = [];
 
       regions.forEach((region) => {
         if (!region.geometry) return;
@@ -119,6 +122,8 @@ export default function RegionsPage() {
           setDrawMode("none");
           setDrawnPoints([]);
         });
+
+        renderedRegionIdsRef.current.push(region.id);
       });
 
       // Clean drawing layers
@@ -558,7 +563,15 @@ export default function RegionsPage() {
             </div>
           )}
 
-          <div className="p-4">
+          <div className="p-4 space-y-6">
+            <CityServiceList 
+              onSelect={(cityName, coords) => {
+                mapRef.current?.flyTo({ center: coords, zoom: 12, duration: 1500 });
+              }}
+            />
+
+            <hr className="border-border" />
+
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
               Regiões ({regions?.length ?? 0})
             </h3>

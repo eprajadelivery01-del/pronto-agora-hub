@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { EditCompanyDialog } from "@/components/admin/EditCompanyDialog";
+import { GenerateInviteDialog } from "@/components/admin/GenerateInviteDialog";
+
 
 export default function CompaniesPage() {
   const { data: companies, isLoading } = useCompanies();
@@ -53,20 +55,28 @@ export default function CompaniesPage() {
     <AdminLayout title="Empresas" subtitle="Gestão de lojas e estabelecimentos">
       <div className="flex items-center justify-between mb-6">
         <div />
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <div className="flex items-center gap-2">
+          <GenerateInviteDialog fixedRole="company" triggerLabel="Convidar Lojista" />
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+
           <DialogTrigger asChild>
             <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
               <Plus className="h-4 w-4" /> Cadastrar Empresa
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent 
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+          >
             <DialogHeader>
               <DialogTitle>Cadastrar Empresa</DialogTitle>
             </DialogHeader>
             <CreateCompanyForm onSuccess={() => setCreateOpen(false)} />
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
+
 
       {isLoading ? (
         <div className="flex items-center justify-center p-12">
@@ -155,6 +165,7 @@ function CreateCompanyForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
     companyName: "", responsibleName: "", email: "", password: "",
     phone: "", document: "", address: "", regionId: "",
+    latitude: "", longitude: "",
   });
 
   const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
@@ -173,6 +184,8 @@ function CreateCompanyForm({ onSuccess }: { onSuccess: () => void }) {
           email: form.email, password: form.password, fullName: form.responsibleName,
           phone: form.phone, document: form.document, role: "company",
           companyName: form.companyName, address: form.address, regionId: form.regionId || null,
+          latitude: form.latitude ? parseFloat(form.latitude) : null,
+          longitude: form.longitude ? parseFloat(form.longitude) : null,
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -230,6 +243,10 @@ function CreateCompanyForm({ onSuccess }: { onSuccess: () => void }) {
                 <option key={r.id} value={r.id}>{r.name} — R$ {Number(r.price).toFixed(2)}</option>
               ))}
             </select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FieldInput label="Latitude" value={form.latitude} onChange={(v) => set("latitude", v)} placeholder="-15.5989" />
+            <FieldInput label="Longitude" value={form.longitude} onChange={(v) => set("longitude", v)} placeholder="-56.0974" />
           </div>
         </div>
       )}

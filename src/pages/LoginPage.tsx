@@ -16,10 +16,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      console.log(`[LoginPage - Lojista] Verificando acesso para user.id: ${user.id}`);
+      console.log(`[LoginPage - 9c1a49c1] Verificando acesso para user.id: ${user.id}`);
       // Redirecionamento quase imediato para sessões ativas
       const timer = setTimeout(() => {
-        if (hasRole("admin")) {
+        if (userStatus === "pending") {
+          navigate("/pending-approval", { replace: true });
+        } else if (hasRole("admin")) {
           navigate("/admin", { replace: true });
         } else if (hasRole("company")) {
           navigate("/business", { replace: true });
@@ -29,14 +31,14 @@ export default function LoginPage() {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [user, hasRole, navigate]);
+  }, [user, userStatus, hasRole, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      console.log("Iniciando tentativa de login para:", email);
+      console.log("Iniciando tentativa de login (NUCLEAR):", email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
@@ -45,18 +47,12 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error("ERRO CRÍTICO NO LOGIN:", err);
-      toast({ 
-        title: "Erro Inesperado", 
-        description: err.message || "Ocorreu um erro interno ao processar o login.", 
-        variant: "destructive" 
-      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
@@ -67,7 +63,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground mt-1 font-medium">Delivery • Painel de Gestão</p>
           <div className="mt-4 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
             <p className="text-[10px] font-bold text-primary uppercase tracking-widest leading-tight text-center">
-              HUB CENTRAL DE ACESSO<br />BUILD: V14-NUCLEAR-SYNC
+              Repositório Lojista (9c1a49c1)<br />BUILD: V14-NUCLEAR-SYNC
             </p>
           </div>
         </div>
@@ -110,14 +106,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {user && !authLoading && roles.length === 0 && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-              <p className="text-[11px] text-destructive text-center font-bold uppercase leading-tight">
-                Acesso Negado: Seu perfil não possui permissões. Contate o administrador.
-              </p>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
@@ -127,11 +115,9 @@ export default function LoginPage() {
             <span>{loading ? "Entrando..." : "Entrar"}</span>
           </button>
 
-          {/* Botão de Emergência para Erros de Schema */}
           <button
             type="button"
             onClick={async () => {
-              console.log("[LoginPage] Reset de Sessão solicitado.");
               await supabase.auth.signOut();
               localStorage.clear();
               sessionStorage.clear();
