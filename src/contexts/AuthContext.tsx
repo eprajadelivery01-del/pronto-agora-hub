@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ];
 
     try {
-      console.log(`[Auth-HUB] Iniciando busca ULTRA-SAFE V7 para: ${userId}`);
+      console.log(`[Auth-HUB] V10-ULTRA-SYNC - Iniciando busca para: ${userId}`);
       
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const userEmail = currentUser?.email?.toLowerCase();
