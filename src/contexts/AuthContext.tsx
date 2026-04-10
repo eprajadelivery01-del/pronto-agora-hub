@@ -46,7 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch roles and profile separately for better error isolation
       const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
-      const profileFetch = supabase.from("profiles").select("*").eq("user_id", userId).single();
+      const profileFetch = supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, phone, status")
+        .eq("user_id", userId)
+        .maybeSingle();
 
       const [rolesRes, profileRes] = await Promise.race([
         Promise.all([rolesFetch, profileFetch]),
@@ -65,15 +69,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setRoles(finalRoles);
 
-      // Profile Handling with fallback for schema errors
+      // Profile Handling with defensive fallback for schema/presence errors
       if (profileRes.error) {
-        console.warn("[Auth-HUB] Erro ao buscar perfil (possível mismatch de schema):", profileRes.error.message);
-        const { data: basic } = await supabase.from("profiles").select("full_name").eq("user_id", userId).single();
-        if (basic) setProfile({ full_name: basic.full_name, avatar_url: null, phone: null });
-        setUserStatus("active");
+        console.warn("[Auth-HUB] Erro ao buscar perfil completo (possível erro de schema):", profileRes.error.message);
+        
+        // Tenta buscar apenas o básico se o erro for de schema
+        try {
+          const { data: basic } = await supabase.from("profiles").select("full_name").eq("user_id", userId).maybeSingle();
+          if (basic) {
+            setProfile({ full_name: basic.full_name, avatar_url: null, phone: null });
+            setUserStatus("active");
+          } else {
+            setUserStatus("active"); // Fallback total para permitir login
+          }
+        } catch {
+          setUserStatus("active");
+        }
       } else if (profileRes.data) {
-        setProfile(profileRes.data);
-        setUserStatus((profileRes.data as any).status as UserStatus || "active");
+        setProfile({
+          full_name: profileRes.data.full_name,
+          avatar_url: profileRes.data.avatar_url,
+          phone: profileRes.data.phone
+        });
+        setUserStatus(profileRes.data.status as UserStatus || "active");
+      } else {
+        // Sem perfil ainda
+        setUserStatus("active");
       }
     } catch (error: any) {
       console.error("[Auth-HUB] ERRO CRÍTICO NO LOGIN:", error.message);
