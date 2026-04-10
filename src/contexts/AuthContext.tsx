@@ -124,28 +124,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser ?? null);
         
         if (currentUser) {
+          // V12-TOTAL-RELEASE: Nunca travamos a tela de loading se houver sessão
           const email = currentUser.email?.toLowerCase();
           const EMERGENCY_EMAILS = ["loja8@nexuspro.test", "admin@nexuspro.test", "suporte@nexuspro.test", "bonasoft@nexuspro.test"];
           const isEmergency = email && EMERGENCY_EMAILS.includes(email);
           const isSpecial = currentUser.id === SPECIAL_USER_ID;
 
-          // GUARD V11: Se for emergência ou admin especial, liberamos a UI INSTANTANEAMENTE
           if (isEmergency || isSpecial) {
-            console.log("[Auth-HUB] V11-INSTANT-GUARD: Pre-atribuindo papéis para", email);
             setRoles(isEmergency ? ["company"] : ["admin"]);
             setUserStatus("active");
-            setLoading(false); // FIM DO LOADING INFINITO
-            // Carregamos o resto em background sem travar
-            setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
-          } else {
-            // Fluxo normal (pode demorar no loading se o banco estiver lento)
-            await fetchUserData(currentUser.id, email);
           }
+          
+          console.log(`[Auth-HUB] V12: Liberando loading para usuário logado: ${email}`);
+          setLoading(false); // LIBERAÇÃO TOTAL
+          
+          // Busca o resto em background
+          setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
         } else {
           setLoading(false);
         }
       } catch (error) {
-        console.error("Erro na inicialização:", error);
         setLoading(false);
       }
     };
@@ -155,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        console.log(`[Auth-HUB] Evento V11: ${event}`);
+        console.log(`[Auth-HUB] Evento V12: ${event}`);
 
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
           const currentUser = session?.user;
@@ -170,11 +168,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (isEmergency || currentUser.id === SPECIAL_USER_ID) {
               setRoles(isEmergency ? ["company"] : ["admin"]);
               setUserStatus("active");
-              setLoading(false); // FIM DO LOADING INFINITO
-              setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
-            } else {
-              await fetchUserData(currentUser.id, email);
             }
+            
+            setLoading(false); // LIBERAÇÃO TOTAL
+            setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
           } else {
             setLoading(false);
           }
