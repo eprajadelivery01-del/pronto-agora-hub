@@ -5,6 +5,7 @@ import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package } 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { CustomerSelector } from "@/components/business/CustomerSelector";
 
 export default function BusinessHomePage() {
   const { profile } = useAuth();
@@ -26,7 +27,7 @@ export default function BusinessHomePage() {
 
             <button
               onClick={() => setShowNewDelivery(true)}
-              className="px-8 py-4 rounded-2xl gradient-primary text-primary-foreground text-lg font-black flex items-center justify-center gap-3 shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
+              className="px-8 py-4 rounded-2xl modal-gradient text-white text-lg font-black flex items-center justify-center gap-3 shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
             >
               <Plus className="h-6 w-6" />
               Nova Entrega
@@ -79,37 +80,71 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+
+  const fetchCompanyId = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: company } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    return company?.id || null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      // Find current company ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Não autenticado");
+      const cId = companyId || await fetchCompanyId();
+      if (!cId) throw new Error("Empresa não encontrada.");
 
-      const { data: company } = await supabase
-        .from("companies")
+      // Check if customer exists in 'customers' table by name
+      const { data: existingCust } = await supabase
+        .from("customers")
         .select("id")
-        .eq("user_id", user.id)
+        .ilike("name", customerName)
         .maybeSingle();
 
-      if (!company) throw new Error("Empresa não encontrada para este usuário.");
+      let finalCustomerId = existingCust?.id;
+
+      if (!finalCustomerId) {
+        // Create new anonymous customer
+        const { data: newCust, error: custError } = await supabase
+          .from("customers")
+          .insert([{ name: customerName }])
+          .select("id")
+          .single();
+        
+        if (custError) console.error("Error creating customer profile:", custError);
+        if (newCust) {
+          finalCustomerId = newCust.id;
+          // Also create initial address for them
+          await supabase.from("addresses").insert([{
+            customer_id: newCust.id,
+            street: address.split(",")[0] || address,
+            city: "Diamantino", // Default or extract from string
+            state: "MT",
+            is_default: true
+          }]);
+        }
+      }
 
       const { error } = await supabase.from("deliveries").insert([{
-        company_id: company.id,
+        company_id: cId,
         customer_name: customerName,
-        address: address, // In this app schema, we use 'address' for dropoff
+        address: address, 
         value: value ? parseFloat(value) : 0, 
         notes: notes || null,
         status: "pending",
-        commission: 0 // Will be defined by admin later or app logic
+        commission: 0
       }]);
 
       if (error) throw error;
 
-      toast.success("Entrega criada! Aguardando entregador.");
+      toast.success("Entrega solicitada com sucesso!");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       onClose();
     } catch (err: any) {
@@ -119,14 +154,17 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
     }
   };
 
+  useState(() => {
+    fetchCompanyId().then(setCompanyId);
+  });
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-left-4 duration-300">
-      <button onClick={onClose} className="group flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+      <button onClick={onClose} className="group flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors px-2">
         <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Voltar ao Início
       </button>
 
       <div className="bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-        {/* Aesthetic background element */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
         
         <h2 className="text-2xl font-black text-foreground mb-8 flex items-center gap-3">
@@ -139,16 +177,16 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
           <div className="md:col-span-2">
             <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Destinatário</label>
-            <div className="relative">
-              <Package className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
+            {companyId && (
+              <CustomerSelector 
+                companyId={companyId} 
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Nome completo do cliente"
-                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
-                required
+                onChange={(name, addr) => {
+                  setCustomerName(name);
+                  if (addr) setAddress(addr);
+                }}
               />
-            </div>
+            )}
           </div>
 
           <div className="md:col-span-2">
@@ -213,3 +251,4 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+

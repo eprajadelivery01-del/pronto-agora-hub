@@ -71,3 +71,29 @@ export function useCustomerAddresses(customerId?: string | null) {
     enabled: !!customerId,
   });
 }
+
+/**
+ * Busca clientes pelo nome ou telefone vinculados a uma empresa.
+ */
+export async function searchCustomers(companyId: string, query: string) {
+  if (!query) return [];
+
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select("*, customers(*)")
+    .eq("company_id", companyId)
+    .ilike("customers.name", `%${query}%`);
+
+  if (error) throw error;
+
+  const customerMap = new Map();
+  orders.forEach((order) => {
+    const cust = order.customers as any;
+    if (!cust) return;
+    if (!customerMap.has(cust.id)) {
+      customerMap.set(cust.id, { ...cust });
+    }
+  });
+
+  return Array.from(customerMap.values());
+}
