@@ -21,12 +21,13 @@ export default function LoginPage() {
       const timer = setTimeout(() => {
         if (userStatus === "pending") {
           navigate("/pending-approval", { replace: true });
-        } else if (hasRole("admin")) {
-          navigate("/admin", { replace: true });
         } else if (hasRole("company")) {
           navigate("/business", { replace: true });
-        } else if (hasRole("driver")) {
-          navigate("/driver", { replace: true });
+        } else if (hasRole("admin")) {
+          // Admin logging into Lojista panel
+          toast({ title: "Portal de Lojistas", description: "Detectamos que você é um Administrador. Por favor, utilize o painel admin.epraja.com.br", variant: "default" });
+        } else {
+          toast({ title: "Acesso Restrito", description: "Este portal é exclusivo para Lojistas parceiros.", variant: "destructive" });
         }
       }, 100);
       return () => clearTimeout(timer);
@@ -63,7 +64,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground mt-1 font-medium">Delivery • Painel de Gestão</p>
           <div className="mt-4 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
             <p className="text-[10px] font-bold text-primary uppercase tracking-widest leading-tight text-center">
-              Repositório Lojista (9c1a49c1)<br />BUILD: V14-NUCLEAR-SYNC
+              HUB DO LOJISTA (Marketplace)<br />BUILD: V16-NUCLEAR-DECOUPLED
             </p>
           </div>
         </div>
