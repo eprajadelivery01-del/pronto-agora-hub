@@ -33,13 +33,17 @@ const tabs = [
 
 interface BusinessLayoutProps {
   children: ReactNode;
-  title?: string;
-}
-
-export function BusinessLayout({ children, title }: BusinessLayoutProps) {
+  title?: string;export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const location = useLocation();
   const { signOut, profile, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("epj_biz_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [company, setCompany] = useState<any>(null);
 
   useEffect(() => {
@@ -54,6 +58,12 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     };
     fetchCompany();
   }, [user]);
+
+  const toggleSidebar = () => {
+    const newState = !collapsed;
+    setCollapsed(newState);
+    localStorage.setItem("epj_biz_sidebar_collapsed", String(newState));
+  };
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
@@ -84,36 +94,52 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-72 bg-card border-r border-border flex flex-col transition-all duration-350 ease-in-out shadow-2xl lg:shadow-none",
+          "fixed top-0 left-0 z-50 h-full bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none",
           "lg:translate-x-0 lg:static lg:z-auto",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          collapsed ? "w-20" : "w-72"
         )}
       >
+        {/* Toggle Button (Desktop) */}
+        <button 
+          onClick={toggleSidebar}
+          className={cn(
+            "hidden lg:flex absolute -right-3.5 top-20 w-7 h-7 rounded-full bg-primary border-4 border-background items-center justify-center text-primary-foreground shadow-xl transition-all hover:scale-110 z-[60]",
+            collapsed && "rotate-180"
+          )}
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+
         {/* Brand/Store Info */}
-        <div className="px-6 py-8">
+        <div className={cn("px-6 py-8 transition-all", collapsed && "px-0 flex justify-center")}>
           <div className="flex items-center gap-4">
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <div className="absolute -inset-1 bg-gradient-to-tr from-primary to-primary-foreground/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-              <div className="relative w-14 h-14 rounded-2xl bg-white flex items-center justify-center p-2 border border-border shadow-md overflow-hidden">
+              <div className="relative w-12 h-12 rounded-2xl bg-white flex items-center justify-center p-2 border border-border shadow-md overflow-hidden">
                 <img src={getLogo()} alt="Logo" className="w-full h-full object-contain" />
               </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-primary leading-none mb-1 font-black uppercase tracking-[0.2em]">Painel Lojista</p>
-              <h2 className="text-base font-black text-foreground leading-tight truncate">
-                {company?.name || profile?.full_name || "Minha Loja"}
-              </h2>
-            </div>
+            {!collapsed && (
+              <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                <p className="text-[10px] text-primary leading-none mb-1 font-black uppercase tracking-[0.2em]">Painel Lojista</p>
+                <h2 className="text-base font-black text-foreground leading-tight truncate">
+                  {company?.name || profile?.full_name || "Minha Loja"}
+                </h2>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Navigation Categories */}
-        <div className="flex-1 px-4 space-y-8 overflow-y-auto custom-scrollbar pb-8">
+        <div className="flex-1 px-3 space-y-8 overflow-y-auto custom-scrollbar pb-8">
           {["Operacional", "Marketplace", "Gestão", "Configurações"].map((category) => (
             <div key={category} className="space-y-1">
-              <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 pb-2">
-                {category}
-              </h3>
+              {!collapsed && (
+                <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 pb-2 animate-in fade-in duration-300">
+                  {category}
+                </h3>
+              )}
               <div className="space-y-1">
                 {tabs.filter(t => t.category === category).map((tab) => {
                   const active = isActive(tab.href);
@@ -126,12 +152,14 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                         "group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200",
                         active
                           ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                        collapsed && "justify-center px-0"
                       )}
+                      title={collapsed ? tab.label : ""}
                     >
                       <tab.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
-                      <span className="flex-1">{tab.label}</span>
-                      {active && <ChevronRight className="h-4 w-4 opacity-50" />}
+                      {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
+                      {active && !collapsed && <ChevronRight className="h-4 w-4 opacity-50" />}
                     </Link>
                   );
                 })}
@@ -141,20 +169,28 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </div>
 
         {/* Footer Sidebar Actions */}
-        <div className="p-4 border-t border-border space-y-1">
+        <div className={cn("p-4 border-t border-border space-y-1", collapsed && "flex flex-col items-center px-0")}>
           <Link
             to="/business/profile"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all",
+              collapsed && "justify-center px-0"
+            )}
+            title={collapsed ? "Configurações" : ""}
           >
             <Settings className="h-5 w-5" />
-            <span>Configurações</span>
+            {!collapsed && <span className="animate-in fade-in slide-in-from-left-2 transition-all">Configurações</span>}
           </Link>
           <button
             onClick={signOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all",
+              collapsed && "justify-center px-0"
+            )}
+            title={collapsed ? "Sair do Painel" : ""}
           >
             <LogOut className="h-5 w-5" />
-            <span>Sair do Painel</span>
+            {!collapsed && <span className="animate-in fade-in slide-in-from-left-2 transition-all">Sair do Painel</span>}
           </button>
         </div>
       </aside>
@@ -227,6 +263,9 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         })}
       </nav>
     </div>
+  );
+}
+v>
   );
 }
 
