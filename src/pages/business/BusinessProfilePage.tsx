@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Store, Camera, ImagePlus, Loader2, Save, User, MapPin, Phone, 
-  Smartphone, Eye, Layers, Info, CheckCircle2
+  Smartphone, Eye, Layers, Info, CheckCircle2, Pencil, X, Link as LinkIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,11 @@ export default function BusinessProfilePage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [description, setDescription] = useState("");
+
+  // Edit states for overlays
+  const [isEditingLogo, setIsEditingLogo] = useState(false);
+  const [isEditingCover, setIsEditingCover] = useState(false);
+  const [tempUrl, setTempUrl] = useState("");
 
   useEffect(() => {
     fetchCompanyData();
@@ -44,21 +49,8 @@ export default function BusinessProfilePage() {
         setPhone(company.phone || "");
         setAddress(company.address || "");
         setDescription(company.description || "");
-        
-        // Handle migration from JSON hack to separate columns
-        if (company.logo_url?.startsWith("{")) {
-          try {
-            const parsed = JSON.parse(company.logo_url);
-            setLogoUrl(parsed.logo || "");
-            setCoverUrl(company.cover_url || parsed.cover || "");
-          } catch {
-            setLogoUrl(company.logo_url || "");
-            setCoverUrl(company.cover_url || "");
-          }
-        } else {
-          setLogoUrl(company.logo_url || "");
-          setCoverUrl(company.cover_url || "");
-        }
+        setLogoUrl(company.logo_url || "");
+        setCoverUrl(company.cover_url || "");
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
@@ -67,8 +59,8 @@ export default function BusinessProfilePage() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!companyId) return;
     setSaving(true);
 
@@ -86,7 +78,8 @@ export default function BusinessProfilePage() {
         .eq("id", companyId);
 
       if (error) throw error;
-      toast.success("Sua loja está pronta para o marketplace!", {
+      toast.success("Perfil Social atualizado!", {
+        description: "Suas mudanças já estão visíveis no marketplace.",
         icon: <CheckCircle2 className="h-4 w-4 text-success" />
       });
     } catch (err: any) {
@@ -98,7 +91,7 @@ export default function BusinessProfilePage() {
 
   if (loading) {
     return (
-      <BusinessLayout title="Perfil da Loja">
+      <BusinessLayout title="Perfil">
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
@@ -107,229 +100,234 @@ export default function BusinessProfilePage() {
   }
 
   return (
-    <BusinessLayout title="Identidade Visual">
+    <BusinessLayout title="Editor de Perfil">
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         
-        {/* Left Column: Form */}
-        <div className="xl:col-span-7 space-y-6">
+        {/* Left Column: Social Editor */}
+        <div className="xl:col-span-8 space-y-6">
+          
           <div className="bg-card border border-border rounded-[2.5rem] shadow-card overflow-hidden">
-            <div className="p-8 border-b border-border bg-muted/30 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                  <Store className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-foreground">Configurações da Loja</h2>
-                  <p className="text-xs text-muted-foreground font-medium">Personalize como os clientes verão sua marca.</p>
-                </div>
-              </div>
-            </div>
-
-            <form onSubmit={handleSave} className="p-8 space-y-10">
-              {/* Visual Identity Section */}
-              <section className="space-y-6">
-                <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary/70">
-                  <Layers className="h-4 w-4" /> 
-                  <span>Identidade Visual</span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Logo Input */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Logo / Foto de Perfil</label>
-                    <div className="flex gap-4">
-                      <div className="w-16 h-16 rounded-2xl bg-muted border border-border shrink-0 overflow-hidden flex items-center justify-center">
-                        {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <ImagePlus className="h-6 w-6 text-muted-foreground/30" />}
-                      </div>
-                      <input
-                        value={logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
-                        placeholder="URL da imagem..."
-                        className="flex-1 px-4 py-3 rounded-xl border border-border bg-background/50 text-sm focus:ring-4 focus:ring-primary/5 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cover Input */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Capa (Banner)</label>
-                    <div className="flex gap-4">
-                      <div className="w-24 h-16 rounded-xl bg-muted border border-border shrink-0 overflow-hidden flex items-center justify-center">
-                        {coverUrl ? <img src={coverUrl} className="w-full h-full object-cover" /> : <Camera className="h-6 w-6 text-muted-foreground/30" />}
-                      </div>
-                      <input
-                        value={coverUrl}
-                        onChange={(e) => setCoverUrl(e.target.value)}
-                        placeholder="URL do banner..."
-                        className="flex-1 px-4 py-3 rounded-xl border border-border bg-background/50 text-sm focus:ring-4 focus:ring-primary/5 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Basic Info Section */}
-              <section className="space-y-6">
-                <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary/70">
-                  <Info className="h-4 w-4" /> 
-                  <span>Informações Básicas</span>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 block">Nome no Marketplace</label>
-                    <div className="relative">
-                      <Store className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-                      <input
-                        value={storeName}
-                        onChange={(e) => setStoreName(e.target.value)}
-                        placeholder="Ex: Pizzaria Fornalha"
-                        className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 block">Telefone Comercial</label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-                        <input
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="(65) 99999-9999"
-                          className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 block">Cidade / Bairro</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-                        <input
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          placeholder="Manaus - Centro"
-                          className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2 block">Descrição (Bio)</label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Fale um pouco sobre sua loja para seus clientes..."
-                      rows={3}
-                      className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all"
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <button
-                type="submit"
-                disabled={saving || !storeName}
-                className="w-full py-5 rounded-[2rem] gradient-primary text-primary-foreground text-lg font-black shadow-primary/20 shadow-2xl flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
-                {saving ? "Publicando..." : "Salvar Identidade"}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Right Column: Marketplace Preview */}
-        <div className="xl:col-span-5 relative">
-          <div className="sticky top-28 space-y-6">
-            <div className="flex items-center gap-2 px-6">
-              <Eye className="h-5 w-5 text-primary" />
-              <h3 className="font-black text-foreground uppercase tracking-widest text-xs">Marketplace Live Preview</h3>
-            </div>
             
-            {/* Phone Frame */}
-            <div className="w-full max-w-[320px] mx-auto aspect-[9/18.5] bg-foreground rounded-[3.5rem] p-3 shadow-2xl border-[8px] border-muted relative group">
-              {/* Screen Content */}
-              <div className="w-full h-full bg-background rounded-[2.5rem] overflow-hidden flex flex-col relative select-none">
-                
-                {/* Status Bar */}
-                <div className="h-6 w-full flex justify-between items-center px-6 pt-2">
-                  <span className="text-[8px] font-bold">9:41</span>
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-foreground/20" />
-                    <div className="w-2 h-2 rounded-full bg-foreground/20" />
-                  </div>
-                </div>
+            {/* SOCIAL HEADER: Banner + Avatar overlapping */}
+            <div className="relative group/banner h-64 md:h-80 bg-muted">
+               {/* Banner Image */}
+               {coverUrl ? (
+                 <img src={coverUrl} className="w-full h-full object-cover" alt="Banner" />
+               ) : (
+                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+                    <Camera className="h-12 w-12 text-muted-foreground/20" />
+                 </div>
+               )}
+               
+               {/* Banner Overlay/Edit */}
+               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center justify-center">
+                  <button 
+                    onClick={() => { setIsEditingCover(true); setTempUrl(coverUrl); }}
+                    className="px-6 py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-white/30 transition-all shadow-2xl"
+                  >
+                    <Pencil className="h-4 w-4" /> Alterar Banner
+                  </button>
+               </div>
 
-                {/* Cover in Preview */}
-                <div className="h-32 bg-muted relative overflow-hidden shrink-0">
-                  {coverUrl ? (
-                    <img src={coverUrl} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center opacity-20">
-                      <Smartphone className="h-8 w-8" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  
-                  {/* Floating Logo */}
-                  <div className="absolute -bottom-4 left-4 w-16 h-16 rounded-2xl bg-white p-1.5 shadow-xl border border-white">
-                    <div className="w-full h-full rounded-xl bg-muted overflow-hidden flex items-center justify-center">
-                      {logoUrl ? <img src={logoUrl} className="w-full h-full object-cover" /> : <Store className="h-6 w-6 text-muted-foreground/30" />}
-                    </div>
+               {/* Overlapping Avatar (Logo) */}
+               <div className="absolute -bottom-16 left-8 group/avatar">
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-white p-2 shadow-2xl border-4 border-card relative">
+                     <div className="w-full h-full rounded-[2rem] bg-muted overflow-hidden flex items-center justify-center relative">
+                        {logoUrl ? (
+                          <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" />
+                        ) : (
+                          <Store className="h-10 w-10 text-muted-foreground/30" />
+                        )}
+                        
+                        {/* Avatar Edit Overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                           onClick={() => { setIsEditingLogo(true); setTempUrl(logoUrl); }}>
+                           <Camera className="h-8 w-8 text-white" />
+                        </div>
+                     </div>
                   </div>
-                </div>
-
-                <div className="mt-8 px-5 space-y-4">
-                  <div>
-                    <h4 className="text-xl font-black text-foreground leading-tight tracking-tight">
-                      {storeName || "Nome da Loja"}
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground font-medium mt-1">
-                      📍 {address || "Sua Localização"} • ⭐ 5.0 (Novo)
-                    </p>
-                  </div>
-
-                  <div className="bg-muted/30 rounded-2xl p-4">
-                    <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3 italic">
-                      {description || "Sua descrição aparecerá aqui para os clientes."}
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Categorias Populares</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="h-10 bg-muted/40 rounded-xl" />
-                      <div className="h-10 bg-muted/40 rounded-xl" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fake action bar */}
-                <div className="mt-auto p-4 border-t border-border">
-                  <div className="w-full h-10 rounded-xl bg-primary flex items-center justify-center">
-                    <span className="text-[10px] font-black text-white uppercase italic">Ver Cardápio Full</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Speaker notch */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-foreground rounded-b-2xl z-20" />
+               </div>
             </div>
 
-            <div className="bg-primary/5 border border-primary/10 rounded-3xl p-6 max-w-[320px] mx-auto">
-               <p className="text-xs font-bold text-primary mb-1">Dica Premium</p>
-               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                 Use imagens de alta qualidade (16:9 para capa) para aumentar em até 40% a conversão de novos clientes.
-               </p>
+            {/* Content Area */}
+            <div className="pt-20 px-8 pb-8 space-y-10">
+               
+               {/* Introduction Header */}
+               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                  <div className="space-y-1">
+                     <h2 className="text-3xl font-black text-foreground tracking-tight">
+                        {storeName || "Minha Loja"}
+                     </h2>
+                     <p className="text-sm font-bold text-primary italic uppercase tracking-widest">
+                        ⭐ Loja Oficial NexusPro
+                     </p>
+                  </div>
+                  <div className="flex gap-3">
+                     <button className="px-6 py-3 rounded-2xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-all">
+                        Ver Página Pública
+                     </button>
+                     <button 
+                        onClick={() => handleSave()}
+                        className="px-8 py-3 rounded-2xl bg-foreground text-background font-black text-sm uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10"
+                     >
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publicar Perfil"}
+                     </button>
+                  </div>
+               </div>
+
+               {/* Inputs Grid */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-border/50">
+                  <div className="space-y-6">
+                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                        <Info className="h-3 w-3" /> Sobre o Negócio
+                     </div>
+                     
+                     <div className="space-y-4">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Nome da Loja</label>
+                           <input
+                              value={storeName}
+                              onChange={(e) => setStoreName(e.target.value)}
+                              className="w-full px-5 py-3.5 rounded-2xl border border-border bg-background focus:ring-4 focus:ring-primary/5 transition-all outline-none font-bold"
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Bio / Descrição</label>
+                           <textarea
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              placeholder="Fale um pouco sobre o que você vende..."
+                              className="w-full px-5 py-3.5 rounded-2xl border border-border bg-background focus:ring-4 focus:ring-primary/5 transition-all outline-none font-medium text-sm min-h-[100px] resize-none"
+                           />
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="space-y-6">
+                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                        <Phone className="h-3 w-3" /> Contato e Localização
+                     </div>
+
+                     <div className="space-y-4">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">WhatsApp de Vendas</label>
+                           <div className="relative">
+                              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <input
+                                 value={phone}
+                                 onChange={(e) => setPhone(e.target.value)}
+                                 className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
+                                 placeholder="(00) 00000-0000"
+                              />
+                           </div>
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Endereço Fiscal/Físico</label>
+                           <div className="relative">
+                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <input
+                                 value={address}
+                                 onChange={(e) => setAddress(e.target.value)}
+                                 className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold italic text-sm"
+                                 placeholder="Av. Brasil, 123 - Centro"
+                              />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
             </div>
           </div>
         </div>
 
+        {/* Right Column: Marketplace Preview Side (Simplified) */}
+        <div className="xl:col-span-4 hidden xl:block">
+           <div className="sticky top-28 bg-muted/30 border border-border/50 rounded-[3rem] p-8 text-center space-y-6">
+              <div className="flex items-center justify-center gap-2 text-primary">
+                 <Eye className="h-5 w-5" />
+                 <h3 className="font-black text-xs uppercase tracking-widest">Marketplace View</h3>
+              </div>
+              
+              {/* Minimalist Phone Card Preview */}
+              <div className="w-full max-w-[260px] mx-auto aspect-[9/18] bg-foreground rounded-[3rem] p-2.5 shadow-2xl overflow-hidden group">
+                 <div className="w-full h-full bg-background rounded-[2.2rem] overflow-hidden flex flex-col relative">
+                    <div className="h-20 bg-muted overflow-hidden relative">
+                       {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" />}
+                       <div className="absolute inset-0 bg-black/20" />
+                       <div className="absolute -bottom-3 left-3 w-10 h-10 rounded-xl bg-white p-1 shadow-lg">
+                          <div className="w-full h-full rounded-lg bg-muted overflow-hidden">
+                             {logoUrl && <img src={logoUrl} className="w-full h-full object-cover" />}
+                          </div>
+                       </div>
+                    </div>
+                    <div className="mt-5 px-4 space-y-4">
+                       <div>
+                          <p className="text-[10px] font-black text-foreground truncate">{storeName || "Sua Loja"}</p>
+                          <p className="text-[7px] text-muted-foreground font-bold">📍 {address?.split("-")[0] || "Sua Cidade"}</p>
+                       </div>
+                       <div className="h-14 bg-muted/40 rounded-xl p-2">
+                          <p className="text-[7px] text-muted-foreground line-clamp-4 italic leading-relaxed">
+                             {description || "Sua descrição aparecerá aqui para os milhares de clientes do Pronto Agora."}
+                          </p>
+                       </div>
+                       <div className="space-y-2">
+                          <div className="h-6 bg-primary/10 rounded-lg" />
+                          <div className="h-6 bg-muted/40 rounded-lg" />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
       </div>
+
+      {/* URL EDIT MODALS/OVERLAYS */}
+      {(isEditingLogo || isEditingCover) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+           <div className="w-full max-w-lg bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 animate-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                       <LinkIcon className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <h3 className="text-xl font-black text-foreground">
+                       {isEditingLogo ? "Link do Logo" : "Link do Banner"}
+                    </h3>
+                 </div>
+                 <button onClick={() => { setIsEditingLogo(false); setIsEditingCover(false); }} className="p-2 rounded-xl hover:bg-muted transition-colors">
+                    <X className="h-6 w-6" />
+                 </button>
+              </div>
+
+              <div className="space-y-4">
+                 <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                    Cole abaixo a URL direta da imagem. No momento o Hub suporta apenas links públicos (ex: Imgur, Cloudinary, etc).
+                 </p>
+                 <input 
+                    value={tempUrl}
+                    onChange={(e) => setTempUrl(e.target.value)}
+                    placeholder="https://exemplo.com/imagem.png"
+                    className="w-full px-5 py-4 rounded-2xl border border-border bg-muted/50 font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+                    autoFocus
+                 />
+              </div>
+
+              <button 
+                onClick={() => {
+                   if (isEditingLogo) setLogoUrl(tempUrl);
+                   else setCoverUrl(tempUrl);
+                   setIsEditingLogo(false);
+                   setIsEditingCover(false);
+                   toast.success("Foto atualizada temporariamente. Não esqueça de Salvar!");
+                }}
+                className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20"
+              >
+                Confirmar Alteração
+              </button>
+           </div>
+        </div>
+      )}
+
     </BusinessLayout>
   );
 }
