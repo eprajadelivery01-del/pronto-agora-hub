@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
   Truck, Bell, RefreshCw, Timer, Phone, MapPin, User, Package,
-  ChevronRight, ArrowRight, MoreVertical, LayoutGrid
+  ChevronRight, ArrowRight, MoreVertical, LayoutGrid, DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

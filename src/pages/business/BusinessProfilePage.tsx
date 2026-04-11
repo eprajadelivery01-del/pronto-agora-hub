@@ -208,9 +208,7 @@ export default function BusinessProfilePage() {
                      <h2 className="text-3xl font-black text-foreground tracking-tight">
                         {storeName || "Minha Loja"}
                      </h2>
-                     <p className="text-sm font-bold text-primary italic uppercase tracking-widest">
-                        ⭐ Loja Oficial NexusPro
-                     </p>
+
                   </div>
                   <div className="flex gap-3">
                      <button className="px-6 py-3 rounded-2xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-all">
