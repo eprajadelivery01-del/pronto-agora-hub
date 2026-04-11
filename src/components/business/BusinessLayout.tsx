@@ -2,10 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   ShoppingBag,
-  Map,
-  Users,
-  DollarSign,
-  ClipboardList,
+  Store,
   User,
   LogOut,
   Menu,
@@ -13,15 +10,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAllRealtime } from "@/services/realtime";
 
+// Only tabs with registered routes - removing Mapa/Clientes/Financeiro/Histórico to prevent 404
 const tabs = [
   { label: "Pedidos", icon: ShoppingBag, href: "/business" },
   { label: "Produtos", icon: Package, href: "/business/products" },
-  { label: "Mapa", icon: Map, href: "/business/map" },
-  { label: "Clientes", icon: Users, href: "/business/customers" },
-  { label: "Financeiro", icon: DollarSign, href: "/business/finance" },
-  { label: "Histórico", icon: ClipboardList, href: "/business/history" },
+  { label: "Identidade", icon: Store, href: "/business/profile" },
   { label: "Perfil", icon: User, href: "/business/profile" },
 ];
 
@@ -31,9 +25,6 @@ interface BusinessLayoutProps {
 }
 
 export function BusinessLayout({ children, title }: BusinessLayoutProps) {
-  // Activate global realtime listeners
-  useAllRealtime();
-  
   const location = useLocation();
   const { signOut, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
