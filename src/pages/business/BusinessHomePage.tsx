@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect, FormEvent } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package } from "lucide-react";
@@ -93,7 +93,7 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
     return company?.id || null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
@@ -154,9 +154,9 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchCompanyId().then(setCompanyId);
-  });
+  }, []);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-left-4 duration-300">

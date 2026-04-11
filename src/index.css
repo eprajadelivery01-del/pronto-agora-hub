@@ -118,6 +118,23 @@
     box-shadow: 0 4px 16px 0 hsl(220, 20%, 14%, 0.08), 0 1px 4px 0 hsl(220, 20%, 14%, 0.04);
   }
 
+  .modal-gradient {
+    background: linear-gradient(135deg, hsl(217, 91%, 50%), hsl(250, 85%, 60%));
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
   /* ── Page Transitions ─────────────────────────────────── */
   .page-transition-wrapper {
     animation: page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;

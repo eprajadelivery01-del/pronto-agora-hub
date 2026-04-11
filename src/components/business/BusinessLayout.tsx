@@ -14,7 +14,6 @@ import {
   Bell,
   ChevronRight,
   Settings,
-  HelpCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,7 +32,10 @@ const tabs = [
 
 interface BusinessLayoutProps {
   children: ReactNode;
-  title?: string;export function BusinessLayout({ children, title }: BusinessLayoutProps) {
+  title?: string;
+}
+
+export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const location = useLocation();
   const { signOut, profile, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -237,7 +239,6 @@ interface BusinessLayoutProps {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation (Simplified) */}
       {/* Mobile Bottom Navigation (Premium Float) */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden bg-card/80 backdrop-blur-2xl border border-white/10 flex items-center gap-2 py-2 px-3 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5 animate-in slide-in-from-bottom-10 duration-700">
         {[
@@ -265,7 +266,3 @@ interface BusinessLayoutProps {
     </div>
   );
 }
-v>
-  );
-}
-
