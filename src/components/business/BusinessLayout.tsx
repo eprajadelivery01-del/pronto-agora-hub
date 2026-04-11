@@ -99,7 +99,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
               </div>
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] text-primary leading-none mb-1 font-black uppercase tracking-[0.2em]">Lojista Panp</p>
+              <p className="text-[10px] text-primary leading-none mb-1 font-black uppercase tracking-[0.2em]">Painel Lojista</p>
               <h2 className="text-base font-black text-foreground leading-tight truncate">
                 {company?.name || profile?.full_name || "Minha Loja"}
               </h2>
@@ -202,25 +202,26 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       </div>
 
       {/* Mobile Bottom Navigation (Simplified) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-background/90 backdrop-blur-xl border-t border-border flex items-center justify-around py-3 px-6 safe-area-bottom shadow-[0_-8px_30px_rgb(0,0,0,0.08)]">
+      {/* Mobile Bottom Navigation (Premium Float) */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden bg-card/80 backdrop-blur-2xl border border-white/10 flex items-center gap-2 py-2 px-3 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5 animate-in slide-in-from-bottom-10 duration-700">
         {[
-          { icon: Truck, href: "/business", label: "Geral" },
-          { icon: Bell, href: "/business/orders", label: "Pedidos" },
-          { icon: Package, href: "/business/products", label: "Produtos" },
-          { icon: User, href: "/business/profile", label: "Perfil" },
-        ].map((tab) => {
+          { icon: Truck, href: "/business" },
+          { icon: Bell, href: "/business/orders" },
+          { icon: Package, href: "/business/products" },
+          { icon: DollarSign, href: "/business/finance" },
+          { icon: Store, href: "/business/profile" },
+        ].map((tab, idx) => {
           const active = isActive(tab.href);
           return (
             <Link
-              key={tab.href}
+              key={idx}
               to={tab.href}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all duration-300",
-                active ? "text-primary scale-110" : "text-muted-foreground"
+                "flex items-center justify-center p-3 rounded-full transition-all duration-300",
+                active ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-110" : "text-muted-foreground hover:bg-muted/50"
               )}
             >
-              <tab.icon className={cn("h-6 w-6", active && "stroke-[2.5px]")} />
-              <span className="text-[9px] font-black uppercase tracking-tighter">{tab.label}</span>
+              <tab.icon className={cn("h-5 w-5", active && "stroke-[2.5px]")} />
             </Link>
           );
         })}

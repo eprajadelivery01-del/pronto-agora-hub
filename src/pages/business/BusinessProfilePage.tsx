@@ -28,6 +28,7 @@ export default function BusinessProfilePage() {
   const [isEditingLogo, setIsEditingLogo] = useState(false);
   const [isEditingCover, setIsEditingCover] = useState(false);
   const [tempUrl, setTempUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchCompanyData();
@@ -56,6 +57,55 @@ export default function BusinessProfilePage() {
       console.error("Erro ao carregar dados:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover') => {
+    const file = event.target.files?.[0];
+    if (!file || !companyId) return;
+
+    // Validate size and type
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande! Limite de 5MB.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${type}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${companyId}/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('store-assets')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get Public URL
+      const { data } = supabase.storage
+        .from('store-assets')
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      if (type === 'logo') {
+        setLogoUrl(publicUrl);
+        setTempUrl(publicUrl);
+      } else {
+        setCoverUrl(publicUrl);
+        setTempUrl(publicUrl);
+      }
+
+      toast.success("Foto enviada com sucesso!", {
+        description: "Não esqueça de clicar em 'Publicar Perfil' para salvar permanentemente."
+      });
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      toast.error("Falha ao enviar imagem do dispositivo.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -299,17 +349,51 @@ export default function BusinessProfilePage() {
                  </button>
               </div>
 
-              <div className="space-y-4">
-                 <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Cole abaixo a URL direta da imagem. No momento o Hub suporta apenas links públicos (ex: Imgur, Cloudinary, etc).
-                 </p>
-                 <input 
-                    value={tempUrl}
-                    onChange={(e) => setTempUrl(e.target.value)}
-                    placeholder="https://exemplo.com/imagem.png"
-                    className="w-full px-5 py-4 rounded-2xl border border-border bg-muted/50 font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all"
-                    autoFocus
-                 />
+              <div className="space-y-6">
+                <div className="flex flex-col gap-3">
+                   <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                      Sua imagem será armazenada nos nossos servidores. O tamanho ideal é 1200x400 para banners e 400x400 para logos.
+                   </p>
+                   
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="relative group/file">
+                         <input 
+                           type="file" 
+                           id="file-upload" 
+                           className="hidden" 
+                           accept="image/*"
+                           onChange={(e) => handleFileUpload(e, isEditingLogo ? 'logo' : 'cover')}
+                           disabled={isUploading}
+                         />
+                         <label 
+                           htmlFor="file-upload"
+                           className={cn(
+                             "w-full py-4 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-primary/10 transition-all",
+                             isUploading && "opacity-50 cursor-not-allowed"
+                           )}
+                         >
+                            {isUploading ? (
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            ) : (
+                              <ImagePlus className="h-6 w-6 text-primary" />
+                            )}
+                            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Upload Disco</span>
+                         </label>
+                      </div>
+
+                      <div className="w-full flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                           <LinkIcon className="h-3 w-3" /> Ou Cole a URL
+                        </div>
+                        <input 
+                           value={tempUrl}
+                           onChange={(e) => setTempUrl(e.target.value)}
+                           placeholder="https://..."
+                           className="w-full px-5 py-4 rounded-2xl border border-border bg-muted/30 font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all text-xs"
+                        />
+                      </div>
+                   </div>
+                </div>
               </div>
 
               <button 
@@ -318,11 +402,12 @@ export default function BusinessProfilePage() {
                    else setCoverUrl(tempUrl);
                    setIsEditingLogo(false);
                    setIsEditingCover(false);
-                   toast.success("Foto atualizada temporariamente. Não esqueça de Salvar!");
+                   toast.success("Foto selecionada! Publique seu perfil para confirmar.");
                 }}
-                className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20"
+                disabled={isUploading}
+                className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20 disabled:opacity-50"
               >
-                Confirmar Alteração
+                Confirmar Seleção
               </button>
            </div>
         </div>

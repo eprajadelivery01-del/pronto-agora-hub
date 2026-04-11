@@ -251,6 +251,47 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
   const [newUrl, setNewUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !companyId) return;
+
+    if (imageUrls.length >= 3) {
+      toast.error("Máximo de 3 fotos");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande! Limite de 5MB.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `product-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${companyId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('store-assets')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('store-assets')
+        .getPublicUrl(filePath);
+
+      setImageUrls([...imageUrls, data.publicUrl]);
+      toast.success("Foto do produto enviada!");
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      toast.error("Falha ao enviar imagem.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const addImageUrl = () => {
     const url = newUrl.trim();
@@ -412,23 +453,44 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                   )}
                </div>
 
-               <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Adicionar por URL</label>
-                  <div className="flex gap-2">
-                    <input
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
-                      placeholder="Cole o link da imagem aqui..."
-                      className="flex-1 px-5 py-3 rounded-xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-xs"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addImageUrl(); } }}
-                    />
-                    <button
-                      type="button"
-                      onClick={addImageUrl}
-                      className="px-6 py-3 rounded-xl bg-primary/10 text-primary font-black text-[10px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
-                    >
-                      OK
-                    </button>
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                     <div className="relative">
+                        <input 
+                           type="file" 
+                           id="prod-upload" 
+                           className="hidden" 
+                           accept="image/*"
+                           onChange={handleFileUpload}
+                           disabled={isUploading || imageUrls.length >= 3}
+                        />
+                        <label 
+                           htmlFor="prod-upload"
+                           className={cn(
+                             "w-full py-4 rounded-xl border border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-primary/10 transition-all",
+                             (isUploading || imageUrls.length >= 3) && "opacity-50 cursor-not-allowed"
+                           )}
+                        >
+                            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                            <span className="text-[10px] font-black uppercase tracking-widest">{isUploading ? 'Subindo...' : 'Fazer Upload'}</span>
+                        </label>
+                     </div>
+                     <div className="flex flex-col gap-2">
+                        <input
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          placeholder="Ou cole a URL..."
+                          className="w-full px-4 py-3 rounded-xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-[10px]"
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addImageUrl(); } }}
+                        />
+                        <button
+                          type="button"
+                          onClick={addImageUrl}
+                          className="w-full py-2.5 rounded-xl bg-primary/10 text-primary font-black text-[9px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
+                        >
+                          Adicionar URL
+                        </button>
+                     </div>
                   </div>
                   <p className="text-[9px] text-muted-foreground italic px-2">📷 Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
                </div>
