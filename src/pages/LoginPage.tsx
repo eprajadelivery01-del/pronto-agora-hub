@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading, hasRole, roles } = useAuth();
+  const { user, loading: authLoading, hasRole, roles, userStatus } = useAuth();
 
   useEffect(() => {
     if (user) {
