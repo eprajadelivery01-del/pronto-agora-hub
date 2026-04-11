@@ -7,14 +7,23 @@ import {
   LogOut,
   Menu,
   Package,
+  Truck,
+  Users,
+  DollarSign,
+  ClipboardList,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Only tabs with registered routes - removing Mapa/Clientes/Financeiro/Histórico to prevent 404
+// Full iFood-style navigation for Lojista
 const tabs = [
-  { label: "Pedidos", icon: ShoppingBag, href: "/business" },
+  { label: "Entregas", icon: Truck, href: "/business" },
+  { label: "Pedidos", icon: Bell, href: "/business/orders" },
   { label: "Produtos", icon: Package, href: "/business/products" },
+  { label: "Clientes", icon: Users, href: "/business/customers" },
+  { label: "Financeiro", icon: DollarSign, href: "/business/finance" },
+  { label: "Histórico", icon: ClipboardList, href: "/business/history" },
   { label: "Identidade", icon: Store, href: "/business/profile" },
   { label: "Perfil", icon: User, href: "/business/profile" },
 ];

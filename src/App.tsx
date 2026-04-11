@@ -37,6 +37,11 @@ import ChatPage from "./pages/ChatPage";
 import ScrollToTop from "@/components/shared/ScrollToTop";
 import { PageTransition } from "@/components/shared/PageTransition";
 
+import BusinessOrdersPage from "./pages/business/BusinessOrdersPage";
+import BusinessFinancePage from "./pages/business/BusinessFinancePage";
+import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
+import BusinessCustomersPage from "./pages/business/BusinessCustomersPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -54,9 +59,16 @@ const App = () => (
                 <Route path="/login/business" element={<PageTransition><BusinessLoginPage /></PageTransition>} />
                 <Route path="/invite/:token" element={<PageTransition><InvitePage /></PageTransition>} />
                 <Route path="/pending-approval" element={<PageTransition><PendingApprovalPage /></PageTransition>} />
+                
+                {/* Lojista Routes */}
                 <Route path="/business" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHomePage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/orders" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessOrdersPage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/products" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProductsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/finance" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessFinancePage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/customers" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessCustomersPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/history" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHistoryPage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/profile" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProfilePage /></ProtectedRoute></PageTransition>} />
+                
                 <Route path="/" element={<Navigate to="/admin" replace />} />
 
                 <Route path="/admin" element={<PageTransition><ProtectedRoute requiredRole="admin"><DashboardPage /></ProtectedRoute></PageTransition>} />
