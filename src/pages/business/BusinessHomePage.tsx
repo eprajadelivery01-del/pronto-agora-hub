@@ -84,16 +84,22 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyAddress, setCompanyAddress] = useState("");
 
-  const fetchCompanyId = async () => {
+  const fetchCompanyInfo = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
+    
     const { data: company } = await supabase
       .from("companies")
-      .select("id")
+      .select("id, address")
       .eq("user_id", user.id)
       .maybeSingle();
-    return company?.id || null;
+      
+    if (company) {
+      setCompanyAddress(company.address || "");
+    }
+    return company || null;
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -139,6 +145,7 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
         company_id: cId,
         customer_name: customerName,
         address: address, 
+        pickup_address: companyAddress || "Retirada na Loja",
         value: value ? parseFloat(value) : 0, 
         notes: notes || null,
         status: "pending",
@@ -158,7 +165,9 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
   };
 
   useEffect(() => {
-    fetchCompanyId().then(setCompanyId);
+    fetchCompanyInfo().then(data => {
+      if (data) setCompanyId(data.id);
+    });
   }, []);
 
   return (
