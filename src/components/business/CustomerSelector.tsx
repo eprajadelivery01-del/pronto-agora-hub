@@ -39,33 +39,83 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
 
   useEffect(() => {
     const search = async () => {
-      if (query.length < 2) {
+      const cleanQuery = query.trim();
+      if (cleanQuery.length < 2) {
         setResults([]);
         return;
       }
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, name, phone, cpf")
-        .or(`name.ilike.%${query}%,cpf.ilike.%${query}%`)
-        .limit(10);
+      const searchTerms = cleanQuery.split(" ").filter(t => t.length >= 2);
+      const firstTerm = searchTerms[0] || "";
+      const numericQuery = cleanQuery.replace(/\D/g, "");
 
-      if (data) {
-        setResults(data);
+      try {
+        // 1. Search in existing 'customers' table (Business data)
+        let customersQuery = supabase
+          .from("customers")
+          .select("id, name, phone, cpf")
+          .or(`name.ilike.%${cleanQuery}%,cpf.ilike.%${cleanQuery}%`);
+        
+        if (numericQuery) {
+          customersQuery = customersQuery.or(`cpf.ilike.%${numericQuery}%,phone.ilike.%${numericQuery}%`);
+        }
+
+        const { data: customersData } = await customersQuery.limit(8);
+
+        // 2. Search in 'profiles' table (Marketplace users)
+        // We filter by role 'customer' in user_roles if possible, 
+        // but often simpler to just search profiles and let the logic handle it.
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone")
+          .ilike("full_name", `%${cleanQuery}%`)
+          .limit(5);
+
+        // Merge and deduplicate
+        const merged: any[] = [];
+        const seenIds = new Set();
+        const seenNames = new Set();
+
+        const addResult = (item: any, source: "loja" | "marketplace") => {
+          const id = item.id;
+          const name = (item.name || item.full_name || "").trim();
+          if (!name) return;
+          
+          const key = `${name.toLowerCase()}_${item.cpf || item.phone || ""}`;
+          if (seenIds.has(id) || seenNames.has(key)) return;
+
+          seenIds.add(id);
+          seenNames.add(key);
+          merged.push({
+            id: item.id,
+            name: name,
+            phone: item.phone || null,
+            cpf: item.cpf || null,
+            isMarketplace: source === "marketplace"
+          });
+        };
+
+        (customersData || []).forEach(c => addResult(c, "loja"));
+        (profilesData || []).forEach(p => addResult(p, "marketplace"));
+
+        setResults(merged);
+      } catch (err) {
+        console.error("Search error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     const timer = setTimeout(search, 300);
     return () => clearTimeout(timer);
   }, [query, companyId]);
 
-  const handleSelect = async (customer: Customer) => {
+  const handleSelect = async (customer: any) => {
     setQuery(customer.name);
     setShowResults(false);
     
-    // Fetch most recent address
+    // Attempt to fetch most recent address from 'addresses' table
     const { data: addresses } = await supabase
       .from("addresses")
       .select("street, number, neighborhood, complement")
@@ -74,6 +124,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       .limit(1)
       .maybeSingle();
 
+    let fullAddress = "";
     if (addresses) {
       const parts = [
         addresses.street,
@@ -81,14 +132,11 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
         addresses.neighborhood,
         addresses.complement ? `(${addresses.complement})` : null
       ].filter(Boolean);
-      
-      const fullAddress = parts.join(", ");
-      console.log("Auto-filling data for", customer.name, ":", { fullAddress, phone: customer.phone, cpf: customer.cpf });
-      onChange(customer.name, fullAddress, customer.phone || "", customer.cpf || "");
-    } else {
-      console.log("No address found for", customer.name);
-      onChange(customer.name, "", customer.phone || "", customer.cpf || "");
+      fullAddress = parts.join(", ");
     }
+    
+    console.log("Auto-filling data for", customer.name);
+    onChange(customer.name, fullAddress, customer.phone || "", customer.cpf || "");
   };
 
   return (
@@ -128,10 +176,17 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
                     <User className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate">{customer.name}</p>
+                    <div className="flex items-center gap-2">
+                       <p className="text-sm font-bold text-foreground truncate">{customer.name}</p>
+                       {customer.isMarketplace ? (
+                         <span className="text-[8px] font-black bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">Marketplace</span>
+                       ) : (
+                         <span className="text-[8px] font-black bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">Loja</span>
+                       )}
+                    </div>
                     <div className="flex items-center gap-3">
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" /> {customer.phone || "---"}
+                        <Phone className="h-3 w-3" /> {customer.phone || "Sem Telefone"}
                       </p>
                       {customer.cpf && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">

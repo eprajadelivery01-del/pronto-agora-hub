@@ -246,45 +246,70 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
       const cId = companyId || (await fetchCompanyInfo())?.id;
       if (!cId) throw new Error("Empresa não encontrada.");
 
-      // For new deliveries, we handle customer profile
+      // For new deliveries, we handle customer profile synchronization
       if (!initialData) {
-        // Search by CPF first if provided, then by Name
         let existingCust = null;
         
+        // 1. Search by exactly matching CPF and name in local customers
         if (customerCpf) {
           const { data } = await supabase
             .from("customers")
             .select("id, name, phone, cpf")
-            .eq("cpf", customerCpf)
+            .eq("cpf", customerCpf.replace(/\D/g, ""))
             .maybeSingle();
           existingCust = data;
         }
 
+        // 2. Search by Name if not found yet
         if (!existingCust && customerName) {
           const { data } = await supabase
             .from("customers")
             .select("id, name, phone, cpf")
-            .ilike("name", customerName)
+            .ilike("name", customerName.trim())
             .maybeSingle();
           existingCust = data;
+        }
+
+        // 3. Search in global PROFILES as a fallback
+        if (!existingCust && (customerCpf || customerName)) {
+           const { data: profileCust } = await supabase
+            .from("profiles")
+            .select("id, full_name, phone")
+            .ilike("full_name", customerName.trim())
+            .maybeSingle();
+           
+           if (profileCust) {
+              // Convert profile to customer on the fly
+              const { data: newCust } = await supabase
+                .from("customers")
+                .insert([{ 
+                  name: customerName,
+                  cpf: customerCpf ? customerCpf.replace(/\D/g, "") : null,
+                  phone: customerPhone || profileCust.phone
+                }])
+                .select("id")
+                .single();
+              existingCust = newCust;
+           }
         }
 
         let finalCustomerId = existingCust?.id;
 
         if (!finalCustomerId) {
+          // Total New Customer logic
           const { data: newCust, error: custError } = await supabase
             .from("customers")
             .insert([{ 
               name: customerName,
-              cpf: customerCpf || null,
+              cpf: customerCpf ? customerCpf.replace(/\D/g, "") : null,
               phone: customerPhone || null
             }])
             .select("id")
             .single();
           
-          if (custError) console.error("Error creating customer profile:", custError);
-          if (newCust) {
+          if (!custError && newCust) {
             finalCustomerId = newCust.id;
+            // Create initial address record
             await supabase.from("addresses").insert([{
               customer_id: newCust.id,
               street: address.split(",")[0] || address,
@@ -296,8 +321,8 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
         } else {
           // Update existing customer info if missing
           const updates: any = {};
-          if (!existingCust.cpf && customerCpf) updates.cpf = customerCpf;
-          if (!existingCust.phone && customerPhone) updates.phone = customerPhone;
+          if (customerCpf && !existingCust.cpf) updates.cpf = customerCpf.replace(/\D/g, "");
+          if (customerPhone && !existingCust.phone) updates.phone = customerPhone;
           
           if (Object.keys(updates).length > 0) {
             await supabase.from("customers").update(updates).eq("id", finalCustomerId);
