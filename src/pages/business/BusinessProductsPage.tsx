@@ -454,43 +454,28 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                </div>
 
                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                     <div className="relative">
-                        <input 
-                           type="file" 
-                           id="prod-upload" 
-                           className="hidden" 
-                           accept="image/*"
-                           onChange={handleFileUpload}
-                           disabled={isUploading || imageUrls.length >= 3}
-                        />
-                        <label 
-                           htmlFor="prod-upload"
-                           className={cn(
-                             "w-full py-4 rounded-xl border border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-primary/10 transition-all",
-                             (isUploading || imageUrls.length >= 3) && "opacity-50 cursor-not-allowed"
-                           )}
-                        >
-                            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                            <span className="text-[10px] font-black uppercase tracking-widest">{isUploading ? 'Subindo...' : 'Fazer Upload'}</span>
-                        </label>
-                     </div>
-                     <div className="flex flex-col gap-2">
-                        <input
-                          value={newUrl}
-                          onChange={(e) => setNewUrl(e.target.value)}
-                          placeholder="Ou cole a URL..."
-                          className="w-full px-4 py-3 rounded-xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-[10px]"
-                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addImageUrl(); } }}
-                        />
-                        <button
-                          type="button"
-                          onClick={addImageUrl}
-                          className="w-full py-2.5 rounded-xl bg-primary/10 text-primary font-black text-[9px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
-                        >
-                          Adicionar URL
-                        </button>
-                     </div>
+                  <div className="relative">
+                     <input 
+                        type="file" 
+                        id="prod-upload" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        disabled={isUploading || imageUrls.length >= 3}
+                     />
+                     <label 
+                        htmlFor="prod-upload"
+                        className={cn(
+                          "w-full py-8 rounded-[2rem] border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-primary/10 transition-all",
+                          (isUploading || imageUrls.length >= 3) && "opacity-50 cursor-not-allowed"
+                        )}
+                     >
+                        {isUploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <ImagePlus className="h-8 w-8 text-primary" />}
+                        <div className="text-center">
+                           <span className="text-sm font-black uppercase tracking-widest text-primary block">Enviar do Dispositivo</span>
+                           <span className="text-[10px] text-muted-foreground font-bold mt-1 block">Clique para selecionar foto local</span>
+                        </div>
+                     </label>
                   </div>
                   <p className="text-[9px] text-muted-foreground italic px-2">📷 Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
                </div>

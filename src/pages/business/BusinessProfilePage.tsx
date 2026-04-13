@@ -332,14 +332,13 @@ export default function BusinessProfilePage() {
       {/* URL EDIT MODALS/OVERLAYS */}
       {(isEditingLogo || isEditingCover) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="w-full max-w-lg bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 animate-in zoom-in-95">
-              <div className="flex items-center justify-between">
+           <div className="w-full max-w-lg bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 an              <div className="flex items-center justify-between">
                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                       <LinkIcon className="h-5 w-5 text-primary-foreground" />
+                       <Camera className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <h3 className="text-xl font-black text-foreground">
-                       {isEditingLogo ? "Link do Logo" : "Link do Banner"}
+                       {isEditingLogo ? "Alterar Logo" : "Alterar Banner"}
                     </h3>
                  </div>
                  <button onClick={() => { setIsEditingLogo(false); setIsEditingCover(false); }} className="p-2 rounded-xl hover:bg-muted transition-colors">
@@ -350,62 +349,49 @@ export default function BusinessProfilePage() {
               <div className="space-y-6">
                 <div className="flex flex-col gap-3">
                    <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                      Sua imagem será armazenada nos nossos servidores. O tamanho ideal é 1200x400 para banners e 400x400 para logos.
+                      Sua imagem será armazenada com segurança. O tamanho ideal é 1200x400 para banners e 400x400 para logos.
                    </p>
                    
-                   <div className="grid grid-cols-2 gap-4">
-                      <div className="relative group/file">
-                         <input 
-                           type="file" 
-                           id="file-upload" 
-                           className="hidden" 
-                           accept="image/*"
-                           onChange={(e) => handleFileUpload(e, isEditingLogo ? 'logo' : 'cover')}
-                           disabled={isUploading}
-                         />
-                         <label 
-                           htmlFor="file-upload"
-                           className={cn(
-                             "w-full py-4 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-primary/10 transition-all",
-                             isUploading && "opacity-50 cursor-not-allowed"
-                           )}
-                         >
-                            {isUploading ? (
-                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                            ) : (
-                              <ImagePlus className="h-6 w-6 text-primary" />
-                            )}
-                            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Upload Disco</span>
-                         </label>
-                      </div>
-
-                      <div className="w-full flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                           <LinkIcon className="h-3 w-3" /> Ou Cole a URL
-                        </div>
-                        <input 
-                           value={tempUrl}
-                           onChange={(e) => setTempUrl(e.target.value)}
-                           placeholder="https://..."
-                           className="w-full px-5 py-4 rounded-2xl border border-border bg-muted/30 font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all text-xs"
-                        />
-                      </div>
+                   <div className="relative group/file">
+                      <input 
+                        type="file" 
+                        id="file-upload" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, isEditingLogo ? 'logo' : 'cover')}
+                        disabled={isUploading}
+                      />
+                      <label 
+                        htmlFor="file-upload"
+                        className={cn(
+                          "w-full py-12 rounded-[2rem] border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-primary/10 transition-all",
+                          isUploading && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                         {isUploading ? (
+                           <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                         ) : (
+                           <ImagePlus className="h-10 w-10 text-primary" />
+                         )}
+                         <div className="text-center">
+                            <span className="text-sm font-black uppercase tracking-widest text-primary block">Selecionar do Dispositivo</span>
+                            <span className="text-[10px] text-muted-foreground font-bold mt-1 block">PNG, JPG ou WEBP até 5MB</span>
+                         </div>
+                      </label>
                    </div>
                 </div>
               </div>
 
               <button 
                 onClick={() => {
-                   if (isEditingLogo) setLogoUrl(tempUrl);
-                   else setCoverUrl(tempUrl);
                    setIsEditingLogo(false);
                    setIsEditingCover(false);
-                   toast.success("Foto selecionada! Publique seu perfil para confirmar.");
+                   toast.success("Foto processada! Publique seu perfil para confirmar.");
                 }}
-                disabled={isUploading}
-                className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20 disabled:opacity-50"
+                disabled={isUploading || (!logoUrl && isEditingLogo) || (!coverUrl && isEditingCover)}
+                className="w-full py-5 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.01] active:scale-95 transition-all"
               >
-                Confirmar Seleção
+                {isUploading ? "Enviando arquivo..." : "Fechar e Salvar"}
               </button>
            </div>
         </div>
