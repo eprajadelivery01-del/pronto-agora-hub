@@ -44,22 +44,15 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       }
       setLoading(true);
       
-      // In this version, we fetch customers who have orders with this company
-      const { data } = await supabase
-        .from("orders")
-        .select("customers(id, name, phone)")
-        .eq("company_id", companyId)
-        .ilike("customers.name", `%${query}%`)
-        .limit(5);
+      // In this version, we fetch customers directly from the customers table
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, phone")
+        .ilike("name", `%${query}%`)
+        .limit(10);
 
       if (data) {
-        const unique = new Map();
-        data.forEach((d: any) => {
-          if (d.customers) {
-            unique.set(d.customers.id, d.customers);
-          }
-        });
-        setResults(Array.from(unique.values()));
+        setResults(data);
       }
       setLoading(false);
     };
@@ -72,12 +65,13 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
     setQuery(customer.name);
     setShowResults(false);
     
-    // Fetch default address
+    // Fetch most recent address
     const { data: addresses } = await supabase
       .from("addresses")
       .select("street, number, neighborhood, complement")
       .eq("customer_id", customer.id)
-      .eq("is_default", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (addresses) {
