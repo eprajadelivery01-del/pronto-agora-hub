@@ -75,9 +75,18 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       .maybeSingle();
 
     if (addresses) {
-      const fullAddress = `${addresses.street}, ${addresses.number}${addresses.neighborhood ? ` - ${addresses.neighborhood}` : ""}${addresses.complement ? ` (${addresses.complement})` : ""}`;
+      const parts = [
+        addresses.street,
+        addresses.number,
+        addresses.neighborhood,
+        addresses.complement ? `(${addresses.complement})` : null
+      ].filter(Boolean);
+      
+      const fullAddress = parts.join(", ");
+      console.log("Auto-filling address for", customer.name, ":", fullAddress);
       onChange(customer.name, fullAddress);
     } else {
+      console.log("No address found for", customer.name);
       onChange(customer.name);
     }
   };

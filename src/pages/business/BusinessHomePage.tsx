@@ -1,7 +1,7 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package } from "lucide-react";
+import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package, Trash2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ export default function BusinessHomePage() {
   const { profile } = useAuth();
   const { selectedCity } = useCity();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
+  const [editingDelivery, setEditingDelivery] = useState<any>(null);
   const qc = useQueryClient();
   
   const { data: companyData } = useQuery({
@@ -58,10 +59,38 @@ export default function BusinessHomePage() {
     completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length
   };
 
+  const handleCancel = async (id: string) => {
+    if (!confirm("Tem certeza que deseja cancelar esta entrega?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("deliveries")
+        .update({ status: "cancelled" })
+        .eq("id", id);
+        
+      if (error) throw error;
+      toast.success("Entrega cancelada com sucesso");
+      qc.invalidateQueries({ queryKey: ["deliveries"] });
+    } catch (error: any) {
+      toast.error("Erro ao cancelar: " + error.message);
+    }
+  };
+
+  const handleEdit = (delivery: any) => {
+    setEditingDelivery(delivery);
+    setShowNewDelivery(true);
+  };
+
   return (
     <BusinessLayout title="Painel de Entregas">
       {showNewDelivery ? (
-        <NewDeliveryForm onClose={() => setShowNewDelivery(false)} />
+        <NewDeliveryForm 
+          onClose={() => {
+            setShowNewDelivery(false);
+            setEditingDelivery(null);
+          }} 
+          initialData={editingDelivery}
+        />
       ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -118,11 +147,25 @@ export default function BusinessHomePage() {
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Valor</p>
                           <p className="text-lg font-black text-foreground">R$ {Number(delivery.value || 0).toFixed(2)}</p>
                        </div>
-                       <div className="text-left md:text-right hidden sm:block">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Data</p>
-                          <p className="text-sm font-bold text-muted-foreground">
-                             {format(new Date(delivery.created_at), "HH:mm")}
-                          </p>
+                       <div className="flex items-center gap-2">
+                          {["pending", "broadcasted"].includes(delivery.status) && (
+                            <>
+                              <button 
+                                onClick={() => handleEdit(delivery)}
+                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                                title="Editar"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleCancel(delivery.id)}
+                                className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                                title="Cancelar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
                        </div>
                     </div>
                   </div>
@@ -164,18 +207,19 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   );
 }
 
-function NewDeliveryForm({ onClose }: { onClose: () => void }) {
+function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initialData?: any }) {
   const { selectedCity } = useCity();
   const qc = useQueryClient();
-  const [customerName, setCustomerName] = useState("");
-  const [address, setAddress] = useState("");
-  const [value, setValue] = useState("");
-  const [notes, setNotes] = useState("");
+  const [customerName, setCustomerName] = useState(initialData?.customer_name || "");
+  const [address, setAddress] = useState(initialData?.address || "");
+  const [value, setValue] = useState(initialData?.value?.toString() || "");
+  const [notes, setNotes] = useState(initialData?.notes || "");
   const [submitting, setSubmitting] = useState(false);
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyId, setCompanyId] = useState<string | null>(initialData?.company_id || null);
+  const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || "");
 
   const fetchCompanyInfo = async () => {
+    if (initialData?.company_id) return { id: initialData.company_id, address: initialData.pickup_address };
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     
@@ -196,41 +240,41 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
 
     try {
-      const cId = companyId || await fetchCompanyId();
+      const cId = companyId || (await fetchCompanyInfo())?.id;
       if (!cId) throw new Error("Empresa não encontrada.");
 
-      // Check if customer exists in 'customers' table by name
-      const { data: existingCust } = await supabase
-        .from("customers")
-        .select("id")
-        .ilike("name", customerName)
-        .maybeSingle();
-
-      let finalCustomerId = existingCust?.id;
-
-      if (!finalCustomerId) {
-        // Create new anonymous customer
-        const { data: newCust, error: custError } = await supabase
+      // For new deliveries, we handle customer profile
+      if (!initialData) {
+        const { data: existingCust } = await supabase
           .from("customers")
-          .insert([{ name: customerName }])
           .select("id")
-          .single();
-        
-        if (custError) console.error("Error creating customer profile:", custError);
-        if (newCust) {
-          finalCustomerId = newCust.id;
-          // Also create initial address for them
-          await supabase.from("addresses").insert([{
-            customer_id: newCust.id,
-            street: address.split(",")[0] || address,
-            city: selectedCity || "Diamantino", 
-            state: "MT",
-            is_default: true
-          }]);
+          .ilike("name", customerName)
+          .maybeSingle();
+
+        let finalCustomerId = existingCust?.id;
+
+        if (!finalCustomerId) {
+          const { data: newCust, error: custError } = await supabase
+            .from("customers")
+            .insert([{ name: customerName }])
+            .select("id")
+            .single();
+          
+          if (custError) console.error("Error creating customer profile:", custError);
+          if (newCust) {
+            finalCustomerId = newCust.id;
+            await supabase.from("addresses").insert([{
+              customer_id: newCust.id,
+              street: address.split(",")[0] || address,
+              city: selectedCity || "Diamantino", 
+              state: "MT",
+              is_default: true
+            }]);
+          }
         }
       }
 
-      const { error } = await supabase.from("deliveries").insert([{
+      const payload = {
         company_id: cId,
         customer_name: customerName,
         address: address, 
@@ -238,27 +282,35 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
         pickup_address: companyAddress || "Retirada na Loja",
         value: value ? parseFloat(value) : 0, 
         notes: notes || null,
-        status: "pending",
-        commission: 0
-      }]);
+        status: initialData ? initialData.status : "pending",
+        commission: initialData ? initialData.commission : 0
+      };
+
+      const query = initialData 
+        ? supabase.from("deliveries").update(payload).eq("id", initialData.id)
+        : supabase.from("deliveries").insert([payload]);
+
+      const { error } = await query;
 
       if (error) throw error;
 
-      toast.success("Entrega solicitada com sucesso!");
+      toast.success(initialData ? "Entrega atualizada com sucesso!" : "Entrega solicitada com sucesso!");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       onClose();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao criar entrega");
+      toast.error(err.message || "Erro ao processar entrega");
     } finally {
       setSubmitting(false);
     }
   };
 
   useEffect(() => {
-    fetchCompanyInfo().then(data => {
-      if (data) setCompanyId(data.id);
-    });
-  }, []);
+    if (!initialData) {
+      fetchCompanyInfo().then(data => {
+        if (data) setCompanyId(data.id);
+      });
+    }
+  }, [initialData]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-left-4 duration-300">
@@ -271,9 +323,9 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
         
         <h2 className="text-2xl font-black text-foreground mb-8 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-             <Plus className="h-6 w-6 text-primary-foreground" />
+             {initialData ? <Pencil className="h-6 w-6 text-primary-foreground" /> : <Plus className="h-6 w-6 text-primary-foreground" />}
           </div>
-          Nova Solicitação de Entrega
+          {initialData ? "Editar Solicitação de Entrega" : "Nova Solicitação de Entrega"}
         </h2>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
