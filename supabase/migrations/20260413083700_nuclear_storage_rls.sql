@@ -4,7 +4,7 @@
 -- ========================================================
 
 -- 1. Radical cleanup of all storage policies
-DELETE FROM storage.policies WHERE bucket_id IN ('store-assets', 'avatars');
+DROP POLICY IF EXISTS "Public Select Store" ON storage.objects;
 
 -- 2. Bucket: store-assets
 -- Allow public select
