@@ -332,7 +332,8 @@ export default function BusinessProfilePage() {
       {/* URL EDIT MODALS/OVERLAYS */}
       {(isEditingLogo || isEditingCover) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="w-full max-w-lg bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 an              <div className="flex items-center justify-between">
+           <div className="w-full max-w-lg bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 animate-in zoom-in-95">
+              <div className="flex items-center justify-between">
                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                        <Camera className="h-5 w-5 text-primary-foreground" />
