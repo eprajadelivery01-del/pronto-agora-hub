@@ -98,10 +98,13 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
 
   // Render Regions and Labels
   useEffect(() => {
-    const m = map.current;
-    if (!m || !regions) return;
+    const currentMap = map.current;
+    if (!currentMap || !regions) return;
 
     const render = () => {
+      const m = map.current;
+      if (!m) return;
+
       // Clear old regions
       regionsRenderedRef.current.forEach((id) => {
         [`rfill-${id}`, `rline-${id}`, `rlabel-${id}`].forEach(l => {
@@ -179,14 +182,14 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
       });
     };
 
-    if (m.isStyleLoaded()) render();
-    else m.once("load", render);
+    if (currentMap.isStyleLoaded()) render();
+    else currentMap.once("load", render);
   }, [regions, interactive]);
 
   // Realtime Drivers
   useEffect(() => {
-    const m = map.current;
-    if (!m) return;
+    const currentMap = map.current;
+    if (!currentMap) return;
 
     markersRef.current.forEach(mk => mk.remove());
     markersRef.current = [];
@@ -195,65 +198,135 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
       if (!driver.latitude || !driver.longitude) return;
 
       const el = document.createElement("div");
-      el.className = "driver-marker";
+      el.className = "driver-marker-container";
+      
+      // Premium Google-Maps-Style PIN with Pulse
       el.innerHTML = `
-        <div style="
-          width: 38px; 
-          height: 38px; 
-          border-radius: 12px; 
-          background: #22c55e; 
-          border: 2px solid white; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); 
-          font-size: 18px;
+        <div class="pin-wrapper" style="
+          position: relative;
           cursor: pointer;
+          filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
           transition: transform 0.2s;
         " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-          Status
+          <!-- Pulse Effect -->
+          <div style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            background: #22c55e;
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: pinPulse 2s ease-out infinite;
+          "></div>
+          
+          <!-- Outer Circle -->
+          <div style="
+            width: 44px; 
+            height: 44px; 
+            border-radius: 50%; 
+            background: #22c55e; 
+            border: 3px solid white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+            z-index: 2;
+          ">
+            <!-- Icon Background -->
+            <div style="
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            ">
+              <img src="/logo.png" style="width: 22px; height: 22px; object-fit: contain;" alt="M" />
+            </div>
+          </div>
+          
+          <!-- Tooltip (Small and fast) -->
+          <div style="
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            white-space: nowrap;
+            z-index: 3;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+          ">${driver.profiles?.full_name?.split(" ")[0] || "Entregador"}</div>
         </div>
+        
+        <style>
+          @keyframes pinPulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+          }
+        </style>
       `;
 
       const popupContent = `
-        <div style="padding: 10px; font-family: sans-serif; min-width: 160px; text-align: left;">
-          <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 2px;">${driver.profiles?.full_name || "Entregador"}</div>
-          <div style="font-size: 11px; color: #22c55e; margin-bottom: 10px; display: flex; align-items: center; gap: 5px;">
-            <div style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite;"></div>
-            Disponível
+        <div style="
+          padding: 16px; 
+          font-family: 'Inter', sans-serif; 
+          min-width: 200px;
+          background: #ffffff;
+          border-radius: 20px;
+        ">
+          <div style="display: flex; items-center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: #f0fdf4; display: flex; align-items: center; justify-content: center;">
+              <img src="/logo.png" style="width: 28px; height: 28px; object-fit: contain;" />
+            </div>
+            <div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827;">${driver.profiles?.full_name || "Entregador"}</div>
+              <div style="font-size: 12px; color: #22c55e; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                <div style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></div>
+                Em Rota de Entrega
+              </div>
+            </div>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <button onclick="window.location.href='/admin/chat?recipient=${driver.user_id}'" style="
-              cursor: pointer;
-              background: #3b82f6;
+          
+          <div style="display: grid; grid-template-cols: 1fr; gap: 8px;">
+            <a href="https://wa.me/${driver.profiles?.phone?.replace(/\D/g, "")}" target="_blank" style="
+              text-decoration: none;
+              background: #25D366;
               color: white;
-              border: none;
-              border-radius: 8px;
-              padding: 7px;
-              font-size: 11px;
-              font-weight: 600;
-              transition: opacity 0.2s;
-            ">💬 Iniciar Chat</button>
-            <button onclick="window.open('https://wa.me/${driver.profiles?.phone?.replace(/\D/g, "")}', '_blank')" style="
-              cursor: pointer;
-              background: #22c55e;
-              color: white;
-              border: none;
-              border-radius: 8px;
-              padding: 7px;
-              font-size: 11px;
-              font-weight: 600;
-              transition: opacity 0.2s;
-            ">🟢 WhatsApp</button>
+              padding: 10px;
+              border-radius: 12px;
+              text-align: center;
+              font-size: 13px;
+              font-weight: 700;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+              box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+              transition: transform 0.2s;
+            ">
+              WhatsApp Direto
+            </a>
+            <div style="font-size: 11px; text-align: center; color: #6b7280; font-weight: 500;">
+              Avaliação: ⭐ ${Number(driver.rating).toFixed(1)}
+            </div>
           </div>
-          <style>@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }</style>
         </div>
       `;
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([driver.longitude, driver.latitude])
-        .setPopup(new maplibregl.Popup({ offset: 15, closeButton: false }).setHTML(popupContent))
-        .addTo(m);
+        .setPopup(new maplibregl.Popup({ offset: 25, closeButton: false }).setHTML(popupContent))
+        .addTo(currentMap);
 
       markersRef.current.push(marker);
     });
