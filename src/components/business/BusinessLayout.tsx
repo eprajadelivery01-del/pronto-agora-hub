@@ -118,13 +118,13 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           <div className="flex items-center gap-4">
             <div className="relative group shrink-0">
               <div className="absolute -inset-1 bg-gradient-to-tr from-primary to-primary-foreground/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-              <div className="relative w-12 h-12 rounded-2xl bg-white flex items-center justify-center p-2 border border-border shadow-md overflow-hidden">
-                <img src={getLogo()} alt="Logo" className="w-full h-full object-contain" />
+              <div className="relative w-12 h-12 rounded-2xl bg-white flex items-center justify-center border border-border shadow-md overflow-hidden">
+                <img src={getLogo()} alt="Logo" className="w-full h-full object-cover" />
               </div>
             </div>
             {!collapsed && (
               <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
-                <p className="text-[10px] text-primary leading-none mb-1 font-black uppercase tracking-[0.2em]">Painel Lojista</p>
+
                 <h2 className="text-base font-black text-foreground leading-tight truncate">
                   {company?.name || profile?.full_name || "Minha Loja"}
                 </h2>
