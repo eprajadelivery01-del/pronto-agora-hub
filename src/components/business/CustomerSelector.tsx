@@ -12,7 +12,7 @@ interface Customer {
 interface CustomerSelectorProps {
   companyId: string;
   value: string;
-  onChange: (name: string, address?: string) => void;
+  onChange: (name: string, address?: string, phone?: string) => void;
 }
 
 export function CustomerSelector({ companyId, value, onChange }: CustomerSelectorProps) {
@@ -84,10 +84,10 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       
       const fullAddress = parts.join(", ");
       console.log("Auto-filling address for", customer.name, ":", fullAddress);
-      onChange(customer.name, fullAddress);
+      onChange(customer.name, fullAddress, customer.phone || "");
     } else {
       console.log("No address found for", customer.name);
-      onChange(customer.name);
+      onChange(customer.name, "", customer.phone || "");
     }
   };
 

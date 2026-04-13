@@ -211,8 +211,10 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
   const { selectedCity } = useCity();
   const qc = useQueryClient();
   const [customerName, setCustomerName] = useState(initialData?.customer_name || "");
+  const [customerPhone, setCustomerPhone] = useState(initialData?.customer_phone || "");
   const [address, setAddress] = useState(initialData?.address || "");
   const [value, setValue] = useState(initialData?.value?.toString() || "");
+  const [difficulty, setDifficulty] = useState(initialData?.difficulty || "Padrão");
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(initialData?.company_id || null);
@@ -277,10 +279,12 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
       const payload = {
         company_id: cId,
         customer_name: customerName,
+        customer_phone: customerPhone,
         address: address, 
         dropoff_address: address,
         pickup_address: companyAddress || "Retirada na Loja",
         value: value ? parseFloat(value) : 0, 
+        difficulty: difficulty,
         notes: notes || null,
         status: initialData ? initialData.status : "pending",
         commission: initialData ? initialData.commission : 0
@@ -335,12 +339,26 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
               <CustomerSelector 
                 companyId={companyId} 
                 value={customerName}
-                onChange={(name, addr) => {
+                onChange={(name, addr, phone) => {
                   setCustomerName(name);
                   if (addr) setAddress(addr);
+                  if (phone) setCustomerPhone(phone);
                 }}
               />
             )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Telefone do Destinatário</label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="(00) 00000-0000"
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+              />
+            </div>
           </div>
 
           <div className="md:col-span-2">
@@ -372,10 +390,14 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
 
           <div>
             <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Dificuldade/Tipo (Opcional)</label>
-            <select className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-base">
-               <option>Padrão</option>
-               <option>Frágil</option>
-               <option>Grande Porte</option>
+            <select 
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+              className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-base"
+            >
+               <option value="Padrão">Padrão</option>
+               <option value="Frágil">Frágil</option>
+               <option value="Grande Porte">Grande Porte</option>
             </select>
           </div>
 
