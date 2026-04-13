@@ -1,4 +1,4 @@
-// Build trigger: 2026-04-13 12:35 - Ultimate RLS and UI Stabilization Final
+// Build trigger: 2026-04-13 12:42 - Final Stabilization Heartbeat
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
