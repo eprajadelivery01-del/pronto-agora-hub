@@ -6,9 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { CustomerSelector } from "@/components/business/CustomerSelector";
+import { useCity } from "@/contexts/CityContext";
 
 export default function BusinessHomePage() {
   const { profile } = useAuth();
+  const { selectedCity } = useCity();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
 
   return (
@@ -74,6 +76,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
 }
 
 function NewDeliveryForm({ onClose }: { onClose: () => void }) {
+  const { selectedCity } = useCity();
   const qc = useQueryClient();
   const [customerName, setCustomerName] = useState("");
   const [address, setAddress] = useState("");
@@ -125,7 +128,7 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
           await supabase.from("addresses").insert([{
             customer_id: newCust.id,
             street: address.split(",")[0] || address,
-            city: "Diamantino", // Default or extract from string
+            city: selectedCity || "Diamantino", 
             state: "MT",
             is_default: true
           }]);
