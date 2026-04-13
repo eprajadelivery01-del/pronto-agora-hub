@@ -145,6 +145,7 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
         company_id: cId,
         customer_name: customerName,
         address: address, 
+        dropoff_address: address,
         pickup_address: companyAddress || "Retirada na Loja",
         value: value ? parseFloat(value) : 0, 
         notes: notes || null,

@@ -13,6 +13,12 @@ BEGIN
   
   -- Ensure it's not restricted as NOT NULL if we want flexibility
   ALTER TABLE public.deliveries ALTER COLUMN pickup_address DROP NOT NULL;
+
+  -- DROPOFF ADDRESS
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='deliveries' AND column_name='dropoff_address') THEN
+    ALTER TABLE public.deliveries ADD COLUMN dropoff_address TEXT;
+  END IF;
+  ALTER TABLE public.deliveries ALTER COLUMN dropoff_address DROP NOT NULL;
 END $$;
 
 -- 2. FIX CUSTOMERS RLS
