@@ -7,12 +7,13 @@ interface Customer {
   id: string;
   name: string;
   phone: string | null;
+  cpf: string | null;
 }
 
 interface CustomerSelectorProps {
   companyId: string;
   value: string;
-  onChange: (name: string, address?: string, phone?: string) => void;
+  onChange: (name: string, address?: string, phone?: string, cpf?: string) => void;
 }
 
 export function CustomerSelector({ companyId, value, onChange }: CustomerSelectorProps) {
@@ -44,11 +45,10 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       }
       setLoading(true);
       
-      // In this version, we fetch customers directly from the customers table
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name, phone")
-        .ilike("name", `%${query}%`)
+        .select("id, name, phone, cpf")
+        .or(`name.ilike.%${query}%,cpf.ilike.%${query}%`)
         .limit(10);
 
       if (data) {
@@ -83,11 +83,11 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       ].filter(Boolean);
       
       const fullAddress = parts.join(", ");
-      console.log("Auto-filling address for", customer.name, ":", fullAddress);
-      onChange(customer.name, fullAddress, customer.phone || "");
+      console.log("Auto-filling data for", customer.name, ":", { fullAddress, phone: customer.phone, cpf: customer.cpf });
+      onChange(customer.name, fullAddress, customer.phone || "", customer.cpf || "");
     } else {
       console.log("No address found for", customer.name);
-      onChange(customer.name, "", customer.phone || "");
+      onChange(customer.name, "", customer.phone || "", customer.cpf || "");
     }
   };
 
@@ -103,7 +103,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
             onChange(e.target.value);
           }}
           onFocus={() => setShowResults(true)}
-          placeholder="Nome completo do cliente"
+          placeholder="Nome ou CPF do cliente"
           className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
           required
         />
@@ -115,7 +115,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
           {results.length > 0 ? (
             <div className="space-y-1">
               <p className="px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
-                Clientes Recentes
+                Sugestões Encontradas
               </p>
               {results.map((customer) => (
                 <button
@@ -129,9 +129,16 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-foreground truncate">{customer.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" /> {customer.phone || "---"}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> {customer.phone || "---"}
+                      </p>
+                      {customer.cpf && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> CPF: {customer.cpf}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -142,7 +149,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
                  <Plus className="h-6 w-6 text-muted-foreground/30" />
               </div>
               <p className="text-sm font-bold text-foreground">Novo Cliente</p>
-              <p className="text-xs text-muted-foreground">Continue digitando para cadastrar automaticamente.</p>
+              <p className="text-xs text-muted-foreground">Continue digitando para cadastrar.</p>
             </div>
           )}
         </div>
@@ -150,3 +157,4 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
     </div>
   );
 }
+

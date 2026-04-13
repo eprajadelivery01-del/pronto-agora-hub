@@ -212,6 +212,7 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
   const qc = useQueryClient();
   const [customerName, setCustomerName] = useState(initialData?.customer_name || "");
   const [customerPhone, setCustomerPhone] = useState(initialData?.customer_phone || "");
+  const [customerCpf, setCustomerCpf] = useState(initialData?.customer_cpf || "");
   const [address, setAddress] = useState(initialData?.address || "");
   const [value, setValue] = useState(initialData?.value?.toString() || "");
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || "Padrão");
@@ -247,18 +248,37 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
 
       // For new deliveries, we handle customer profile
       if (!initialData) {
-        const { data: existingCust } = await supabase
-          .from("customers")
-          .select("id")
-          .ilike("name", customerName)
-          .maybeSingle();
+        // Search by CPF first if provided, then by Name
+        let existingCust = null;
+        
+        if (customerCpf) {
+          const { data } = await supabase
+            .from("customers")
+            .select("id, name, phone, cpf")
+            .eq("cpf", customerCpf)
+            .maybeSingle();
+          existingCust = data;
+        }
+
+        if (!existingCust && customerName) {
+          const { data } = await supabase
+            .from("customers")
+            .select("id, name, phone, cpf")
+            .ilike("name", customerName)
+            .maybeSingle();
+          existingCust = data;
+        }
 
         let finalCustomerId = existingCust?.id;
 
         if (!finalCustomerId) {
           const { data: newCust, error: custError } = await supabase
             .from("customers")
-            .insert([{ name: customerName }])
+            .insert([{ 
+              name: customerName,
+              cpf: customerCpf || null,
+              phone: customerPhone || null
+            }])
             .select("id")
             .single();
           
@@ -273,6 +293,15 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
               is_default: true
             }]);
           }
+        } else {
+          // Update existing customer info if missing
+          const updates: any = {};
+          if (!existingCust.cpf && customerCpf) updates.cpf = customerCpf;
+          if (!existingCust.phone && customerPhone) updates.phone = customerPhone;
+          
+          if (Object.keys(updates).length > 0) {
+            await supabase.from("customers").update(updates).eq("id", finalCustomerId);
+          }
         }
       }
 
@@ -280,6 +309,7 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
         company_id: cId,
         customer_name: customerName,
         customer_phone: customerPhone,
+        customer_cpf: customerCpf,
         address: address, 
         dropoff_address: address,
         pickup_address: companyAddress || "Retirada na Loja",
@@ -339,13 +369,27 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
               <CustomerSelector 
                 companyId={companyId} 
                 value={customerName}
-                onChange={(name, addr, phone) => {
+                onChange={(name, addr, phone, cpf) => {
                   setCustomerName(name);
                   if (addr) setAddress(addr);
                   if (phone) setCustomerPhone(phone);
+                  if (cpf) setCustomerCpf(cpf);
                 }}
               />
             )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">CPF do Destinatário (Opcional)</label>
+            <div className="relative">
+              <Plus className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                value={customerCpf}
+                onChange={(e) => setCustomerCpf(e.target.value)}
+                placeholder="000.000.000-00"
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+              />
+            </div>
           </div>
 
           <div className="md:col-span-2">
