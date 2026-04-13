@@ -13,14 +13,18 @@ import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus } from "@/types/models";
 
 export default function BusinessHomePage() {
+  const { profile } = useAuth();
+  const { selectedCity } = useCity();
+  const [showNewDelivery, setShowNewDelivery] = useState(false);
   const qc = useQueryClient();
+  
   const { data: companyData } = useQuery({
-    queryKey: ["company-info", profile?.user_id],
+    queryKey: ["company-info", profile?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("id").eq("user_id", profile?.user_id).maybeSingle();
+      const { data } = await supabase.from("companies").select("id").eq("user_id", profile?.id).maybeSingle();
       return data;
     },
-    enabled: !!profile?.user_id
+    enabled: !!profile?.id
   });
 
   const companyId = companyData?.id;
