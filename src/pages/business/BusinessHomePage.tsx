@@ -7,11 +7,52 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { CustomerSelector } from "@/components/business/CustomerSelector";
 import { useCity } from "@/contexts/CityContext";
+import { useDeliveries } from "@/services/deliveries";
+import { format } from "date-fns";
+import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
+import type { DeliveryStatus } from "@/types/models";
 
 export default function BusinessHomePage() {
-  const { profile } = useAuth();
-  const { selectedCity } = useCity();
-  const [showNewDelivery, setShowNewDelivery] = useState(false);
+  const qc = useQueryClient();
+  const { data: companyData } = useQuery({
+    queryKey: ["company-info", profile?.user_id],
+    queryFn: async () => {
+      const { data } = await supabase.from("companies").select("id").eq("user_id", profile?.user_id).maybeSingle();
+      return data;
+    },
+    enabled: !!profile?.user_id
+  });
+
+  const companyId = companyData?.id;
+
+  const { data, isLoading } = useDeliveries({
+    companyId: companyId || undefined,
+    pageSize: 10
+  });
+
+  const deliveries = data?.data || [];
+  
+  // Realtime subscription
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase
+      .channel("business-home-deliveries")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["deliveries"] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId, qc]);
+
+  const stats = {
+    pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
+    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
+    completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length
+  };
 
   return (
     <BusinessLayout title="Painel de Entregas">
@@ -37,18 +78,62 @@ export default function BusinessHomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <StatCard label="Pendentes" value="0" icon={Clock} color="warning" />
-            <StatCard label="Em trânsito" value="0" icon={Truck} color="primary" />
-            <StatCard label="Entregues" value="0" icon={CheckCircle} color="success" />
+            <StatCard label="Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
+            <StatCard label="Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
+            <StatCard label="Entregues" value={String(stats.completed)} icon={CheckCircle} color="success" />
           </div>
 
-          <div className="bg-card border border-border rounded-[2.5rem] p-12 text-center shadow-card border-dashed">
-            <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
-               <Package className="h-10 w-10 text-muted-foreground/50" />
+          {isLoading ? (
+            <div className="flex items-center justify-center p-20">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
-            <h3 className="text-xl font-bold text-foreground mb-2">Sem atividade recente</h3>
-            <p className="text-muted-foreground max-w-xs mx-auto">Suas novas solicitações de entrega aparecerão aqui.</p>
-          </div>
+          ) : deliveries.length > 0 ? (
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-2">Atividade Recente</h3>
+              <div className="grid grid-cols-1 gap-4">
+                {deliveries.map((delivery) => (
+                  <div key={delivery.id} className="bg-card border border-border/50 rounded-[2rem] p-6 shadow-card hover:border-primary/20 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/5 transition-colors">
+                        <Package className="h-7 w-7 text-muted-foreground/50 group-hover:text-primary/50 transition-colors" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg font-bold text-foreground truncate">{delivery.customer_name}</p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5 truncate">
+                          <MapPin className="h-3.5 w-3.5" /> {delivery.address}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 md:gap-8">
+                       <div className="text-left md:text-right">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Status</p>
+                          <DeliveryStatusBadge status={delivery.status as DeliveryStatus} />
+                       </div>
+                       <div className="text-left md:text-right">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Valor</p>
+                          <p className="text-lg font-black text-foreground">R$ {Number(delivery.value || 0).toFixed(2)}</p>
+                       </div>
+                       <div className="text-left md:text-right hidden sm:block">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Data</p>
+                          <p className="text-sm font-bold text-muted-foreground">
+                             {format(new Date(delivery.created_at), "HH:mm")}
+                          </p>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card border border-border rounded-[2.5rem] p-12 text-center shadow-card border-dashed animate-in fade-in duration-700">
+              <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                 <Package className="h-10 w-10 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Sem atividade recente</h3>
+              <p className="text-muted-foreground max-w-xs mx-auto">Suas novas solicitações de entrega aparecerão aqui.</p>
+            </div>
+          )}
         </div>
       )}
     </BusinessLayout>
@@ -265,3 +350,4 @@ function NewDeliveryForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+import { useQuery } from "@tanstack/react-query";
