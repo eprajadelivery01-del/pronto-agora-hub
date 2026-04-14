@@ -28,7 +28,7 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
   }, [cityId]);
 
   useEffect(() => {
-    if (!mapContainer.current || regions.length === 0) return;
+    if (!mapContainer.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -46,79 +46,81 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
     map.current.on('load', () => {
       setLoading(false);
 
-      regions.forEach(region => {
-        if (!region.geometry) return;
+      if (regions.length > 0) {
+        regions.forEach(region => {
+          if (!region.geometry) return;
 
-        const sourceId = `region-${region.id}`;
-        const fillId = `${sourceId}-fill`;
-        const lineId = `${sourceId}-line`;
-        
-        map.current?.addSource(sourceId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            geometry: region.geometry,
-            properties: { 
-              name: region.name, 
-              price: region.delivery_fee || region.price 
-            }
-          }
-        });
-
-        map.current?.addLayer({
-          id: fillId,
-          type: 'fill',
-          source: sourceId,
-          paint: {
-            'fill-color': region.color || '#3b82f6',
-            'fill-opacity': 0.25
-          }
-        });
-
-        map.current?.addLayer({
-          id: lineId,
-          type: 'line',
-          source: sourceId,
-          paint: {
-            'line-color': region.color || '#3b82f6',
-            'line-width': 2.5
-          }
-        });
-
-        // Click interaction
-        map.current?.on('click', fillId, () => {
-           onRegionSelect?.(region.delivery_fee || region.price, region.id);
-        });
-
-        // Hover effect & Popup (Matching Admin)
-        map.current?.on('mouseenter', fillId, (e) => {
-          map.current!.getCanvas().style.cursor = 'pointer';
-          map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
+          const sourceId = `region-${region.id}`;
+          const fillId = `${sourceId}-fill`;
+          const lineId = `${sourceId}-line`;
           
-          const fee = (region.delivery_fee || region.price || 0);
-          popup
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div style="font-family: sans-serif; padding: 4px; color: #fff;">
-                <strong style="display: block; font-size: 12px; margin-bottom: 2px;">${region.name}</strong>
-                <span style="color: #10b981; font-weight: 800; font-size: 14px;">R$ ${Number(fee).toFixed(2).replace('.', ',')}</span>
-              </div>
-            `)
-            .addTo(map.current!);
-        });
+          map.current?.addSource(sourceId, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              geometry: region.geometry,
+              properties: { 
+                name: region.name, 
+                price: region.delivery_fee || region.price 
+              }
+            }
+          });
 
-        map.current?.on('mouseleave', fillId, () => {
-          map.current!.getCanvas().style.cursor = '';
-          map.current!.setPaintProperty(fillId, 'fill-opacity', 0.25);
-          popup.remove();
+          map.current?.addLayer({
+            id: fillId,
+            type: 'fill',
+            source: sourceId,
+            paint: {
+              'fill-color': region.color || '#3b82f6',
+              'fill-opacity': 0.25
+            }
+          });
+
+          map.current?.addLayer({
+            id: lineId,
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-color': region.color || '#3b82f6',
+              'line-width': 2.5
+            }
+          });
+
+          // Click interaction
+          map.current?.on('click', fillId, () => {
+             onRegionSelect?.(region.delivery_fee || region.price, region.id);
+          });
+
+          // Hover effect & Popup (Matching Admin)
+          map.current?.on('mouseenter', fillId, (e) => {
+            map.current!.getCanvas().style.cursor = 'pointer';
+            map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
+            
+            const fee = (region.delivery_fee || region.price || 0);
+            popup
+              .setLngLat(e.lngLat)
+              .setHTML(`
+                <div style="font-family: sans-serif; padding: 4px; color: #fff;">
+                  <strong style="display: block; font-size: 12px; margin-bottom: 2px;">${region.name}</strong>
+                  <span style="color: #10b981; font-weight: 800; font-size: 14px;">R$ ${Number(fee).toFixed(2).replace('.', ',')}</span>
+                </div>
+              `)
+              .addTo(map.current!);
+          });
+
+          map.current?.on('mouseleave', fillId, () => {
+            map.current!.getCanvas().style.cursor = '';
+            map.current!.setPaintProperty(fillId, 'fill-opacity', 0.25);
+            popup.remove();
+          });
         });
-      });
+      }
     });
 
     return () => {
       map.current?.remove();
     };
-  }, [regions]);
+  }, [regions, onRegionSelect]);
 
   return (
     <div className="relative w-full h-[300px] rounded-2xl overflow-hidden border border-border bg-muted/20">

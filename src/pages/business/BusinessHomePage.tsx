@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FormEvent, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package, Trash2, Pencil, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User } from "lucide-react";
@@ -10,7 +10,7 @@ import { useCity } from "@/contexts/CityContext";
 import { useDeliveries } from "@/services/deliveries";
 import { format } from "date-fns";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
-import type { DeliveryStatus } from "@/types/models";
+import { DeliveryStatus, Order, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/business/StatCard";
 
@@ -23,8 +23,8 @@ export default function BusinessHomePage() {
   const { profile, user } = useAuth();
   const { selectedCity } = useCity();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
-  const [editingDelivery, setEditingDelivery] = useState<any>(null);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isRinging, setIsRinging] = useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const qc = useQueryClient();
@@ -57,6 +57,9 @@ export default function BusinessHomePage() {
     queryKey: ["marketplace-orders", companyId],
     queryFn: async () => {
       if (!companyId) return [];
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      
       const { data } = await supabase
         .from("orders")
         .select(`
@@ -65,7 +68,7 @@ export default function BusinessHomePage() {
           order_items (*, products (*))
         `)
         .eq("company_id", companyId)
-        .in("status", ["pending", "accepted", "preparing", "ready"])
+        .or(`status.in.(pending,accepted,preparing,ready),and(status.eq.completed,created_at.gte.${startOfDay})`)
         .order("created_at", { ascending: false });
       return data || [];
     },
@@ -73,7 +76,7 @@ export default function BusinessHomePage() {
   });
 
   const deliveries = deliveriesData?.data || [];
-  const marketplaceOrders = ordersData || [];
+  const marketplaceOrders = useMemo(() => ordersData || [], [ordersData]);
 
   // Audio for notifications (Looping until accepted)
   useEffect(() => {
@@ -84,9 +87,11 @@ export default function BusinessHomePage() {
     
     // Check for pending orders to start/stop ringing
     const hasPending = marketplaceOrders.some(o => o.status === "pending");
+    
     if (hasPending && !isRinging) {
-      audioRef.current.play().catch(e => console.warn("Audio blocked by browser, needs user interaction"));
-      setIsRinging(true);
+      audioRef.current.play()
+        .then(() => setIsRinging(true))
+        .catch(e => console.warn("Audio blocked by browser, needs user interaction"));
     } else if (!hasPending && isRinging) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -138,7 +143,9 @@ export default function BusinessHomePage() {
     inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
     completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length,
     marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
-    marketplaceRevenue: marketplaceOrders.reduce((acc, o) => acc + (o.total || 0), 0)
+    marketplaceRevenue: marketplaceOrders
+      .filter(o => o.status === "completed")
+      .reduce((acc, o) => acc + (o.total || 0), 0)
   };
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
@@ -239,7 +246,7 @@ export default function BusinessHomePage() {
               <StatCard label="Manual: Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
               <StatCard label="Manual: Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
               <StatCard label="Marketplace: Novos" value={String(stats.marketplacePending)} icon={Bell} color="warning" />
-              <StatCard label="Financeiro: Aberto" value={`R$ ${stats.marketplaceRevenue.toFixed(2).replace('.', ',')}`} icon={DollarSign} color="success" />
+              <StatCard label="Marketplace: Vendas (Hoje)" value={`R$ ${stats.marketplaceRevenue.toFixed(2).replace('.', ',')}`} icon={DollarSign} color="success" />
             </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

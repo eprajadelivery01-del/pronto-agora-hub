@@ -25,7 +25,7 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [regionId, setRegionId] = useState(initialData?.region_id || "");
   const [submitting, setSubmitting] = useState(false);
-  const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || "");
+  const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || companyData?.address || "");
 
   const handleRegionSelect = (fee: number, id: string) => {
     setValue(fee.toString());
