@@ -55,7 +55,7 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
           )
         `)
         .eq('company_id', companyId)
-        .in('status', ['pending', 'accepted', 'in_route', 'ready']);
+        .in('status', ['pending', 'accepted', 'in_route'] as any);
         
       if (data) setActiveDeliveries(data);
     };

@@ -24,8 +24,8 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
 
   useEffect(() => {
     const fetchRegions = async () => {
-      let query = supabase.from('regions').select('*').eq('active', true);
-      if (cityId) query = query.eq('city_id', cityId);
+      let query = supabase.from('regions').select('*').eq('is_active' as any, true);
+      if (cityId) query = query.eq('city_id' as any, cityId);
       
       const { data } = await query;
       if (data) setRegions(data);
