@@ -4,6 +4,7 @@ import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCreateDeliveryRequest } from "@/services/deliveries";
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
   Truck, Bell, RefreshCw, Timer, Phone, MapPin, User, Package,
@@ -64,6 +65,7 @@ export default function BusinessOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [stats, setStats] = useState({ pending: 0, preparing: 0, revenue_today: 0 });
+  const createDeliveryMut = useCreateDeliveryRequest();
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) return;
@@ -155,12 +157,23 @@ export default function BusinessOrdersPage() {
     fetchOrders();
   };
 
+  const handleDispatch = async (order: Order) => {
+    try {
+      toast.info("Solicitando entregador...", { id: "dispatch" });
+      await createDeliveryMut.mutateAsync(order.id);
+      toast.success("🚚 Entregador Solicitado! Aguardando aceite.", { id: "dispatch" });
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(`Falha ao despachar: ${err.message}`, { id: "dispatch" });
+    }
+  };
+
   const getNextActions = (status: OrderStatus) => {
     const actions: Record<string, { label: string, next: OrderStatus }> = {
       pending: { label: "Aceitar Pedido", next: "preparing" },
       accepted: { label: "Começar Preparo", next: "preparing" },
       preparing: { label: "Marcar Pronto", next: "ready" },
-      ready: { label: "Despachar", next: "in_route" },
+      ready: { label: "Chamar Entregador", next: "in_route" },
       in_route: { label: "Concluir", next: "completed" }
     };
     return actions[status];
@@ -248,7 +261,13 @@ export default function BusinessOrdersPage() {
                     order={order}
                     onAdvance={() => {
                         const action = getNextActions(order.status);
-                        if (action) updateStatus(order.id, action.next);
+                        if (action) {
+                           if (order.status === "ready") {
+                              handleDispatch(order);
+                           } else {
+                              updateStatus(order.id, action.next);
+                           }
+                        }
                     }}
                     onCancel={() => updateStatus(order.id, "cancelled")}
                     action={getNextActions(order.status)}

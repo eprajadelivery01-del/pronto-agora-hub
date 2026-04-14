@@ -125,15 +125,25 @@ export async function createDeliveryRequest(orderId: string) {
   if (orderError) throw orderError;
   if (!order) throw new Error("Pedido não encontrado");
 
-  // O "customer" no iFood tem nome e endereço
-  // Como as orders apontam pra customers, puxamos o endereço real do customer
-  const { data: address, error: addressError } = await supabase
-    .from("addresses")
-    .select("*")
-    .eq("customer_id", order.customer_id)
-    .single();
+  // Utilizamos preferencialmente o delivery_address que veio do Checkout.
+  // Caso não exista, tentamos puxar o endereço padrão do customer, mas no nosso fluxo o Cliente já salva na Order.
+  let dropoff = order.delivery_address;
+  let region_id = null;
+  
+  if (!dropoff && order.customer_id) {
+    const { data: address } = await supabase
+      .from("addresses")
+      .select("*")
+      .eq("customer_id", order.customer_id)
+      .maybeSingle();
 
-  const dropoff = address ? `${address.street}, ${address.number} - ${address.neighborhood}` : "Endereço não cadastrado";
+    if (address) {
+       dropoff = `${address.street}, ${address.number} - ${address.neighborhood}`;
+       region_id = address.region_id;
+    }
+  }
+  
+  if (!dropoff) dropoff = "Retirada no Local ou Endereço Inválido";
 
   // 2. Insere na tabela de deliveries
   const { data: delivery, error: deliveryError } = await supabase
@@ -144,17 +154,17 @@ export async function createDeliveryRequest(orderId: string) {
       address: dropoff, // IMPORTANTE: no types.ts a coluna chama 'address'
       value: order.total || 0, // No types.ts a coluna chama 'value'
       status: "pending",
-      region_id: address?.region_id || null
+      region_id: region_id || null
     })
     .select()
     .single();
 
   if (deliveryError) throw deliveryError;
 
-  // 3. Associa a delivery_id ao pedido
+  // 3. Associa a delivery_id ao pedido e muda o status da Order para in_route
   await supabase
     .from("orders")
-    .update({ delivery_id: delivery.id })
+    .update({ delivery_id: delivery.id, status: "in_route" })
     .eq("id", orderId);
 
   return delivery;
