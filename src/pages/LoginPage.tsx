@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      console.log(`[LoginPage - 9c1a49c1] Verificando acesso para user.id: ${user.id}`);
+      console.log(`Verificando acesso para user.id: ${user.id}`);
       // Redirecionamento quase imediato para sessões ativas
       const timer = setTimeout(() => {
         if (userStatus === "pending") {
@@ -39,7 +39,7 @@ export default function LoginPage() {
     setLoading(true);
     
     try {
-      console.log("Iniciando tentativa de login (NUCLEAR):", email);
+      console.log("Iniciando tentativa de login:", email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
