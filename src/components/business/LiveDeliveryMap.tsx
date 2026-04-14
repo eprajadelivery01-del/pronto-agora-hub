@@ -13,8 +13,17 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Record<string, maplibregl.Marker>>({});
+  const labelsRef = useRef<maplibregl.Marker[]>([]);
+  const regionsRenderedRef = useRef<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+
+  const getCentroid = (coords: [number, number][]) => {
+    let x = 0, y = 0;
+    coords.forEach(([lng, lat]) => { x += lng; y += lat; });
+    return [x / coords.length, y / coords.length] as [number, number];
+  };
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -62,9 +71,16 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
 
     fetchActiveDeliveries();
 
+    // Fetch Regions for context
+    const fetchRegions = async () => {
+       const { data } = await supabase.from('regions').select('*').eq('active', true);
+       if (data) setRegions(data);
+    };
+    fetchRegions();
+
     // Subscribe to changes
     const channel = supabase
-      .channel('live-deliveries')
+      .channel('live-monitor')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
@@ -154,7 +170,88 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
         }
       })();
     }
+    // Auto-center if we have deliveries
   }, [activeDeliveries, loading, companyId]);
+
+  // Render Regions Polygons and Labels
+  useEffect(() => {
+    const m = map.current;
+    if (!m || loading || regions.length === 0) return;
+
+    const render = () => {
+      // Clear old labels
+      labelsRef.current.forEach(mk => mk.remove());
+      labelsRef.current = [];
+
+      // Clear old regions
+      regionsRenderedRef.current.forEach(id => {
+        if (m.getLayer(`region-fill-${id}`)) m.removeLayer(`region-fill-${id}`);
+        if (m.getLayer(`region-line-${id}`)) m.removeLayer(`region-line-${id}`);
+        if (m.getSource(`region-src-${id}`)) m.removeSource(`region-src-${id}`);
+      });
+      regionsRenderedRef.current = [];
+
+      regions.forEach(region => {
+        if (!region.geometry) return;
+        const srcId = `region-src-${region.id}`;
+        const fillId = `region-fill-${region.id}`;
+        const lineId = `region-line-${region.id}`;
+
+        m.addSource(srcId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: region.geometry,
+            properties: { name: region.name, price: region.price }
+          }
+        });
+
+        m.addLayer({
+          id: fillId,
+          type: 'fill',
+          source: srcId,
+          paint: { 'fill-color': region.color || '#3b82f6', 'fill-opacity': 0.15 }
+        });
+
+        m.addLayer({
+          id: lineId,
+          type: 'line',
+          source: srcId,
+          paint: { 'line-color': region.color || '#3b82f6', 'line-width': 2, 'line-opacity': 0.6 }
+        });
+
+        // Floating Label (Price Tag)
+        const geoJSON = region.geometry as any;
+        if (geoJSON.coordinates?.[0]) {
+          const centroid = getCentroid(geoJSON.coordinates[0]);
+          const el = document.createElement("div");
+          el.innerHTML = `
+            <div style="
+              background: rgba(255,255,255,0.95);
+              padding: 4px 10px;
+              border-radius: 8px;
+              border: 1.5px solid ${region.color || '#3b82f6'};
+              box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+              text-align: center;
+              min-width: 70px;
+              pointer-events: none;
+              transform: scale(0.9);
+            ">
+              <p style="margin:0; font-size: 9px; font-weight: 800; color: #666; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px;">${region.name}</p>
+              <p style="margin:0; font-size: 11px; font-weight: 900; color: ${region.color || '#3b82f6'};">R$ ${Number(region.price).toFixed(2)}</p>
+            </div>
+          `;
+          const labelMarker = new maplibregl.Marker({ element: el }).setLngLat(centroid).addTo(m);
+          labelsRef.current.push(labelMarker);
+        }
+
+        regionsRenderedRef.current.push(region.id);
+      });
+    };
+
+    if (m.isStyleLoaded()) render();
+    else m.once('load', render);
+  }, [regions, loading]);
 
   return (
     <div className="relative w-full h-[400px] rounded-[2.5rem] overflow-hidden border border-border bg-muted/20 shadow-card group">
