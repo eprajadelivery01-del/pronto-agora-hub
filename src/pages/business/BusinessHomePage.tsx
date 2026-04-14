@@ -21,18 +21,36 @@ export default function BusinessHomePage() {
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isRinging, setIsRinging] = useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const qc = useQueryClient();
   
-  // Audio for notifications
-  const playNotificationSound = useCallback(() => {
-    try {
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audio.play().catch(e => console.error("Erro ao tocar som:", e));
-    } catch (err) {
-      console.warn("Audio Context not ready or blocked");
+  // Audio for notifications (Looping until accepted)
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audioRef.current.loop = true;
     }
-  }, []);
-  
+    
+    // Check for pending orders to start/stop ringing
+    const hasPending = marketplaceOrders.some(o => o.status === "pending");
+    if (hasPending && !isRinging) {
+      audioRef.current.play().catch(e => console.warn("Audio blocked by browser, needs user interaction"));
+      setIsRinging(true);
+    } else if (!hasPending && isRinging) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsRinging(false);
+    }
+  }, [marketplaceOrders, isRinging]);
+
+  const handleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsRinging(false);
+    }
+  };
+
   const { data: companyData } = useQuery({
     queryKey: ["company-info", profile?.id || user?.id],
     queryFn: async () => {
@@ -95,23 +113,11 @@ export default function BusinessHomePage() {
     return () => { supabase.removeChannel(channel); };
   }, [companyId, qc]);
 
-  // Realtime for orders + notification sound
+  // Realtime for orders
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
       .channel("business-home-orders")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
-        (payload) => {
-          playNotificationSound();
-          toast.info("Novo pedido do marketplace recebido!", {
-            id: "new-order",
-            duration: 10000
-          });
-          qc.invalidateQueries({ queryKey: ["marketplace-orders"] });
-        }
-      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
@@ -121,7 +127,7 @@ export default function BusinessHomePage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [companyId, qc, playNotificationSound]);
+  }, [companyId, qc]);
 
   const stats = {
     pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
@@ -139,7 +145,23 @@ export default function BusinessHomePage() {
         .eq("id", orderId);
         
       if (error) throw error;
+      
+      // Stop ringing if no more pending orders
+      const remainingPending = marketplaceOrders.filter(o => o.id !== orderId && o.status === "pending");
+      if (remainingPending.length === 0 && audioRef.current) {
+         audioRef.current.pause();
+         setIsRinging(false);
+      }
+
       toast.success("Status do pedido atualizado!");
+      
+      // Auto-Print logic if accepted
+      if (nextStatus === "preparing" || nextStatus === "accepted") {
+        setTimeout(() => {
+           window.print();
+        }, 500);
+      }
+
       qc.invalidateQueries({ queryKey: ["marketplace-orders"] });
       setSelectedOrder(null);
     } catch (err: any) {
@@ -178,11 +200,21 @@ export default function BusinessHomePage() {
       ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-black text-foreground tracking-tight">
-                Olá, {profile?.full_name?.split(" ")[0] || "Lojista"} 👋
-              </h2>
-              <p className="text-muted-foreground font-medium">Gerencie suas solicitações de entrega em tempo real.</p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h2 className="text-3xl font-black text-foreground tracking-tight">
+                  Olá, {profile?.full_name?.split(" ")[0] || "Lojista"} 👋
+                </h2>
+                <p className="text-muted-foreground font-medium">Gerencie suas solicitações de entrega em tempo real.</p>
+              </div>
+              {isRinging && (
+                <button 
+                  onClick={handleMute}
+                  className="h-12 px-4 rounded-2xl bg-warning/20 text-warning font-black text-[10px] uppercase tracking-widest flex items-center gap-2 animate-pulse hover:bg-warning hover:text-white transition-all shadow-lg"
+                >
+                  <Bell className="h-4 w-4" /> Silenciar Alerta
+                </button>
+              )}
             </div>
 
             <button
@@ -331,6 +363,8 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   );
 }
 
+import { RegionPickerMap } from "@/components/business/RegionPickerMap";
+
 function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => void, initialData?: any, companyId?: string }) {
   const { selectedCity } = useCity();
   const qc = useQueryClient();
@@ -341,8 +375,15 @@ function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => v
   const [value, setValue] = useState(initialData?.value?.toString() || "");
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || "Padrão");
   const [notes, setNotes] = useState(initialData?.notes || "");
+  const [regionId, setRegionId] = useState(initialData?.region_id || "");
   const [submitting, setSubmitting] = useState(false);
   const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || "");
+
+  const handleRegionSelect = (fee: number, id: string) => {
+    setValue(fee.toString());
+    setRegionId(id);
+    toast.success(`Região selecionada! Taxa: R$ ${fee.toFixed(2)}`);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -362,7 +403,8 @@ function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => v
         value: value ? parseFloat(value) : 0, 
         difficulty: difficulty,
         notes: notes || null,
-        status: initialData ? initialData.status : "pending"
+        status: initialData ? initialData.status : "pending",
+        region_id: regionId || null
       };
 
       const query = initialData 
@@ -406,6 +448,11 @@ function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => v
               />
           </div>
 
+          <div className="md:col-span-2 space-y-2">
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground block">Mapa de Regiões de Entrega</label>
+            <RegionPickerMap onRegionSelect={handleRegionSelect} />
+          </div>
+
           <div>
             <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Telefone</label>
             <input
@@ -417,14 +464,14 @@ function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => v
           </div>
 
           <div>
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Valor (R$)</label>
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Valor da Entrega (R$)</label>
             <input
               type="number"
               step="0.01"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="0,00"
-              className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all"
+              className="w-full px-4 py-4 rounded-2xl border-primary bg-primary/5 font-black text-primary outline-none focus:ring-4 focus:ring-primary/10 transition-all"
               required
             />
           </div>
@@ -444,7 +491,7 @@ function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => v
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-5 rounded-2xl bg-primary text-white text-lg font-black shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95 transition-all"
+              className="w-full py-5 rounded-2xl bg-primary text-white text-lg font-black shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-primary/20"
             >
               {submitting && <Loader2 className="h-6 w-6 animate-spin" />}
               {submitting ? "Processando..." : "Confirmar Solicitação"}

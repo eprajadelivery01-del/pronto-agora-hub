@@ -117,18 +117,22 @@ export function OrderDetailModal({ order, isOpen, onClose, onAdvance }: OrderDet
 
           {/* Footer Actions */}
           <div className="p-8 bg-muted/20 border-t border-border flex flex-wrap gap-4 items-center justify-between">
-             <div className="flex items-center gap-2">
-                <button className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground" title="Imprimir Pedido">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => window.print()} 
+                  className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground print:hidden" 
+                  title="Imprimir Pedido"
+                >
                    <Printer className="h-5 w-5" />
                 </button>
-                <div className="h-10 w-px bg-border mx-2" />
+                <div className="h-10 w-px bg-border mx-2 print:hidden" />
                 <div className="flex flex-col">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
-                   <p className="text-2xl font-black text-primary italic leading-none">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground print:text-black">Total do Pedido</p>
+                   <p className="text-2xl font-black text-primary italic leading-none print:text-black">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
                 </div>
              </div>
 
-             <div className="flex gap-2 min-w-full md:min-w-0">
+             <div className="flex gap-2 min-w-full md:min-w-0 print:hidden">
                 <button 
                   onClick={onClose}
                   className="px-6 h-14 rounded-2xl border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
@@ -146,6 +150,29 @@ export function OrderDetailModal({ order, isOpen, onClose, onAdvance }: OrderDet
              </div>
           </div>
         </div>
+
+        {/* Global Print Styles */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body * { visibility: hidden; }
+            .print\\:hidden { display: none !important; }
+            .DialogContent, [role="dialog"] { 
+              visibility: visible; 
+              position: absolute; 
+              left: 0; 
+              top: 0; 
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            .DialogContent * { visibility: visible; }
+            .custom-scrollbar { overflow: visible !important; height: auto !important; max-height: none !important; }
+            button { display: none !important; }
+            .bg-muted\\/20, .bg-muted\\/30 { background-color: transparent !important; border: 1px solid #eee !important; }
+          }
+        `}} />
       </DialogContent>
     </Dialog>
   );
