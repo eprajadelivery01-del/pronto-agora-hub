@@ -13,7 +13,11 @@ import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/business/StatCard";
-import { NewDeliveryForm } from "@/components/business/NewDeliveryForm";
+
+// Lazy loading heavy components to prevent initialization errors in production
+const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm").then(m => ({ default: m.NewDeliveryForm })));
+const LiveDeliveryMap = React.lazy(() => import("@/components/business/LiveDeliveryMap").then(m => ({ default: m.LiveDeliveryMap })));
+const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal").then(m => ({ default: m.OrderDetailModal })));
 
 export default function BusinessHomePage() {
   const { profile, user } = useAuth();
@@ -188,54 +192,55 @@ export default function BusinessHomePage() {
 
   return (
     <BusinessLayout title="Painel de Entregas">
-      {showNewDelivery ? (
-        <NewDeliveryForm 
-          onClose={() => {
-            setShowNewDelivery(false);
-            setEditingDelivery(null);
-          }} 
-          initialData={editingDelivery}
-          companyId={companyId}
-          companyData={companyData}
-        />
-      ) : (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div>
-                <h2 className="text-3xl font-black text-foreground tracking-tight">
-                  Olá, {profile?.full_name?.split(" ")[0] || "Lojista"} 👋
-                </h2>
-                <p className="text-muted-foreground font-medium">Gerencie suas solicitações de entrega em tempo real.</p>
+      <React.Suspense fallback={<div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+        {showNewDelivery ? (
+          <NewDeliveryForm 
+            onClose={() => {
+              setShowNewDelivery(false);
+              setEditingDelivery(null);
+            }} 
+            initialData={editingDelivery}
+            companyId={companyId}
+            companyData={companyData}
+          />
+        ) : (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-3xl font-black text-foreground tracking-tight">
+                    Olá, {profile?.full_name?.split(" ")[0] || "Lojista"} 👋
+                  </h2>
+                  <p className="text-muted-foreground font-medium">Gerencie suas solicitações de entrega em tempo real.</p>
+                </div>
+                {isRinging && (
+                  <button 
+                    onClick={handleMute}
+                    className="h-12 px-4 rounded-2xl bg-warning/20 text-warning font-black text-[10px] uppercase tracking-widest flex items-center gap-2 animate-pulse hover:bg-warning hover:text-white transition-all shadow-lg"
+                  >
+                    <Bell className="h-4 w-4" /> Silenciar Alerta
+                  </button>
+                )}
               </div>
-              {isRinging && (
-                <button 
-                  onClick={handleMute}
-                  className="h-12 px-4 rounded-2xl bg-warning/20 text-warning font-black text-[10px] uppercase tracking-widest flex items-center gap-2 animate-pulse hover:bg-warning hover:text-white transition-all shadow-lg"
-                >
-                  <Bell className="h-4 w-4" /> Silenciar Alerta
-                </button>
-              )}
+
+              <button
+                onClick={() => setShowNewDelivery(true)}
+                className="px-8 py-4 rounded-2xl modal-gradient text-white text-lg font-black flex items-center justify-center gap-3 shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                <Plus className="h-6 w-6" />
+                Nova Entrega
+              </button>
             </div>
 
-            <button
-              onClick={() => setShowNewDelivery(true)}
-              className="px-8 py-4 rounded-2xl modal-gradient text-white text-lg font-black flex items-center justify-center gap-3 shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
-            >
-              <Plus className="h-6 w-6" />
-              Nova Entrega
-            </button>
-          </div>
+            {/* Real-time Tracking Map */}
+            <LiveDeliveryMap companyId={companyId} />
 
-          {/* Real-time Tracking Map */}
-          <LiveDeliveryMap companyId={companyId} />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard label="Manual: Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
-            <StatCard label="Manual: Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
-            <StatCard label="Marketplace: Novos" value={String(stats.marketplacePending)} icon={Bell} color="warning" />
-            <StatCard label="Financeiro: Aberto" value={`R$ ${stats.marketplaceRevenue.toFixed(2).replace('.', ',')}`} icon={DollarSign} color="success" />
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard label="Manual: Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
+              <StatCard label="Manual: Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
+              <StatCard label="Marketplace: Novos" value={String(stats.marketplacePending)} icon={Bell} color="warning" />
+              <StatCard label="Financeiro: Aberto" value={`R$ ${stats.marketplaceRevenue.toFixed(2).replace('.', ',')}`} icon={DollarSign} color="success" />
+            </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Manual Deliveries Column */}
@@ -335,13 +340,15 @@ export default function BusinessHomePage() {
         </div>
       )}
 
-      {/* Order Detail Modal */}
-      <OrderDetailModal 
-        order={selectedOrder}
-        isOpen={!!selectedOrder}
-        onClose={() => setSelectedOrder(null)}
-        onAdvance={handleAdvanceOrder}
-      />
+        <React.Suspense fallback={null}>
+          <OrderDetailModal 
+            order={selectedOrder}
+            isOpen={!!selectedOrder}
+            onClose={() => setSelectedOrder(null)}
+            onAdvance={handleAdvanceOrder}
+          />
+        </React.Suspense>
+      </React.Suspense>
     </BusinessLayout>
   );
 }
