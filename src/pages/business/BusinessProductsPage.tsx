@@ -15,6 +15,7 @@ interface Product {
   id: string;
   name: string;
   description: string | null;
+  category?: string;
   price: number;
   image_url: string | null;
   is_active: boolean;
@@ -247,6 +248,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
 }) {
   const [name, setName] = useState(product?.name || "");
   const [description, setDescription] = useState(product?.description || "");
+  const [category, setCategory] = useState(product?.category || "Outros");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
   const [newUrl, setNewUrl] = useState("");
@@ -325,7 +327,8 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
       const payload = {
         name,
         description: description || null,
-        price: parseFloat(price),
+        category,
+        price: parseFloat(price.replace(',', '.')),
         image_url: imagePayload,
       };
 
@@ -377,6 +380,23 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                       required
                     />
                   </div>
+                  
+                  {/* Category Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria Temática</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none cursor-pointer focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base appearance-none"
+                      required
+                    >
+                      <option value="Lanches">🍔 Lanches & Sanduíches</option>
+                      <option value="Pizza">🍕 Pizzas</option>
+                      <option value="Doces">🍫 Doces & Sobremesas</option>
+                      <option value="Bebidas">🥤 Bebidas & Sucos</option>
+                      <option value="Outros">🏷️ Categoria Geral (Outros)</option>
+                    </select>
+                  </div>
 
                   {/* Price */}
                   <div className="space-y-2">
@@ -384,12 +404,10 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                     <div className="relative">
                       <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
+                        type="text"
                         value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        placeholder="0,00"
+                        onChange={(e) => setPrice(e.target.value.replace(/[^0-9.,]/g, ""))}
+                        placeholder="Ex: 25.90 ou 25,90"
                         className="w-full pl-14 pr-6 py-4 rounded-2xl border border-border bg-background/50 font-black outline-none focus:border-primary transition-all text-lg"
                         required
                       />
@@ -402,9 +420,9 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Descreva o que vem no produto..."
+                      placeholder="Os clientes são atraídos por boas descrições. Liste os ingredientes ou defina as propriedades do seu lanche."
                       rows={4}
-                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all"
+                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all placeholder:font-normal placeholder:opacity-60"
                     />
                   </div>
               </div>
