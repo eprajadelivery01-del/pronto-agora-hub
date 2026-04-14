@@ -1,31 +1,53 @@
-import React, { useState, useEffect, FormEvent } from "react";
+import React, { useState, useEffect, FormEvent, useCallback } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package, Trash2, Pencil, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { CustomerSelector } from "@/components/business/CustomerSelector";
 import { useCity } from "@/contexts/CityContext";
 import { useDeliveries } from "@/services/deliveries";
 import { format } from "date-fns";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus } from "@/types/models";
+import { LiveDeliveryMap } from "@/components/business/LiveDeliveryMap";
+import { OrderDetailModal } from "@/components/business/OrderDetailModal";
+import { cn } from "@/lib/utils";
 
 export default function BusinessHomePage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { selectedCity } = useCity();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const qc = useQueryClient();
   
+  // Audio for notifications
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audio.play().catch(e => console.error("Erro ao tocar som:", e));
+    } catch (err) {
+      console.warn("Audio Context not ready or blocked");
+    }
+  }, []);
+  
   const { data: companyData } = useQuery({
-    queryKey: ["company-info", profile?.id],
+    queryKey: ["company-info", profile?.id || user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("companies").select("id").eq("user_id", profile?.id).maybeSingle();
+      const currentId = profile?.id || user?.id;
+      if (!currentId) return null;
+      
+      const { data } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("user_id", currentId)
+        .maybeSingle();
+        
       return data;
     },
-    enabled: !!profile?.id
+    enabled: !!(profile?.id || user?.id)
   });
 
   const companyId = companyData?.id;
@@ -42,9 +64,9 @@ export default function BusinessHomePage() {
       const { data } = await supabase
         .from("orders")
         .select(`
-          id, status, total, created_at,
-          customers (name, phone),
-          order_items (id, quantity, products (name))
+          *,
+          customers (*),
+          order_items (*, products (*))
         `)
         .eq("company_id", companyId)
         .in("status", ["pending", "accepted", "preparing", "ready"])
@@ -57,7 +79,7 @@ export default function BusinessHomePage() {
   const deliveries = deliveriesData?.data || [];
   const marketplaceOrders = ordersData || [];
   
-  // Realtime subscription
+  // Realtime for deliveries
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
@@ -73,19 +95,23 @@ export default function BusinessHomePage() {
     return () => { supabase.removeChannel(channel); };
   }, [companyId, qc]);
 
-  const stats = {
-    pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
-    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
-    completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length,
-    marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
-    marketplaceRevenue: marketplaceOrders.reduce((acc, o) => acc + (o.total || 0), 0)
-  };
-
-  // Realtime for orders
+  // Realtime for orders + notification sound
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
       .channel("business-home-orders")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
+        (payload) => {
+          playNotificationSound();
+          toast.info("Novo pedido do marketplace recebido!", {
+            id: "new-order",
+            duration: 10000
+          });
+          qc.invalidateQueries({ queryKey: ["marketplace-orders"] });
+        }
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
@@ -95,7 +121,31 @@ export default function BusinessHomePage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [companyId, qc]);
+  }, [companyId, qc, playNotificationSound]);
+
+  const stats = {
+    pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
+    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
+    completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length,
+    marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
+    marketplaceRevenue: marketplaceOrders.reduce((acc, o) => acc + (o.total || 0), 0)
+  };
+
+  const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: nextStatus })
+        .eq("id", orderId);
+        
+      if (error) throw error;
+      toast.success("Status do pedido atualizado!");
+      qc.invalidateQueries({ queryKey: ["marketplace-orders"] });
+      setSelectedOrder(null);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar status: " + err.message);
+    }
+  };
 
   const handleCancel = async (id: string) => {
     if (!confirm("Tem certeza que deseja cancelar esta entrega?")) return;
@@ -114,11 +164,6 @@ export default function BusinessHomePage() {
     }
   };
 
-  const handleEdit = (delivery: any) => {
-    setEditingDelivery(delivery);
-    setShowNewDelivery(true);
-  };
-
   return (
     <BusinessLayout title="Painel de Entregas">
       {showNewDelivery ? (
@@ -128,6 +173,7 @@ export default function BusinessHomePage() {
             setEditingDelivery(null);
           }} 
           initialData={editingDelivery}
+          companyId={companyId}
         />
       ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -148,29 +194,36 @@ export default function BusinessHomePage() {
             </button>
           </div>
 
+          {/* Real-time Tracking Map */}
+          <LiveDeliveryMap companyId={companyId} />
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard label="Manual: Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
             <StatCard label="Manual: Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
             <StatCard label="Marketplace: Novos" value={String(stats.marketplacePending)} icon={Bell} color="warning" />
-            <StatCard label="Financeiro: Aberto" value={`R$ ${stats.marketplaceRevenue.toFixed(2)}`} icon={DollarSign} color="success" />
+            <StatCard label="Financeiro: Aberto" value={`R$ ${stats.marketplaceRevenue.toFixed(2).replace('.', ',')}`} icon={DollarSign} color="success" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Manual Deliveries Column */}
             <div className="space-y-4">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-2 flex items-center gap-2">
-                <Truck className="h-3 w-3" /> Entregas Logística
+                <Truck className="h-3 w-3" /> Entregas Manual
               </h3>
               
               {isLoadingDeliveries ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
               ) : deliveries.length > 0 ? (
                 <div className="space-y-4">
-                  {deliveries.map((delivery) => (
+                  {deliveries.slice(0, 5).map((delivery) => (
                     <div key={delivery.id} className="bg-card border border-border/50 rounded-[2rem] p-5 shadow-sm hover:border-primary/20 transition-all group overflow-hidden">
                        <div className="flex items-center justify-between mb-3">
                           <DeliveryStatusBadge status={delivery.status as DeliveryStatus} />
-                          <span className="text-[10px] font-black text-muted-foreground/40 italic">#{delivery.id.slice(0, 8)}</span>
+                           <div className="flex gap-1">
+                              <button onClick={() => handleCancel(delivery.id)} className="p-2 rounded-lg bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                           </div>
                        </div>
                        <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
@@ -194,7 +247,7 @@ export default function BusinessHomePage() {
             {/* Marketplace Orders Column */}
             <div className="space-y-4">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-2 flex items-center gap-2">
-                <ShoppingBag className="h-3 w-3" /> Pedidos Marketplace (App)
+                <ShoppingBag className="h-3 w-3" /> Marketplace (App)
               </h3>
               
               {isLoadingOrders ? (
@@ -202,47 +255,63 @@ export default function BusinessHomePage() {
               ) : marketplaceOrders.length > 0 ? (
                 <div className="space-y-4">
                   {marketplaceOrders.map((order) => (
-                    <div key={order.id} className="bg-card border border-border/40 rounded-[2rem] p-5 shadow-sm hover:border-primary/20 transition-all group relative overflow-hidden">
-                       <div className="absolute top-0 right-0 p-3">
+                    <div 
+                      key={order.id} 
+                      onClick={() => setSelectedOrder(order)}
+                      className="bg-card border border-border/50 rounded-[2rem] p-5 shadow-sm hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all group overflow-hidden cursor-pointer"
+                    >
+                       <div className="flex items-center justify-between mb-3">
                           <div className={cn(
-                            "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest",
-                            order.status === 'pending' ? "bg-warning/20 text-warning" : "bg-primary/20 text-primary"
+                            "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                            order.status === 'pending' ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary"
                           )}>
-                            {order.status === 'pending' ? 'Novo' : order.status}
+                            {order.status === 'pending' ? 'AGUARDANDO' : order.status.toUpperCase()}
+                          </div>
+                          <p className="text-[11px] font-black text-foreground">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+                       </div>
+                       
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-secondary flex flex-col items-center justify-center shrink-0">
+                             <span className="text-[8px] font-black leading-none text-muted-foreground">{format(new Date(order.created_at), 'HH:mm')}</span>
+                             <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                             <p className="text-sm font-black text-foreground truncate uppercase">{order.customers?.name || "Cliente Marketplace"}</p>
+                             <div className="flex items-center gap-1.5 mt-0.5">
+                                <ShoppingBag className="h-3 w-3 text-primary" />
+                                <p className="text-[10px] text-muted-foreground font-bold truncate">
+                                   {order.order_items?.length || 0} itens no pedido
+                                </p>
+                             </div>
+                          </div>
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all">
+                             <ArrowRight className="h-4 w-4" />
                           </div>
                        </div>
-                       <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                             <ShoppingBag className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="min-w-0">
-                             <p className="text-sm font-bold text-foreground truncate">{order.customers?.name || "Cliente Marketplace"}</p>
-                             <p className="text-[10px] text-muted-foreground font-bold">R$ {order.total?.toFixed(2)} • {order.order_items?.length} itens</p>
-                          </div>
-                       </div>
-                       <Link 
-                        to="/business/orders" 
-                        className="w-full py-2 rounded-xl bg-muted/50 hover:bg-primary hover:text-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group"
-                       >
-                         Gerenciar Pedido <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                       </Link>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="bg-muted/20 border border-dashed border-border rounded-[2rem] p-8 text-center">
-                  <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">Sem pedidos do app</p>
+                  <ShoppingBag className="h-8 w-8 text-muted-foreground/20 mx-auto mb-4" />
+                  <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">Aguardando novos pedidos...</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Order Detail Modal */}
+      <OrderDetailModal 
+        order={selectedOrder}
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onAdvance={handleAdvanceOrder}
+      />
     </BusinessLayout>
   );
 }
-
-import { cn } from "@/lib/utils";
 
 function StatCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
   const colors: Record<string, string> = {
@@ -262,7 +331,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   );
 }
 
-function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initialData?: any }) {
+function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => void, initialData?: any, companyId?: string }) {
   const { selectedCity } = useCity();
   const qc = useQueryClient();
   const [customerName, setCustomerName] = useState(initialData?.customer_name || "");
@@ -273,120 +342,17 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || "Padrão");
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [submitting, setSubmitting] = useState(false);
-  const [companyId, setCompanyId] = useState<string | null>(initialData?.company_id || null);
   const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || "");
-
-  const fetchCompanyInfo = async () => {
-    if (initialData?.company_id) return { id: initialData.company_id, address: initialData.pickup_address };
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-    
-    const { data: company } = await supabase
-      .from("companies")
-      .select("id, address")
-      .eq("user_id", user.id)
-      .maybeSingle();
-      
-    if (company) {
-      setCompanyAddress(company.address || "");
-    }
-    return company || null;
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      const cId = companyId || (await fetchCompanyInfo())?.id;
-      if (!cId) throw new Error("Empresa não encontrada.");
-
-      // For new deliveries, we handle customer profile synchronization
-      if (!initialData) {
-        let existingCust = null;
-        
-        // 1. Search by exactly matching CPF and name in local customers
-        if (customerCpf) {
-          const { data } = await supabase
-            .from("customers")
-            .select("id, name, phone, cpf")
-            .eq("cpf", customerCpf.replace(/\D/g, ""))
-            .maybeSingle();
-          existingCust = data;
-        }
-
-        // 2. Search by Name if not found yet
-        if (!existingCust && customerName) {
-          const { data } = await supabase
-            .from("customers")
-            .select("id, name, phone, cpf")
-            .ilike("name", customerName.trim())
-            .maybeSingle();
-          existingCust = data;
-        }
-
-        // 3. Search in global PROFILES as a fallback
-        if (!existingCust && (customerCpf || customerName)) {
-           const { data: profileCust } = await supabase
-            .from("profiles")
-            .select("id, full_name, phone")
-            .ilike("full_name", customerName.trim())
-            .maybeSingle();
-           
-           if (profileCust) {
-              // Convert profile to customer on the fly
-              const { data: newCust } = await supabase
-                .from("customers")
-                .insert([{ 
-                  name: customerName,
-                  cpf: customerCpf ? customerCpf.replace(/\D/g, "") : null,
-                  phone: customerPhone || profileCust.phone
-                }])
-                .select("id")
-                .single();
-              existingCust = newCust;
-           }
-        }
-
-        let finalCustomerId = existingCust?.id;
-
-        if (!finalCustomerId) {
-          // Total New Customer logic
-          const { data: newCust, error: custError } = await supabase
-            .from("customers")
-            .insert([{ 
-              name: customerName,
-              cpf: customerCpf ? customerCpf.replace(/\D/g, "") : null,
-              phone: customerPhone || null
-            }])
-            .select("id")
-            .single();
-          
-          if (!custError && newCust) {
-            finalCustomerId = newCust.id;
-            // Create initial address record
-            await supabase.from("addresses").insert([{
-              customer_id: newCust.id,
-              street: address.split(",")[0] || address,
-              city: selectedCity || "Diamantino", 
-              state: "MT",
-              is_default: true
-            }]);
-          }
-        } else {
-          // Update existing customer info if missing
-          const updates: any = {};
-          if (customerCpf && !existingCust.cpf) updates.cpf = customerCpf.replace(/\D/g, "");
-          if (customerPhone && !existingCust.phone) updates.phone = customerPhone;
-          
-          if (Object.keys(updates).length > 0) {
-            await supabase.from("customers").update(updates).eq("id", finalCustomerId);
-          }
-        }
-      }
+      if (!companyId) throw new Error("Empresa não encontrada.");
 
       const payload = {
-        company_id: cId,
+        company_id: companyId,
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_cpf: customerCpf,
@@ -396,8 +362,7 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
         value: value ? parseFloat(value) : 0, 
         difficulty: difficulty,
         notes: notes || null,
-        status: initialData ? initialData.status : "pending",
-        commission: initialData ? initialData.commission : 0
+        status: initialData ? initialData.status : "pending"
       };
 
       const query = initialData 
@@ -405,10 +370,9 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
         : supabase.from("deliveries").insert([payload]);
 
       const { error } = await query;
-
       if (error) throw error;
 
-      toast.success(initialData ? "Entrega atualizada com sucesso!" : "Entrega solicitada com sucesso!");
+      toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       onClose();
     } catch (err: any) {
@@ -418,14 +382,6 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
     }
   };
 
-  useEffect(() => {
-    if (!initialData) {
-      fetchCompanyInfo().then(data => {
-        if (data) setCompanyId(data.id);
-      });
-    }
-  }, [initialData]);
-
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in slide-in-from-left-4 duration-300">
       <button onClick={onClose} className="group flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors px-2">
@@ -433,117 +389,65 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
       </button>
 
       <div className="bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        
         <h2 className="text-2xl font-black text-foreground mb-8 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-             {initialData ? <Pencil className="h-6 w-6 text-primary-foreground" /> : <Plus className="h-6 w-6 text-primary-foreground" />}
-          </div>
-          {initialData ? "Editar Solicitação de Entrega" : "Nova Solicitação de Entrega"}
+           <Plus className="h-6 w-6 text-primary" />
+           {initialData ? "Editar Entrega" : "Nova Solicitação"}
         </h2>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
           <div className="md:col-span-2">
             <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Destinatário</label>
-            {companyId && (
-              <CustomerSelector 
-                companyId={companyId} 
+            <input
                 value={customerName}
-                onChange={(name, addr, phone, cpf) => {
-                  setCustomerName(name);
-                  if (addr) setAddress(addr);
-                  if (phone) setCustomerPhone(phone);
-                  if (cpf) setCustomerCpf(cpf);
-                }}
-              />
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">CPF do Destinatário (Opcional)</label>
-            <div className="relative">
-              <Plus className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                value={customerCpf}
-                onChange={(e) => setCustomerCpf(e.target.value)}
-                placeholder="000.000.000-00"
-                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
-              />
-            </div>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Telefone do Destinatário</label>
-            <div className="relative">
-              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="(00) 00000-0000"
-                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
-              />
-            </div>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Endereço de Entrega</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Rua, número, bairro e complemento"
-                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Nome do cliente"
+                className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all"
                 required
               />
-            </div>
           </div>
 
           <div>
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Valor do Pedido (R$)</label>
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Telefone</label>
+            <input
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="(00) 00000-0000"
+                className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Valor (R$)</label>
             <input
               type="number"
               step="0.01"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="0,00"
-              className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-base"
+              className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all"
               required
             />
           </div>
 
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Dificuldade/Tipo (Opcional)</label>
-            <select 
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all text-base"
-            >
-               <option value="Padrão">Padrão</option>
-               <option value="Frágil">Frágil</option>
-               <option value="Grande Porte">Grande Porte</option>
-            </select>
-          </div>
-
           <div className="md:col-span-2">
-            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Observações do Admin/Entregador</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ponto de referência, campainha, andar..."
-              rows={3}
-              className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all text-base"
-            />
+            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2 block">Endereço de Entrega</label>
+            <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Rua, número, bairro..."
+                className="w-full px-4 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary transition-all"
+                required
+              />
           </div>
 
           <div className="md:col-span-2 pt-4">
             <button
               type="submit"
-              disabled={submitting || !customerName || !address}
-              className="w-full py-5 rounded-2xl gradient-primary text-primary-foreground text-lg font-black shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-95 transition-all"
+              disabled={submitting}
+              className="w-full py-5 rounded-2xl bg-primary text-white text-lg font-black shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95 transition-all"
             >
               {submitting && <Loader2 className="h-6 w-6 animate-spin" />}
-              {submitting ? "Publicando..." : "Confirmar Solicitação"}
+              {submitting ? "Processando..." : "Confirmar Solicitação"}
             </button>
           </div>
         </form>
@@ -551,5 +455,3 @@ function NewDeliveryForm({ onClose, initialData }: { onClose: () => void, initia
     </div>
   );
 }
-
-import { useQuery } from "@tanstack/react-query";
