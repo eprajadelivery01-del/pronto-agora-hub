@@ -14,10 +14,12 @@ import {
   Bell,
   ChevronRight,
   Settings,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Navigation tabs
 const tabs = [
@@ -47,19 +49,45 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     }
   });
   const [company, setCompany] = useState<any>(null);
+  const [isOpen, setIsOpen] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const fetchCompany = async () => {
       if (!user) return;
       const { data } = await supabase
         .from("companies")
-        .select("name, logo_url")
+        .select("id, name, logo_url, is_open")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (data) setCompany(data);
+      if (data) {
+        setCompany(data);
+        setIsOpen(data.is_open ?? true);
+      }
     };
     fetchCompany();
   }, [user]);
+
+  const toggleStoreStatus = async () => {
+    if (!company?.id || updatingStatus) return;
+    setUpdatingStatus(true);
+    const newStatus = !isOpen;
+    
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({ is_open: newStatus })
+        .eq("id", company.id);
+        
+      if (error) throw error;
+      setIsOpen(newStatus);
+      toast.success(newStatus ? "Loja ABERTA para pedidos!" : "Loja FECHADA no marketplace.");
+    } catch (err: any) {
+      toast.error("Erro ao atualizar status: " + err.message);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const toggleSidebar = () => {
     const newState = !collapsed;
@@ -217,7 +245,17 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           <div className="flex items-center gap-3">
              <div className="hidden sm:flex flex-col items-end mr-2">
                 <span className="text-xs font-black text-foreground leading-none">{profile?.full_name?.split(" ")[0]}</span>
-                <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Status: Online</span>
+                <button 
+                  onClick={toggleStoreStatus}
+                  disabled={updatingStatus}
+                  className={cn(
+                    "text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 hover:opacity-80 transition-all",
+                    isOpen ? "text-success" : "text-destructive"
+                  )}
+                >
+                  <div className={cn("w-1.5 h-1.5 rounded-full", isOpen ? "bg-success animate-pulse" : "bg-destructive")} />
+                  {updatingStatus ? "Atualizando..." : (isOpen ? "Status: Online" : "Status: Offline")}
+                </button>
              </div>
              <button className="relative p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors lg:hidden">
                 <Bell className="h-5 w-5" />

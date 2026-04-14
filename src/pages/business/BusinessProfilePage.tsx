@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Store, Camera, ImagePlus, Loader2, Save, User, MapPin, Phone, 
-  Smartphone, Eye, Layers, Info, CheckCircle2, Pencil, X, Link as LinkIcon
+  Smartphone, Eye, Layers, Info, CheckCircle2, Pencil, X, Link as LinkIcon, Clock3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,9 @@ export default function BusinessProfilePage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("restaurante");
+  const [isOpen, setIsOpen] = useState(true);
+  const [businessHours, setBusinessHours] = useState("");
 
   // Edit states for overlays
   const [isEditingLogo, setIsEditingLogo] = useState(false);
@@ -52,6 +55,9 @@ export default function BusinessProfilePage() {
         setDescription(company.description || "");
         setLogoUrl(company.logo_url || "");
         setCoverUrl(company.cover_url || "");
+        setCategory(company.category || "restaurante");
+        setIsOpen(company.is_open ?? true);
+        setBusinessHours(company.business_hours || "");
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
@@ -124,6 +130,9 @@ export default function BusinessProfilePage() {
           description,
           logo_url: logoUrl,
           cover_url: coverUrl,
+          category: category,
+          is_open: isOpen,
+          business_hours: businessHours,
         })
         .eq("id", companyId);
 
@@ -208,7 +217,12 @@ export default function BusinessProfilePage() {
                      <h2 className="text-3xl font-black text-foreground tracking-tight">
                         {storeName || "Minha Loja"}
                      </h2>
-
+                     <div className="flex items-center gap-2 mt-1">
+                        <div className={cn("h-2.5 w-2.5 rounded-full", isOpen ? "bg-green-500 animate-pulse" : "bg-red-500")} />
+                        <span className={cn("text-[11px] font-black uppercase tracking-widest", isOpen ? "text-green-600" : "text-red-600")}>
+                           {isOpen ? "Sua Loja está aberta" : "Sua Loja está fechada"}
+                        </span>
+                      </div>
                   </div>
                   <div className="flex gap-3">
                      <button className="px-6 py-3 rounded-2xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-all">
@@ -247,6 +261,58 @@ export default function BusinessProfilePage() {
                               placeholder="Fale um pouco sobre o que você vende..."
                               className="w-full px-5 py-3.5 rounded-2xl border border-border bg-background focus:ring-4 focus:ring-primary/5 transition-all outline-none font-medium text-sm min-h-[100px] resize-none"
                            />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Categoria / Setor</label>
+                           <select
+                              value={category}
+                              onChange={(e) => setCategory(e.target.value)}
+                              className="w-full px-5 py-3.5 rounded-2xl border border-border bg-background focus:ring-4 focus:ring-primary/5 transition-all outline-none font-bold appearance-none cursor-pointer"
+                           >
+                              <option value="restaurante">Restaurante</option>
+                              <option value="mercado">Mercado / Mercearia</option>
+                              <option value="farmacia">Farmácia / Drogaria</option>
+                              <option value="lanches">Lanches / Fast Food</option>
+                              <option value="pizza">Pizzaria</option>
+                              <option value="bebidas">Adega / Bebidas</option>
+                              <option value="doces">Doceria / Sobremesas</option>
+                              <option value="pet">Pet Shop / Agro</option>
+                           </select>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-border/40 mt-6 space-y-4">
+                           <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border/40">
+                              <div>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Status do Delivery</p>
+                                 <p className="text-[10px] text-muted-foreground font-medium">Ative para começar a receber pedidos</p>
+                              </div>
+                              <button
+                                 type="button"
+                                 onClick={() => setIsOpen(!isOpen)}
+                                 className={cn(
+                                    "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                                    isOpen ? "bg-primary" : "bg-muted-foreground/30"
+                                 )}
+                              >
+                                 <span className={cn(
+                                    "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
+                                    isOpen ? "translate-x-6" : "translate-x-1"
+                                 )} />
+                              </button>
+                           </div>
+
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Horário de Funcionamento</label>
+                              <div className="relative">
+                                 <Clock3 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                 <input
+                                    value={businessHours}
+                                    onChange={(e) => setBusinessHours(e.target.value)}
+                                    placeholder="Ex: Seg a Sab, 08h às 18h"
+                                    className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
+                                 />
+                              </div>
+                           </div>
                         </div>
                      </div>
                   </div>

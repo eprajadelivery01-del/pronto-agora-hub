@@ -1,7 +1,7 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package, Trash2, Pencil, Phone } from "lucide-react";
+import { Plus, Truck, Clock, CheckCircle, Loader2, ArrowLeft, MapPin, Package, Trash2, Pencil, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,12 +30,32 @@ export default function BusinessHomePage() {
 
   const companyId = companyData?.id;
 
-  const { data, isLoading } = useDeliveries({
+  const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
     companyId: companyId || undefined,
     pageSize: 10
   });
 
-  const deliveries = data?.data || [];
+  const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
+    queryKey: ["marketplace-orders", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await supabase
+        .from("orders")
+        .select(`
+          id, status, total, created_at,
+          customers (name, phone),
+          order_items (id, quantity, products (name))
+        `)
+        .eq("company_id", companyId)
+        .in("status", ["pending", "accepted", "preparing", "ready"])
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!companyId
+  });
+
+  const deliveries = deliveriesData?.data || [];
+  const marketplaceOrders = ordersData || [];
   
   // Realtime subscription
   useEffect(() => {
@@ -56,8 +76,26 @@ export default function BusinessHomePage() {
   const stats = {
     pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
     inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
-    completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length
+    completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length,
+    marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
+    marketplaceRevenue: marketplaceOrders.reduce((acc, o) => acc + (o.total || 0), 0)
   };
+
+  // Realtime for orders
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase
+      .channel("business-home-orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["marketplace-orders"] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId, qc]);
 
   const handleCancel = async (id: string) => {
     if (!confirm("Tem certeza que deseja cancelar esta entrega?")) return;
@@ -110,77 +148,94 @@ export default function BusinessHomePage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <StatCard label="Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
-            <StatCard label="Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
-            <StatCard label="Entregues" value={String(stats.completed)} icon={CheckCircle} color="success" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard label="Manual: Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
+            <StatCard label="Manual: Em trânsito" value={String(stats.inRoute)} icon={Truck} color="primary" />
+            <StatCard label="Marketplace: Novos" value={String(stats.marketplacePending)} icon={Bell} color="warning" />
+            <StatCard label="Financeiro: Aberto" value={`R$ ${stats.marketplaceRevenue.toFixed(2)}`} icon={DollarSign} color="success" />
           </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center p-20">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </div>
-          ) : deliveries.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Manual Deliveries Column */}
             <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-2">Atividade Recente</h3>
-              <div className="grid grid-cols-1 gap-4">
-                {deliveries.map((delivery) => (
-                  <div key={delivery.id} className="bg-card border border-border/50 rounded-[2rem] p-6 shadow-card hover:border-primary/20 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/5 transition-colors">
-                        <Package className="h-7 w-7 text-muted-foreground/50 group-hover:text-primary/50 transition-colors" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-lg font-bold text-foreground truncate">{delivery.customer_name}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1.5 truncate">
-                          <MapPin className="h-3.5 w-3.5" /> {delivery.address}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 md:gap-8">
-                       <div className="text-left md:text-right">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Status</p>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-2 flex items-center gap-2">
+                <Truck className="h-3 w-3" /> Entregas Logística
+              </h3>
+              
+              {isLoadingDeliveries ? (
+                <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              ) : deliveries.length > 0 ? (
+                <div className="space-y-4">
+                  {deliveries.map((delivery) => (
+                    <div key={delivery.id} className="bg-card border border-border/50 rounded-[2rem] p-5 shadow-sm hover:border-primary/20 transition-all group overflow-hidden">
+                       <div className="flex items-center justify-between mb-3">
                           <DeliveryStatusBadge status={delivery.status as DeliveryStatus} />
+                          <span className="text-[10px] font-black text-muted-foreground/40 italic">#{delivery.id.slice(0, 8)}</span>
                        </div>
-                       <div className="text-left md:text-right">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Valor</p>
-                          <p className="text-lg font-black text-foreground">R$ {Number(delivery.value || 0).toFixed(2)}</p>
-                       </div>
-                       <div className="flex items-center gap-2">
-                          {["pending", "broadcasted"].includes(delivery.status) && (
-                            <>
-                              <button 
-                                onClick={() => handleEdit(delivery)}
-                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-                                title="Editar"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleCancel(delivery.id)}
-                                className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
-                                title="Cancelar"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
+                       <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                             <User className="h-5 w-5 text-muted-foreground/50" />
+                          </div>
+                          <div className="min-w-0">
+                             <p className="text-sm font-bold text-foreground truncate">{delivery.customer_name}</p>
+                             <p className="text-[10px] text-muted-foreground truncate">{delivery.address}</p>
+                          </div>
                        </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-muted/20 border border-dashed border-border rounded-[2rem] p-8 text-center">
+                  <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">Sem entregas manuais</p>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="bg-card border border-border rounded-[2.5rem] p-12 text-center shadow-card border-dashed animate-in fade-in duration-700">
-              <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
-                 <Package className="h-10 w-10 text-muted-foreground/50" />
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-2">Sem atividade recente</h3>
-              <p className="text-muted-foreground max-w-xs mx-auto">Suas novas solicitações de entrega aparecerão aqui.</p>
+
+            {/* Marketplace Orders Column */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-2 flex items-center gap-2">
+                <ShoppingBag className="h-3 w-3" /> Pedidos Marketplace (App)
+              </h3>
+              
+              {isLoadingOrders ? (
+                <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              ) : marketplaceOrders.length > 0 ? (
+                <div className="space-y-4">
+                  {marketplaceOrders.map((order) => (
+                    <div key={order.id} className="bg-card border border-border/40 rounded-[2rem] p-5 shadow-sm hover:border-primary/20 transition-all group relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-3">
+                          <div className={cn(
+                            "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest",
+                            order.status === 'pending' ? "bg-warning/20 text-warning" : "bg-primary/20 text-primary"
+                          )}>
+                            {order.status === 'pending' ? 'Novo' : order.status}
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                             <ShoppingBag className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                             <p className="text-sm font-bold text-foreground truncate">{order.customers?.name || "Cliente Marketplace"}</p>
+                             <p className="text-[10px] text-muted-foreground font-bold">R$ {order.total?.toFixed(2)} • {order.order_items?.length} itens</p>
+                          </div>
+                       </div>
+                       <Link 
+                        to="/business/orders" 
+                        className="w-full py-2 rounded-xl bg-muted/50 hover:bg-primary hover:text-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group"
+                       >
+                         Gerenciar Pedido <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                       </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-muted/20 border border-dashed border-border rounded-[2rem] p-8 text-center">
+                  <p className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">Sem pedidos do app</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </BusinessLayout>
