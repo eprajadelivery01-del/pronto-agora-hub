@@ -138,7 +138,7 @@ export async function createDeliveryRequest(orderId: string) {
 
   // Utilizamos preferencialmente o delivery_address que veio do Checkout.
   // Caso não exista, tentamos puxar o endereço padrão do customer, mas no nosso fluxo o Cliente já salva na Order.
-  let dropoff = order.delivery_address;
+  let dropoff = (order as any).delivery_address;
   let region_id = null;
   
   if (!dropoff && order.customer_id) {
@@ -175,7 +175,7 @@ export async function createDeliveryRequest(orderId: string) {
   // 3. Associa a delivery_id ao pedido e muda o status da Order para in_route
   await supabase
     .from("orders")
-    .update({ delivery_id: delivery.id, status: "in_route" })
+    .update({ delivery_id: delivery.id, status: "in_route" } as any)
     .eq("id", orderId);
 
   return delivery;

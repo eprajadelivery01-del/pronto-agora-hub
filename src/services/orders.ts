@@ -22,7 +22,7 @@ export async function calculateDeliveryFee(lat: number, lng: number) {
 
   if (regError) throw regError;
 
-  const validFee = (region as any).delivery_price ?? region.price ?? 0;
+  const validFee = (region as any).delivery_price ?? (region as any).price ?? 0;
 
   return { fee: validFee, regionId: regionId };
 }

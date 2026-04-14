@@ -26,7 +26,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onAdvance }: OrderDet
     cancelled: { label: "Cancelado", color: "text-destructive bg-destructive/10" }
   };
 
-  const status = statusMap[order.status] || { label: order.status, color: "bg-muted" };
+  const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined };
   const items = order.order_items || order.items || [];
 
   return (

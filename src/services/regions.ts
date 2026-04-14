@@ -8,7 +8,7 @@ export type UpdateRegionInput = TablesUpdate<"regions"> & { city?: string };
 
 export async function fetchRegions(city?: string) {
   let query = supabase.from("regions").select("*").order("name");
-  if (city) query = query.eq("city", city);
+  if (city) query = query.eq("city" as any, city);
   const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
@@ -17,13 +17,13 @@ export async function fetchRegions(city?: string) {
 export async function fetchCitiesWithRegions() {
   const { data, error } = await supabase
     .from("regions")
-    .select("city")
-    .not("city", "is", null);
+    .select("*")
+    .not("name" as any, "is", null);
   
   if (error) throw error;
   
   // Return unique sorted list of cities
-  const cities = Array.from(new Set(data.map(r => r.city as string))).sort();
+  const cities = Array.from(new Set(data.map(r => (r as any).city as string).filter(Boolean))).sort();
   return cities;
 }
 

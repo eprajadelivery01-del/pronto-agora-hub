@@ -30,9 +30,9 @@ export default function BusinessHomePage() {
   const qc = useQueryClient();
   
   const { data: companyData } = useQuery({
-    queryKey: ["company-info", profile?.id || user?.id],
+    queryKey: ["company-info", (profile as any)?.id || user?.id],
     queryFn: async () => {
-      const currentId = profile?.id || user?.id;
+      const currentId = (profile as any)?.id || user?.id;
       if (!currentId) return null;
       
       const { data } = await supabase
@@ -43,7 +43,7 @@ export default function BusinessHomePage() {
         
       return data;
     },
-    enabled: !!(profile?.id || user?.id)
+    enabled: !!((profile as any)?.id || user?.id)
   });
 
   const companyId = companyData?.id;
@@ -140,11 +140,11 @@ export default function BusinessHomePage() {
 
   const stats = {
     pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
-    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
-    completed: deliveries.filter(d => d.status === "completed" || d.status === "delivered").length,
+    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route"].includes(d.status)).length,
+    completed: deliveries.filter(d => d.status === "completed").length,
     marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
     marketplaceRevenue: marketplaceOrders
-      .filter(o => o.status === "completed")
+      .filter(o => ["completed", "delivered"].includes(o.status))
       .reduce((acc, o) => acc + (o.total || 0), 0)
   };
 
@@ -152,7 +152,7 @@ export default function BusinessHomePage() {
     try {
       const { error } = await supabase
         .from("orders")
-        .update({ status: nextStatus })
+        .update({ status: nextStatus } as any)
         .eq("id", orderId);
         
       if (error) throw error;
@@ -302,7 +302,7 @@ export default function BusinessHomePage() {
                   {marketplaceOrders.map((order) => (
                     <div 
                       key={order.id} 
-                      onClick={() => setSelectedOrder(order)}
+                      onClick={() => setSelectedOrder(order as any)}
                       className="bg-card border border-border/50 rounded-[2rem] p-5 shadow-sm hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all group overflow-hidden cursor-pointer"
                     >
                        <div className="flex items-center justify-between mb-3">

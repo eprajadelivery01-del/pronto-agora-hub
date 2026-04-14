@@ -70,7 +70,7 @@ export function CityServiceList({ onSelect, className, variant = "vertical", sel
             <div className="flex-1 text-left min-w-0 pr-4">
               <p className="text-sm font-bold text-foreground truncate">{city}</p>
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                {allRegions?.filter(r => r.city === city).length || 0} Regiões
+                {allRegions?.filter(r => (r as any).city === city).length || 0} Regiões
               </p>
             </div>
             {variant === "vertical" && (
