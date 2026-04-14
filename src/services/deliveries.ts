@@ -13,6 +13,17 @@ export interface DeliveryWithRelations {
   created_at: string;
   updated_at: string;
   companies?: { name: string; phone: string | null } | null;
+  // Extended fields (may exist in DB but not in generated types)
+  pickup_latitude?: number | null;
+  pickup_longitude?: number | null;
+  dropoff_address?: string | null;
+  price?: number | null;
+  notes?: string | null;
+  accepted_at?: string | null;
+  collected_at?: string | null;
+  delivered_at?: string | null;
+  cancelled_at?: string | null;
+  [key: string]: any;
 }
 
 interface UseDeliveriesParams {

@@ -337,12 +337,12 @@ export default function DeliveriesPage() {
                                 </DropdownMenuItem>
                               )}
                               {delivery.status === "collecting" && (
-                                <DropdownMenuItem onClick={() => updateStatus.mutate({ id: delivery.id, status: "in_transit" })}>
+                                <DropdownMenuItem onClick={() => updateStatus.mutate({ id: delivery.id, status: "in_route" as DeliveryStatus })}>
                                   Em Rota
                                 </DropdownMenuItem>
                               )}
-                              {delivery.status === "in_transit" && (
-                                <DropdownMenuItem onClick={() => updateStatus.mutate({ id: delivery.id, status: "delivered" })}>
+                              {delivery.status === "in_route" && (
+                                <DropdownMenuItem onClick={() => updateStatus.mutate({ id: delivery.id, status: "completed" as DeliveryStatus })}>
                                   Finalizar
                                 </DropdownMenuItem>
                               )}

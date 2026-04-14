@@ -12,10 +12,13 @@ export type DriverWithProfile = {
   rating: number;
   latitude: number | null;
   longitude: number | null;
+  current_latitude?: number | null;
+  current_longitude?: number | null;
   license_plate?: string | null;
   commission_rate?: number;
   created_at?: string;
   profiles?: { full_name: string; phone: string | null; avatar_url: string | null } | null;
+  [key: string]: any;
 };
 
 export async function fetchDrivers() {
