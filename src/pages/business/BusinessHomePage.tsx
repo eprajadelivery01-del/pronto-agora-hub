@@ -29,32 +29,6 @@ export default function BusinessHomePage() {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const qc = useQueryClient();
   
-  // Audio for notifications (Looping until accepted)
-  useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audioRef.current.loop = true;
-    }
-    
-    // Check for pending orders to start/stop ringing
-    const hasPending = marketplaceOrders.some(o => o.status === "pending");
-    if (hasPending && !isRinging) {
-      audioRef.current.play().catch(e => console.warn("Audio blocked by browser, needs user interaction"));
-      setIsRinging(true);
-    } else if (!hasPending && isRinging) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsRinging(false);
-    }
-  }, [marketplaceOrders, isRinging]);
-
-  const handleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsRinging(false);
-    }
-  };
-
   const { data: companyData } = useQuery({
     queryKey: ["company-info", profile?.id || user?.id],
     queryFn: async () => {
@@ -100,6 +74,32 @@ export default function BusinessHomePage() {
 
   const deliveries = deliveriesData?.data || [];
   const marketplaceOrders = ordersData || [];
+
+  // Audio for notifications (Looping until accepted)
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audioRef.current.loop = true;
+    }
+    
+    // Check for pending orders to start/stop ringing
+    const hasPending = marketplaceOrders.some(o => o.status === "pending");
+    if (hasPending && !isRinging) {
+      audioRef.current.play().catch(e => console.warn("Audio blocked by browser, needs user interaction"));
+      setIsRinging(true);
+    } else if (!hasPending && isRinging) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsRinging(false);
+    }
+  }, [marketplaceOrders, isRinging]);
+
+  const handleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsRinging(false);
+    }
+  };
   
   // Realtime for deliveries
   useEffect(() => {
