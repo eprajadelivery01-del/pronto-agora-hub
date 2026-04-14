@@ -75,7 +75,7 @@ export default function BusinessHomePage() {
     enabled: !!companyId
   });
 
-  const deliveries = deliveriesData?.data || [];
+  const deliveries = (deliveriesData?.data || []).filter(d => !["completed", "cancelled"].includes(d.status));
   const marketplaceOrders = useMemo(() => ordersData || [], [ordersData]);
 
   // Audio for notifications (Looping until accepted)

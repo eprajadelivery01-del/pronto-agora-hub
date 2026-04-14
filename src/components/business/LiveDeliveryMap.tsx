@@ -21,10 +21,12 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/style.json', // Estilo básico, recomendável usar Maptiler em prod
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
       center: [-56.5126, -14.3986], // Centro aproximado de Diamantino - MT
       zoom: 13,
     });
+
+    map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
 
     map.current.on('load', () => {
       setLoading(false);
@@ -103,12 +105,18 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
 
       if (!markers.current[delivery.id]) {
         const el = document.createElement('div');
-        el.className = 'marker-delivery';
+        // Admin-style marker (Matched from MapView.tsx)
         el.innerHTML = `
           <div class="relative group">
-            <div class="w-10 h-10 bg-primary rounded-2xl shadow-xl flex items-center justify-center text-white border-2 border-white ring-4 ring-primary/20 animate-bounce">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3m1 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0m10 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0M13 5h9v7h-9z"/></svg>
-            </div>
+            <div style="
+              width: 36px; height: 36px; border-radius: 50%;
+              background: #22c55e;
+              border: 3px solid white;
+              display: flex; align-items: center; justify-content: center;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+              font-size: 14px;
+              cursor: pointer;
+            ">🏍️</div>
             <div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-black px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
               ${delivery.customer_name || 'Entrega'}
             </div>
@@ -122,6 +130,28 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
         markers.current[delivery.id].setLngLat([lng, lat]);
       }
     });
+
+    // Render Company Marker (Logged in business)
+    // We only do this once
+    if (companyId && map.current && !markers.current['company']) {
+      const { data: comp } = await supabase.from('companies').select('latitude, longitude, name').eq('id', companyId).maybeSingle();
+      if (comp?.latitude && comp?.longitude) {
+         const el = document.createElement('div');
+         el.innerHTML = `
+          <div style="
+            width: 36px; height: 36px; border-radius: 10px;
+            background: #3b82f6;
+            border: 3px solid white;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 16px;
+          ">🏪</div>
+         `;
+         markers.current['company'] = new maplibregl.Marker({ element: el })
+           .setLngLat([comp.longitude, comp.latitude])
+           .addTo(map.current!);
+      }
+    }
 
     // Auto-center if we have deliveries
     if (activeDeliveries.length > 0 && !loading) {

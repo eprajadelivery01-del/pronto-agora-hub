@@ -12,8 +12,15 @@ interface RegionPickerMapProps {
 export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps) {
   const mapContainer = React.useRef<HTMLDivElement>(null);
   const map = React.useRef<maplibregl.Map | null>(null);
+  const labelsRef = React.useRef<maplibregl.Marker[]>([]);
   const [loading, setLoading] = useState(true);
   const [regions, setRegions] = useState<any[]>([]);
+
+  const getCentroid = (coords: [number, number][]) => {
+    let x = 0, y = 0;
+    coords.forEach(([lng, lat]) => { x += lng; y += lat; });
+    return [x / coords.length, y / coords.length] as [number, number];
+  };
 
   useEffect(() => {
     const fetchRegions = async () => {
@@ -32,7 +39,7 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
       center: [-56.5126, -14.3986], // Centro padrão Diamantino
       zoom: 12,
     });
@@ -45,6 +52,10 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
 
     map.current.on('load', () => {
       setLoading(false);
+
+      // Clear old labels
+      labelsRef.current.forEach(mk => mk.remove());
+      labelsRef.current = [];
 
       if (regions.length > 0) {
         regions.forEach(region => {
@@ -86,12 +97,37 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
             }
           });
 
+          // Floating Price Label (Matched from Admin)
+          const geoJSON = region.geometry as any;
+          if (geoJSON.coordinates?.[0]) {
+            const centroid = getCentroid(geoJSON.coordinates[0]);
+            const el = document.createElement("div");
+            el.className = "region-label";
+            el.innerHTML = `
+              <div style="
+                background: rgba(255,255,255,0.92);
+                padding: 4px 10px;
+                border-radius: 8px;
+                border: 1.5px solid ${region.color || '#3b82f6'};
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                text-align: center;
+                min-width: 60px;
+                pointer-events: none;
+              ">
+                <p style="margin:0; font-size: 10px; font-weight: 800; color: #444; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px;">${region.name}</p>
+                <p style="margin:0; font-size: 11px; font-weight: 900; color: ${region.color || '#3b82f6'};">R$ ${Number(region.delivery_fee || region.price || 0).toFixed(2)}</p>
+              </div>
+            `;
+            const labelMarker = new maplibregl.Marker({ element: el }).setLngLat(centroid).addTo(map.current!);
+            labelsRef.current.push(labelMarker);
+          }
+
           // Click interaction
           map.current?.on('click', fillId, () => {
              onRegionSelect?.(region.delivery_fee || region.price, region.id);
           });
-
-          // Hover effect & Popup (Matching Admin)
+          
+          // Hover effects...
           map.current?.on('mouseenter', fillId, (e) => {
             map.current!.getCanvas().style.cursor = 'pointer';
             map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
@@ -118,6 +154,8 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
     });
 
     return () => {
+      // Clear labels on cleanup
+      labelsRef.current.forEach(mk => mk.remove());
       map.current?.remove();
     };
   }, [regions, onRegionSelect]);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +11,7 @@ interface OrderHistory {
   total: number;
   created_at: string;
   customer_name: string;
+  type?: 'manual' | 'marketplace';
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -44,7 +44,9 @@ export default function BusinessHistoryPage() {
     if (!companyId) return;
     const fetchHistory = async () => {
       setLoading(true);
-      const { data } = await supabase
+      
+      // Fetch Marketplace Orders
+      const { data: orders } = await supabase
         .from("orders")
         .select(`
           id, status, total, created_at,
@@ -53,15 +55,48 @@ export default function BusinessHistoryPage() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
-      if (data) {
-        setHistory(data.map((o: any) => ({
-          id: o.id,
-          status: o.status,
-          total: o.total,
-          created_at: o.created_at,
-          customer_name: o.customers?.name || "Cliente N/A"
-        })));
+      // Fetch Manual Deliveries
+      const { data: deliveries } = await supabase
+        .from("deliveries")
+        .select(`
+          id, status, value, created_at,
+          customer_name
+        `)
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false });
+
+      const unifiedHistory: OrderHistory[] = [];
+
+      if (orders) {
+        orders.forEach((o: any) => {
+          unifiedHistory.push({
+            id: o.id,
+            status: o.status,
+            total: o.total || 0,
+            created_at: o.created_at,
+            customer_name: o.customers?.name || "Cliente Marketplace",
+            type: 'marketplace'
+          });
+        });
       }
+
+      if (deliveries) {
+        deliveries.forEach((d: any) => {
+          unifiedHistory.push({
+            id: d.id,
+            status: d.status,
+            total: d.value || 0,
+            created_at: d.created_at,
+            customer_name: d.customer_name || "Cliente Manual",
+            type: 'manual'
+          });
+        });
+      }
+
+      // Sort by date descending
+      unifiedHistory.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setHistory(unifiedHistory);
       setLoading(false);
     };
     fetchHistory();
@@ -135,14 +170,14 @@ export default function BusinessHistoryPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                           {order.status === 'completed' ? <CheckCircle className="h-3 w-3 text-success" /> : 
+                           {order.status === 'completed' || order.status === 'delivered' ? <CheckCircle className="h-3 w-3 text-success" /> : 
                             order.status === 'cancelled' ? <XCircle className="h-3 w-3 text-destructive" /> : 
                             <Clock className="h-3 w-3 text-warning" />}
-                           <span className={cn("text-xs font-bold", 
-                            order.status === 'completed' ? "text-success" : 
-                            order.status === 'cancelled' ? "text-destructive" : "text-warning")}>
-                            {STATUS_LABELS[order.status] || order.status}
-                           </span>
+                             <span className={cn("text-xs font-bold", 
+                              order.status === 'completed' || order.status === 'delivered' ? "text-success" : 
+                              order.status === 'cancelled' ? "text-destructive" : "text-warning")}>
+                              {STATUS_LABELS[order.status] || (order.status === 'delivered' ? 'Entregue' : order.status)}
+                             </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-black text-foreground">
