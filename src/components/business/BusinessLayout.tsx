@@ -57,12 +57,12 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       if (!user) return;
       const { data } = await supabase
         .from("companies")
-        .select("id, name, logo_url, is_open")
+        .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
-        setCompany(data);
-        setIsOpen(data.is_open ?? true);
+        setCompany(data as any);
+        setIsOpen((data as any).is_open ?? true);
       }
     };
     fetchCompany();
@@ -76,7 +76,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     try {
       const { error } = await supabase
         .from("companies")
-        .update({ is_open: newStatus })
+        .update({ is_open: newStatus } as any)
         .eq("id", company.id);
         
       if (error) throw error;

@@ -206,7 +206,11 @@ export function MapView({ centerCity }: MapViewProps) {
     markersRef.current = [];
 
     (drivers ?? []).forEach((driver) => {
-      if (!driver.current_latitude || !driver.current_longitude) return;
+      const driverAny = driver as any;
+      if (!driverAny.current_latitude && !driver.latitude) return;
+      const dLat = driverAny.current_latitude || driver.latitude;
+      const dLng = driverAny.current_longitude || driver.longitude;
+      if (!dLat || !dLng) return;
 
       const el = document.createElement("div");
       el.innerHTML = `
@@ -221,7 +225,7 @@ export function MapView({ centerCity }: MapViewProps) {
       `;
 
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([driver.current_longitude, driver.current_latitude])
+        .setLngLat([dLng, dLat])
         .setPopup(
           new maplibregl.Popup({ offset: 20 }).setHTML(`
             <div style="font-family: sans-serif; padding: 4px;">
@@ -238,7 +242,7 @@ export function MapView({ centerCity }: MapViewProps) {
 
     // Render company markers
     (companies ?? []).forEach((company) => {
-      if (!company.latitude || !company.longitude) return;
+      if (!(company as any).latitude || !(company as any).longitude) return;
 
       const el = document.createElement("div");
       const statusColor = company.is_active ? "#22c55e" : "#ef4444";
@@ -255,7 +259,7 @@ export function MapView({ centerCity }: MapViewProps) {
       `;
 
       const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([company.longitude, company.latitude])
+        .setLngLat([(company as any).longitude, (company as any).latitude])
         .setPopup(
           new maplibregl.Popup({ offset: 20 }).setHTML(`
             <div style="font-family: sans-serif; padding: 4px; min-width: 120px;">

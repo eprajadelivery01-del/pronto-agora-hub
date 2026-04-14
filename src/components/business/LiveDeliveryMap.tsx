@@ -55,7 +55,7 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
           )
         `)
         .eq('company_id', companyId)
-        .in('status', ['pending', 'accepted', 'in_route', 'ready']);
+        .in('status', ['pending', 'accepted', 'in_route'] as any);
         
       if (data) setActiveDeliveries(data);
     };
@@ -105,7 +105,6 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
 
       if (!markers.current[delivery.id]) {
         const el = document.createElement('div');
-        // Admin-style marker (Matched from MapView.tsx)
         el.innerHTML = `
           <div class="relative group">
             <div style="
@@ -131,33 +130,31 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
       }
     });
 
-    // Render Company Marker (Logged in business)
-    // We only do this once
+    // Render Company Marker (Logged in business) - async IIFE
     if (companyId && map.current && !markers.current['company']) {
-      const { data: comp } = await supabase.from('companies').select('latitude, longitude, name').eq('id', companyId).maybeSingle();
-      if (comp?.latitude && comp?.longitude) {
-         const el = document.createElement('div');
-         el.innerHTML = `
-          <div style="
-            width: 36px; height: 36px; border-radius: 10px;
-            background: #3b82f6;
-            border: 3px solid white;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            font-size: 16px;
-          ">🏪</div>
-         `;
-         markers.current['company'] = new maplibregl.Marker({ element: el })
-           .setLngLat([comp.longitude, comp.latitude])
-           .addTo(map.current!);
-      }
+      const mapRef = map.current;
+      (async () => {
+        const { data: comp } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle();
+        const compAny = comp as any;
+        if (compAny?.latitude && compAny?.longitude) {
+          const el = document.createElement('div');
+          el.innerHTML = `
+            <div style="
+              width: 36px; height: 36px; border-radius: 10px;
+              background: #3b82f6;
+              border: 3px solid white;
+              display: flex; align-items: center; justify-content: center;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              font-size: 16px;
+            ">🏪</div>
+          `;
+          markers.current['company'] = new maplibregl.Marker({ element: el })
+            .setLngLat([compAny.longitude, compAny.latitude])
+            .addTo(mapRef);
+        }
+      })();
     }
-
-    // Auto-center if we have deliveries
-    if (activeDeliveries.length > 0 && !loading) {
-       // Optional: fit bounds
-    }
-  }, [activeDeliveries, loading]);
+  }, [activeDeliveries, loading, companyId]);
 
   return (
     <div className="relative w-full h-[400px] rounded-[2.5rem] overflow-hidden border border-border bg-muted/20 shadow-card group">

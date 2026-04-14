@@ -16,7 +16,7 @@ export function CityServiceList({ onSelect, className, variant = "vertical", sel
 
   const handleCityClick = (cityName: string) => {
     // Find a region in this city to get coordinates
-    const cityRegions = allRegions?.filter(r => r.city === cityName);
+    const cityRegions = allRegions?.filter(r => (r as any).city === cityName);
     if (cityRegions && cityRegions.length > 0) {
       const firstRegion = cityRegions[0];
       const geo = firstRegion.geometry as any;
@@ -70,7 +70,7 @@ export function CityServiceList({ onSelect, className, variant = "vertical", sel
             <div className="flex-1 text-left min-w-0 pr-4">
               <p className="text-sm font-bold text-foreground truncate">{city}</p>
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                {allRegions?.filter(r => r.city === city).length || 0} Regiões
+                {allRegions?.filter(r => (r as any).city === city).length || 0} Regiões
               </p>
             </div>
             {variant === "vertical" && (

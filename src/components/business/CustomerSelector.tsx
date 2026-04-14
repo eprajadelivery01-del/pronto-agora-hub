@@ -178,7 +178,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                        <p className="text-sm font-bold text-foreground truncate">{customer.name}</p>
-                       {customer.isMarketplace ? (
+                       {(customer as any).isMarketplace ? (
                          <span className="text-[8px] font-black bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">Marketplace</span>
                        ) : (
                          <span className="text-[8px] font-black bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">Loja</span>

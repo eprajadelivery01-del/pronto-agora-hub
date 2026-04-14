@@ -13,6 +13,17 @@ export interface DeliveryWithRelations {
   created_at: string;
   updated_at: string;
   companies?: { name: string; phone: string | null } | null;
+  // Extended fields (may exist in DB but not in generated types)
+  pickup_latitude?: number | null;
+  pickup_longitude?: number | null;
+  dropoff_address?: string | null;
+  price?: number | null;
+  notes?: string | null;
+  accepted_at?: string | null;
+  collected_at?: string | null;
+  delivered_at?: string | null;
+  cancelled_at?: string | null;
+  [key: string]: any;
 }
 
 interface UseDeliveriesParams {
@@ -127,7 +138,7 @@ export async function createDeliveryRequest(orderId: string) {
 
   // Utilizamos preferencialmente o delivery_address que veio do Checkout.
   // Caso não exista, tentamos puxar o endereço padrão do customer, mas no nosso fluxo o Cliente já salva na Order.
-  let dropoff = order.delivery_address;
+  let dropoff = (order as any).delivery_address;
   let region_id = null;
   
   if (!dropoff && order.customer_id) {
@@ -164,7 +175,7 @@ export async function createDeliveryRequest(orderId: string) {
   // 3. Associa a delivery_id ao pedido e muda o status da Order para in_route
   await supabase
     .from("orders")
-    .update({ delivery_id: delivery.id, status: "in_route" })
+    .update({ delivery_id: delivery.id, status: "in_route" } as any)
     .eq("id", orderId);
 
   return delivery;

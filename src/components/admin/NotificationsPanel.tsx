@@ -58,7 +58,7 @@ export function NotificationsPanel() {
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-foreground">{getTitle(d)}</p>
                 <p className="text-[11px] text-muted-foreground truncate">
-                  {d.customer_name} — R$ {Number(d.price ?? 0).toFixed(2)}
+                  {d.customer_name} — R$ {Number((d as any).price ?? d.value ?? 0).toFixed(2)}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {format(new Date(d.updated_at), "dd/MM HH:mm")}
