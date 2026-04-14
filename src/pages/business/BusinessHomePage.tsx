@@ -16,7 +16,6 @@ import { StatCard } from "@/components/business/StatCard";
 
 // Lazy loading heavy components to prevent initialization errors in production
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm").then(m => ({ default: m.NewDeliveryForm })));
-const LiveDeliveryMap = React.lazy(() => import("@/components/business/LiveDeliveryMap").then(m => ({ default: m.LiveDeliveryMap })));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal").then(m => ({ default: m.OrderDetailModal })));
 
 export default function BusinessHomePage() {
@@ -239,8 +238,6 @@ export default function BusinessHomePage() {
               </button>
             </div>
 
-            {/* Real-time Tracking Map */}
-            <LiveDeliveryMap companyId={companyId} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard label="Manual: Pendentes" value={String(stats.pending)} icon={Clock} color="warning" />
