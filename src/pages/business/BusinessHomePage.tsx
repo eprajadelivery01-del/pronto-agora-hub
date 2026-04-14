@@ -450,7 +450,10 @@ function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => v
 
           <div className="md:col-span-2 space-y-2">
             <label className="text-xs font-black uppercase tracking-widest text-muted-foreground block">Mapa de Regiões de Entrega</label>
-            <RegionPickerMap onRegionSelect={handleRegionSelect} />
+            <RegionPickerMap 
+               cityId={companyData?.city_id || selectedCity} 
+               onRegionSelect={handleRegionSelect} 
+            />
           </div>
 
           <div>

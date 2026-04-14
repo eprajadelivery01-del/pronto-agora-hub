@@ -32,9 +32,15 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: [-56.5126, -14.3986], // Centro padrão Diamantino
       zoom: 12,
+    });
+
+    const popup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 15
     });
 
     map.current.on('load', () => {
@@ -44,45 +50,67 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
         if (!region.geometry) return;
 
         const sourceId = `region-${region.id}`;
+        const fillId = `${sourceId}-fill`;
+        const lineId = `${sourceId}-line`;
         
         map.current?.addSource(sourceId, {
           type: 'geojson',
-          data: region.geometry
-        });
-
-        map.current?.addLayer({
-          id: `${sourceId}-fill`,
-          type: 'fill',
-          source: sourceId,
-          layout: {},
-          paint: {
-            'fill-color': region.color || '#3b82f6',
-            'fill-opacity': 0.3
+          data: {
+            type: 'Feature',
+            geometry: region.geometry,
+            properties: { 
+              name: region.name, 
+              price: region.delivery_fee || region.price 
+            }
           }
         });
 
         map.current?.addLayer({
-          id: `${sourceId}-outline`,
+          id: fillId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': region.color || '#3b82f6',
+            'fill-opacity': 0.25
+          }
+        });
+
+        map.current?.addLayer({
+          id: lineId,
           type: 'line',
           source: sourceId,
-          layout: {},
           paint: {
             'line-color': region.color || '#3b82f6',
-            'line-width': 2
+            'line-width': 2.5
           }
         });
 
         // Click interaction
-        map.current?.on('click', `${sourceId}-fill`, () => {
-           onRegionSelect?.(region.delivery_fee, region.id);
+        map.current?.on('click', fillId, () => {
+           onRegionSelect?.(region.delivery_fee || region.price, region.id);
         });
 
-        // Hover effect
-        map.current?.on('mouseenter', `${sourceId}-fill`, () => {
+        // Hover effect & Popup (Matching Admin)
+        map.current?.on('mouseenter', fillId, (e) => {
           map.current!.getCanvas().style.cursor = 'pointer';
+          map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
+          
+          const fee = (region.delivery_fee || region.price || 0);
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="font-family: sans-serif; padding: 4px; color: #fff;">
+                <strong style="display: block; font-size: 12px; margin-bottom: 2px;">${region.name}</strong>
+                <span style="color: #10b981; font-weight: 800; font-size: 14px;">R$ ${Number(fee).toFixed(2).replace('.', ',')}</span>
+              </div>
+            `)
+            .addTo(map.current!);
         });
-        map.current?.on('mouseleave', `${sourceId}-fill`, () => {
+
+        map.current?.on('mouseleave', fillId, () => {
           map.current!.getCanvas().style.cursor = '';
+          map.current!.setPaintProperty(fillId, 'fill-opacity', 0.25);
+          popup.remove();
         });
       });
     });
