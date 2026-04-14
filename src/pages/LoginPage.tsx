@@ -62,11 +62,6 @@ export default function LoginPage() {
           </div>
           <h1 className="font-display text-2xl font-extrabold text-foreground tracking-tight">É Pra Já</h1>
           <p className="text-sm text-muted-foreground mt-1 font-medium">Delivery • Painel de Gestão</p>
-          <div className="mt-4 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest leading-tight text-center">
-              HUB DO LOJISTA (Marketplace)<br />BUILD: V16-NUCLEAR-DECOUPLED
-            </p>
-          </div>
         </div>
 
         <form onSubmit={handleLogin} className="bg-card rounded-2xl p-6 shadow-card space-y-4">
