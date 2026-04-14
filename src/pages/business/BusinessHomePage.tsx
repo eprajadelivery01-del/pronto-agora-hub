@@ -14,6 +14,7 @@ import type { DeliveryStatus } from "@/types/models";
 import { LiveDeliveryMap } from "@/components/business/LiveDeliveryMap";
 import { OrderDetailModal } from "@/components/business/OrderDetailModal";
 import { cn } from "@/lib/utils";
+import { RegionPickerMap } from "@/components/business/RegionPickerMap";
 
 export default function BusinessHomePage() {
   const { profile, user } = useAuth();
@@ -362,8 +363,6 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
     </div>
   );
 }
-
-import { RegionPickerMap } from "@/components/business/RegionPickerMap";
 
 function NewDeliveryForm({ onClose, initialData, companyId }: { onClose: () => void, initialData?: any, companyId?: string }) {
   const { selectedCity } = useCity();
