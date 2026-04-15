@@ -397,6 +397,7 @@ export default function BusinessOrdersPage() {
                     onCancel={() => updateStatus(order.id, "cancelled")}
                     onRefresh={fetchOrders}
                     action={getNextActions(order.status)}
+                    updateStatus={updateStatus}
                   />
                 ))}
                 
@@ -415,12 +416,13 @@ export default function BusinessOrdersPage() {
   );
 }
 
-function OrderCard({ order, onAdvance, onCancel, onRefresh, action }: {
+function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus }: {
   order: Order;
   onAdvance: () => void;
   onCancel: () => void;
   onRefresh: () => void;
   action: { label: string, next: OrderStatus } | null;
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>;
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
