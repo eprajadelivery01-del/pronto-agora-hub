@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useCity } from "@/contexts/CityContext";
-import { useDeliveries } from "@/services/deliveries";
+import { useDeliveries, useDeliveryStats } from "@/services/deliveries";
 import { format } from "date-fns";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import { DeliveryStatus, Order, Delivery } from "@/types/models";
@@ -53,22 +53,22 @@ export default function BusinessHomePage() {
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
-      .channel("business-home-deliveries")
+      .channel("business-home-status")
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` }, () => {
         qc.invalidateQueries({ queryKey: ["deliveries"] });
+        qc.invalidateQueries({ queryKey: ["delivery-stats"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [companyId, qc]);
 
+  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
+
 
   const stats = {
-    pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
-    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
-    completed: deliveries.filter(d => d.status === "completed").length,
-    manualRevenue: (deliveriesData?.data || [])
-      .filter(d => d.status !== 'cancelled')
-      .reduce((acc, d) => acc + (Number(d.estimated_value) || 0), 0)
+    pending: deliveryStats?.pending ?? 0,
+    inRoute: deliveryStats?.inTransit ?? 0,
+    manualRevenue: deliveryStats?.todayCollection ?? 0
   };
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
@@ -140,9 +140,19 @@ export default function BusinessHomePage() {
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 font-black">
-              <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Entregas manuais" />
-              <StatCard label="Em Trânsito" value={stats.inRoute} icon={Truck} color="primary" subtitle="Em rota agora" />
-              <StatCard label="Receber Hoje" value={`R$ ${stats.manualRevenue.toFixed(2).replace('.', ',')}`} icon={Wallet} color="warning" subtitle="Manual (Cobrança)" />
+              {isLoadingStats ? (
+                <>
+                  <Skeleton className="h-32 rounded-2xl" />
+                  <Skeleton className="h-32 rounded-2xl" />
+                  <Skeleton className="h-32 rounded-2xl" />
+                </>
+              ) : (
+                <>
+                  <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Entregas manuais" />
+                  <StatCard label="Em Trânsito" value={stats.inRoute} icon={Truck} color="primary" subtitle="Em rota agora" />
+                  <StatCard label="Receber Hoje" value={`R$ ${stats.manualRevenue.toFixed(2).replace('.', ',')}`} icon={Wallet} color="warning" subtitle="Manual (Cobrança)" />
+                </>
+              )}
             </div>
 
             {/* Content Grid */}

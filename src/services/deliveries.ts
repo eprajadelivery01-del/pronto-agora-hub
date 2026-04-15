@@ -45,7 +45,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
-        .select("id, company_id, driver_id, customer_name, address, value, status, created_at, updated_at, notes, pickup_address, dropoff_address, companies(name, phone)", { count: "exact" })
+        .select("id, company_id, driver_id, customer_name, address, value, estimated_value, status, created_at, updated_at, notes, pickup_address, dropoff_address, companies(name, phone)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -67,29 +67,41 @@ export function useDeliveries(params?: UseDeliveriesParams) {
   });
 }
 
-export function useDeliveryStats() {
+export function useDeliveryStats(params?: { companyId?: string }) {
+  const { companyId } = params || {};
+  
   return useQuery({
-    queryKey: ["delivery-stats"],
+    queryKey: ["delivery-stats", companyId],
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const [todayRes, totalRes] = await Promise.all([
-        supabase.from("deliveries").select("status, value").gte("created_at", today.toISOString()),
-        supabase.from("deliveries").select("id", { count: "exact", head: true }),
-      ]);
+      let query = supabase
+        .from("deliveries")
+        .select("status, value, estimated_value")
+        .gte("created_at", today.toISOString());
 
-      if (todayRes.error) throw todayRes.error;
-      const data = todayRes.data;
+      if (companyId) {
+        query = query.eq("company_id", companyId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      const [totalRes] = await Promise.all([
+        supabase.from("deliveries").select("id", { count: "exact", head: true }).match(companyId ? { company_id: companyId } : {}),
+      ]);
 
       return {
         today: data.length,
         total: totalRes.count ?? 0,
-        pending: data.filter((d) => d.status === "pending").length,
-        inTransit: data.filter((d) => d.status === "in_route").length,
+        pending: data.filter((d) => d.status === "pending" || d.status === "broadcasted").length,
+        inTransit: data.filter((d) => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
         delivered: data.filter((d) => d.status === "completed").length,
         cancelled: data.filter((d) => d.status === "cancelled").length,
         todayRevenue: data.filter((d) => d.status === "completed").reduce((sum, d) => sum + Number((d as any).value ?? 0), 0),
+        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + Number((d as any).estimated_value ?? 0), 0),
       };
     },
     refetchInterval: 30000,
