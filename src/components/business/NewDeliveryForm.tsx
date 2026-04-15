@@ -32,6 +32,42 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   
   const [notes, setNotes] = useState(initialData?.notes?.replace("[PAGO]", "").trim() || "");
   const [submitting, setSubmitting] = useState(false);
+  const [saveCustomer, setSaveCustomer] = useState(true);
+  const [suggestedCustomer, setSuggestedCustomer] = useState<any>(null);
+
+  // Smart Search: Find customer by phone as the user types
+  useEffect(() => {
+    const searchCustomer = async () => {
+      if (customerPhone.length < 8 || !companyId || initialData) return;
+      
+      const { data } = await supabase
+        .from("deliveries")
+        .select("customer_name, customer_phone, customer_cpf, address")
+        .eq("company_id", companyId)
+        .ilike("customer_phone", `%${customerPhone}%`)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setSuggestedCustomer(data[0]);
+      } else {
+        setSuggestedCustomer(null);
+      }
+    };
+
+    const timer = setTimeout(searchCustomer, 500);
+    return () => clearTimeout(timer);
+  }, [customerPhone, companyId, initialData]);
+
+  const applySuggestion = () => {
+    if (suggestedCustomer) {
+      setCustomerName(suggestedCustomer.customer_name);
+      setCustomerCpf(suggestedCustomer.customer_cpf || "");
+      setAddress(suggestedCustomer.address);
+      setSuggestedCustomer(null);
+      toast.info("Dados do cliente preenchidos!");
+    }
+  };
 
   // Helper to format currency on blur/change
   const handleCurrencyChange = (val: string, setter: (v: string) => void) => {
@@ -92,6 +128,29 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       const { error } = await query;
       if (error) throw error;
 
+      // Logic to save/update customer official record
+      if (saveCustomer && !initialData) {
+        // Find if customer already exists in global customers table
+        const { data: existingCust } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("phone", customerPhone)
+          .maybeSingle();
+
+        const custPayload = {
+          name: customerName,
+          phone: customerPhone,
+          cpf: customerCpf || null,
+          updated_at: new Date().toISOString()
+        };
+
+        if (existingCust) {
+          await supabase.from("customers").update(custPayload).eq("id", existingCust.id);
+        } else {
+          await supabase.from("customers").insert([custPayload]);
+        }
+      }
+
       toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       onClose();
@@ -138,12 +197,32 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Telefone de Contato</label>
-                  <input
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="(00) 00000-0000"
-                      className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
-                  />
+                  <div className="relative">
+                    <input
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="(00) 00000-0000"
+                        className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
+                    />
+                    {suggestedCustomer && (
+                      <div 
+                        onClick={applySuggestion}
+                        className="absolute left-0 right-0 top-full mt-2 p-4 bg-primary/10 border border-primary/20 rounded-2xl shadow-xl z-50 cursor-pointer hover:bg-primary/20 transition-all animate-in slide-in-from-top-2"
+                      >
+                         <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center">
+                               <User className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                               <p className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">Cliente Encontrado</p>
+                               <p className="text-sm font-bold text-foreground truncate">{suggestedCustomer.customer_name}</p>
+                               <p className="text-[10px] text-muted-foreground font-medium truncate">{suggestedCustomer.address}</p>
+                            </div>
+                            <div className="bg-primary text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase">Preencher</div>
+                         </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
              </div>
           </div>
@@ -230,7 +309,22 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                 </div>
              </div>
              
-             <div className="space-y-1.5">
+              <div className="flex items-center gap-2 pt-2 p-3 bg-primary/5 rounded-2xl border border-dashed border-primary/20 hover:border-primary/40 transition-all select-none cursor-pointer" onClick={() => setSaveCustomer(!saveCustomer)}>
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                    saveCustomer ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  <CheckCircle className={cn("h-5 w-5", !saveCustomer && "opacity-20")} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-foreground">Salvar nos Meus Clientes</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Lembrar dados para a próxima compra deste cliente.</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Observações para o Entregador</label>
                 <textarea
                   value={notes}
