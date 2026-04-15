@@ -185,11 +185,20 @@ export default function BusinessOrdersPage() {
         return true;
       });
 
-      const mapped = filteredData.map((o: any) => ({
-        ...o,
-        customer: customerMap[o.customer_id] || { name: "Cliente Marketplace" },
-        items: o.order_items || []
-      }));
+      const mapped = filteredData.map((o: any) => {
+        // Find best source of customer data
+        const customerData = customerMap[o.customer_id] || {};
+        
+        return {
+          ...o,
+          customer: {
+            name: customerData.name || o.customer_name || o.customer?.name || "Cliente Marketplace",
+            phone: customerData.phone || o.customer_phone || o.customer?.phone || "Não informado",
+            address: o.delivery_address || o.address || customerData.address || "Endereço não disponível"
+          },
+          items: o.order_items || []
+        };
+      });
       
       setOrders(mapped);
       setStats({
@@ -463,10 +472,10 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
             <User className="h-6 w-6 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-base font-black text-foreground truncate">{order.customer?.name || "Cliente Marketplace"}</p>
+            <p className="text-base font-black text-foreground truncate">{order.customer?.name}</p>
             <div className="flex flex-col gap-1 mt-1">
                <p className="text-[11px] text-primary font-black flex items-center gap-1.5">
-                  <Phone className="h-3 w-3" /> {order.customer?.phone || "(00) 00000-0000"}
+                  <Phone className="h-3 w-3" /> {order.customer?.phone}
                </p>
                <div className="flex items-center gap-3">
                   <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">

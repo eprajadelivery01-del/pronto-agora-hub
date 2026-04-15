@@ -63,9 +63,12 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
                         <User className="h-6 w-6 text-primary" />
                      </div>
                      <div>
-                        <p className="text-lg font-bold text-foreground">{order.customers?.name || order.customer_name || "Cliente Marketplace"}</p>
+                        <p className="text-lg font-bold text-foreground">
+                          {order.customer?.name || order.customers?.name || order.customer_name || "Cliente Marketplace"}
+                        </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                           <Phone className="h-3 w-3" /> {order.customers?.phone || order.customer_phone || "Não informado"}
+                           <Phone className="h-3 w-3" /> 
+                           {order.customer?.phone || order.customers?.phone || order.customer_phone || "Não informado"}
                         </p>
                      </div>
                   </div>
@@ -78,7 +81,7 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
                      </div>
                      <div>
                         <p className="text-sm font-bold text-foreground line-clamp-2 leading-snug">
-                           {order.delivery_address || order.address}
+                           {order.customer?.address || order.delivery_address || order.address || "Endereço não disponível."}
                         </p>
                         <button className="text-[10px] font-black text-primary uppercase mt-1 tracking-widest hover:underline">Ver no Mapa</button>
                      </div>

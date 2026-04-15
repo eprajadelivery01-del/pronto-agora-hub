@@ -375,7 +375,7 @@ export default function BusinessHomePage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-2 mb-0.5">
                               <p className="text-sm font-bold text-foreground truncate">
-                                {order.customers?.name || "Cliente"}
+                                {order.customers?.name || order.customer_name || (order.customer as any)?.name || "Cliente"}
                               </p>
                               <div className={cn(
                                 "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
