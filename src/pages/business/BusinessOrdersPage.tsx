@@ -101,6 +101,22 @@ export default function BusinessOrdersPage() {
     console.log("[Dashboard] Pedidos brutos retornados pelo Supabase:", data?.length || 0);
 
     if (data) {
+      // Busca resiliente de clientes (evita falha de join no status 400)
+      const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
+      let customerMap: Record<string, any> = {};
+      
+      if (customerIds.length > 0) {
+        console.log("[Dashboard] Buscando detalhes de", customerIds.length, "clientes separadamente...");
+        const { data: customersData } = await supabase
+          .from("customers")
+          .select("id, name, phone")
+          .in("id", customerIds);
+        
+        if (customersData) {
+          customersData.forEach(c => { customerMap[c.id] = c; });
+        }
+      }
+
       const todayStr = new Date().toISOString().split('T')[0];
       
       const filteredData = data.filter((o: any) => {
@@ -113,7 +129,7 @@ export default function BusinessOrdersPage() {
 
       const mapped = filteredData.map((o: any) => ({
         ...o,
-        customer: o.customers,
+        customer: customerMap[o.customer_id] || { name: "Cliente Marketplace" },
         items: o.order_items || []
       }));
       
