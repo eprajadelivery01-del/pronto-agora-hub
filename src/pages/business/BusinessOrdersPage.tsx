@@ -72,6 +72,7 @@ export default function BusinessOrdersPage() {
     if (!companyId) return;
     console.log("[OrdersPage] Fetching orders for companyId:", companyId);
     
+    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from("orders")
       .select(`
@@ -83,7 +84,7 @@ export default function BusinessOrdersPage() {
         )
       `)
       .eq("company_id", companyId)
-      .or(`status.in.(pending,accepted,preparing,ready,in_route),and(status.in.(completed,delivered),created_at.gte.${new Date().toISOString().split('T')[0]})`)
+      .or(`status.not.in.(completed,delivered,cancelled),and(status.in.(completed,delivered),created_at.gte.${today})`)
       .order("created_at", { ascending: false })
       .returns<any[]>();
 
@@ -102,7 +103,7 @@ export default function BusinessOrdersPage() {
       }));
       setOrders(mapped);
       setStats({
-        pending: mapped.filter(o => o.status === "pending").length,
+        pending: mapped.filter(o => !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status) || o.status === "pending").length,
         preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
         revenue_today: data.reduce((acc: number, o: any) => acc + (o.total || 0), 0),
       });
