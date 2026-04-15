@@ -83,6 +83,7 @@ export default function BusinessOrdersPage() {
       .select(`
         id, status, total, created_at,
         customer_id,
+        customers (name),
         order_items (
           id, quantity, price, product_name, unit_price,
           products (id, name, image_url, description)
@@ -123,8 +124,16 @@ export default function BusinessOrdersPage() {
         preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
         revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr))
                            .reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-        open_total: mapped.filter(o => !["completed", "delivered", "cancelled"].includes(o.status))
-                           .reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+        open_total: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status))
+                           .reduce((acc, o) => {
+                             const val = Number(o.total) || 0;
+                             console.log(`[Dashboard] Somando pedido ${o.id}: R$ ${val} (Status: ${o.status})`);
+                             return acc + val;
+                           }, 0),
+      });
+      console.log("[Dashboard] Estatísticas finais:", {
+        revenue: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).length,
+        open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
       });
     }
     setLoading(false);
@@ -512,6 +521,16 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
     return [];
   };
 
+  const isPending = order.status === "pending";
+  const action = getNextActions(order.status);
+
+  const onAdvance = () => {
+    if (action) {
+      updateStatus(order.id, action.next);
+      onStatusUpdate();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl glass-dark text-white/90">
@@ -523,6 +542,7 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-[80px] pointer-events-none" />
             
             <DialogHeader className="relative z-10">
+                <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
                 <div className="flex items-center gap-4 mb-4">
                     <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-none shadow-xl", STATUS_COLORS[order.status])}>
                         <span className="flex items-center gap-2">
