@@ -169,10 +169,10 @@ export async function createDeliveryRequest(orderId: string) {
 
   if (deliveryError) throw deliveryError;
 
-  // 3. Associa a delivery_id ao pedido e muda o status da Order para in_route
+  // 3. Associa a delivery_id ao pedido e mantém o status da Order como ready (ou muda se necessário)
   await supabase
     .from("orders")
-    .update({ delivery_id: delivery.id, status: "in_route" } as any)
+    .update({ delivery_id: delivery.id, status: "ready" } as any)
     .eq("id", orderId);
 
   return delivery;

@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-type OrderStatus = "pending" | "accepted" | "preparing" | "ready" | "in_route" | "completed" | "cancelled";
+type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
 
 interface OrderItem {
   id: string;
@@ -43,31 +43,25 @@ interface Order {
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Novo",
-  accepted: "Aceito",
   preparing: "Em Preparo",
   ready: "Pronto",
-  in_route: "Em Rota",
-  completed: "Entregue",
+  delivered: "Entregue",
   cancelled: "Cancelado",
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
-  accepted: "bg-primary/10 text-primary border-primary/20",
   preparing: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   ready: "bg-green-500/10 text-green-600 border-green-500/20",
-  in_route: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-  completed: "bg-success/10 text-success border-success/20",
+  delivered: "bg-success/10 text-success border-success/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 const getNextActions = (status: OrderStatus) => {
   const actions: Record<string, { label: string, next: OrderStatus }> = {
     pending: { label: "Aceitar Pedido", next: "preparing" },
-    accepted: { label: "Começar Preparo", next: "preparing" },
     preparing: { label: "Marcar Pronto", next: "ready" },
-    ready: { label: "Chamar Entregador", next: "in_route" },
-    in_route: { label: "Concluir", next: "completed" }
+    ready: { label: "Chamar Entregador", next: "ready" }, // Status stays ready until delivery is created or pickup
   };
   return actions[status];
 };
@@ -76,8 +70,7 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
   { key: "pending", label: "Novos", icon: Bell, color: "warning" },
   { key: "preparing", label: "Preparando", icon: ChefHat, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
-  { key: "in_route", label: "Despachados", icon: Truck, color: "purple" },
-  { key: "completed", label: "Concluídos", icon: CheckCircle, color: "success" },
+  { key: "delivered", label: "Concluídos", icon: CheckCircle, color: "success" },
 ];
 
 export default function BusinessOrdersPage() {
@@ -275,8 +268,14 @@ export default function BusinessOrdersPage() {
   }, [companyId, fetchOrders]);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    console.log(`[Dashboard] Atualizando pedido ${orderId} para status: ${newStatus}`);
     const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
-    if (error) { toast.error("Erro ao atualizar!"); return; }
+    
+    if (error) { 
+      console.error("[Dashboard] Erro ao atualizar status:", error.message, error.details);
+      toast.error(`Erro ao atualizar: ${error.message}`); 
+      return; 
+    }
     
     const label = STATUS_LABELS[newStatus];
     toast.success(`Pedido movido para ${label}`, {
@@ -300,13 +299,13 @@ export default function BusinessOrdersPage() {
   const ordersByColumn = (status: OrderStatus) => {
     if (status === "pending") {
       // Show pending AND any unknown active statuses in the first column
-      const knownStatuses = ["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"];
+      const knownStatuses = ["preparing", "ready", "delivered", "cancelled"];
       return orders.filter(o => o.status === "pending" || !knownStatuses.includes(o.status));
     }
     if (status === "preparing") {
       return orders.filter(o => ["accepted", "preparing"].includes(o.status));
     }
-    if (status === "completed") {
+    if (status === "delivered") {
       return orders.filter(o => ["completed", "delivered"].includes(o.status));
     }
     return orders.filter(o => o.status === status);

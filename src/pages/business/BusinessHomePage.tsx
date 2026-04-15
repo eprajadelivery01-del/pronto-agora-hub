@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Truck, Clock, CheckCircle, Loader2, MapPin, Package, Trash2, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User, TrendingUp, Zap } from "lucide-react";
+import { Plus, Truck, Clock, CheckCircle, Loader2, MapPin, Package, Trash2, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User, TrendingUp, Zap, Search, Filter, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -12,6 +12,8 @@ import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import { DeliveryStatus, Order, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/business/StatCard";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
@@ -21,9 +23,8 @@ export default function BusinessHomePage() {
   const { selectedCity } = useCity();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isRinging, setIsRinging] = useState(false);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const qc = useQueryClient();
   
   const { data: companyData } = useQuery({
@@ -66,7 +67,25 @@ export default function BusinessHomePage() {
   });
 
   const deliveries = (deliveriesData?.data || []).filter(d => !["completed", "delivered", "cancelled"].includes(d.status));
-  const marketplaceOrders = useMemo(() => ordersData || [], [ordersData]);
+  
+  const marketplaceOrders = useMemo(() => {
+    let filtered = ordersData || [];
+    
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(o => o.status === statusFilter);
+    }
+    
+    if (orderSearchQuery) {
+      const q = orderSearchQuery.toLowerCase();
+      filtered = filtered.filter(o => 
+        (o.customers?.name?.toLowerCase().includes(q)) || 
+        (o.id.toLowerCase().includes(q)) ||
+        (o.customer_name?.toLowerCase().includes(q))
+      );
+    }
+    
+    return filtered;
+  }, [ordersData, statusFilter, orderSearchQuery]);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -188,13 +207,20 @@ export default function BusinessHomePage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {isRinging && (
-                    <button
-                      onClick={handleMute}
-                      className="h-11 px-5 rounded-xl bg-warning text-warning-foreground font-bold text-xs uppercase tracking-wider flex items-center gap-2 animate-pulse hover:bg-warning/90 transition-all shadow-lg"
-                    >
-                      <Bell className="h-4 w-4" /> Silenciar
-                    </button>
+                   {isRinging && (
+                    <div className="flex items-center gap-2 animate-in zoom-in duration-300">
+                      <div className="flex h-11 items-center gap-2 px-4 rounded-xl bg-destructive text-destructive-foreground font-bold text-xs uppercase tracking-wider animate-pulse shadow-lg shadow-destructive/20 border border-white/20">
+                        <Bell className="h-4 w-4 animate-bounce" />
+                        Novos Pedidos!
+                      </div>
+                      <button
+                        onClick={handleMute}
+                        className="h-11 w-11 flex items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition-all border border-white/10"
+                        title="Silenciar Alerta"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
                   )}
                   <button
                     onClick={() => setShowNewDelivery(true)}
@@ -230,7 +256,17 @@ export default function BusinessHomePage() {
                 </div>
 
                 {isLoadingDeliveries ? (
-                  <div className="flex items-center justify-center p-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="bg-card border border-border/50 rounded-xl p-4 flex gap-3">
+                        <Skeleton className="w-10 h-10 rounded-xl" />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex justify-between"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-12" /></div>
+                          <Skeleton className="h-3 w-3/4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : deliveries.length > 0 ? (
                   <div className="space-y-2.5">
                     {deliveries.slice(0, 5).map((delivery, i) => (
@@ -274,18 +310,51 @@ export default function BusinessHomePage() {
 
               {/* Marketplace Orders */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-info" />
-                    Marketplace
-                  </h3>
-                  <span className="text-xs font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                    {marketplaceOrders.length}
-                  </span>
+                  <div className="flex flex-col gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <input 
+                        type="text" 
+                        placeholder="Buscar pedido ou cliente..." 
+                        value={orderSearchQuery}
+                        onChange={(e) => setOrderSearchQuery(e.target.value)}
+                        className="w-full bg-muted/50 border-none rounded-xl pl-10 pr-4 py-2 text-xs font-bold focus:ring-2 focus:ring-info/20 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {['all', 'pending', 'preparing', 'ready', 'in_route'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => setStatusFilter(status)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0",
+                            statusFilter === status 
+                              ? "bg-info text-info-foreground shadow-md shadow-info/20" 
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          )}
+                        >
+                          {status === 'all' ? 'Todos' : 
+                           status === 'pending' ? 'Novos' : 
+                           status === 'preparing' ? 'Preparo' : 
+                           status === 'ready' ? 'Prontos' : 'Em Rota'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {isLoadingOrders ? (
-                  <div className="flex items-center justify-center p-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="bg-card border border-border/50 rounded-xl p-4 flex gap-3">
+                        <Skeleton className="w-10 h-10 rounded-xl" />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex justify-between"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-12" /></div>
+                          <Skeleton className="h-3 w-3/4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : marketplaceOrders.length > 0 ? (
                   <div className="space-y-2.5">
                     {marketplaceOrders.map((order, i) => (

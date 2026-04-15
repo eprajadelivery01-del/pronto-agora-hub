@@ -1,5 +1,5 @@
 import React, { useState, FormEvent, useEffect } from "react";
-import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle } from "lucide-react";
+import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,18 +38,39 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   // Smart Search: Find customer by phone as the user types
   useEffect(() => {
     const searchCustomer = async () => {
-      if (customerPhone.length < 8 || !companyId || initialData) return;
+      if (customerPhone.replace(/\D/g, "").length < 8 || !companyId || initialData) return;
       
-      const { data } = await supabase
+      const phoneClean = customerPhone.replace(/\D/g, "");
+
+      // 1. Search in global customers table first (higher priority)
+      const { data: globalCust } = await supabase
+        .from("customers")
+        .select("name, phone, cpf")
+        .ilike("phone", `%${phoneClean}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (globalCust) {
+        setSuggestedCustomer({
+          customer_name: globalCust.name,
+          customer_phone: globalCust.phone,
+          customer_cpf: globalCust.cpf,
+          source: "global"
+        });
+        return;
+      }
+
+      // 2. Search in previous deliveries for address history
+      const { data: prevDeliv } = await supabase
         .from("deliveries")
         .select("customer_name, customer_phone, customer_cpf, address")
         .eq("company_id", companyId)
-        .ilike("customer_phone", `%${customerPhone}%`)
+        .ilike("customer_phone", `%${phoneClean}%`)
         .order("created_at", { ascending: false })
         .limit(1);
 
-      if (data && data.length > 0) {
-        setSuggestedCustomer(data[0]);
+      if (prevDeliv && prevDeliv.length > 0) {
+        setSuggestedCustomer({ ...prevDeliv[0], source: "history" });
       } else {
         setSuggestedCustomer(null);
       }
@@ -58,6 +79,44 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
     const timer = setTimeout(searchCustomer, 500);
     return () => clearTimeout(timer);
   }, [customerPhone, companyId, initialData]);
+
+  // Masking Helpers
+  const maskPhone = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 10) {
+      return v.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+    } else if (v.length > 6) {
+      return v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+    } else if (v.length > 2) {
+      return v.replace(/^(\d{2})(\d{0,5}).*/, "($1) $2");
+    } else {
+      return v.replace(/^(\d*)/, "($1");
+    }
+  };
+
+  const maskCPF = (v: string) => {
+    v = v.replace(/\D/g, "");
+    if (v.length > 11) v = v.slice(0, 11);
+    return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+            .replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3")
+            .replace(/(\d{3})(\d{3})/, "$1.$2");
+  };
+
+  const clearForm = () => {
+    if (confirm("Limpar todos os dados do formulário?")) {
+      setCustomerName("");
+      setCustomerPhone("");
+      setCustomerCpf("");
+      setAddress("");
+      setDeliveryValue("0,00");
+      setCollectValue("0,00");
+      setNotes("");
+      setIsPaid(false);
+      setSuggestedCustomer(null);
+      toast.info("Formulário limpo");
+    }
+  };
 
   const applySuggestion = () => {
     if (suggestedCustomer) {
@@ -110,8 +169,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       const payload = {
         company_id: companyId,
         customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_cpf: customerCpf,
+        customer_phone: customerPhone.replace(/\D/g, ""),
+        customer_cpf: customerCpf.replace(/\D/g, ""),
         address: address, 
         dropoff_address: address,
         pickup_address: companyAddress || "Retirada na Loja",
@@ -131,16 +190,15 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       // Logic to save/update customer official record
       if (saveCustomer && !initialData) {
         // Find if customer already exists in global customers table
-        const { data: existingCust } = await supabase
           .from("customers")
           .select("id")
-          .eq("phone", customerPhone)
+          .eq("phone", customerPhone.replace(/\D/g, ""))
           .maybeSingle();
 
         const custPayload = {
           name: customerName,
-          phone: customerPhone,
-          cpf: customerCpf || null,
+          phone: customerPhone.replace(/\D/g, ""),
+          cpf: customerCpf.replace(/\D/g, "") || null,
           updated_at: new Date().toISOString()
         };
 
@@ -175,7 +233,18 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
              </div>
              {initialData ? "Editar Entrega" : "Nova Solicitação"}
           </h2>
-          <p className="text-muted-foreground font-medium mt-2">Preencha os dados abaixo para solicitar um entregador.</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-muted-foreground font-medium">Preencha os dados abaixo para solicitar um entregador.</p>
+            {!initialData && (
+              <button 
+                type="button" 
+                onClick={clearForm}
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <RotateCcw className="h-3 w-3" /> Limpar Tudo
+              </button>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
@@ -184,7 +253,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                 <User className="h-3 w-3" /> Dados do Destinatário
              </h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Nome Completo</label>
                   <input
@@ -195,12 +264,20 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                       required
                     />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Telefone de Contato</label>
+                <div className="space-y-1.5 md:col-span-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">CPF (Opcional)</label>
+                  <input
+                      value={customerCpf}
+                      onChange={(e) => setCustomerCpf(maskCPF(e.target.value))}
+                      placeholder="000.000.000-00"
+                      className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
+                    />
+                </div>
+             </div>
                   <div className="relative">
                     <input
                         value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        onChange={(e) => setCustomerPhone(maskPhone(e.target.value))}
                         placeholder="(00) 00000-0000"
                         className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
                     />
@@ -209,14 +286,18 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                         onClick={applySuggestion}
                         className="absolute left-0 right-0 top-full mt-2 p-4 bg-primary/10 border border-primary/20 rounded-2xl shadow-xl z-50 cursor-pointer hover:bg-primary/20 transition-all animate-in slide-in-from-top-2"
                       >
-                         <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center">
                                <User className="h-4 w-4" />
                             </div>
                             <div className="flex-1 min-w-0">
-                               <p className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">Cliente Encontrado</p>
+                               <p className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">
+                                 {suggestedCustomer.source === 'global' ? 'Cliente NexusPro' : 'Histórico Recente'}
+                               </p>
                                <p className="text-sm font-bold text-foreground truncate">{suggestedCustomer.customer_name}</p>
-                               <p className="text-[10px] text-muted-foreground font-medium truncate">{suggestedCustomer.address}</p>
+                               <p className="text-[10px] text-muted-foreground font-medium truncate">
+                                 {suggestedCustomer.address || suggestedCustomer.customer_cpf || suggestedCustomer.customer_phone}
+                               </p>
                             </div>
                             <div className="bg-primary text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase">Preencher</div>
                          </div>

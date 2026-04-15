@@ -2,7 +2,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
-  CheckCircle2, AlertCircle, X, Printer, ArrowRight 
+  CheckCircle2, AlertCircle, X, Printer, ArrowRight, Trash2 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -134,6 +134,19 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
              </div>
 
              <div className="flex gap-2 min-w-full md:min-w-0 print:hidden">
+                 {order.status !== 'cancelled' && order.status !== 'completed' && (
+                    <button 
+                      onClick={() => {
+                        if (confirm("Deseja cancelar este pedido?")) {
+                          onAdvance?.(order.id, "cancelled");
+                        }
+                      }}
+                      className="h-14 w-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all mr-2"
+                      title="Cancelar Pedido"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                 )}
                 <button 
                   onClick={onClose}
                   className="px-6 h-14 rounded-2xl border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
@@ -153,25 +166,38 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
         </div>
 
         {/* Global Print Styles */}
-        <style dangerouslySetInnerHTML={{ __html: `
+         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
+            @page { margin: 0; size: 80mm auto; }
+            body { margin: 0; padding: 0; background: white; width: 80mm; }
             body * { visibility: hidden; }
             .print\\:hidden { display: none !important; }
             .DialogContent, [role="dialog"] { 
-              visibility: visible; 
-              position: absolute; 
-              left: 0; 
-              top: 0; 
-              width: 100%;
-              margin: 0;
-              padding: 0;
+              visibility: visible !important; 
+              position: absolute !important; 
+              left: 0 !important; 
+              top: 0 !important; 
+              width: 80mm !important;
+              max-width: 80mm !important;
+              margin: 0 !important;
+              padding: 5mm !important;
               border: none !important;
               box-shadow: none !important;
+              display: block !important;
             }
-            .DialogContent * { visibility: visible; }
+            .DialogContent * { visibility: visible !important; }
+            .DialogContent .max-h-\\[90vh\\] { max-height: none !important; height: auto !important; overflow: visible !important; }
             .custom-scrollbar { overflow: visible !important; height: auto !important; max-height: none !important; }
             button { display: none !important; }
-            .bg-muted\\/20, .bg-muted\\/30 { background-color: transparent !important; border: 1px solid #eee !important; }
+            .bg-muted\\/20, .bg-muted\\/30, .bg-card, .bg-card\\/50 { background-color: transparent !important; background: transparent !important; border: 1px solid #000 !important; }
+            .text-3xl { font-size: 1.5rem !important; }
+            .text-lg { font-size: 1rem !important; }
+            .text-primary, .text-foreground, .text-muted-foreground { color: black !important; }
+            .rounded-[2.5rem], .rounded-2xl, .rounded-xl { border-radius: 0 !important; }
+            .p-8, .p-6, .px-8 { padding: 4mm !important; }
+            .gap-6 { gap: 2mm !important; }
+            .flex-row { flex-direction: column !important; }
+            .grid-cols-2 { grid-template-columns: 1fr !important; }
           }
         `}} />
       </DialogContent>
