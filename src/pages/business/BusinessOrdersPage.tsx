@@ -134,17 +134,24 @@ export default function BusinessOrdersPage() {
           .in("id", customerIds);
         
         if (customersData) {
-          customersData.forEach(c => { customerMap[c.id] = c; });
+          customersData.forEach(c => { 
+            // Se o nome for genérico, marcamos como elegível para fallback
+            const isGeneric = !c.name || c.name === "Cliente Marketplace" || c.name === "Consumidor";
+            customerMap[c.id] = { 
+              ...c, 
+              name: isGeneric ? null : c.name 
+            }; 
+          });
         }
 
-        // Busca Endereços (Resiliente: Tenta em Deliveries primeiro, depois em Addresses)
+        // Busca Endereços e Dados de Fallback (Resiliente: Tenta em Deliveries primeiro, depois em Addresses)
         const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
         
         if (deliveryIds.length > 0) {
           console.log("[Dashboard] Buscando endereços na tabela de Entregas...");
           const { data: delivData } = await supabase
             .from("deliveries")
-            .select("id, address, company_id")
+            .select("id, address, customer_name, customer_phone, company_id")
             .in("id", deliveryIds);
           
           if (delivData) {
@@ -152,7 +159,18 @@ export default function BusinessOrdersPage() {
                // Encontrar qual cliente é dono desta entrega
                const order = data.find((o: any) => o.delivery_id === d.id);
                if (order && customerMap[order.customer_id]) {
+                 // Salva o endereço
                  customerMap[order.customer_id].address = d.address;
+                 
+                 // Se o nome no customerMap ainda for nulo (genérico), usa o da entrega
+                 if (!customerMap[order.customer_id].name && d.customer_name) {
+                   customerMap[order.customer_id].name = d.customer_name;
+                 }
+                 
+                 // Se o telefone no customerMap for nulo ou genérico, usa o da entrega
+                 if ((!customerMap[order.customer_id].phone || customerMap[order.customer_id].phone === "Não informado") && d.customer_phone) {
+                   customerMap[order.customer_id].phone = d.customer_phone;
+                 }
                }
             });
           }
