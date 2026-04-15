@@ -123,6 +123,8 @@ export default function BusinessOrdersPage() {
         preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
         revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr))
                            .reduce((acc, o) => acc + (o.total || 0), 0),
+        open_total: mapped.filter(o => !["completed", "delivered", "cancelled"].includes(o.status))
+                           .reduce((acc, o) => acc + (o.total || 0), 0),
       });
     }
     setLoading(false);
@@ -267,7 +269,7 @@ export default function BusinessOrdersPage() {
                  <DollarSign className="h-7 w-7 text-success" />
               </div>
               <div>
-                 <p className="text-2xl font-black text-foreground tracking-tight">R$ {stats.revenue_today.toFixed(2).replace(".", ",")}</p>
+                 <p className="text-3xl font-black text-foreground tracking-tight">R$ {(stats as any).open_total?.toFixed(2).replace(".", ",") || "0,00"}</p>
                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total em Aberto</p>
               </div>
            </div>
@@ -343,78 +345,90 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action }: {
   return (
     <>
       <div className={cn(
-        "bg-white border-2 border-transparent rounded-[2rem] p-5 shadow-sm space-y-4 hover:shadow-2xl hover:border-primary/30 transition-all group animate-in zoom-in-95 duration-300 relative overflow-hidden cursor-pointer",
-        isPending && "border-warning/40 shadow-warning/5 bg-warning/[0.02]"
+        "bg-white border-2 border-transparent rounded-[2.5rem] p-6 shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group animate-in zoom-in-95 duration-300 relative overflow-hidden cursor-pointer premium-shadow hover:-translate-y-1",
+        isPending && "border-warning/30 shadow-warning/5 bg-warning/[0.01]"
       )}
       onClick={() => setIsModalOpen(true)}
       >
         {isPending && (
-          <div className="absolute top-0 right-0 px-4 py-1.5 bg-warning text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl">
-            Novo Pedido
+          <div className="absolute top-0 right-0 px-5 py-2 bg-warning text-white text-[10px] font-black uppercase tracking-widest rounded-bl-3xl shadow-lg">
+            Aguardando Aceite
           </div>
         )}
 
         {/* Header: ID & Status Badge */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">ID do Pedido</span>
-            <p className="font-black text-lg text-foreground leading-none">#{order.id.slice(-6).toUpperCase()}</p>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-70">Identificação</span>
+            <p className="font-black text-xl text-foreground tracking-tight">#{order.id.slice(-6).toUpperCase()}</p>
           </div>
           {!isPending && (
-            <div className={cn("px-3 py-1.5 rounded-xl border flex items-center gap-2", STATUS_COLORS[order.status])}>
-               <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-               <span className="text-[10px] font-black uppercase tracking-tighter">{STATUS_LABELS[order.status]}</span>
+            <div className={cn("px-4 py-2 rounded-2xl border-none font-black text-[10px] uppercase tracking-tighter shadow-sm", STATUS_COLORS[order.status])}>
+               <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                  {STATUS_LABELS[order.status]}
+               </span>
             </div>
           )}
         </div>
 
         {/* Customer Info */}
-        <div className="flex items-center gap-3 pt-1">
-          <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center shrink-0 border border-border">
-            <User className="h-5 w-5 text-primary" />
+        <div className="flex items-center gap-4 py-4">
+          <div className="w-12 h-12 rounded-[1.25rem] bg-secondary/50 flex items-center justify-center shrink-0 border border-border/50 group-hover:scale-110 transition-transform">
+            <User className="h-6 w-6 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-black text-foreground truncate leading-tight">{order.customer?.name || "Cliente Marketplace"}</p>
-            <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1 mt-0.5">
-              <Timer className="h-3 w-3" /> há {age} min
-            </p>
+            <p className="text-base font-black text-foreground truncate">{order.customer?.name || "Cliente Marketplace"}</p>
+            <div className="flex items-center gap-3 mt-1">
+               <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                 <Timer className="h-3 w-3" /> {age} min
+               </p>
+               <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{order.payment_method || 'Pagamento Offline'}</p>
+            </div>
           </div>
         </div>
 
-        {/* Items Section (iFood Style) */}
-        <div className="space-y-3 py-4 border-y-2 border-dashed border-border/50 group-hover:border-primary/20 transition-colors">
-          <div className="space-y-2">
+        {/* Items Preview */}
+        <div className="py-5 border-y border-border/40 group-hover:border-primary/10 transition-colors">
+          <div className="space-y-2.5">
             {order.items && order.items.length > 0 ? (
               order.items.slice(0, 2).map((item, idx) => (
-                <div key={idx} className="flex gap-2 text-sm">
-                  <span className="font-black text-primary shrink-0">{item.quantity}x</span>
-                  <span className="font-bold text-foreground/80 leading-snug truncate">
-                    {item.product_name || item.products?.name || "Produto"}
-                  </span>
+                <div key={idx} className="flex items-center gap-3 text-sm">
+                  <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="font-black text-[10px] text-primary">{item.quantity}x</span>
+                  </div>
+                  <span className="font-bold text-foreground/80 truncate">{item.product_name || item.products?.name || "Produto"}</span>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground italic flex items-center gap-2">
-                <Package className="h-3.5 w-3.5" /> Clique para ver itens
+              <p className="text-xs text-muted-foreground font-medium flex items-center gap-2 py-1">
+                <Package className="h-4 w-4 opacity-40" /> Toque para ver detalhes...
               </p>
             )}
             {order.items && order.items.length > 2 && (
-              <p className="text-[10px] text-primary font-black">+ {order.items.length - 2} itens...</p>
+              <div className="flex items-center gap-2 pt-1">
+                 <div className="h-px flex-1 bg-border/40" />
+                 <span className="text-[9px] text-primary font-black uppercase tracking-widest">Ver mais {order.items.length - 2} itens</span>
+                 <div className="h-px flex-1 bg-border/40" />
+              </div>
             )}
           </div>
         </div>
 
-        {/* Footer: Payment & Total & Action */}
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Total</p>
-            <p className="text-xl font-black text-primary tracking-tight italic">R$ {order.total.toFixed(2).replace(".", ",")}</p>
+        {/* Action Button & Total */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black text-muted-foreground uppercase mb-0.5 opacity-60">Valor do Pedido</span>
+            <p className="text-2xl font-black text-primary tracking-tighter italic">R$ {order.total.toFixed(2).replace(".", ",")}</p>
           </div>
+          
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             {isPending && (
               <button 
                 onClick={onCancel}
-                className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
+                className="w-12 h-12 rounded-2xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all premium-shadow"
+                title="Recusar"
               >
                 <XCircle className="h-5 w-5" />
               </button>
@@ -423,12 +437,14 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action }: {
               <button
                 onClick={onAdvance}
                 className={cn(
-                  "h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2",
-                  isPending ? "bg-primary text-white shadow-primary/20" : "bg-foreground text-white shadow-black/10"
+                  "h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.1em] transition-all flex items-center gap-3 active:scale-95 group/btn",
+                  isPending 
+                    ? "bg-primary text-white shadow-xl shadow-primary/20 hover:shadow-primary/40" 
+                    : "bg-foreground text-background shadow-xl hover:bg-foreground/90"
                 )}
               >
                 {action.label}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
               </button>
             )}
           </div>
@@ -492,74 +508,103 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
-        <div className="bg-primary px-8 py-10 text-white relative">
-            <div className="absolute top-0 right-0 p-8 opacity-10">
-                <ShoppingBag className="w-32 h-32" />
+      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl glass-dark text-white/90">
+        {/* Modern Glass Header */}
+        <div className="bg-primary/90 backdrop-blur-3xl px-10 py-14 relative overflow-hidden border-b border-white/10">
+            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                <ShoppingBag className="w-48 h-48 rotate-12" />
             </div>
-            <DialogHeader>
-                <div className="flex items-center gap-3 mb-2">
-                    <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-black uppercase tracking-widest">
-                        {STATUS_LABELS[order.status]}
-                    </span>
-                    <span className="text-white/60 text-xs font-bold italic">há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min</span>
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-[80px] pointer-events-none" />
+            
+            <DialogHeader className="relative z-10">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-none shadow-xl", STATUS_COLORS[order.status])}>
+                        <span className="flex items-center gap-2">
+                           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                           {STATUS_LABELS[order.status]}
+                        </span>
+                    </div>
+                    <div className="h-1 w-1 rounded-full bg-white/30" />
+                    <span className="text-white/60 text-xs font-bold leading-none">Efetuado há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min</span>
                 </div>
-                <DialogTitle className="text-3xl font-black tracking-tight">Pedido #{order.id.slice(-6).toUpperCase()}</DialogTitle>
-                <p className="text-primary-foreground/80 font-bold mt-1 flex items-center gap-2">
-                    <User className="w-4 h-4" /> {order.customer?.name || "Cliente Marketplace"}
-                </p>
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <DialogTitle className="text-4xl lg:text-5xl font-black tracking-tighter text-white">Pedido #{order.id.slice(-6).toUpperCase()}</DialogTitle>
+                        <div className="text-white/80 font-bold text-lg mt-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md"><User className="w-5 h-5" /></div> 
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
+                                {order.customer?.name || "Cliente Marketplace"}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </DialogHeader>
         </div>
 
-        <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            {/* Itens */}
-            <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-border pb-4">
-                    <h3 className="font-black text-foreground uppercase tracking-widest text-sm flex items-center gap-2">
-                        <Package className="w-4 h-4 text-primary" /> itens do pedido
+        <div className="p-10 pb-0 space-y-10 max-h-[55vh] overflow-y-auto custom-scrollbar bg-white/95 text-foreground selection:bg-primary/10">
+            {/* Items List */}
+            <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-black text-foreground/40 uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
+                        <Package className="w-4 h-4 text-primary" /> composição do pedido
                     </h3>
-                    <span className="bg-muted px-2 py-1 rounded-lg text-[10px] font-black text-muted-foreground">{items.length} itens</span>
+                    <div className="h-px flex-1 mx-6 bg-border/40" />
+                    <span className="font-black text-[10px] text-primary bg-primary/5 px-4 py-2 rounded-full tracking-widest">{items.length} ITENS</span>
                 </div>
 
                 {loading ? (
-                    <div className="py-12 flex flex-col items-center gap-3 opacity-40">
-                        <Loader2 className="w-8 h-8 animate-spin" />
-                        <p className="text-[10px] font-black uppercase">Carregando Itens...</p>
+                    <div className="py-20 flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 rounded-3xl border-[6px] border-primary/10 border-t-primary animate-spin" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Sincronizando Banco...</p>
                     </div>
                 ) : items.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center gap-3 opacity-40 bg-muted/30 rounded-3xl border-2 border-dashed border-border">
-                        <AlertCircle className="w-10 h-10" />
-                        <p className="text-xs font-bold">Nenhum item encontrado no banco.</p>
-                        <button onClick={fetchItems} className="text-[10px] font-black text-primary underline">Tentar novamente</button>
+                    <div className="py-20 flex flex-col items-center gap-6 bg-muted/20 rounded-[3rem] border-2 border-dashed border-border/60">
+                        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                            <AlertCircle className="w-10 h-10 text-muted-foreground/30" />
+                        </div>
+                        <div className="text-center px-6">
+                            <p className="text-sm font-black text-foreground/60 uppercase tracking-[0.1em]">Nenhum item detectado</p>
+                            <p className="text-[10px] text-muted-foreground mt-2 font-bold max-w-xs mx-auto">Tente carregar novamente se o pedido acabou de ser realizado.</p>
+                        </div>
+                        <button onClick={fetchItems} className="px-8 py-3.5 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">Recarregar agora</button>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-5">
                         {items.map((item, idx) => {
                             const images = parseImages(item.products?.image_url);
                             const mainImage = images[0];
                             return (
-                                <div key={idx} className="flex gap-5 items-center p-4 rounded-3xl bg-muted/30 border border-border/50 hover:border-primary/20 transition-all group">
-                                    <div className="w-20 h-20 rounded-2xl bg-muted overflow-hidden shrink-0 border border-border">
+                                <div key={idx} className="flex gap-8 items-center p-8 rounded-[2.5rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all group relative overflow-hidden cursor-default">
+                                    <div className="w-32 h-32 rounded-[2rem] bg-muted overflow-hidden shrink-0 border border-border/50 shadow-sm relative z-10 transition-transform group-hover:scale-105">
                                         {mainImage ? (
-                                            <img src={mainImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                            <img src={mainImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <ImagePlus className="w-8 h-8 text-muted-foreground/20" />
+                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
+                                                <ImagePlus className="w-12 h-12" />
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-sm font-black text-foreground leading-tight">
-                                                    <span className="text-primary mr-2">{item.quantity}x</span>
-                                                    {item.product_name || item.products?.name || "Produto"}
-                                                </p>
-                                                <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1 font-medium">{item.products?.description || "Sem descrição"}</p>
+                                    <div className="flex-1 min-w-0 relative z-10">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center text-[12px] font-black shadow-lg shadow-primary/20">
+                                                        {item.quantity}x
+                                                    </div>
+                                                    <h4 className="text-2xl font-black text-foreground tracking-tighter group-hover:text-primary transition-colors leading-none">
+                                                        {item.product_name || item.products?.name || "Produto"}
+                                                    </h4>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground/70 font-semibold leading-relaxed max-w-sm ml-14 line-clamp-2">{item.products?.description || "A descrição deste item não foi fornecida pelo estabelecimento."}</p>
                                             </div>
-                                            <p className="font-black text-sm text-foreground italic whitespace-nowrap ml-4">R$ {item.price.toFixed(2)}</p>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-0.5 opacity-40 select-none">Preço Unitário</p>
+                                                <p className="font-black text-2xl text-foreground tracking-tighter italic">R$ {item.price.toFixed(2).replace(".", ",")}</p>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                                 </div>
                             );
                         })}
@@ -567,38 +612,65 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
                 )}
             </div>
 
-            {/* Observação e Totais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-                <div className="space-y-4">
-                    <h3 className="font-black text-foreground uppercase tracking-widest text-[10px] flex items-center gap-2">
-                        <Bell className="w-3 h-3 text-primary" /> Observações do cliente
+            {/* Observation & Calculations */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 pt-12 border-t border-border/40 pb-10">
+                <div className="lg:col-span-3 space-y-5">
+                    <h3 className="font-black text-foreground/40 uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-primary" /> notas importantes
                     </h3>
-                    <div className="p-5 rounded-3xl bg-warning/5 border border-warning/10 italic text-sm font-medium text-foreground/80 min-h-[100px]">
-                        {order.notes ? `"${order.notes}"` : "Nenhuma observação enviada."}
+                    <div className="p-10 rounded-[2.5rem] bg-warning/[0.03] border border-warning/10 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform"><Bell className="w-16 h-16" /></div>
+                        <p className={cn(
+                            "text-lg italic font-semibold leading-relaxed",
+                            order.notes ? "text-foreground" : "text-muted-foreground/40"
+                        )}>
+                            {order.notes ? `"${order.notes}"` : "O cliente não deixou nenhuma observação especial."}
+                        </p>
                     </div>
                 </div>
 
-                <div className="bg-muted/50 rounded-3xl p-6 space-y-4">
-                    <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-tighter">
-                        <span>Subtotal</span>
-                        <span>R$ {(order.total - (order.delivery_fee || 0)).toFixed(2)}</span>
+                <div className="lg:col-span-2 bg-secondary/20 rounded-[3rem] p-10 space-y-6 border border-border/20 shadow-inner">
+                    <div className="flex justify-between items-center text-[11px] font-black text-muted-foreground uppercase tracking-widest">
+                        <span>Produtos</span>
+                        <span className="text-foreground tracking-tighter font-black">R$ {(order.total - (order.delivery_fee || 0)).toFixed(2).replace(".", ",")}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-tighter">
-                        <span>Taxa de Entrega</span>
-                        <span>R$ {(order.delivery_fee || 0).toFixed(2)}</span>
+                    <div className="flex justify-between items-center text-[11px] font-black text-primary uppercase tracking-widest">
+                        <span>Taxa de Marketplace</span>
+                        <span className="tracking-tighter font-black">R$ {(order.delivery_fee || 0).toFixed(2).replace(".", ",")}</span>
                     </div>
-                    <div className="border-t border-dashed border-border pt-4 flex justify-between items-center">
-                        <span className="font-black text-foreground uppercase tracking-widest text-xs">Total</span>
-                        <span className="text-3xl font-black text-primary italic">R$ {order.total.toFixed(2).replace(".", ",")}</span>
+                    <div className="h-px bg-border/40 my-4" />
+                    <div className="flex justify-between items-end">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-foreground/30 uppercase mb-2 tracking-[0.2em]">Total Liquido</span>
+                            <span className="text-5xl font-black text-primary tracking-tighter italic leading-none">R$ {order.total.toFixed(2).replace(".", ",")}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div className="p-8 bg-muted/20 border-t border-border flex justify-end">
-            <button onClick={onClose} className="px-10 py-4 rounded-2xl bg-foreground text-background font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
-                Fechar Detalhes
+        <div className="p-10 flex flex-col sm:flex-row justify-end gap-5 bg-white border-t border-border/20">
+            <button 
+                onClick={onClose} 
+                className="px-14 py-6 rounded-2xl bg-secondary text-foreground font-black uppercase tracking-widest text-[10px] hover:bg-muted transition-all active:scale-95"
+            >
+                Voltar à Gestão
             </button>
+            {action && (
+              <button 
+                onClick={() => {
+                   onAdvance();
+                   onClose();
+                }}
+                className={cn(
+                  "px-14 py-6 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-4 group/btn",
+                  isPending ? "bg-primary text-white shadow-primary/30" : "bg-foreground text-background shadow-black/20"
+                )}
+              >
+                {action.label}
+                 <ArrowRight className="h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
+              </button>
+            )}
         </div>
       </DialogContent>
     </Dialog>
