@@ -105,7 +105,7 @@ export function useAvailableDeliveries(regionId?: string) {
   return useQuery({
     queryKey: ["deliveries", "available", regionId],
     queryFn: async () => {
-      let query = supabase
+      let query: any = supabase
         .from("deliveries")
         .select("*, companies(name)")
         .eq("status", "pending")
