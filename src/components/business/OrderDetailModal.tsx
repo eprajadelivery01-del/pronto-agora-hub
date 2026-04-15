@@ -17,14 +17,14 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
   if (!order) return null;
 
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string }> = {
-    pending: { label: "Novo Pedido", color: "text-warning bg-warning/10", next: "preparing", nextLabel: "Aceitar Pedido" },
-    accepted: { label: "Aceito", color: "text-primary bg-primary/10", next: "preparing", nextLabel: "Começar Preparo" },
-    preparing: { label: "Em Preparo", color: "text-blue-500 bg-blue-500/10", next: "ready", nextLabel: "Marcar como Pronto" },
-    ready: { label: "Pronto", color: "text-green-500 bg-green-500/10", next: "in_route", nextLabel: "Chamar Entregador" },
-    in_route: { label: "Em Rota", color: "text-purple-500 bg-purple-500/10", next: "completed", nextLabel: "Concluir Pedido" },
-    completed: { label: "Concluído", color: "text-success bg-success/10" },
-    delivered: { label: "Entregue", color: "text-success bg-success/10" },
-    cancelled: { label: "Cancelado", color: "text-destructive bg-destructive/10" }
+    pending: { label: "Novo Pedido", color: "text-white bg-amber-500 shadow-lg shadow-amber-500/20", next: "preparing", nextLabel: "Aceitar Pedido" },
+    accepted: { label: "Aceito", color: "text-white bg-indigo-500 shadow-lg shadow-indigo-500/20", next: "preparing", nextLabel: "Começar Preparo" },
+    preparing: { label: "Em Preparo", color: "text-primary bg-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto" },
+    ready: { label: "Pronto", color: "text-white bg-emerald-500 shadow-lg shadow-emerald-500/20", next: "in_route", nextLabel: "Chamar Entregador" },
+    in_route: { label: "Em Rota", color: "text-white bg-purple-500 shadow-lg shadow-purple-500/20", next: "completed", nextLabel: "Concluir Pedido" },
+    completed: { label: "Concluído", color: "text-white bg-emerald-600 shadow-lg" },
+    delivered: { label: "Entregue", color: "text-white bg-emerald-600 shadow-lg" },
+    cancelled: { label: "Cancelado", color: "text-white bg-rose-500 shadow-lg" }
   };
 
   const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined };
@@ -35,59 +35,54 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
       <DialogContent className="max-w-2xl p-0 overflow-hidden border-none rounded-[2.5rem] bg-card shadow-2xl">
         <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
           {/* Header */}
-          <div className="p-8 pb-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8">
-               <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em]", status.color)}>
-                  {status.label}
+          <div className="p-6 pb-4 bg-primary text-white relative overflow-hidden shrink-0">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+            
+            <div className="relative flex justify-between items-start mb-4">
+              <div>
+                <DialogTitle className="text-2xl font-black tracking-tight mb-1">
+                  Pedido #{order.id.slice(-6).toUpperCase()}
+                </DialogTitle>
+                <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest opacity-80">
+                   <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                   <span className="w-1 h-1 rounded-full bg-white/40" />
+                   <span className="flex items-center gap-1.5"><DollarSign className="h-3 w-3" /> R$ {order.total?.toFixed(2)}</span>
+                </div>
+              </div>
+              
+              <div className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl", status.color)}>
+                 {status.label}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
+               <div className="bg-white/10 rounded-2xl p-3 flex items-center gap-3 border border-white/10">
+                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                     <User className="h-4 w-4" />
+                  </div>
+                  <div className="overflow-hidden">
+                     <p className="text-[9px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Comprador</p>
+                     <p className="text-sm font-bold truncate leading-none">
+                        {order.customer?.name || order.customer_name || "Cliente Marketplace"}
+                     </p>
+                  </div>
+               </div>
+               
+               <div className="bg-white/10 rounded-2xl p-3 flex items-center gap-3 border border-white/10">
+                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                     <MapPin className="h-4 w-4" />
+                  </div>
+                  <div className="overflow-hidden">
+                     <p className="text-[9px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Entrega</p>
+                     <p className="text-sm font-bold truncate leading-none">
+                        {order.customer?.address || order.delivery_address || order.address || "Endereço não disponível."}
+                     </p>
+                  </div>
                </div>
             </div>
-            <DialogHeader>
-              <DialogTitle className="text-3xl font-black text-foreground tracking-tight mb-2">
-                Pedido #{order.id.slice(-6).toUpperCase()}
-              </DialogTitle>
-              <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                 <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {new Date(order.created_at).toLocaleTimeString()}</span>
-                 <span className="h-1 w-1 rounded-full bg-border" />
-                 <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5" /> R$ {order.total?.toFixed(2)}</span>
-              </div>
-            </DialogHeader>
           </div>
 
           <div className="flex-1 overflow-y-auto px-8 py-4 space-y-8 custom-scrollbar">
-            {/* Customer Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">Cliente</h4>
-                  <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                        <User className="h-6 w-6 text-primary" />
-                     </div>
-                     <div>
-                        <p className="text-lg font-bold text-foreground">
-                          {order.customer?.name || order.customers?.name || order.customer_name || "Cliente Marketplace"}
-                        </p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                           <Phone className="h-3 w-3" /> 
-                           {order.customer?.phone || order.customers?.phone || order.customer_phone || "Não informado"}
-                        </p>
-                     </div>
-                  </div>
-               </div>
-               <div className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">Endereço de Entrega</h4>
-                  <div className="flex items-start gap-3">
-                     <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
-                        <MapPin className="h-6 w-6 text-muted-foreground" />
-                     </div>
-                     <div>
-                        <p className="text-sm font-bold text-foreground line-clamp-2 leading-snug">
-                           {order.customer?.address || order.delivery_address || order.address || "Endereço não disponível."}
-                        </p>
-                        <button className="text-[10px] font-black text-primary uppercase mt-1 tracking-widest hover:underline">Ver no Mapa</button>
-                     </div>
-                  </div>
-               </div>
-            </div>
 
             {/* Items Section */}
             <div className="space-y-4 bg-muted/30 rounded-[2rem] p-6 border border-border/50">
