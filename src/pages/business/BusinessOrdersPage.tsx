@@ -78,18 +78,19 @@ export default function BusinessOrdersPage() {
   const fetchOrders = useCallback(async () => {
     if (!companyId) return;
     
-    const { data, error } = await supabase
-      .from("orders")
-      .select(`
-        id, status, total, created_at,
-        customer_id, notes,
-        order_items (
-          id, quantity, price, product_name, unit_price,
-          products (id, name, image_url, description)
-        )
-      `)
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: false });
+      // Usando o formato oficial de select que já funciona no sistema
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          order_items (
+            id, quantity, price, product_name, unit_price,
+            products (id, name, image_url, description)
+          ),
+          customers (id, name, phone)
+        `)
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false });
 
     // Chamada de diagnóstico em segundo plano (não trava a UI se falhar)
     supabase.from("orders").select("*").limit(1).then(({ data: diag }) => {
