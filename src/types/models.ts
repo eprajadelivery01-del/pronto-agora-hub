@@ -1,4 +1,4 @@
-export type DeliveryStatus = "pending" | "broadcasted" | "accepted" | "collecting" | "in_route" | "completed" | "cancelled";
+export type DeliveryStatus = "pending" | "broadcasted" | "accepted" | "collecting" | "in_route" | "completed" | "delivered" | "cancelled";
 
 export type OccurrenceType = "motorcycle_issue" | "accident" | "robbery";
 

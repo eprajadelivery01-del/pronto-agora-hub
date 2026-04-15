@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   ready: "Pronto",
   in_route: "Em Rota",
   completed: "Entregue",
+  delivered: "Entregue",
   cancelled: "Cancelado",
 };
 
