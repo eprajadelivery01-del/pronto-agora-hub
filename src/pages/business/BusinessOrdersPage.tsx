@@ -82,7 +82,7 @@ export default function BusinessOrdersPage() {
       .from("orders")
       .select(`
         id, status, total, created_at,
-        customer_id, notes,
+        customer_id, delivery_id, notes,
         order_items (
           id, quantity, price, product_name, unit_price,
           products (id, name, image_url, description)
@@ -118,8 +118,29 @@ export default function BusinessOrdersPage() {
           customersData.forEach(c => { customerMap[c.id] = c; });
         }
 
-        // Busca Endereços
-        const addressIds = [...new Set(data.map((o: any) => o.address_id))].filter(Boolean);
+        // Busca Endereços (Resiliente: Tenta em Deliveries primeiro, depois em Addresses)
+        const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
+        
+        if (deliveryIds.length > 0) {
+          console.log("[Dashboard] Buscando endereços na tabela de Entregas...");
+          const { data: delivData } = await supabase
+            .from("deliveries")
+            .select("id, address, company_id")
+            .in("id", deliveryIds);
+          
+          if (delivData) {
+            delivData.forEach(d => {
+               // Encontrar qual cliente é dono desta entrega
+               const order = data.find((o: any) => o.delivery_id === d.id);
+               if (order && customerMap[order.customer_id]) {
+                 customerMap[order.customer_id].address = d.address;
+               }
+            });
+          }
+        }
+
+        // Caso ainda falte endereço, tenta buscar por address_id (se a coluna existir no objeto retornado)
+        const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
         if (addressIds.length > 0) {
           const { data: addrData } = await supabase
             .from("addresses")
@@ -129,7 +150,7 @@ export default function BusinessOrdersPage() {
           if (addrData) {
             addrData.forEach(a => {
               const fullAddr = `${a.street}, ${a.number}${a.complement ? ` - ${a.complement}` : ""} - ${a.neighborhood}, ${a.city}`;
-              if (customerMap[a.customer_id]) {
+              if (customerMap[a.customer_id] && !customerMap[a.customer_id].address) {
                 customerMap[a.customer_id].address = fullAddr;
               }
             });
