@@ -35,10 +35,23 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
 
   // Helper to format currency on blur/change
   const handleCurrencyChange = (val: string, setter: (v: string) => void) => {
-    // Basic cleaning: allow only numbers and one comma
-    let clean = val.replace(/[^\d,]/g, "");
+    // Basic cleaning: allow only numbers and one comma (or dot which we convert)
+    let clean = val.replace('.', ',').replace(/[^\d,]/g, "");
     if ((clean.match(/,/g) || []).length > 1) return;
     setter(clean);
+  };
+
+  const handleBlur = (val: string, setter: (v: string) => void) => {
+    if (!val) return;
+    let clean = val.replace('.', ',');
+    if (!clean.includes(',')) {
+      setter(clean + ",00");
+    } else {
+      const parts = clean.split(',');
+      if (parts[1].length === 0) setter(clean + "00");
+      else if (parts[1].length === 1) setter(clean + "0");
+      else if (parts[1].length > 2) setter(parts[0] + "," + parts[1].substring(0, 2));
+    }
   };
 
   const handleRegionSelect = React.useCallback((fee: number, id: string) => {
@@ -175,6 +188,7 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
                     <input
                       value={deliveryValue}
                       onChange={(e) => handleCurrencyChange(e.target.value, setDeliveryValue)}
+                      onBlur={(e) => handleBlur(e.target.value, setDeliveryValue)}
                       placeholder="0,00"
                       className="w-full pl-12 pr-5 py-5 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-primary outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                       required
@@ -190,6 +204,7 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
                     <input
                       value={isPaid ? "0,00" : collectValue}
                       onChange={(e) => handleCurrencyChange(e.target.value, setCollectValue)}
+                      onBlur={(e) => handleBlur(e.target.value, setCollectValue)}
                       placeholder="0,00"
                       className="w-full pl-12 pr-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none focus:border-warning focus:ring-4 focus:ring-warning/10 transition-all"
                       disabled={isPaid}
