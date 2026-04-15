@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Truck, Clock, CheckCircle, Loader2, MapPin, Package, Trash2, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User, TrendingUp, Zap, Search, Filter, X } from "lucide-react";
@@ -25,6 +25,9 @@ export default function BusinessHomePage() {
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isRinging, setIsRinging] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const qc = useQueryClient();
   
   const { data: companyData } = useQuery({
@@ -80,7 +83,7 @@ export default function BusinessHomePage() {
       filtered = filtered.filter(o => 
         (o.customers?.name?.toLowerCase().includes(q)) || 
         (o.id.toLowerCase().includes(q)) ||
-        (o.customer_name?.toLowerCase().includes(q))
+        ((o as any).customer_name?.toLowerCase().includes(q))
       );
     }
     
@@ -341,7 +344,6 @@ export default function BusinessHomePage() {
                       ))}
                     </div>
                   </div>
-                </div>
 
                 {isLoadingOrders ? (
                   <div className="space-y-3">
@@ -375,7 +377,7 @@ export default function BusinessHomePage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-2 mb-0.5">
                               <p className="text-sm font-bold text-foreground truncate">
-                                {order.customers?.name || order.customer_name || (order.customer as any)?.name || "Cliente"}
+                                {order.customers?.name || (order as any).customer_name || (order as any).customer?.name || "Cliente"}
                               </p>
                               <div className={cn(
                                 "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",

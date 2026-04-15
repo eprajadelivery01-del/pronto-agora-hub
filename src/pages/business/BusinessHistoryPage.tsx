@@ -295,9 +295,8 @@ export default function BusinessHistoryPage() {
           </TabsContent>
         </Tabs>
       </div>
-      </div>
 
-      <OrderDetailModal 
+      <OrderDetailModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         order={selectedOrder}

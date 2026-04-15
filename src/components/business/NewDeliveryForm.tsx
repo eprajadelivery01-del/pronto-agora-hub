@@ -190,7 +190,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       // Logic to save/update customer official record
       if (saveCustomer && !initialData) {
         // Find if customer already exists in global customers table
-          .from("customers")
+        const { data: existingCust } = await supabase.from("customers")
           .select("id")
           .eq("phone", customerPhone.replace(/\D/g, ""))
           .maybeSingle();
@@ -273,8 +273,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                       className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
                     />
                 </div>
-             </div>
-                  <div className="relative">
+                <div className="space-y-1.5 relative">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Telefone</label>
                     <input
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(maskPhone(e.target.value))}
@@ -303,10 +303,9 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                          </div>
                       </div>
                     )}
-                  </div>
                 </div>
              </div>
-          </div>
+           </div>
 
           {/* Sessão: Endereço & Mapa */}
           <div className="space-y-4">
