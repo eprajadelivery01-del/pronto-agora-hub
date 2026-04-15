@@ -185,6 +185,10 @@ export type Database = {
           status: Database["public"]["Enums"]["delivery_status"]
           updated_at: string
           value: number
+          estimated_value: number | null
+          customer_phone: string | null
+          customer_cpf: string | null
+          city_id: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -227,6 +231,10 @@ export type Database = {
           status?: Database["public"]["Enums"]["delivery_status"]
           updated_at?: string
           value?: number
+          estimated_value?: number | null
+          customer_phone?: string | null
+          customer_cpf?: string | null
+          city_id?: string | null
         }
         Relationships: [
           {

@@ -56,8 +56,12 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
       labelsRef.current = [];
 
       if (regions.length > 0) {
+        const bounds = new maplibregl.LngLatBounds();
+        let hasValidGeometry = false;
+
         regions.forEach(region => {
           if (!region.geometry) return;
+          hasValidGeometry = true;
 
           const sourceId = `region-${region.id}`;
           const fillId = `${sourceId}-fill`;
@@ -74,6 +78,13 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
               }
             }
           });
+
+          // Factor in geometry to bounds
+          if (region.geometry.type === 'Polygon') {
+            region.geometry.coordinates[0].forEach((coord: [number, number]) => {
+              bounds.extend(coord);
+            });
+          }
 
           map.current?.addLayer({
             id: fillId,
@@ -148,6 +159,10 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
             popup.remove();
           });
         });
+
+        if (hasValidGeometry) {
+          map.current?.fitBounds(bounds, { padding: 50, duration: 1000 });
+        }
       }
     });
 
