@@ -54,8 +54,7 @@ export default function BusinessHistoryPage() {
         const { data: orders, error: ordersErr } = await supabase
           .from("orders")
           .select(`
-            id, status, total, created_at,
-            customers (name)
+            id, status, total, created_at
           `)
           .eq("company_id", companyId)
           .order("created_at", { ascending: false });
