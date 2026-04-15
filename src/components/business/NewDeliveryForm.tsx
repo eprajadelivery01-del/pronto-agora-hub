@@ -190,7 +190,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       // Logic to save/update customer official record
       if (saveCustomer && !initialData) {
         // Find if customer already exists in global customers table
-          .from("customers")
+        const { data: existingCust } = await supabase.from("customers")
           .select("id")
           .eq("phone", customerPhone.replace(/\D/g, ""))
           .maybeSingle();
