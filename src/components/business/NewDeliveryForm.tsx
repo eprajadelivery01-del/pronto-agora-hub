@@ -41,10 +41,10 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
     setter(clean);
   };
 
-  const handleRegionSelect = (fee: number, id: string) => {
+  const handleRegionSelect = React.useCallback((fee: number, id: string) => {
     setDeliveryValue(fee.toFixed(2).replace('.', ','));
     toast.success(`Região selecionada! Taxa: R$ ${fee.toFixed(2).replace('.', ',')}`);
-  };
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

@@ -32,6 +32,9 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
     fetchRegions();
   }, [cityId]);
 
+  const hasFittedBounds = React.useRef(false);
+
+  // 1. Initialize Map (Only Once)
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -42,136 +45,157 @@ export function RegionPickerMap({ cityId, onRegionSelect }: RegionPickerMapProps
       zoom: 12,
     });
 
+    map.current.on('load', () => {
+      setLoading(false);
+    });
+
+    return () => {
+      map.current?.remove();
+    };
+  }, []); // Empty dependency!
+
+  // 2. Manage Regions & Layers
+  useEffect(() => {
+    if (!map.current || regions.length === 0) return;
+
     const popup = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
       offset: 15
     });
 
-    map.current.on('load', () => {
-      setLoading(false);
+    const updateMap = () => {
+      if (!map.current?.loaded()) {
+        setTimeout(updateMap, 100);
+        return;
+      }
 
       // Clear old labels
       labelsRef.current.forEach(mk => mk.remove());
       labelsRef.current = [];
 
-      if (regions.length > 0) {
-        const bounds = new maplibregl.LngLatBounds();
-        let hasValidGeometry = false;
+      const bounds = new maplibregl.LngLatBounds();
+      let hasValidGeometry = false;
 
-        regions.forEach(region => {
-          if (!region.geometry) return;
-          hasValidGeometry = true;
+      regions.forEach(region => {
+        if (!region.geometry) return;
+        
+        const sourceId = `region-${region.id}`;
+        const fillId = `${sourceId}-fill`;
+        const lineId = `${sourceId}-line`;
+        
+        // Remove old sources if they exist (to handle city changes)
+        if (map.current?.getSource(sourceId)) {
+          if (map.current.getLayer(fillId)) map.current.removeLayer(fillId);
+          if (map.current.getLayer(lineId)) map.current.removeLayer(lineId);
+          map.current.removeSource(sourceId);
+        }
 
-          const sourceId = `region-${region.id}`;
-          const fillId = `${sourceId}-fill`;
-          const lineId = `${sourceId}-line`;
-          
-          map.current?.addSource(sourceId, {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              geometry: region.geometry,
-              properties: { 
-                name: region.name, 
-                price: region.delivery_fee || region.price 
-              }
+        map.current?.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: region.geometry,
+            properties: { 
+              name: region.name, 
+              price: region.delivery_fee || region.price 
             }
-          });
-
-          // Factor in geometry to bounds
-          if (region.geometry.type === 'Polygon') {
-            region.geometry.coordinates[0].forEach((coord: [number, number]) => {
-              bounds.extend(coord);
-            });
           }
-
-          map.current?.addLayer({
-            id: fillId,
-            type: 'fill',
-            source: sourceId,
-            paint: {
-              'fill-color': region.color || '#3b82f6',
-              'fill-opacity': 0.25
-            }
-          });
-
-          map.current?.addLayer({
-            id: lineId,
-            type: 'line',
-            source: sourceId,
-            paint: {
-              'line-color': region.color || '#3b82f6',
-              'line-width': 2.5
-            }
-          });
-
-          // Floating Price Label (Matched from Admin)
-          const geoJSON = region.geometry as any;
-          if (geoJSON.coordinates?.[0]) {
-            const centroid = getCentroid(geoJSON.coordinates[0]);
-            const el = document.createElement("div");
-            el.className = "region-label";
-            el.innerHTML = `
-              <div style="
-                background: rgba(255,255,255,0.92);
-                padding: 4px 10px;
-                border-radius: 8px;
-                border: 1.5px solid ${region.color || '#3b82f6'};
-                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                text-align: center;
-                min-width: 60px;
-                pointer-events: none;
-              ">
-                <p style="margin:0; font-size: 10px; font-weight: 800; color: #444; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px;">${region.name}</p>
-                <p style="margin:0; font-size: 11px; font-weight: 900; color: ${region.color || '#3b82f6'};">R$ ${Number(region.delivery_fee || region.price || 0).toFixed(2)}</p>
-              </div>
-            `;
-            const labelMarker = new maplibregl.Marker({ element: el }).setLngLat(centroid).addTo(map.current!);
-            labelsRef.current.push(labelMarker);
-          }
-
-          // Click interaction
-          map.current?.on('click', fillId, () => {
-             onRegionSelect?.(region.delivery_fee || region.price, region.id);
-          });
-          
-          // Hover effects...
-          map.current?.on('mouseenter', fillId, (e) => {
-            map.current!.getCanvas().style.cursor = 'pointer';
-            map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
-            
-            const fee = (region.delivery_fee || region.price || 0);
-            popup
-              .setLngLat(e.lngLat)
-              .setHTML(`
-                <div style="font-family: sans-serif; padding: 4px; color: #fff;">
-                  <strong style="display: block; font-size: 12px; margin-bottom: 2px;">${region.name}</strong>
-                  <span style="color: #10b981; font-weight: 800; font-size: 14px;">R$ ${Number(fee).toFixed(2).replace('.', ',')}</span>
-                </div>
-              `)
-              .addTo(map.current!);
-          });
-
-          map.current?.on('mouseleave', fillId, () => {
-            map.current!.getCanvas().style.cursor = '';
-            map.current!.setPaintProperty(fillId, 'fill-opacity', 0.25);
-            popup.remove();
-          });
         });
 
-        if (hasValidGeometry) {
-          map.current?.fitBounds(bounds, { padding: 50, duration: 1000 });
+        // Factor in geometry to bounds
+        if (region.geometry.type === 'Polygon') {
+          hasValidGeometry = true;
+          region.geometry.coordinates[0].forEach((coord: [number, number]) => {
+            bounds.extend(coord);
+          });
         }
-      }
-    });
 
-    return () => {
-      // Clear labels on cleanup
-      labelsRef.current.forEach(mk => mk.remove());
-      map.current?.remove();
+        map.current?.addLayer({
+          id: fillId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': region.color || '#3b82f6',
+            'fill-opacity': 0.25
+          }
+        });
+
+        map.current?.addLayer({
+          id: lineId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': region.color || '#3b82f6',
+            'line-width': 2.5
+          }
+        });
+
+        // Floating Price Label
+        const geoJSON = region.geometry as any;
+        if (geoJSON.coordinates?.[0]) {
+          const centroid = getCentroid(geoJSON.coordinates[0]);
+          const el = document.createElement("div");
+          el.className = "region-label";
+          el.innerHTML = `
+            <div style="
+              background: rgba(255,255,255,0.92);
+              padding: 4px 10px;
+              border-radius: 8px;
+              border: 1.5px solid ${region.color || '#3b82f6'};
+              box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+              text-align: center;
+              min-width: 60px;
+              pointer-events: none;
+            ">
+              <p style="margin:0; font-size: 10px; font-weight: 800; color: #444; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px;">${region.name}</p>
+              <p style="margin:0; font-size: 11px; font-weight: 900; color: ${region.color || '#3b82f6'};">R$ ${Number(region.delivery_fee || region.price || 0).toFixed(2).replace('.', ',')}</p>
+            </div>
+          `;
+          const labelMarker = new maplibregl.Marker({ element: el }).setLngLat(centroid).addTo(map.current!);
+          labelsRef.current.push(labelMarker);
+        }
+
+        // Click interaction
+        map.current?.on('click', fillId, () => {
+           onRegionSelect?.(region.delivery_fee || region.price, region.id);
+        });
+        
+        // Hover effects...
+        map.current?.on('mouseenter', fillId, (e) => {
+          map.current!.getCanvas().style.cursor = 'pointer';
+          map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
+          
+          const fee = (region.delivery_fee || region.price || 0);
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="font-family: sans-serif; padding: 4px; color: #fff;">
+                <strong style="display: block; font-size: 12px; margin-bottom: 2px;">${region.name}</strong>
+                <span style="color: #10b981; font-weight: 800; font-size: 14px;">R$ ${Number(fee).toFixed(2).replace('.', ',')}</span>
+              </div>
+            `)
+            .addTo(map.current!);
+        });
+
+        map.current?.on('mouseleave', fillId, () => {
+          map.current!.getCanvas().style.cursor = '';
+          map.current!.setPaintProperty(fillId, 'fill-opacity', 0.25);
+          popup.remove();
+        });
+      });
+
+      // Fit bounds only if we haven't or if city changes
+      if (hasValidGeometry && !hasFittedBounds.current) {
+        map.current?.fitBounds(bounds, { padding: 50, duration: 1000 });
+        hasFittedBounds.current = true;
+      }
     };
-  }, [regions, onRegionSelect]);
+
+    updateMap();
+
+  }, [regions, onRegionSelect, cityId]); // Reset bounds only if cityId changes can be handled separately
+
 
   return (
     <div className="relative w-full h-[300px] rounded-2xl overflow-hidden border border-border bg-muted/20">
