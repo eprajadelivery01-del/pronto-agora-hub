@@ -52,6 +52,8 @@ export default function BusinessHomePage() {
     pageSize: 10
   });
 
+  const deliveries = deliveriesData?.data || [];
+
   const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
     queryKey: ["marketplace-orders", companyId],
     queryFn: async () => {
@@ -140,7 +142,10 @@ export default function BusinessHomePage() {
     marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
     marketplaceRevenue: marketplaceOrders
       .filter(o => ["completed", "delivered"].includes(o.status))
-      .reduce((acc, o) => acc + (o.total || 0), 0)
+      .reduce((acc, o) => acc + (o.total || 0), 0),
+    manualRevenue: deliveries
+      .filter(d => d.status !== 'cancelled')
+      .reduce((acc, d) => acc + (Number(d.estimated_value) || 0), 0)
   };
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
@@ -237,11 +242,12 @@ export default function BusinessHomePage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 font-black">
               <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Entregas manuais" />
               <StatCard label="Em Trânsito" value={stats.inRoute} icon={Truck} color="primary" subtitle="Em rota agora" />
               <StatCard label="Novos Pedidos" value={stats.marketplacePending} icon={Bell} color="info" subtitle="Marketplace" />
               <StatCard label="Vendas Hoje" value={`R$ ${stats.marketplaceRevenue.toFixed(2).replace('.', ',')}`} icon={DollarSign} color="success" subtitle="Marketplace" />
+              <StatCard label="Receber Hoje" value={`R$ ${stats.manualRevenue.toFixed(2).replace('.', ',')}`} icon={Wallet} color="warning" subtitle="Manual (Cobrança)" />
             </div>
 
             {/* Content Grid */}
