@@ -139,7 +139,6 @@ export async function createDeliveryRequest(orderId: string) {
   // Utilizamos preferencialmente o delivery_address que veio do Checkout.
   // Caso não exista, tentamos puxar o endereço padrão do customer, mas no nosso fluxo o Cliente já salva na Order.
   let dropoff = (order as any).delivery_address;
-  let region_id = null;
   
   if (!dropoff && order.customer_id) {
     const { data: address } = await supabase
@@ -150,7 +149,6 @@ export async function createDeliveryRequest(orderId: string) {
 
     if (address) {
        dropoff = `${address.street}, ${address.number} - ${address.neighborhood}`;
-       region_id = address.region_id;
     }
   }
   
@@ -164,8 +162,7 @@ export async function createDeliveryRequest(orderId: string) {
       customer_name: order.customers ? (order.customers as any).name : "Cliente Avulso",
       address: dropoff, // IMPORTANTE: no types.ts a coluna chama 'address'
       value: order.total || 0, // No types.ts a coluna chama 'value'
-      status: "pending",
-      region_id: region_id || null
+      status: "pending"
     })
     .select()
     .single();

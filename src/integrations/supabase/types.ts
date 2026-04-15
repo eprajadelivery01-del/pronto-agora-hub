@@ -176,11 +176,12 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           notes: string | null
-          pickup_lat?: number | null
-          pickup_lng?: number | null
-          dropoff_lat?: number | null
-          dropoff_lng?: number | null
-          region_id: string | null
+          pickup_lat: number | null
+          pickup_lng: number | null
+          dropoff_lat: number | null
+          dropoff_lng: number | null
+          pickup_address: string | null
+          dropoff_address: string | null
           status: Database["public"]["Enums"]["delivery_status"]
           updated_at: string
           value: number
@@ -200,7 +201,8 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           notes?: string | null
-          region_id?: string | null
+          pickup_address?: string | null
+          dropoff_address?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
           updated_at?: string
           value?: number
@@ -220,7 +222,8 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           notes?: string | null
-          region_id?: string | null
+          pickup_address?: string | null
+          dropoff_address?: string | null
           status?: Database["public"]["Enums"]["delivery_status"]
           updated_at?: string
           value?: number
@@ -238,13 +241,6 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "delivery_drivers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "deliveries_region_id_fkey"
-            columns: ["region_id"]
-            isOneToOne: false
-            referencedRelation: "regions"
             referencedColumns: ["id"]
           },
         ]

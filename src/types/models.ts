@@ -16,7 +16,7 @@ export interface Company {
   name: string;
   phone: string;
   address: string;
-  region_id: string;
+  region_id?: string;
   latitude?: number | null;
   longitude?: number | null;
 }
@@ -45,8 +45,8 @@ export interface Delivery {
   driver_name: string | null;
   customer_name: string;
   address: string;
-  region_id: string;
-  region_name: string;
+  region_id?: string;
+  region_name?: string;
   status: DeliveryStatus;
   value: number;
   commission: number;

@@ -23,13 +23,11 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
   const [value, setValue] = useState(initialData?.value?.toString() || "");
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || "Padrão");
   const [notes, setNotes] = useState(initialData?.notes || "");
-  const [regionId, setRegionId] = useState(initialData?.region_id || "");
   const [submitting, setSubmitting] = useState(false);
   const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || companyData?.address || "");
 
   const handleRegionSelect = (fee: number, id: string) => {
     setValue(fee.toString());
-    setRegionId(id);
     toast.success(`Região selecionada! Taxa: R$ ${fee.toFixed(2)}`);
   };
 
@@ -51,8 +49,7 @@ export function NewDeliveryForm({ onClose, initialData, companyId, companyData }
         value: value ? parseFloat(value) : 0, 
         difficulty: difficulty,
         notes: notes || null,
-        status: initialData ? initialData.status : "pending",
-        region_id: regionId || null
+        status: initialData ? initialData.status : "pending"
       };
 
       const query = initialData 
