@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Truck, Clock, CheckCircle, Loader2, MapPin, Package, Trash2, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User, TrendingUp, Zap, Search, Filter, X } from "lucide-react";
@@ -25,6 +25,9 @@ export default function BusinessHomePage() {
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isRinging, setIsRinging] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const qc = useQueryClient();
   
   const { data: companyData } = useQuery({
