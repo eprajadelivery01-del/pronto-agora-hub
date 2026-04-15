@@ -45,7 +45,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
-        .select("*, companies(name, phone)", { count: "exact" })
+        .select("id, company_id, driver_id, customer_name, address, value, status, created_at, updated_at, notes, pickup_address, dropoff_address, companies(name, phone)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -197,7 +197,7 @@ export function useDeliveryTracking(orderId?: string | null) {
     queryKey: ["order", orderId],
     queryFn: async () => {
       if (!orderId) return null;
-      const { data } = await supabase.from("orders").select("*, deliveries(*)").eq("id", orderId).single();
+      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, created_at, pickup_address, dropoff_address)").eq("id", orderId).single();
       return data;
     },
     enabled: !!orderId,

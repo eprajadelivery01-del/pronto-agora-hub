@@ -68,7 +68,7 @@ export async function createOrder(orderData: {
 export async function getCompanyOrders(companyId: string) {
   const { data, error } = await supabase
     .from("orders")
-    .select("*, order_items(*), customers(*), deliveries(*)")
+    .select("*, order_items(*), customers(*), deliveries(id, status, driver_id, customer_name, address, value, created_at, pickup_address, dropoff_address)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
   if (error) throw error;
