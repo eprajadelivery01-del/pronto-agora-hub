@@ -73,7 +73,15 @@ export default function BusinessOrdersPage() {
     
     const { data, error } = await supabase
       .from("orders")
-      .select("id, status, total, created_at")
+      .select(`
+        id, status, total, created_at,
+        customer_id,
+        customers (name, phone),
+        order_items (
+          id, quantity, price,
+          products (name)
+        )
+      `)
       .eq("company_id", companyId)
       .order("created_at", { ascending: false });
 
@@ -96,8 +104,8 @@ export default function BusinessOrdersPage() {
 
       const mapped = filteredData.map((o: any) => ({
         ...o,
-        customer: { name: "Cliente Marketplace" },
-        items: []
+        customer: o.customers,
+        items: o.order_items || []
       }));
       
       setOrders(mapped);
@@ -314,80 +322,100 @@ function OrderCard({ order, onAdvance, onCancel, action }: {
   action: { label: string, next: OrderStatus } | null;
 }) {
   const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
+  const isPending = order.status === "pending";
 
   return (
     <div className={cn(
-      "bg-card border border-border rounded-3xl p-5 shadow-sm space-y-4 hover:shadow-xl hover:border-primary/20 transition-all group animate-in zoom-in-95 duration-300",
-      order.status === "pending" && "border-warning/40 ring-1 ring-warning/20"
+      "bg-white border-2 border-transparent rounded-[2rem] p-5 shadow-sm space-y-4 hover:shadow-2xl hover:border-primary/30 transition-all group animate-in zoom-in-95 duration-300 relative overflow-hidden",
+      isPending && "border-warning/40 shadow-warning/5 bg-warning/[0.02]"
     )}>
-      {/* Header Card */}
-      <div className="flex items-start justify-between">
+      {isPending && (
+        <div className="absolute top-0 right-0 px-4 py-1.5 bg-warning text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl">
+          Novo Pedido
+        </div>
+      )}
+
+      {/* Header: ID & Status Badge */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">ID do Pedido</span>
+          <p className="font-black text-lg text-foreground leading-none">#{order.id.slice(-6).toUpperCase()}</p>
+        </div>
+        {!isPending && (
+          <div className={cn("px-3 py-1.5 rounded-xl border flex items-center gap-2", STATUS_COLORS[order.status])}>
+             <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+             <span className="text-[10px] font-black uppercase tracking-tighter">{STATUS_LABELS[order.status]}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Customer Info */}
+      <div className="flex items-center gap-3 pt-1">
+        <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center shrink-0 border border-border">
+          <User className="h-5 w-5 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-black text-foreground truncate leading-tight">{order.customer?.name || "Cliente Marketplace"}</p>
+          <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1 mt-0.5">
+            <Timer className="h-3 w-3" /> há {age} min
+          </p>
+        </div>
+      </div>
+
+      {/* Items Section (iFood Style) */}
+      <div className="space-y-3 py-4 border-y-2 border-dashed border-border/50 group-hover:border-primary/20 transition-colors">
+        <div className="space-y-2">
+          {order.items?.map((item, idx) => (
+            <div key={idx} className="flex gap-2 text-sm">
+              <span className="font-black text-primary shrink-0">{item.quantity}x</span>
+              <span className="font-bold text-foreground/80 leading-snug">{item.products?.name || "Produto"}</span>
+            </div>
+          ))}
+          {(!order.items || order.items.length === 0) && (
+            <p className="text-xs text-muted-foreground italic flex items-center gap-2">
+              <Package className="h-3.5 w-3.5" /> Detalhes indisponíveis
+            </p>
+          )}
+        </div>
+        
+        {order.notes && (
+          <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
+            <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1 flex items-center gap-1">
+               <Bell className="h-3 w-3" /> Observação
+            </p>
+            <p className="text-xs font-semibold text-foreground/70 italic">"{order.notes}"</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer: Payment & Total & Action */}
+      <div className="flex items-center justify-between pt-2">
         <div>
-          <p className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase mb-1">Pedido</p>
-          <p className="font-black text-foreground">#{order.id.slice(-6).toUpperCase()}</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Total</p>
+          <p className="text-xl font-black text-primary tracking-tight italic">R$ {order.total.toFixed(2).replace(".", ",")}</p>
         </div>
-        <div className={cn("px-2 py-1 rounded-lg flex items-center gap-1.5", STATUS_COLORS[order.status])}>
-           <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", 
-             order.status === "pending" ? "bg-warning" : "bg-current"
-           )} />
-           <span className="text-[9px] font-black uppercase">{STATUS_LABELS[order.status]}</span>
+        <div className="flex gap-2">
+          {isPending && (
+            <button 
+              onClick={onCancel}
+              className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+          )}
+          {action && (
+            <button
+              onClick={onAdvance}
+              className={cn(
+                "h-12 px-6 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2",
+                isPending ? "bg-primary text-white shadow-primary/20" : "bg-foreground text-white shadow-black/10"
+              )}
+            >
+              {action.label}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
         </div>
-      </div>
-
-      {/* Basic Info */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center gap-3">
-           <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-              <User className="h-5 w-5 text-muted-foreground" />
-           </div>
-           <div className="min-w-0">
-              <p className="text-sm font-bold text-foreground truncate">{order.customer?.name || "Cliente Casual"}</p>
-              <p className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-                 <Timer className="h-3 w-3" /> há {age} min
-              </p>
-           </div>
-        </div>
-
-        {/* Items Summary */}
-        <div className="bg-muted/50 rounded-2xl p-3 space-y-2">
-           {order.items?.slice(0, 3).map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-muted-foreground">
-                 <span className="truncate flex-1">{item.quantity}x {item.products?.name || "Protudo"}</span>
-                 <span className="shrink-0 ml-2">R$ {item.price.toFixed(2)}</span>
-              </div>
-           ))}
-           {order.items && order.items.length > 3 && (
-              <p className="text-[9px] text-primary font-black text-center pt-1">+ {order.items.length - 3} itens no total</p>
-           )}
-           {(!order.items || order.items.length === 0) && (
-              <p className="text-[9px] text-muted-foreground italic text-center">Itens não detalhados</p>
-           )}
-        </div>
-
-        <div className="flex items-center justify-between pt-1">
-           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total</p>
-           <p className="text-lg font-black text-primary italic">R$ {order.total.toFixed(2).replace(".", ",")}</p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-2 border-t border-dashed border-border group-hover:border-primary/20 transition-colors">
-        {action && (
-          <button
-            onClick={onAdvance}
-            className="flex-1 py-3 rounded-2xl bg-foreground text-background text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all flex items-center justify-center gap-2"
-          >
-            {action.label} <ArrowRight className="h-3 h-3" />
-          </button>
-        )}
-        {order.status === "pending" && (
-           <button 
-             onClick={onCancel}
-             className="w-11 h-11 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive transition-all"
-           >
-              <XCircle className="h-5 h-5" />
-           </button>
-        )}
       </div>
     </div>
   );
