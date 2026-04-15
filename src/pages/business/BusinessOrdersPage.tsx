@@ -80,7 +80,14 @@ export default function BusinessOrdersPage() {
     
     const { data, error } = await supabase
       .from("orders")
-      .select(`id, status, total, created_at, customer_id`)
+      .select(`
+        id, status, total, created_at,
+        customer_id, notes,
+        order_items (
+          id, quantity, price, product_name, unit_price,
+          products (id, name, image_url, description)
+        )
+      `)
       .eq("company_id", companyId)
       .order("created_at", { ascending: false });
 
