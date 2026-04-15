@@ -80,16 +80,14 @@ export default function BusinessOrdersPage() {
     
     const { data, error } = await supabase
       .from("orders")
-      .select(`
-        id, status, total, created_at,
-        customer_id, notes,
-        order_items (
-          id, quantity, price, product_name, unit_price,
-          products (id, name, image_url, description)
-        )
-      `)
+      .select(`id, status, total, created_at, customer_id`)
       .eq("company_id", companyId)
       .order("created_at", { ascending: false });
+
+    // Chamada de diagnóstico em segundo plano (não trava a UI se falhar)
+    supabase.from("orders").select("*").limit(1).then(({ data: diag }) => {
+      if (diag && diag[0]) console.log("[Dashboard] ESTRUTURA REAL DO PEDIDO:", Object.keys(diag[0]));
+    });
 
     if (error) {
       console.error("[Dashboard] Erro Crítico na busca de pedidos:", error.message, error.details, error.hint);
@@ -99,6 +97,9 @@ export default function BusinessOrdersPage() {
     }
 
     console.log("[Dashboard] Pedidos brutos retornados pelo Supabase:", data?.length || 0);
+    if (data && data.length > 0) {
+      console.log("[Dashboard] COLUNAS REAIS NO BANCO:", Object.keys(data[0]));
+    }
 
     if (data) {
       // Busca resiliente de clientes (evita falha de join no status 400)
