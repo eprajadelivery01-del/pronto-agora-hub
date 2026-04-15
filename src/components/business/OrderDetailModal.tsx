@@ -13,7 +13,7 @@ interface OrderDetailModalProps {
   onAdvance?: (orderId: string, nextStatus: string) => void;
 }
 
-export function OrderDetailModal({ order, isOpen, onClose, onAdvance }: OrderDetailModalProps) {
+export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: OrderDetailModalProps) {
   if (!order) return null;
 
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string }> = {

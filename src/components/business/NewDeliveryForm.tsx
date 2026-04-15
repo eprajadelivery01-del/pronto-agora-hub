@@ -14,7 +14,7 @@ interface NewDeliveryFormProps {
   companyData?: any;
 }
 
-export function NewDeliveryForm({ onClose, initialData, companyId, companyData }: NewDeliveryFormProps) {
+export default function NewDeliveryForm({ onClose, initialData, companyId, companyData }: NewDeliveryFormProps) {
   const { selectedCity } = useCity();
   const qc = useQueryClient();
   

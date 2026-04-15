@@ -13,8 +13,8 @@ import { DeliveryStatus, Order, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/business/StatCard";
 
-const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm").then(m => ({ default: m.NewDeliveryForm })));
-const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal").then(m => ({ default: m.OrderDetailModal })));
+const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
+const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
 
 export default function BusinessHomePage() {
   const { profile, user } = useAuth();
