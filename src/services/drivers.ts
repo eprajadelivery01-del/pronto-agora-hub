@@ -105,13 +105,13 @@ export function useAvailableDeliveries(regionId?: string) {
   return useQuery({
     queryKey: ["deliveries", "available", regionId],
     queryFn: async () => {
-      let query = supabase
+      let query: any = supabase
         .from("deliveries")
         .select("*, companies(name)")
         .eq("status", "pending")
         .is("driver_id", null);
       
-      if (regionId) query = query.eq("region_id" as any, regionId);
+      if (regionId) query = query.eq("region_id", regionId);
 
       const { data, error } = await query;
       if (error) throw error;
