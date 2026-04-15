@@ -421,6 +421,7 @@ export default function BusinessHomePage() {
             onAdvance={handleAdvanceOrder}
           />
         </React.Suspense>
+      </React.Suspense>
     </BusinessLayout>
   );
 }
