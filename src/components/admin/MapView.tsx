@@ -135,6 +135,7 @@ export function MapView({ centerCity }: MapViewProps) {
           const centroid = getCentroid(geoJSON.coordinates[0]);
           const el = document.createElement("div");
           el.className = "region-label";
+          const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
           el.innerHTML = `
             <div style="
               background: rgba(255,255,255,0.92);
@@ -146,7 +147,7 @@ export function MapView({ centerCity }: MapViewProps) {
               min-width: 60px;
               pointer-events: none;
             ">
-              <p style="margin:0; font-size: 10px; font-weight: 800; color: #444; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px;">${region.name}</p>
+              <p style="margin:0; font-size: 10px; font-weight: 800; color: #444; border-bottom: 1px solid #eee; padding-bottom: 2px; margin-bottom: 2px;">${esc(region.name)}</p>
               <p style="margin:0; font-size: 11px; font-weight: 900; color: ${region.color};">R$ ${Number(region.price).toFixed(2)}</p>
             </div>
           `;
@@ -156,11 +157,12 @@ export function MapView({ centerCity }: MapViewProps) {
 
         // CLICK TO EDIT PRICE
         m.on("click", fillId, (e) => {
+          const escPopup = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
           const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false })
             .setLngLat(e.lngLat)
             .setHTML(`
               <div style="padding: 12px; min-width: 160px; font-family: sans-serif;">
-                <h4 style="margin: 0 0 8px 0; font-size: 13px;">Preço: ${region.name}</h4>
+                <h4 style="margin: 0 0 8px 0; font-size: 13px;">Preço: ${escPopup(region.name)}</h4>
                 <input id="edit-price-${region.id}" type="number" step="0.50" value="${region.price}" 
                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box;"
                 />
@@ -229,9 +231,9 @@ export function MapView({ centerCity }: MapViewProps) {
         .setPopup(
           new maplibregl.Popup({ offset: 20 }).setHTML(`
             <div style="font-family: sans-serif; padding: 4px;">
-              <strong>${driver.profiles?.full_name || "Entregador"}</strong><br/>
+              <strong>${(driver.profiles?.full_name || "Entregador").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</strong><br/>
               <span style="color: #22c55e">● Online</span><br/>
-              <small>${driver.vehicle_type} • ⭐ ${Number(driver.rating).toFixed(1)}</small>
+              <small>${String(driver.vehicle_type || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')} • ⭐ ${Number(driver.rating).toFixed(1)}</small>
             </div>
           `)
         )
@@ -263,9 +265,9 @@ export function MapView({ centerCity }: MapViewProps) {
         .setPopup(
           new maplibregl.Popup({ offset: 20 }).setHTML(`
             <div style="font-family: sans-serif; padding: 4px; min-width: 120px;">
-              <strong style="font-size: 14px;">${company.name}</strong><br/>
+              <strong style="font-size: 14px;">${String(company.name || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</strong><br/>
               <div style="margin-top: 4px; border-top: 1px solid #eee; padding-top: 4px;">
-                <small style="color: #666;">${company.address || "Sem endereço"}</small><br/>
+                <small style="color: #666;">${String(company.address || "Sem endereço").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</small><br/>
                 <span style="display: inline-block; margin-top: 4px; color: ${company.is_active ? "#22c55e" : "#ef4444"}; font-weight: 600; font-size: 11px;">
                   ● ${company.is_active ? "Aberta" : "Fechada"}
                 </span>

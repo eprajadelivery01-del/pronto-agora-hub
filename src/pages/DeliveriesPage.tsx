@@ -129,6 +129,7 @@ export default function DeliveriesPage() {
   };
 
   const handlePrint = (delivery: DeliveryWithRelations) => {
+    const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return;
     w.document.write(`
@@ -147,18 +148,18 @@ export default function DeliveriesPage() {
         <div class="label">OS</div>
         <div class="value">#${delivery.id.slice(0, 8).toUpperCase()}</div>
         <div class="label">Cliente</div>
-        <div class="value">${delivery.customer_name}</div>
+        <div class="value">${esc(delivery.customer_name)}</div>
         <div class="label">Endereço</div>
-        <div class="value">${delivery.dropoff_address}</div>
+        <div class="value">${esc(delivery.dropoff_address)}</div>
         <div class="label">Empresa</div>
-        <div class="value">${(delivery as any).companies?.name || "—"}</div>
+        <div class="value">${esc((delivery as any).companies?.name || "—")}</div>
         <div class="label">Status</div>
-        <div class="value">${delivery.status}</div>
+        <div class="value">${esc(delivery.status)}</div>
         <div class="label">Valor</div>
         <div class="value">R$ ${Number(delivery.price ?? 0).toFixed(2)}</div>
         <div class="label">Data</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
-        ${delivery.notes ? `<div class="label">Observações</div><div class="value">${delivery.notes}</div>` : ""}
+        ${delivery.notes ? `<div class="label">Observações</div><div class="value">${esc(delivery.notes)}</div>` : ""}
         <hr/>
         <div class="footer">Impresso em ${format(new Date(), "dd/MM/yyyy HH:mm")}</div>
       </body></html>

@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
     } catch (error: any) {
-      console.error("[Auth-9c1a49c1] ERRO NO METADATA (Bypassed):", error.message);
+      if (import.meta.env.DEV) console.error("[Auth] ERRO NO METADATA (Bypassed):", error.message);
     } finally {
       fetchingRef.current = null;
       // IMPORTANTE: setLoading(false) já deve ter sido chamado antes para emergência
@@ -118,20 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authListener = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-          if (currentUser) {
-            const email = currentUser.email?.toLowerCase();
+        
+        const currentUser = session?.user;
+        setSession(session);
+        setUser(currentUser ?? null);
 
-            setLoading(false);
-            setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
-          } else {
-            setLoading(false);
-          }
-        } else if (event === "SIGNED_OUT") {
-          setSession(null);
-          setUser(null);
+        if (event === "SIGNED_OUT") {
           setRoles([]);
           setProfile(null);
           setUserStatus(null);
+          setLoading(false);
+        } else if (currentUser) {
+          const email = currentUser.email?.toLowerCase();
+          setLoading(false);
+          setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
+        } else {
           setLoading(false);
         }
       }
@@ -170,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.clear();
       window.location.href = "/login";
     } catch (error) {
-      console.error("Erro ao sair:", error);
+      if (import.meta.env.DEV) console.error("Erro ao sair:", error);
       window.location.href = "/login";
     }
   };
@@ -186,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       await signOut();
     } catch (error) {
-      console.error("Erro ao deletar conta:", error);
+      if (import.meta.env.DEV) console.error("Erro ao deletar conta:", error);
       throw error;
     }
   };
