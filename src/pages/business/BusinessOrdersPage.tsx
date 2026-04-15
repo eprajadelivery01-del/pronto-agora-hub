@@ -69,6 +69,7 @@ export default function BusinessOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) return;
+    console.log("[OrdersPage] Fetching orders for companyId:", companyId);
     
     const { data, error } = await supabase
       .from("orders")
@@ -83,6 +84,8 @@ export default function BusinessOrdersPage() {
       .eq("company_id", companyId)
       .in("status", ["pending", "accepted", "preparing", "ready", "in_route"])
       .order("created_at", { ascending: false });
+
+    console.log("[OrdersPage] Orders result:", { count: data?.length, error, data });
 
     if (error) {
       console.error("Erro ao buscar pedidos:", error);
@@ -108,12 +111,15 @@ export default function BusinessOrdersPage() {
     const init = async () => {
       if (!user) return;
       setLoading(true);
-      const { data: company } = await supabase
+      console.log("[OrdersPage] user.id =", user.id);
+      const { data: company, error: compErr } = await supabase
         .from("companies")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
+      console.log("[OrdersPage] company lookup:", { company, compErr });
       if (company) setCompanyId(company.id);
+      else console.warn("[OrdersPage] Nenhuma empresa encontrada para user_id:", user.id);
       setLoading(false);
     };
     init();
