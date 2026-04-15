@@ -57,6 +57,7 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
   { key: "preparing", label: "Preparando", icon: ChefHat, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
   { key: "in_route", label: "Despachados", icon: Truck, color: "purple" },
+  { key: "completed", label: "Concluídos", icon: CheckCircle, color: "success" },
 ];
 
 export default function BusinessOrdersPage() {
@@ -82,7 +83,7 @@ export default function BusinessOrdersPage() {
         )
       `)
       .eq("company_id", companyId)
-      .not("status", "in", '("completed","delivered","cancelled")')
+      .or(`status.in.(pending,accepted,preparing,ready,in_route),and(status.in.(completed,delivered),created_at.gte.${new Date().toISOString().split('T')[0]})`)
       .order("created_at", { ascending: false })
       .returns<any[]>();
 
@@ -194,6 +195,9 @@ export default function BusinessOrdersPage() {
     }
     if (status === "preparing") {
       return orders.filter(o => ["accepted", "preparing"].includes(o.status));
+    }
+    if (status === "completed") {
+      return orders.filter(o => ["completed", "delivered"].includes(o.status));
     }
     return orders.filter(o => o.status === status);
   };

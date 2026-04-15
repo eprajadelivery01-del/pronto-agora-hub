@@ -22,7 +22,8 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: 
     preparing: { label: "Em Preparo", color: "text-blue-500 bg-blue-500/10", next: "ready", nextLabel: "Marcar como Pronto" },
     ready: { label: "Pronto", color: "text-green-500 bg-green-500/10", next: "in_route", nextLabel: "Chamar Entregador" },
     in_route: { label: "Em Rota", color: "text-purple-500 bg-purple-500/10", next: "completed", nextLabel: "Concluir Pedido" },
-    completed: { label: "Entregue", color: "text-success bg-success/10" },
+    completed: { label: "Concluído", color: "text-success bg-success/10" },
+    delivered: { label: "Entregue", color: "text-success bg-success/10" },
     cancelled: { label: "Cancelado", color: "text-destructive bg-destructive/10" }
   };
 

@@ -58,7 +58,7 @@ export default function BusinessHomePage() {
         .from("orders")
         .select(`*, customers (*), order_items (*, products (*))`)
         .eq("company_id", companyId)
-        .or(`status.in.(pending,accepted,preparing,ready),and(status.eq.completed,created_at.gte.${startOfDay})`)
+        .or(`status.in.(pending,accepted,preparing,ready,in_route),and(status.in.(completed,delivered),created_at.gte.${startOfDay})`)
         .order("created_at", { ascending: false });
       return data || [];
     },
