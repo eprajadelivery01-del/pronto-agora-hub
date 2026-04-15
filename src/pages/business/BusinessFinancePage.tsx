@@ -51,9 +51,9 @@ export default function BusinessFinancePage() {
       setSummary({
         today: (todayRes.data || []).reduce((s: number, o: any) => s + o.total, 0),
         week: (weekRes.data || []).reduce((s: number, o: any) => s + o.total, 0),
-        month: monthData.filter((o: any) => o.status === "completed").reduce((s: number, o: any) => s + o.total, 0),
-        completed_count: monthData.filter((o: any) => o.status === "completed").length,
-        pending_count: monthData.filter((o: any) => o.status === "pending").length,
+        month: monthData.filter((o: any) => ["completed", "delivered"].includes(o.status)).reduce((s: number, o: any) => s + o.total, 0),
+        completed_count: monthData.filter((o: any) => ["completed", "delivered"].includes(o.status)).length,
+        pending_count: monthData.filter((o: any) => !["completed", "delivered", "cancelled"].includes(o.status)).length,
         cancelled_count: monthData.filter((o: any) => o.status === "cancelled").length,
       });
       setRecentOrders(recent.data || []);
@@ -133,10 +133,10 @@ export default function BusinessFinancePage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={cn("text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wider",
-                        order.status === "completed" ? "bg-success/10 text-success" :
-                        order.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                        ["completed", "delivered"].includes(order.status) ? "bg-success/10 text-success" :
+                        order.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"
                       )}>
-                        {order.status === "completed" ? "Entregue" : order.status === "cancelled" ? "Cancelado" : "Em andamento"}
+                        {["completed", "delivered"].includes(order.status) ? "Entregue" : order.status === "cancelled" ? "Cancelado" : "Em andamento"}
                       </span>
                       <p className={cn("font-black text-sm", order.status === "cancelled" ? "text-muted-foreground line-through" : "text-foreground")}>
                         {fmt(order.total || 0)}

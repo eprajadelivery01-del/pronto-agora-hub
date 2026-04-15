@@ -82,8 +82,9 @@ export default function BusinessOrdersPage() {
         )
       `)
       .eq("company_id", companyId)
-      .in("status", ["pending", "accepted", "preparing", "ready", "in_route"])
-      .order("created_at", { ascending: false });
+      .not("status", "in", '("completed","delivered","cancelled")')
+      .order("created_at", { ascending: false })
+      .returns<any[]>();
 
     console.log("[OrdersPage] Orders result:", { count: data?.length, error, data });
 
@@ -186,6 +187,11 @@ export default function BusinessOrdersPage() {
   };
 
   const ordersByColumn = (status: OrderStatus) => {
+    if (status === "pending") {
+      // Show pending AND any unknown active statuses in the first column
+      const knownStatuses = ["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"];
+      return orders.filter(o => o.status === "pending" || !knownStatuses.includes(o.status));
+    }
     if (status === "preparing") {
       return orders.filter(o => ["accepted", "preparing"].includes(o.status));
     }
