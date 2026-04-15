@@ -78,7 +78,7 @@ export default function BusinessOrdersPage() {
   const fetchOrders = useCallback(async () => {
     if (!companyId) return;
     
-      // Usando o formato oficial de select que já funciona no sistema
+      // Consulta sem o join de clientes que está quebrado no schema cache
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -86,15 +86,17 @@ export default function BusinessOrdersPage() {
           order_items (
             id, quantity, price, product_name, unit_price,
             products (id, name, image_url, description)
-          ),
-          customers (id, name, phone)
+          )
         `)
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
-    // Chamada de diagnóstico em segundo plano (não trava a UI se falhar)
+    // Chamada de diagnóstico aprimorada (imprime os nomes como texto para fácil cópia)
     supabase.from("orders").select("*").limit(1).then(({ data: diag }) => {
-      if (diag && diag[0]) console.log("[Dashboard] ESTRUTURA REAL DO PEDIDO:", Object.keys(diag[0]));
+      if (diag && diag[0]) {
+        const columns = Object.keys(diag[0]).join(", ");
+        console.log("[Dashboard] COLUNAS ENCONTRADAS NO BANCO:", columns);
+      }
     });
 
     if (error) {
