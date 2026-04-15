@@ -72,7 +72,7 @@ export default function BusinessOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ pending: 0, preparing: 0, revenue_today: 0 });
+  const [stats, setStats] = useState({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
   const createDeliveryMut = useCreateDeliveryRequest();
 
   const fetchOrders = useCallback(async () => {
@@ -122,9 +122,9 @@ export default function BusinessOrdersPage() {
         pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
         preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
         revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr))
-                           .reduce((acc, o) => acc + (o.total || 0), 0),
+                           .reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         open_total: mapped.filter(o => !["completed", "delivered", "cancelled"].includes(o.status))
-                           .reduce((acc, o) => acc + (o.total || 0), 0),
+                           .reduce((acc, o) => acc + (Number(o.total) || 0), 0),
       });
     }
     setLoading(false);
@@ -170,8 +170,14 @@ export default function BusinessOrdersPage() {
                duration: 8000,
                position: "top-center"
              });
-             // Try play notification sound
-             try { new Audio("/notification.mp3").play().catch(() => {}); } catch {}
+             // Try play notification sound (Mixkit Stable Ping)
+             try { 
+               const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+               audio.volume = 0.5;
+               audio.play().catch(e => console.warn("[Audio] Bloqueio de auto-play pelo navegador:", e)); 
+             } catch (err) {
+               console.error("[Audio] Erro ao reproduzir som:", err);
+             }
           }
         }
       )

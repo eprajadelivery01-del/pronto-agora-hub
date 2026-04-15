@@ -261,11 +261,15 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background" />
              </button>
-             <Link to="/business/profile" className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:scale-105 transition-transform">
-                <span className="text-sm font-black text-primary uppercase">
-                   {profile?.full_name?.charAt(0) || "L"}
-                </span>
-             </Link>
+             <div className="relative group">
+               <button 
+                 onClick={() => window.location.href = "/business/orders"}
+                 className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all hover:scale-105"
+               >
+                  <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse" />
+               </button>
+             </div>
           </div>
         </header>
 
