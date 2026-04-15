@@ -85,8 +85,8 @@ export default function BusinessOrdersPage() {
         customer_id,
         customers (name, phone),
         order_items (
-          id, quantity, price,
-          products (name, image_url, description)
+          id, quantity, price, product_name, unit_price,
+          products (id, name, image_url, description)
         )
       `)
       .eq("company_id", companyId)
@@ -382,7 +382,9 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action }: {
               order.items.slice(0, 2).map((item, idx) => (
                 <div key={idx} className="flex gap-2 text-sm">
                   <span className="font-black text-primary shrink-0">{item.quantity}x</span>
-                  <span className="font-bold text-foreground/80 leading-snug truncate">{item.products?.name || "Produto"}</span>
+                  <span className="font-bold text-foreground/80 leading-snug truncate">
+                    {item.product_name || item.products?.name || "Produto"}
+                  </span>
                 </div>
               ))
             ) : (
@@ -458,7 +460,7 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
     const { data, error } = await supabase
       .from("order_items")
       .select(`
-        id, quantity, price,
+        id, quantity, price, product_name, unit_price,
         products (id, name, image_url, description)
       `)
       .eq("order_id", order.id);
@@ -545,7 +547,7 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
                                             <div>
                                                 <p className="text-sm font-black text-foreground leading-tight">
                                                     <span className="text-primary mr-2">{item.quantity}x</span>
-                                                    {item.products?.name || "Produto"}
+                                                    {item.product_name || item.products?.name || "Produto"}
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1 font-medium">{item.products?.description || "Sem descrição"}</p>
                                             </div>
