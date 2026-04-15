@@ -93,10 +93,13 @@ export default function BusinessOrdersPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[OrdersPage] Erro:", error);
+      console.error("[Dashboard] Erro Crítico na busca de pedidos:", error.message, error.details, error.hint);
+      toast.error("Erro ao carregar dados do banco.");
       setLoading(false);
       return;
     }
+
+    console.log("[Dashboard] Pedidos brutos retornados pelo Supabase:", data?.length || 0);
 
     if (data) {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -137,8 +140,12 @@ export default function BusinessOrdersPage() {
         .eq("user_id", user.id)
         .maybeSingle();
       console.log("[OrdersPage] company lookup:", { company, compErr });
-      if (company) setCompanyId(company.id);
-      else console.warn("[OrdersPage] Nenhuma empresa encontrada para user_id:", user.id);
+      if (company) {
+        setCompanyId(company.id);
+        console.log("[Dashboard] Company encontrada:", company.id);
+      } else {
+        console.warn("[Dashboard] Nenhuma company vinculada ao usuário:", user.id);
+      }
       setLoading(false);
     };
     init();
