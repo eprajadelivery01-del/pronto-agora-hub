@@ -108,12 +108,15 @@ export default function BusinessOrdersPage() {
     const init = async () => {
       if (!user) return;
       setLoading(true);
-      const { data: company } = await supabase
+      console.log("[OrdersPage] user.id =", user.id);
+      const { data: company, error: compErr } = await supabase
         .from("companies")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
+      console.log("[OrdersPage] company lookup:", { company, compErr });
       if (company) setCompanyId(company.id);
+      else console.warn("[OrdersPage] Nenhuma empresa encontrada para user_id:", user.id);
       setLoading(false);
     };
     init();
