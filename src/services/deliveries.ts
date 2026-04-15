@@ -49,7 +49,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (status && status !== "all") query = query.eq("status", status as DeliveryStatus);
+      if (status && status !== "all") query = query.eq("status", status as any);
       if (search) query = query.ilike("customer_name", `%${search}%`);
       if (companyId) query = query.eq("company_id", companyId);
       if (driverId) query = query.eq("driver_id", driverId);

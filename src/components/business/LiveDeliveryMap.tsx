@@ -73,7 +73,7 @@ export function LiveDeliveryMap({ companyId }: LiveDeliveryMapProps) {
 
     // Fetch Regions for context
     const fetchRegions = async () => {
-       const { data } = await supabase.from('regions').select('*').eq('active', true);
+       const { data } = await supabase.from('regions').select('*').eq('is_active', true);
        if (data) setRegions(data);
     };
     fetchRegions();

@@ -111,7 +111,7 @@ export function useAvailableDeliveries(regionId?: string) {
         .eq("status", "pending")
         .is("driver_id", null);
       
-      if (regionId) query = query.eq("region_id", regionId);
+      if (regionId) query = query.eq("region_id" as any, regionId);
 
       const { data, error } = await query;
       if (error) throw error;

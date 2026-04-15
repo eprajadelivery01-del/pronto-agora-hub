@@ -153,8 +153,8 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
         }
 
         // Listener using REF to prevent effect re-triggering
-        map.current?.off('click', fillId); // Ensure single listener
-        map.current?.on('click', fillId, () => {
+        map.current?.off('click', fillId as any); // Ensure single listener
+        map.current?.on('click', fillId as any, () => {
            onRegionSelectRef.current?.(region.delivery_fee || region.price, region.id);
         });
         
