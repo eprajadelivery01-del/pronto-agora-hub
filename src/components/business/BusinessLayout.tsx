@@ -102,10 +102,10 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
 
   // Helper to parse logo
   const getLogo = () => {
-    if (!company?.logo_url) return "/logo.png";
+    if (!company?.logo_url) return "/icon.svg";
     try {
       const parsed = JSON.parse(company.logo_url);
-      return parsed.logo || "/logo.png";
+      return parsed.logo || "/icon.svg";
     } catch {
       return company.logo_url;
     }

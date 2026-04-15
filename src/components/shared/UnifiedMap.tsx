@@ -246,7 +246,7 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
               justify-content: center;
               overflow: hidden;
             ">
-              <img src="/logo.png" style="width: 22px; height: 22px; object-fit: contain;" alt="M" />
+              <img src="/icon.svg" style="width: 22px; height: 22px; object-fit: contain;" alt="M" />
             </div>
           </div>
           
@@ -286,7 +286,7 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
         ">
           <div style="display: flex; items-center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: #f0fdf4; display: flex; align-items: center; justify-content: center;">
-              <img src="/logo.png" style="width: 28px; height: 28px; object-fit: contain;" />
+              <img src="/icon.svg" style="width: 28px; height: 28px; object-fit: contain;" />
             </div>
             <div>
               <div style="font-size: 15px; font-weight: 800; color: #111827;">${driver.profiles?.full_name || "Entregador"}</div>
