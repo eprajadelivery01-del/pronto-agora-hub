@@ -82,7 +82,7 @@ export default function BusinessOrdersPage() {
       .from("orders")
       .select(`
         id, status, total, created_at,
-        customer_id,
+        customer_id, address_id, notes,
         order_items (
           id, quantity, price, product_name, unit_price,
           products (id, name, image_url, description)
@@ -106,7 +106,9 @@ export default function BusinessOrdersPage() {
       let customerMap: Record<string, any> = {};
       
       if (customerIds.length > 0) {
-        console.log("[Dashboard] Buscando detalhes de", customerIds.length, "clientes separadamente...");
+        console.log("[Dashboard] Buscando detalhes de clientes e endereços...");
+        
+        // Busca Contatos
         const { data: customersData } = await supabase
           .from("customers")
           .select("id, name, phone")
@@ -114,6 +116,24 @@ export default function BusinessOrdersPage() {
         
         if (customersData) {
           customersData.forEach(c => { customerMap[c.id] = c; });
+        }
+
+        // Busca Endereços
+        const addressIds = [...new Set(data.map((o: any) => o.address_id))].filter(Boolean);
+        if (addressIds.length > 0) {
+          const { data: addrData } = await supabase
+            .from("addresses")
+            .select("*")
+            .in("id", addressIds);
+          
+          if (addrData) {
+            addrData.forEach(a => {
+              const fullAddr = `${a.street}, ${a.number}${a.complement ? ` - ${a.complement}` : ""} - ${a.neighborhood}, ${a.city}`;
+              if (customerMap[a.customer_id]) {
+                customerMap[a.customer_id].address = fullAddr;
+              }
+            });
+          }
         }
       }
 
@@ -409,12 +429,17 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action }: {
           </div>
           <div className="min-w-0">
             <p className="text-base font-black text-foreground truncate">{order.customer?.name || "Cliente Marketplace"}</p>
-            <div className="flex items-center gap-3 mt-1">
-               <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
-                 <Timer className="h-3 w-3" /> {age} min
+            <div className="flex flex-col gap-1 mt-1">
+               <p className="text-[11px] text-primary font-black flex items-center gap-1.5">
+                  <Phone className="h-3 w-3" /> {order.customer?.phone || "(00) 00000-0000"}
                </p>
-               <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{order.payment_method || 'Pagamento Offline'}</p>
+               <div className="flex items-center gap-3">
+                  <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                    <Timer className="h-3 w-3" /> {age} min
+                  </p>
+                  <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{order.payment_method || 'Pagamento Offline'}</p>
+               </div>
             </div>
           </div>
         </div>
@@ -576,7 +601,19 @@ function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
                                 {order.customer?.name || "Cliente Marketplace"}
+                                <span className="text-xs text-white/60 flex items-center gap-2 mt-1">
+                                    <Phone className="w-3 h-3" /> {order.customer?.phone || "Não informado"}
+                                </span>
                             </div>
+                        </div>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black mb-2">Endereço de Entrega</span>
+                        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 max-w-sm">
+                            <MapPin className="w-5 h-5 text-white shrink-0" />
+                            <p className="text-sm font-bold text-white leading-snug">
+                                {order.customer?.address || "Endereço não disponível."}
+                            </p>
                         </div>
                     </div>
                 </div>
