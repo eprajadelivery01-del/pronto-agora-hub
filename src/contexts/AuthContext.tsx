@@ -21,8 +21,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ID Especial para o Desenvolvedor (Bypass Supremo)
-const SPECIAL_USER_ID = "1044ade5-6510-4aa5-96e6-6c5fb3aaa8b3";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -37,20 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (fetchingRef.current === userId) return;
     fetchingRef.current = userId;
     
-    // Lista de Emails de Emergência (Bypass Nuclear)
-    const EMERGENCY_EMAILS = [
-      "loja8@nexuspro.test",
-      "admin@nexuspro.test",
-      "suporte@nexuspro.test",
-      "bonasoft@nexuspro.test"
-    ];
 
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const userEmail = (forceEmail || currentUser?.email)?.toLowerCase();
-      const isEmergency = userEmail && EMERGENCY_EMAILS.includes(userEmail);
-
-      console.log(`[Auth-9c1a49c1] V11-INSTANT-GUARD - Buscando metadados para: ${userEmail || userId}`);
 
       const timeout = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Timeout")), 10000)
@@ -77,12 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
       }
 
-      // Se for emergência, garantimos os papéis
-      if (isEmergency || userId === SPECIAL_USER_ID) {
-        if (isEmergency && !finalRoles.includes("company")) finalRoles.push("company");
-        if (userId === SPECIAL_USER_ID && !finalRoles.includes("admin")) finalRoles.push("admin");
-      }
-
       setRoles(finalRoles);
 
       // --- PROFILE HANDLING ---
@@ -93,13 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           phone: profileRes.data.phone
         });
         setUserStatus(profileRes.data.status);
-      } else if (isEmergency || userId === SPECIAL_USER_ID) {
-        setProfile({ 
-          full_name: isEmergency ? "Lojista (Emergência)" : "Admin (Emergência)", 
-          avatar_url: null, 
-          phone: null 
-        });
-        setUserStatus("active");
       }
 
     } catch (error: any) {
@@ -124,21 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser ?? null);
         
         if (currentUser) {
-          // V12-TOTAL-RELEASE: Nunca travamos a tela de loading se houver sessão
           const email = currentUser.email?.toLowerCase();
-          const EMERGENCY_EMAILS = ["loja8@nexuspro.test", "admin@nexuspro.test", "suporte@nexuspro.test", "bonasoft@nexuspro.test"];
-          const isEmergency = email && EMERGENCY_EMAILS.includes(email);
-          const isSpecial = currentUser.id === SPECIAL_USER_ID;
-
-          if (isEmergency || isSpecial) {
-            setRoles(isEmergency ? ["company"] : ["admin"]);
-            setUserStatus("active");
-          }
           
-          console.log(`[Auth-9c1a49c1] V12: Liberando loading para usuário logado: ${email}`);
-          setLoading(false); // LIBERAÇÃO TOTAL
+          // Re-enable loading once metadata is fetched or just allow it to proceed
+          setLoading(false);
           
-          // Busca o resto em background
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
         } else {
           setLoading(false);
@@ -153,24 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authListener = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        console.log(`[Auth-9c1a49c1] Evento V17: ${event}`);
-
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-          const currentUser = session?.user;
-          setSession(session);
-          setUser(currentUser ?? null);
-          
           if (currentUser) {
             const email = currentUser.email?.toLowerCase();
-            const EMERGENCY_EMAILS = ["loja8@nexuspro.test", "admin@nexuspro.test", "suporte@nexuspro.test", "bonasoft@nexuspro.test"];
-            const isEmergency = email && EMERGENCY_EMAILS.includes(email);
 
-            if (isEmergency || currentUser.id === SPECIAL_USER_ID) {
-              setRoles(isEmergency ? ["company"] : ["admin"]);
-              setUserStatus("active");
-            }
-            
-            setLoading(false); // LIBERAÇÃO TOTAL
+            setLoading(false);
             setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
           } else {
             setLoading(false);
@@ -195,7 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasRole = (role: AppRole) => {
-    if (user?.id === SPECIAL_USER_ID) return true; 
     return roles.includes(role);
   };
   

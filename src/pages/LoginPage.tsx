@@ -16,7 +16,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      console.log(`Verificando acesso para user.id: ${user.id}`);
       // Redirecionamento quase imediato para sessões ativas
       const timer = setTimeout(() => {
         if (userStatus === "pending") {
@@ -39,15 +38,12 @@ export default function LoginPage() {
     setLoading(true);
     
     try {
-      console.log("Iniciando tentativa de login:", email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
-        console.error("Erro detetado no Supabase Auth:", error.message);
         toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
       }
     } catch (err: any) {
-      console.error("ERRO CRÍTICO NO LOGIN:", err);
     } finally {
       setLoading(false);
     }
