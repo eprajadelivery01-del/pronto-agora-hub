@@ -47,60 +47,71 @@ export default function BusinessHistoryPage() {
     if (!companyId) return;
     const fetchHistory = async () => {
       setLoading(true);
+      console.log("[HistoryPage] Buscando histórico para company:", companyId);
       
-      // Fetch Marketplace Orders
-      const { data: orders } = await supabase
-        .from("orders")
-        .select(`
-          id, status, total, created_at,
-          customers (name)
-        `)
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
+      try {
+        // Fetch Marketplace Orders
+        const { data: orders, error: ordersErr } = await supabase
+          .from("orders")
+          .select(`
+            id, status, total, created_at,
+            customers (name)
+          `)
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false });
 
-      // Fetch Manual Deliveries
-      const { data: deliveries } = await supabase
-        .from("deliveries")
-        .select(`
-          id, status, value, created_at,
-          customer_name
-        `)
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
+        if (ordersErr) console.error("[HistoryPage] Erro orders:", ordersErr);
 
-      const unifiedHistory: OrderHistory[] = [];
+        // Fetch Manual Deliveries
+        const { data: deliveries, error: delivErr } = await supabase
+          .from("deliveries")
+          .select(`
+            id, status, value, created_at,
+            customer_name
+          `)
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false });
 
-      if (orders) {
-        orders.forEach((o: any) => {
-          unifiedHistory.push({
-            id: o.id,
-            status: o.status,
-            total: o.total || 0,
-            created_at: o.created_at,
-            customer_name: o.customers?.name || "Cliente Marketplace",
-            type: 'marketplace'
+        if (delivErr) console.error("[HistoryPage] Erro deliveries:", delivErr);
+
+        const unifiedHistory: OrderHistory[] = [];
+
+        if (orders) {
+          orders.forEach((o: any) => {
+            unifiedHistory.push({
+              id: o.id,
+              status: o.status,
+              total: o.total || 0,
+              created_at: o.created_at,
+              customer_name: o.customers?.name || "Cliente Marketplace",
+              type: 'marketplace'
+            });
           });
-        });
-      }
+        }
 
-      if (deliveries) {
-        deliveries.forEach((d: any) => {
-          unifiedHistory.push({
-            id: d.id,
-            status: d.status,
-            total: d.value || 0,
-            created_at: d.created_at,
-            customer_name: d.customer_name || "Cliente Manual",
-            type: 'manual'
+        if (deliveries) {
+          deliveries.forEach((d: any) => {
+            unifiedHistory.push({
+              id: d.id,
+              status: d.status,
+              total: d.value || 0,
+              created_at: d.created_at,
+              customer_name: d.customer_name || "Cliente Manual",
+              type: 'manual'
+            });
           });
-        });
-      }
+        }
 
-      // Sort by date descending
-      unifiedHistory.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      setHistory(unifiedHistory);
-      setLoading(false);
+        // Sort by date descending
+        unifiedHistory.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        
+        console.log("[HistoryPage] Total carregado:", unifiedHistory.length);
+        setHistory(unifiedHistory);
+      } catch (err) {
+        console.error("[HistoryPage] Erro fatal:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchHistory();
   }, [companyId]);

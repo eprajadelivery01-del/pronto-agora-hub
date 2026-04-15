@@ -70,44 +70,45 @@ export default function BusinessOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) return;
-    console.log("[OrdersPage] Fetching orders for companyId:", companyId);
     
-    const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from("orders")
-      .select(`
-        id, status, total, created_at,
-        customers (name, phone),
-        order_items (
-          id, quantity, price,
-          products (name)
-        )
-      `)
+      .select("id, status, total, created_at")
       .eq("company_id", companyId)
-      .or(`status.not.in.(completed,delivered,cancelled),and(status.in.(completed,delivered),created_at.gte.${today})`)
-      .order("created_at", { ascending: false })
-      .returns<any[]>();
-
-    console.log("[OrdersPage] Orders result:", { count: data?.length, error, data });
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Erro ao buscar pedidos:", error);
+      console.error("[OrdersPage] Erro:", error);
+      setLoading(false);
       return;
     }
 
     if (data) {
-      const mapped = data.map((o: any) => ({
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      const filteredData = data.filter((o: any) => {
+        if (o.status === "cancelled") return false;
+        if (["completed", "delivered"].includes(o.status)) {
+          return o.created_at.startsWith(todayStr);
+        }
+        return true;
+      });
+
+      const mapped = filteredData.map((o: any) => ({
         ...o,
-        customer: o.customers,
-        items: o.order_items || []
+        customer: { name: "Cliente Marketplace" },
+        items: []
       }));
+      
       setOrders(mapped);
       setStats({
-        pending: mapped.filter(o => !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status) || o.status === "pending").length,
+        pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
         preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
-        revenue_today: data.reduce((acc: number, o: any) => acc + (o.total || 0), 0),
+        revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr))
+                           .reduce((acc, o) => acc + (o.total || 0), 0),
       });
     }
+    setLoading(false);
   }, [companyId]);
 
   useEffect(() => {
