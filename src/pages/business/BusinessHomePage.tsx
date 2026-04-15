@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Truck, Clock, CheckCircle, Loader2, MapPin, Package, Trash2, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User, TrendingUp, Zap, Search, Filter, X } from "lucide-react";
+import { Plus, Truck, Clock, CheckCircle, Loader2, MapPin, Package, Trash2, Phone, ShoppingBag, Bell, DollarSign, ArrowRight, User, TrendingUp, Zap, Search, Filter, X, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -51,8 +51,6 @@ export default function BusinessHomePage() {
     companyId: companyId || undefined,
     pageSize: 10
   });
-
-  const deliveries = deliveriesData?.data || [];
 
   const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
     queryKey: ["marketplace-orders", companyId],
