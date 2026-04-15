@@ -341,7 +341,6 @@ export default function BusinessHomePage() {
                       ))}
                     </div>
                   </div>
-                </div>
 
                 {isLoadingOrders ? (
                   <div className="space-y-3">
