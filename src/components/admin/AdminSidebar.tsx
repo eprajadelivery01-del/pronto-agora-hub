@@ -69,7 +69,7 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
         {/* Brand */}
         <div className={cn("flex items-center px-5 py-5 border-b border-sidebar-border transition-all relative", collapsed ? "justify-center px-0" : "justify-between")}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <img src="/icon.svg" alt="É Pra Já" className="h-10 w-auto rounded-lg" />
+            <img src="/logo.png" alt="É Pra Já" className="h-10 w-auto rounded-lg" />
             {!collapsed && (
               <div className="animate-in fade-in slide-in-from-left-2 duration-300">
                 <span className="text-base font-bold text-sidebar-foreground whitespace-nowrap">É Pra Já</span>
