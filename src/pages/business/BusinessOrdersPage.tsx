@@ -368,7 +368,6 @@ export default function BusinessOrdersPage() {
                   <div className={cn("w-2 h-6 rounded-full bg-primary", 
                     col.color === "warning" && "bg-warning",
                     col.color === "green" && "bg-success",
-                    col.color === "purple" && "bg-purple-500",
                     col.color === "blue" && "bg-blue-500"
                   )} />
                   <h3 className="font-black text-sm text-foreground uppercase tracking-wider">{col.label}</h3>

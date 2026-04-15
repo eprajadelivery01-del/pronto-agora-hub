@@ -59,7 +59,7 @@ export default function BusinessHomePage() {
         .from("orders")
         .select(`*, customers (*), order_items (*, products (*))`)
         .eq("company_id", companyId)
-        .or(`status.in.(pending,accepted,preparing,ready,in_route),and(status.in.(completed,delivered),created_at.gte.${startOfDay})`)
+        .or(`status.in.(pending,accepted,preparing,ready,in_route,in_transit),and(status.in.(completed,delivered),created_at.gte.${startOfDay})`)
         .order("created_at", { ascending: false });
       return data || [];
     },
@@ -132,7 +132,7 @@ export default function BusinessHomePage() {
 
   const stats = {
     pending: deliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length,
-    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route"].includes(d.status)).length,
+    inRoute: deliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
     completed: deliveries.filter(d => d.status === "completed").length,
     marketplacePending: marketplaceOrders.filter(o => o.status === "pending").length,
     marketplaceRevenue: marketplaceOrders
@@ -322,7 +322,7 @@ export default function BusinessHomePage() {
                       />
                     </div>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                      {['all', 'pending', 'preparing', 'ready', 'in_route'].map((status) => (
+                      {['all', 'pending', 'preparing', 'ready', 'in_route', 'in_transit'].map((status) => (
                         <button
                           key={status}
                           onClick={() => setStatusFilter(status)}
@@ -336,7 +336,7 @@ export default function BusinessHomePage() {
                           {status === 'all' ? 'Todos' : 
                            status === 'pending' ? 'Novos' : 
                            status === 'preparing' ? 'Preparo' : 
-                           status === 'ready' ? 'Prontos' : 'Em Rota'}
+                           status === 'ready' ? 'Prontos' : 'Em Trânsito'}
                         </button>
                       ))}
                     </div>
