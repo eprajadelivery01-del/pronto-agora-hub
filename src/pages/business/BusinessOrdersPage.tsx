@@ -83,7 +83,6 @@ export default function BusinessOrdersPage() {
       .select(`
         id, status, total, created_at,
         customer_id,
-        customers (name),
         order_items (
           id, quantity, price, product_name, unit_price,
           products (id, name, image_url, description)
