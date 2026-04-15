@@ -8,7 +8,8 @@ import { useCreateDeliveryRequest } from "@/services/deliveries";
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
   Truck, Bell, RefreshCw, Timer, Phone, MapPin, User, Package,
-  ChevronRight, ArrowRight, MoreVertical, LayoutGrid, DollarSign
+  ChevronRight, ArrowRight, MoreVertical, LayoutGrid, DollarSign,
+  ImagePlus, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -57,6 +58,17 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   in_route: "bg-purple-500/10 text-purple-600 border-purple-500/20",
   completed: "bg-success/10 text-success border-success/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+};
+
+const getNextActions = (status: OrderStatus) => {
+  const actions: Record<string, { label: string, next: OrderStatus }> = {
+    pending: { label: "Aceitar Pedido", next: "preparing" },
+    accepted: { label: "Começar Preparo", next: "preparing" },
+    preparing: { label: "Marcar Pronto", next: "ready" },
+    ready: { label: "Chamar Entregador", next: "in_route" },
+    in_route: { label: "Concluir", next: "completed" }
+  };
+  return actions[status];
 };
 
 const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] = [
@@ -283,15 +295,6 @@ export default function BusinessOrdersPage() {
     }
   };
 
-  const getNextActions = (status: OrderStatus) => {
-    const actions: Record<string, { label: string, next: OrderStatus }> = {
-      pending: { label: "Aceitar Pedido", next: "preparing" },
-      accepted: { label: "Começar Preparo", next: "preparing" },
-      preparing: { label: "Marcar Pronto", next: "ready" },
-      ready: { label: "Chamar Entregador", next: "in_route" },
-      in_route: { label: "Concluir", next: "completed" }
-    };
-    return actions[status];
   };
 
   const ordersByColumn = (status: OrderStatus) => {
@@ -543,16 +546,18 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action }: {
         onClose={() => setIsModalOpen(false)} 
         order={order}
         onStatusUpdate={onRefresh}
+        updateStatus={updateStatus}
       />
     </>
   );
 }
 
-function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate }: {
+function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate, updateStatus }: {
   isOpen: boolean;
   onClose: () => void;
   order: Order;
   onStatusUpdate: () => void;
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>;
 }) {
   const [items, setItems] = useState<any[]>(order.items || []);
   const [loading, setLoading] = useState(false);
