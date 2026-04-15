@@ -295,7 +295,6 @@ export default function BusinessOrdersPage() {
     }
   };
 
-  };
 
   const ordersByColumn = (status: OrderStatus) => {
     if (status === "pending") {
