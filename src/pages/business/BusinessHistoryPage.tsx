@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ClipboardList, Search, Calendar, RefreshCw, Eye, CheckCircle, XCircle, Clock, ShoppingBag, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import OrderDetailModal from "@/components/business/OrderDetailModal";
+import { toast } from "sonner";
 
 interface OrderHistory {
   id: string;
@@ -33,6 +35,9 @@ export default function BusinessHistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("marketplace");
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [fetchingDetails, setFetchingDetails] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -114,6 +119,58 @@ export default function BusinessHistoryPage() {
     };
     fetchHistory();
   }, [companyId]);
+  
+  const handleViewDetails = async (item: OrderHistory) => {
+    try {
+      setFetchingDetails(true);
+      console.log("[HistoryPage] Buscando detalhes para:", item.id, "tipo:", item.type);
+      
+      if (item.type === 'marketplace') {
+        const { data, error } = await supabase
+          .from("orders")
+          .select(`
+            *,
+            customers (*),
+            order_items (
+              id, quantity, price, product_name, unit_price,
+              products (id, name, image_url, description)
+            )
+          `)
+          .eq("id", item.id)
+          .single();
+          
+        if (error) throw error;
+        setSelectedOrder(data);
+      } else {
+        const { data, error } = await supabase
+          .from("deliveries")
+          .select("*")
+          .eq("id", item.id)
+          .single();
+          
+        if (error) throw error;
+        
+        // Map delivery to modal structure
+        const mappedDelivery = {
+          ...data,
+          total: data.value,
+          customer: {
+            name: data.customer_name,
+            phone: data.customer_phone || "Não informado",
+            address: data.address
+          }
+        };
+        setSelectedOrder(mappedDelivery);
+      }
+      
+      setIsModalOpen(true);
+    } catch (err: any) {
+      console.error("[HistoryPage] Erro ao buscar detalhes:", err);
+      toast.error("Não foi possível carregar os detalhes do pedido.");
+    } finally {
+      setFetchingDetails(false);
+    }
+  };
 
   const filteredHistory = history.filter(o => {
     const matchesSearch = o.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -220,8 +277,12 @@ export default function BusinessHistoryPage() {
                             R$ {order.total.toFixed(2).replace(".", ",")}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <button className="p-2 rounded-xl bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                              <Eye className="h-4 w-4" />
+                            <button 
+                              onClick={() => handleViewDetails(order)}
+                              disabled={fetchingDetails}
+                              className="p-2 rounded-xl bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-all disabled:opacity-50"
+                            >
+                              <Eye className={cn("h-4 w-4", fetchingDetails && "animate-pulse")} />
                             </button>
                           </td>
                         </tr>
@@ -234,6 +295,13 @@ export default function BusinessHistoryPage() {
           </TabsContent>
         </Tabs>
       </div>
+      </div>
+
+      <OrderDetailModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        order={selectedOrder}
+      />
     </BusinessLayout>
   );
 }
