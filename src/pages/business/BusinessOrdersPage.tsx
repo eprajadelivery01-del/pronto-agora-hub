@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,6 +79,8 @@ export default function BusinessOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [stats, setStats] = useState({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
+  const [isRinging, setIsRinging] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const createDeliveryMut = useCreateDeliveryRequest();
 
   const fetchOrders = useCallback(async () => {
@@ -247,6 +249,33 @@ export default function BusinessOrdersPage() {
     if (companyId) fetchOrders();
   }, [companyId, fetchOrders]);
 
+  // Configuração do Áudio de Alerta
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audioRef.current.loop = true;
+    }
+    
+    const hasNewOrders = orders.some(o => o.status === "pending");
+    
+    if (hasNewOrders && !isRinging) {
+      audioRef.current.play()
+        .then(() => setIsRinging(true))
+        .catch(e => console.warn("[OrdersPage] Audio blocked by browser:", e));
+    } else if (!hasNewOrders && isRinging) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsRinging(false);
+    }
+  }, [orders, isRinging]);
+
+  const handleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsRinging(false);
+    }
+  };
+
   // Realtime subscription with visual Ping
   useEffect(() => {
     if (!companyId) return;
@@ -335,9 +364,31 @@ export default function BusinessOrdersPage() {
 
   return (
     <BusinessLayout title="Marketplace: Gestão de Pedidos">
-      <div className="space-y-8 animate-in fade-in duration-700">
-        
-        {/* Superior Dashboard */}
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+        {/* Header com Alerta Sonoro */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-black text-foreground tracking-tight">Gestão de Pedidos</h2>
+            <p className="text-muted-foreground font-medium">Acompanhe e gerencie as vendas do seu marketplace.</p>
+          </div>
+          
+          {isRinging && (
+            <div className="flex items-center gap-2 animate-in zoom-in duration-300">
+              <div className="flex h-12 items-center gap-3 px-6 rounded-2xl bg-destructive text-destructive-foreground font-black text-xs uppercase tracking-widest animate-pulse shadow-xl shadow-destructive/20 border-2 border-white/20">
+                <Bell className="h-5 w-5 animate-bounce" />
+                Novo Pedido Pendente!
+              </div>
+              <button
+                onClick={handleMute}
+                className="h-12 w-12 flex items-center justify-center rounded-2xl bg-muted text-foreground hover:bg-muted/80 transition-all border border-border shadow-md"
+                title="Silenciar Alerta"
+              >
+                <XCircle className="h-6 w-6 text-destructive" />
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            <div className="bg-card border border-border rounded-3xl p-6 shadow-card hover:border-primary/20 transition-all flex items-center gap-5">
               <div className="w-14 h-14 rounded-2xl bg-warning/10 flex items-center justify-center">
