@@ -209,11 +209,23 @@ export default function BusinessOrdersPage() {
         // Find best source of customer data
         const customerData = customerMap[o.customer_id] || {};
         
+        // Helper to get real value or null if placeholder
+        const cleanVal = (val: string | null | undefined, placeholder: string) => {
+          if (!val || val === placeholder || val === "Cliente Marketplace") return null;
+          return val;
+        };
+
         return {
           ...o,
           customer: {
-            name: customerData.name || o.customer_name || o.customer?.name || "Cliente Marketplace",
-            phone: customerData.phone || o.customer_phone || o.customer?.phone || "Não informado",
+            name: cleanVal(customerData.name, "Cliente Marketplace") || 
+                  cleanVal(o.customer_name, "Cliente Marketplace") || 
+                  cleanVal(o.customer?.name, "Cliente Marketplace") || 
+                  "Cliente Marketplace",
+            phone: cleanVal(customerData.phone, "Não informado") || 
+                   cleanVal(o.customer_phone, "Não informado") || 
+                   cleanVal(o.customer?.phone, "Não informado") || 
+                   "Não informado",
             address: o.delivery_address || o.address || customerData.address || "Endereço não disponível"
           },
           items: o.order_items || []
