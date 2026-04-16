@@ -138,15 +138,32 @@ export function useReassignDelivery() {
  * INTEGRAÇÕES COM PAINEL LOJISTA (iFood Style)
  */
 export async function createDeliveryRequest(orderId: string) {
-  // 1. Puxa os dados do pedido (orders)
+  console.log(`[Deliveries] Iniciando criação de entrega para pedido: ${orderId}`);
+  
+  // 1. Puxa os dados do pedido (Sem Joins problemáticos)
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("*, customers(*), order_items(*)")
+    .select("*") 
     .eq("id", orderId)
     .single();
 
-  if (orderError) throw orderError;
+  if (orderError) {
+    console.error("[Deliveries] Erro ao buscar pedido:", orderError);
+    throw orderError;
+  }
   if (!order) throw new Error("Pedido não encontrado");
+
+  // 1.1 Busca o cliente separadamente (Resiliente)
+  let customerData = null;
+  if (order.customer_id) {
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id, name, phone")
+      .eq("id", order.customer_id)
+      .maybeSingle();
+    customerData = customer;
+  }
+
 
   // Utilizamos preferencialmente o delivery_address que veio do Checkout.
   // Caso não exista, tentamos puxar o endereço padrão do customer, mas no nosso fluxo o Cliente já salva na Order.
@@ -167,19 +184,25 @@ export async function createDeliveryRequest(orderId: string) {
   if (!dropoff) dropoff = "Retirada no Local ou Endereço Inválido";
 
   // 2. Insere na tabela de deliveries
+  console.log(`[Deliveries] Criando registro na tabela de Entregas para ${customerData?.name || "Cliente"}...`);
   const { data: delivery, error: deliveryError } = await supabase
     .from("deliveries")
     .insert({
       company_id: order.company_id,
-      customer_name: order.customers ? (order.customers as any).name : "Cliente Avulso",
-      address: dropoff, // IMPORTANTE: no types.ts a coluna chama 'address'
-      value: order.total || 0, // No types.ts a coluna chama 'value'
+      customer_name: customerData?.name || order.customer_name || "Cliente Marketplace",
+      address: dropoff,
+      value: order.total || 0,
       status: "pending"
     })
     .select()
     .single();
 
-  if (deliveryError) throw deliveryError;
+  if (deliveryError) {
+    console.error("[Deliveries] Erro na inserção da entrega:", deliveryError);
+    throw deliveryError;
+  }
+
+  console.log(`[Deliveries] Entrega criada com ID: ${delivery.id}. Vinculando ao pedido...`);
 
   // 3. Associa a delivery_id ao pedido e mantém o status da Order como ready (ou muda se necessário)
   await supabase
