@@ -124,7 +124,7 @@ export default function OrderDetailModal({
 
   if (!order) return null;
 
-  const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string }> = {
+  const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string, prev?: string, prevLabel?: string }> = {
     pending: { label: "Novo Pedido", color: "bg-amber-500 text-white shadow-lg", next: "preparing", nextLabel: "Aceitar Pedido" },
     accepted: { label: "Aceito", color: "bg-indigo-500 text-white shadow-lg", next: "preparing", nextLabel: "Começar Preparo", prev: "pending", prevLabel: "Voltar para Novos" },
     preparing: { label: "Em Preparo", color: "bg-blue-500 text-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto", prev: "pending", prevLabel: "Voltar para Novos" },
@@ -135,7 +135,7 @@ export default function OrderDetailModal({
     cancelled: { label: "Cancelado", color: "bg-rose-500 text-white shadow-lg" }
   };
 
-  const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined };
+  const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined, prev: undefined, prevLabel: undefined };
   
   const handleAdvance = () => {
     if (status.next) {
