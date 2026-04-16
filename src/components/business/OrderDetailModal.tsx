@@ -26,6 +26,7 @@ export default function OrderDetailModal({
   onStatusUpdate
 }: OrderDetailModalProps) {
   const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{name: string | null, phone: string | null} | null>(null);
 
   useEffect(() => {
