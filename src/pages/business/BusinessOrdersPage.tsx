@@ -443,7 +443,7 @@ export default function BusinessOrdersPage() {
       if (data && data.success === false) {
         console.error("[Dashboard] Negócio recusou o update:", data.message || data.error);
         toast.error("Falha na atualização: " + (data.message || data.error));
-        return;
+        return; // INTERROMPE O LOOP AQUI
       }
 
       console.log("[Dashboard] Update via RPC concluído com sucesso!");
@@ -455,9 +455,6 @@ export default function BusinessOrdersPage() {
     } catch (err: any) {
       console.error("[Dashboard] Falha catastrófica na atualização:", err);
       toast.error("Erro crítico de banco de dados. Contate o suporte.");
-    } finally {
-      // Re-fetch para garantir sincronia real
-      fetchOrders();
     }
   };
 

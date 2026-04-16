@@ -89,6 +89,7 @@ export default function BusinessHomePage() {
     } catch (error: any) {
       console.error("[Home] Falha na atualização:", error);
       toast.error("Erro ao atualizar: " + error.message);
+      // Trava de segurança: não recarrega os dados aqui para evitar loop infinito de erros
     }
   };
 
