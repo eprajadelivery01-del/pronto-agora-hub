@@ -280,7 +280,6 @@ export default function BusinessOrdersPage() {
         open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
       });
       }
-    }
     } catch (err: any) {
       console.error("[Dashboard] Falha catastrófica no fetchOrders:", err);
       toast.error("Ocorreu um erro ao processar os dados.");
