@@ -62,17 +62,33 @@ export default function OrderDetailModal({
 
     try {
       console.log("[OrderDetailModal] Buscando dados reais do cliente em Profiles...");
+      
+      // Tentativa 1: Perfis (ID ou User ID)
       const { data: profile } = await supabase
         .from("profiles")
         .select("name, phone")
         .or(`id.eq.${order.customer_id},user_id.eq.${order.customer_id}`)
         .maybeSingle();
       
-      if (profile) {
+      if (profile && profile.name && profile.name !== "Consumidor") {
         setCustomerInfo({ name: profile.name, phone: profile.phone });
+        return;
+      }
+
+      // Tentativa 2: Tabela de Entregas (Muitas vezes tem o nome digitado no checkout)
+      console.log("[OrderDetailModal] Perfil não encontrado ou genérico. Buscando na tabela de Entregas...");
+      const { data: delivery } = await supabase
+        .from("deliveries")
+        .select("customer_name, customer_phone")
+        .eq("company_id", order.company_id)
+        .or(`id.eq.${order.delivery_id},notes.ilike.%${order.id.slice(-6)}%`)
+        .maybeSingle();
+
+      if (delivery && delivery.customer_name) {
+        setCustomerInfo({ name: delivery.customer_name, phone: delivery.customer_phone });
       }
     } catch (err) {
-      console.error("[OrderDetailModal] Erro ao buscar perfil:", err);
+      console.error("[OrderDetailModal] Erro ao buscar dados complementares:", err);
     }
   };
 

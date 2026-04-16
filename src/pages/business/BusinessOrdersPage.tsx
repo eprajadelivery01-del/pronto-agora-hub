@@ -220,7 +220,7 @@ export default function BusinessOrdersPage() {
 
       const mapped = filteredData.map((o: any) => {
         // Find best source of customer data
-        const customerData = customerMap[o.customer_id] || {};
+        const customerDataFromMap = customerMap[o.customer_id] || {};
         
         // Helper to get real value or null if placeholder
         const cleanVal = (val: string | null | undefined, placeholder: string) => {
@@ -235,12 +235,14 @@ export default function BusinessOrdersPage() {
           return v;
         };
 
-        const finalName = cleanVal(customerData.name, "Cliente Marketplace") || 
+        const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || 
                          cleanVal(o.customer_name, "Cliente Marketplace") || 
+                         cleanVal(o.customers?.name, "Cliente Marketplace") || 
                          "Cliente Marketplace";
 
-        const finalPhone = cleanVal(customerData.phone, "Não informado") || 
+        const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || 
                           cleanVal(o.customer_phone, "Não informado") || 
+                          cleanVal(o.customers?.phone, "Não informado") || 
                           "Não informado";
 
         return {
@@ -248,7 +250,7 @@ export default function BusinessOrdersPage() {
           customer: {
             name: finalName,
             phone: finalPhone,
-            address: o.delivery_address || o.address || customerData.address || "Endereço não disponível"
+            address: o.delivery_address || o.address || customerDataFromMap.address || "Endereço não disponível"
           },
           items: o.order_items || []
         };
