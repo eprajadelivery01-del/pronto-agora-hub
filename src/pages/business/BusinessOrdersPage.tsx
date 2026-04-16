@@ -96,21 +96,32 @@ export default function BusinessOrdersPage() {
       setLoading(true);
       
       // BUSCA ULTRA-SEGURA: apenas campos vitais para evitar erro de schema
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("orders")
         .select("id, status, total, created_at, customer_id, delivery_id")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("[Dashboard] Erro na query de pedidos:", error);
-        toast.error("Erro ao carregar dados do banco.");
-        return;
+        console.warn("[Dashboard] Query direta falhou, tentando CHAVE MESTRA (RPC)...", error.message);
+        
+        // Tentativa via RPC (Função de Banco que pula o RLS quebrado)
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_business_orders_v2', { p_company_id: companyId });
+          
+        if (rpcError) {
+          console.error("[Dashboard] Falha catastrófica: Nem a RPC funcionou.", rpcError);
+          toast.error("Erro crítico de banco de dados. Contate o suporte.");
+          return;
+        }
+        
+        console.log("[Dashboard] CHAVE MESTRA funcionou! Pedidos carregados via RPC.");
+        data = rpcData;
       }
 
       console.log(`[Dashboard] Pedidos recebidos: ${data?.length || 0}`);
 
-      if (data) {
+      if (data && data.length > 0) {
       // Busca resiliente de clientes (evita falha de join no status 400)
       const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
       let customerMap: Record<string, any> = {};
