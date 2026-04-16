@@ -86,32 +86,29 @@ export default function BusinessOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) {
+      console.log("[Dashboard] fetchOrders abortado: companyId ausente.");
       setLoading(false);
       return;
     }
     
     try {
-      console.log("[Dashboard] Iniciando busca resiliente de pedidos...");
+      console.log(`[Dashboard] Iniciando busca de pedidos para Empresa: ${companyId}`);
+      setLoading(true);
       
-      // Seleção ULTRA-MINIMALISTA de colunas (Evita qualquer erro de esquema desalinhado)
+      // BUSCA ULTRA-SEGURA: apenas campos vitais para evitar erro de schema
       const { data, error } = await supabase
         .from("orders")
-        .select(`
-          id, customer_id, company_id, status, total, 
-          delivery_address, created_at, update_at:updated_at,
-          order_items (
-            id, quantity, price, product_name, unit_price,
-            products (id, name, image_url, description)
-          )
-        `)
+        .select("id, status, total, created_at, customer_id, delivery_id")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("[Dashboard] Erro na busca de pedidos:", error.message);
+        console.error("[Dashboard] Erro na query de pedidos:", error);
         toast.error("Erro ao carregar dados do banco.");
         return;
       }
+
+      console.log(`[Dashboard] Pedidos recebidos: ${data?.length || 0}`);
 
       if (data) {
       // Busca resiliente de clientes (evita falha de join no status 400)
@@ -291,28 +288,45 @@ export default function BusinessOrdersPage() {
 
   useEffect(() => {
     const init = async () => {
-      if (!user) return;
-      setLoading(true);
-      console.log("[OrdersPage] user.id =", user.id);
-      const { data: company, error: compErr } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      console.log("[OrdersPage] company lookup:", { company, compErr });
-      if (company) {
-        setCompanyId(company.id);
-        console.log("[Dashboard] Company encontrada:", company.id);
-      } else {
-        console.warn("[Dashboard] Nenhuma company vinculada ao usuário:", user.id);
+      console.log("[Dashboard] Inicializando Dashboard...");
+      if (!user) {
+         console.warn("[Dashboard] Usuário não logado.");
+         return;
       }
-      setLoading(false);
+      
+      setLoading(true);
+      try {
+        console.log(`[Dashboard] Buscando empresa para usuário: ${user.id}`);
+        const { data: company, error: compErr } = await supabase
+          .from("companies")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        if (compErr) {
+          console.error("[Dashboard] Erro ao buscar empresa:", compErr);
+        }
+
+        if (company) {
+          console.log(`[Dashboard] Empresa vinculada encontrada: ${company.id}`);
+          setCompanyId(company.id);
+        } else {
+          console.warn("[Dashboard] Nenhuma empresa encontrada para este usuário.");
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("[Dashboard] Exceção na inicialização:", err);
+        setLoading(false);
+      }
     };
     init();
   }, [user]);
 
   useEffect(() => {
-    if (companyId) fetchOrders();
+    if (companyId) {
+      console.log("[Dashboard] companyId atualizado, disparando fetchOrders...");
+      fetchOrders();
+    }
   }, [companyId, fetchOrders]);
 
   // Configuração do Áudio de Alerta
