@@ -134,6 +134,7 @@ export default function BusinessOrdersPage() {
         const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
         const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
         
+        // Mapeamento preparado antecipadamente
         let customerMap: Record<string, any> = {};
         customerIds.forEach(id => { customerMap[id] = { id }; });
 
@@ -199,69 +200,52 @@ export default function BusinessOrdersPage() {
             });
           }
         }
-      }
 
-      const todayStr = new Date().toISOString().split('T')[0];
-      
-      const filteredData = data.filter((o: any) => {
-        if (o.status === "cancelled") return false;
-        if (["completed", "delivered"].includes(o.status)) {
-          return o.created_at.startsWith(todayStr);
-        }
-        return true;
-      });
-
-      const mapped = filteredData.map((o: any) => {
-        // Find best source of customer data
-        const customerDataFromMap = customerMap[o.customer_id] || {};
+        const todayStr = new Date().toISOString().split('T')[0];
         
-        // Helper to get real value or null if placeholder
-        const cleanVal = (val: string | null | undefined, placeholder: string) => {
-          if (!val) return null;
-          const v = String(val).trim();
-          if (v === "" || 
-              v.toLowerCase() === placeholder.toLowerCase() || 
-              v.toLowerCase() === "null" || 
-              v.toLowerCase() === "undefined" || 
-              v.toLowerCase() === "consumidor" ||
-              v === "Não informado") return null;
-          return v;
-        };
+        const filteredData = data.filter((o: any) => {
+          if (o.status === "cancelled") return false;
+          if (["completed", "delivered"].includes(o.status)) {
+            return o.created_at.startsWith(todayStr);
+          }
+          return true;
+        });
 
-        const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || 
-                         cleanVal(o.customer_name, "Cliente Marketplace") || 
-                         cleanVal(o.customers?.name, "Cliente Marketplace") || 
-                         "Cliente Marketplace";
+        const mapped = filteredData.map((o: any) => {
+          const customerDataFromMap = customerMap[o.customer_id] || {};
+          
+          const cleanVal = (val: string | null | undefined, placeholder: string) => {
+            if (!val) return null;
+            const v = String(val).trim();
+            if (v === "" || v.toLowerCase() === placeholder.toLowerCase() || v.toLowerCase() === "null" || v.toLowerCase() === "undefined" || v.toLowerCase() === "consumidor" || v === "Não informado") return null;
+            return v;
+          };
 
-        const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || 
-                          cleanVal(o.customer_phone, "Não informado") || 
-                          cleanVal(o.customers?.phone, "Não informado") || 
-                          "Não informado";
+          const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || cleanVal(o.customer_name, "Cliente Marketplace") || cleanVal(o.customers?.name, "Cliente Marketplace") || "Cliente Marketplace";
+          const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
 
-        return {
-          ...o,
-          customer: {
-            name: finalName,
-            phone: finalPhone,
-            address: o.delivery_address || o.address || customerDataFromMap.address || "Endereço não disponível"
-          },
-          items: o.order_items || []
-        };
-      });
-      
-      setOrders(mapped);
-      setStats({
-        pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
-        preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
-        revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr))
-                           .reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-        open_total: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status))
-                           .reduce((acc, o) => {
-                             const val = Number(o.total) || 0;
-                             console.log(`[Dashboard] Somando pedido ${o.id}: R$ ${val} (Status: ${o.status})`);
-                             return acc + val;
-                           }, 0),
-      });
+          return {
+            ...o,
+            customer: {
+              name: finalName,
+              phone: finalPhone,
+              address: o.delivery_address || o.address || customerDataFromMap.address || "Endereço não disponível"
+            },
+            items: o.order_items || []
+          };
+        });
+        
+        setOrders(mapped);
+        setStats({
+          pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
+          preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
+          revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          open_total: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+        });
+      } else {
+        setOrders([]);
+        setStats({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
+      }
       console.log("[Dashboard] Estatísticas finais:", {
         revenue: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).length,
         open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
