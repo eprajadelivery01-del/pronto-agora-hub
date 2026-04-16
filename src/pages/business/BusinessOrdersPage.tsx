@@ -428,8 +428,9 @@ export default function BusinessOrdersPage() {
     
     try {
       const { data: authData } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      // Sincronizado com src/integrations/supabase/client.ts
+      const supabaseUrl = (window as any).SUPABASE_CONFIG?.url || "https://nptkxlrhrlssdsevpgqe.supabase.co";
+      const supabaseKey = (window as any).SUPABASE_CONFIG?.anonKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdGt4bHJocmxzc2RzZXZwZ3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDE4MTQsImV4cCI6MjA5MDYxNzgxNH0.t8Cu-yFnSqOURT4GXCZ_mBghpxucT89nRBFlBNA1vZs";
 
       if (!supabaseUrl || !supabaseKey) {
         throw new Error("Configuração do Supabase ausente.");
