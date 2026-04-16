@@ -219,18 +219,23 @@ export default function BusinessOrdersPage() {
         
         // Helper to get real value or null if placeholder
         const cleanVal = (val: string | null | undefined, placeholder: string) => {
-          if (!val || val === placeholder || val === "" || val === "Cliente Marketplace" || val === "Consumidor") return null;
-          return val;
+          if (!val) return null;
+          const v = String(val).trim();
+          if (v === "" || 
+              v.toLowerCase() === placeholder.toLowerCase() || 
+              v.toLowerCase() === "null" || 
+              v.toLowerCase() === "undefined" || 
+              v.toLowerCase() === "consumidor" ||
+              v === "Não informado") return null;
+          return v;
         };
 
         const finalName = cleanVal(customerData.name, "Cliente Marketplace") || 
                          cleanVal(o.customer_name, "Cliente Marketplace") || 
-                         cleanVal(o.customer?.name, "Cliente Marketplace") || 
                          "Cliente Marketplace";
 
         const finalPhone = cleanVal(customerData.phone, "Não informado") || 
                           cleanVal(o.customer_phone, "Não informado") || 
-                          cleanVal(o.customer?.phone, "Não informado") || 
                           "Não informado";
 
         return {
@@ -657,6 +662,14 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
           </div>
         </div>
       </div>
+
+      <OrderDetailModal
+        order={order}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        updateStatus={updateStatus}
+        onStatusUpdate={onRefresh}
+      />
     </>
   );
 }
