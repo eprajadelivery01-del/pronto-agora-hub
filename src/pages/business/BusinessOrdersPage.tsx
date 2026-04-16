@@ -251,6 +251,7 @@ export default function BusinessOrdersPage() {
         setOrders([]);
         setStats({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
       }
+      console.log("[Dashboard] Estatísticas finais carregadas.");
     } catch (err: any) {
       console.error("[Dashboard] Falha catastrófica no fetchOrders:", err);
       toast.error("Ocorreu um erro ao processar os dados.");
