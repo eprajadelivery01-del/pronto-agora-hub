@@ -242,14 +242,14 @@ export default function BusinessOrdersPage() {
           revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
           open_total: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         });
+
+        console.log("[Dashboard] Estatísticas finais:", {
+          revenue: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).length,
+          open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
+        });
       } else {
         setOrders([]);
         setStats({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
-      }
-      console.log("[Dashboard] Estatísticas finais:", {
-        revenue: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).length,
-        open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
-      });
       }
     } catch (err: any) {
       console.error("[Dashboard] Falha catastrófica no fetchOrders:", err);
