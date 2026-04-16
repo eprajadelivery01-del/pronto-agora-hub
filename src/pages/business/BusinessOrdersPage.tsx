@@ -427,26 +427,20 @@ export default function BusinessOrdersPage() {
     console.log(`[Dashboard] Atualizando pedido ${orderId} para status: ${newStatus}`);
     
     try {
-      console.log("[Dashboard] Usando RPC Chave Mestra para atualização blindada de status...");
-      
-      const { data, error } = await supabase.rpc('update_order_status_v4', {
-        p_order_id: orderId,
-        p_new_status: newStatus
-      });
+      console.log("[Dashboard] Atualizando status via UPDATE direto em orders...");
+
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: newStatus as any })
+        .eq("id", orderId);
 
       if (error) {
-        console.error("[Dashboard] Erro técnico na RPC de update:", error);
+        console.error("[Dashboard] Erro no UPDATE de orders:", error);
         toast.error("Erro ao atualizar no banco: " + error.message);
         return;
       }
 
-      if (data && data.success === false) {
-        console.error("[Dashboard] Negócio recusou o update:", data.message || data.error);
-        toast.error("Falha na atualização: " + (data.message || data.error));
-        return;
-      }
-
-      console.log("[Dashboard] Update via RPC concluído com sucesso!");
+      console.log("[Dashboard] Update concluído com sucesso!");
       
       // Atualização otimista do estado local
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
