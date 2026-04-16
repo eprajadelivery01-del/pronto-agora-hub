@@ -105,6 +105,8 @@ export default function BusinessOrdersPage() {
         .order("created_at", { ascending: false });
 
       const { data, error } = await query;
+
+    if (error) {
       console.error("[Dashboard] Erro Crítico na busca de pedidos:", error.message);
       toast.error("Erro ao carregar dados do banco.");
       setLoading(false);
