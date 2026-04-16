@@ -425,36 +425,30 @@ export default function BusinessOrdersPage() {
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
     console.log(`[Dashboard] Atualizando pedido ${orderId} para status: ${newStatus}`);
-    
+
+    // Atualização otimista
+    const previous = orders;
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+
     try {
-      console.log("[Dashboard] Usando RPC Chave Mestra para atualização blindada de status...");
-      
-      const { data, error } = await supabase.rpc('update_order_status_v4', {
-        p_order_id: orderId,
-        p_new_status: newStatus
-      });
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
 
       if (error) {
-        console.error("[Dashboard] Erro técnico na RPC de update:", error);
-        toast.error("Erro ao atualizar no banco: " + error.message);
+        console.error("[Dashboard] Erro no UPDATE de orders:", error);
+        toast.error("Falha na atualização: " + error.message);
+        setOrders(previous); // rollback
         return;
       }
 
-      if (data && data.success === false) {
-        console.error("[Dashboard] Negócio recusou o update:", data.message || data.error);
-        toast.error("Falha na atualização: " + (data.message || data.error));
-        return; // INTERROMPE O LOOP AQUI
-      }
-
-      console.log("[Dashboard] Update via RPC concluído com sucesso!");
-      
-      // Atualização otimista do estado local
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      console.log("[Dashboard] Update concluído com sucesso!");
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
-      
     } catch (err: any) {
       console.error("[Dashboard] Falha catastrófica na atualização:", err);
-      toast.error("Erro crítico de banco de dados. Contate o suporte.");
+      toast.error("Erro crítico: " + (err?.message || "desconhecido"));
+      setOrders(previous);
     }
   };
 
