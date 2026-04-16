@@ -132,22 +132,27 @@ export default function BusinessOrdersPage() {
           });
         }
 
-        // NOVO: Busca fallback em PROFILES para clientes do Marketplace
+        // NOVO: Busca fallback em PROFILES para clientes do Marketplace (Resiliente: Testa ID e USER_ID)
         const missingFromCustomers = customerIds.filter(id => !customerMap[id] || !customerMap[id].name);
         if (missingFromCustomers.length > 0) {
           console.log("[Dashboard] Buscando dados complementares na tabela Profiles...");
           const { data: profilesData } = await supabase
             .from("profiles")
             .select("id, name, phone, user_id")
-            .in("id", missingFromCustomers);
+            .or(`id.in.(${missingFromCustomers.join(',')}),user_id.in.(${missingFromCustomers.join(',')})`);
           
           if (profilesData) {
             profilesData.forEach(p => {
-              customerMap[p.id] = {
-                ...customerMap[p.id],
-                name: customerMap[p.id]?.name || p.name,
-                phone: customerMap[p.id]?.phone || p.phone
-              };
+              // Mapeia o perfil encontrado para qualquer ID que combine (id ou user_id)
+              missingFromCustomers.forEach(mId => {
+                if (p.id === mId || p.user_id === mId) {
+                  customerMap[mId] = {
+                    ...customerMap[mId],
+                    name: customerMap[mId]?.name || p.name,
+                    phone: customerMap[mId]?.phone || p.phone
+                  };
+                }
+              });
             });
           }
         }

@@ -65,7 +65,7 @@ export default function OrderDetailModal({
       const { data: profile } = await supabase
         .from("profiles")
         .select("name, phone")
-        .eq("id", order.customer_id)
+        .or(`id.eq.${order.customer_id},user_id.eq.${order.customer_id}`)
         .maybeSingle();
       
       if (profile) {
