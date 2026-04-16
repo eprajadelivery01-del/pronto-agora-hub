@@ -1,201 +1,301 @@
-import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
-  CheckCircle2, AlertCircle, X, Printer, ArrowRight, Trash2 
+  CheckCircle2, AlertCircle, X, Printer, ArrowRight, Trash2,
+  Package, ImagePlus, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OrderDetailModalProps {
   order: any;
   isOpen: boolean;
   onClose: () => void;
   onAdvance?: (orderId: string, nextStatus: string) => void;
+  updateStatus?: (orderId: string, status: any) => Promise<void>;
+  onStatusUpdate?: () => void;
 }
 
-export default function OrderDetailModal({ order, isOpen, onClose, onAdvance }: OrderDetailModalProps) {
+export default function OrderDetailModal({ 
+  order, 
+  isOpen, 
+  onClose, 
+  onAdvance,
+  updateStatus,
+  onStatusUpdate
+}: OrderDetailModalProps) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && order?.id) {
+       if (order.items && order.items.length > 0) {
+         setItems(order.items);
+       } else if (order.order_items && order.order_items.length > 0) {
+         setItems(order.order_items);
+       } else {
+         fetchItems();
+       }
+    }
+  }, [isOpen, order?.id]);
+
+  const fetchItems = async () => {
+    if (!order?.id) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("order_items")
+        .select(`
+          id, quantity, price, product_name, unit_price,
+          products (id, name, image_url, description)
+        `)
+        .eq("order_id", order.id);
+      
+      if (data) setItems(data);
+      if (error) console.error("[OrderDetailModal] Erro ao buscar itens:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parseImages = (imageUrl: string | null): string[] => {
+    if (!imageUrl) return [];
+    try {
+      const parsed = JSON.parse(imageUrl);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      if (imageUrl.startsWith("http")) return [imageUrl];
+    }
+    return [];
+  };
+
   if (!order) return null;
 
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string }> = {
-    pending: { label: "Novo Pedido", color: "text-white bg-amber-500 shadow-lg shadow-amber-500/20", next: "preparing", nextLabel: "Aceitar Pedido" },
-    accepted: { label: "Aceito", color: "text-white bg-indigo-500 shadow-lg shadow-indigo-500/20", next: "preparing", nextLabel: "Começar Preparo" },
-    preparing: { label: "Em Preparo", color: "text-primary bg-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto" },
-    ready: { label: "Pronto", color: "text-white bg-emerald-500 shadow-lg shadow-emerald-500/20", next: "in_route", nextLabel: "Chamar Entregador" },
-    in_route: { label: "Em Rota", color: "text-white bg-purple-500 shadow-lg shadow-purple-500/20", next: "completed", nextLabel: "Concluir Pedido" },
-    completed: { label: "Concluído", color: "text-white bg-emerald-600 shadow-lg" },
-    delivered: { label: "Entregue", color: "text-white bg-emerald-600 shadow-lg" },
-    cancelled: { label: "Cancelado", color: "text-white bg-rose-500 shadow-lg" }
+    pending: { label: "Novo Pedido", color: "bg-amber-500 text-white shadow-lg", next: "preparing", nextLabel: "Aceitar Pedido" },
+    accepted: { label: "Aceito", color: "bg-indigo-500 text-white shadow-lg", next: "preparing", nextLabel: "Começar Preparo" },
+    preparing: { label: "Em Preparo", color: "bg-blue-500 text-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto" },
+    ready: { label: "Pronto", color: "bg-emerald-500 text-white shadow-lg", next: "ready", nextLabel: "Chamar Entregador" },
+    in_route: { label: "Em Rota", color: "bg-purple-500 text-white shadow-lg", next: "completed", nextLabel: "Concluir Pedido" },
+    completed: { label: "Concluído", color: "bg-emerald-600 text-white shadow-lg" },
+    delivered: { label: "Entregue", color: "bg-emerald-600 text-white shadow-lg" },
+    cancelled: { label: "Cancelado", color: "bg-rose-500 text-white shadow-lg" }
   };
 
   const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined };
-  const items = order.order_items || order.items || [];
+  
+  const handleAdvance = () => {
+    if (status.next) {
+      if (onAdvance) {
+        onAdvance(order.id, status.next);
+      } else if (updateStatus) {
+        updateStatus(order.id, status.next).then(() => {
+          onStatusUpdate?.();
+        });
+      }
+    }
+  };
+
+  const handleCancel = async () => {
+    if (confirm("Deseja cancelar este pedido?")) {
+      if (onAdvance) {
+        onAdvance(order.id, "cancelled");
+      } else if (updateStatus) {
+        await updateStatus(order.id, "cancelled");
+        onStatusUpdate?.();
+      }
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden border-none rounded-[2.5rem] bg-card shadow-2xl">
-        <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
-          {/* Header */}
-          <div className="p-6 pb-4 bg-primary text-white relative overflow-hidden shrink-0">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10">
+        <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
+        
+        {/* Modern Glass Header */}
+        <div className="bg-primary/95 backdrop-blur-3xl px-8 py-10 md:px-10 md:py-14 relative overflow-hidden text-white">
+            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                <ShoppingBag className="w-48 h-48 rotate-12" />
+            </div>
             
-            <div className="relative flex justify-between items-start mb-4">
-              <div>
-                <DialogTitle className="text-2xl font-black tracking-tight mb-1">
-                  Pedido #{order.id.slice(-6).toUpperCase()}
-                </DialogTitle>
-                <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest opacity-80">
-                   <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                   <span className="w-1 h-1 rounded-full bg-white/40" />
-                   <span className="flex items-center gap-1.5"><DollarSign className="h-3 w-3" /> R$ {order.total?.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl", status.color)}>
-                 {status.label}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
-               <div className="bg-white/10 rounded-2xl p-3 flex items-center gap-3 border border-white/10">
-                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                     <User className="h-4 w-4" />
-                  </div>
-                  <div className="overflow-hidden">
-                     <p className="text-[9px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Comprador</p>
-                     <p className="text-sm font-bold truncate leading-none">
-                        {order.customer?.name || order.customer_name || "Cliente Marketplace"}
-                     </p>
-                  </div>
-               </div>
-               
-               <div className="bg-white/10 rounded-2xl p-3 flex items-center gap-3 border border-white/10">
-                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                     <MapPin className="h-4 w-4" />
-                  </div>
-                  <div className="overflow-hidden">
-                     <p className="text-[9px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Entrega</p>
-                     <p className="text-sm font-bold truncate leading-none">
-                        {order.customer?.address || order.delivery_address || order.address || "Endereço não disponível."}
-                     </p>
-                  </div>
-               </div>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-8 py-4 space-y-8 custom-scrollbar">
-
-            {/* Items Section */}
-            <div className="space-y-4 bg-muted/30 rounded-[2rem] p-6 border border-border/50">
-               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Itens do Pedido ({items.length})</h4>
-               <div className="space-y-3">
-                  {items.map((item: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center bg-card/50 rounded-2xl p-4 border border-border/40">
-                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-black text-xs">
-                             {item.quantity}x
-                          </div>
-                          <div>
-                             <p className="text-sm font-bold text-foreground">{item.products?.name || item.product_name || "Produto"}</p>
-                             <p className="text-[10px] text-muted-foreground font-medium">Un: R$ {item.price?.toFixed(2)}</p>
-                          </div>
-                       </div>
-                       <p className="font-black text-foreground">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+            <DialogHeader className="relative z-10">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-none shadow-xl", status.color)}>
+                        <span className="flex items-center gap-2">
+                           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                           {status.label}
+                        </span>
                     </div>
-                  ))}
-               </div>
-               {order.notes && (
-                  <div className="mt-4 p-4 bg-warning/10 border border-warning/20 rounded-2xl">
-                     <p className="text-[10px] font-black uppercase tracking-widest text-warning mb-1 flex items-center gap-1.5">
-                        <AlertCircle className="h-3 w-3" /> Observações do Cliente
-                     </p>
-                     <p className="text-sm text-foreground font-medium italic">"{order.notes}"</p>
-                  </div>
-               )}
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="p-8 bg-muted/20 border-t border-border flex flex-wrap gap-4 items-center justify-between">
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => window.print()} 
-                  className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground print:hidden" 
-                  title="Imprimir Pedido"
-                >
-                   <Printer className="h-5 w-5" />
-                </button>
-                <div className="h-10 w-px bg-border mx-2 print:hidden" />
-                <div className="flex flex-col">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground print:text-black">Total do Pedido</p>
-                   <p className="text-2xl font-black text-primary italic leading-none print:text-black">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+                    <div className="h-1 w-1 rounded-full bg-white/30" />
+                    <span className="text-white/60 text-xs font-bold leading-none">
+                      Efetuado há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
+                    </span>
                 </div>
-             </div>
+                
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 text-left">
+                    <div>
+                        <DialogTitle className="text-3xl lg:text-5xl font-black tracking-tighter text-white">
+                          Pedido #{order.id.slice(-6).toUpperCase()}
+                        </DialogTitle>
+                        <div className="text-white/80 font-bold text-lg mt-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md">
+                              <User className="w-5 h-5" />
+                            </div> 
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
+                                {order.customer?.name || order.customer_name || "Cliente Marketplace"}
+                                <span className="text-xs text-white/60 flex items-center gap-2 mt-1">
+                                    <Phone className="w-3 h-3" /> {order.customer?.phone || order.customer_phone || "Não informado"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black mb-2">Endereço de Entrega</span>
+                        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 max-w-sm">
+                            <MapPin className="w-5 h-5 text-white shrink-0" />
+                            <p className="text-sm font-bold text-white leading-snug">
+                                {order.customer?.address || order.delivery_address || order.address || "Endereço não disponível."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </DialogHeader>
+        </div>
 
-             <div className="flex gap-2 min-w-full md:min-w-0 print:hidden">
-                 {order.status !== 'cancelled' && order.status !== 'completed' && (
-                    <button 
-                      onClick={() => {
-                        if (confirm("Deseja cancelar este pedido?")) {
-                          onAdvance?.(order.id, "cancelled");
-                        }
-                      }}
-                      className="h-14 w-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all mr-2"
-                      title="Cancelar Pedido"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                 )}
+        <div className="p-8 md:p-10 pb-0 space-y-10 max-h-[55vh] overflow-y-auto custom-scrollbar bg-white/95">
+            {/* Items List */}
+            <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-black text-foreground/40 uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
+                        <Package className="w-4 h-4 text-primary" /> composição do pedido
+                    </h3>
+                    <div className="h-px flex-1 mx-6 bg-border/40" />
+                    <span className="font-black text-[10px] text-primary bg-primary/5 px-4 py-2 rounded-full tracking-widest">
+                      {items.length} ITENS
+                    </span>
+                </div>
+
+                {loading ? (
+                    <div className="py-20 flex flex-col items-center gap-4">
+                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Carregando itens...</p>
+                    </div>
+                ) : items.length === 0 ? (
+                    <div className="py-20 flex flex-col items-center gap-6 bg-muted/20 rounded-[3rem] border-2 border-dashed border-border/60">
+                        <AlertCircle className="w-10 h-10 text-muted-foreground/30" />
+                        <div className="text-center px-6">
+                            <p className="text-sm font-black text-foreground/60 uppercase tracking-[0.1em]">Nenhum item detectado</p>
+                            <button onClick={fetchItems} className="mt-4 px-8 py-3 rounded-2xl bg-primary text-white text-[10px] font-black uppercase">Recarregar agora</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-5">
+                        {items.map((item, idx) => {
+                            const images = parseImages(item.products?.image_url);
+                            const mainImage = images[0];
+                            return (
+                                <div key={idx} className="flex gap-6 items-center p-6 rounded-[2.5rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-xl transition-all group">
+                                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-[1.5rem] bg-muted overflow-hidden shrink-0 border border-border/50">
+                                        {mainImage ? (
+                                            <img src={mainImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.product_name} />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
+                                                <ImagePlus className="w-8 h-8" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-center gap-4">
+                                            <div>
+                                              <p className="font-black text-foreground text-lg">{item.product_name || item.products?.name || "Produto"}</p>
+                                              <p className="text-xs text-muted-foreground font-bold">Un: R$ {item.price?.toFixed(2).replace('.', ',')}</p>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                              <p className="text-[10px] font-black text-primary uppercase mb-1">{item.quantity}x unidades</p>
+                                              <p className="font-black text-xl text-foreground italic">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {order.notes && (
+               <div className="p-6 bg-warning/5 border border-warning/10 rounded-[2rem] space-y-2">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-warning flex items-center gap-2">
+                   <AlertCircle className="h-3 w-3" /> Observações do Cliente
+                 </p>
+                 <p className="text-sm font-medium italic text-foreground/80">"{order.notes}"</p>
+               </div>
+            )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-8 md:p-10 border-t border-border flex flex-wrap gap-6 items-center justify-between bg-muted/10">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => window.print()} 
+                className="h-14 w-14 rounded-2xl bg-white border border-border flex items-center justify-center hover:bg-muted transition-all text-muted-foreground print:hidden shadow-sm"
+                title="Imprimir Pedido"
+              >
+                 <Printer className="h-6 w-6" />
+              </button>
+              <div className="flex flex-col text-left">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
+                 <p className="text-3xl font-black text-primary italic leading-none">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 flex-1 md:flex-none print:hidden">
+                {order.status !== 'cancelled' && order.status !== 'completed' && order.status !== 'delivered' && (
+                  <button 
+                    onClick={handleCancel}
+                    className="h-14 w-14 rounded-2xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
+                    title="Cancelar Pedido"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
                 <button 
                   onClick={onClose}
-                  className="px-6 h-14 rounded-2xl border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
+                  className="px-8 h-14 rounded-2xl border border-border bg-white text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
                 >
                   Fechar
                 </button>
                 {status.next && (
                   <button 
-                    onClick={() => onAdvance?.(order.id, status.next!)}
+                    onClick={handleAdvance}
                     className="flex-1 md:flex-none px-10 h-14 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10 flex items-center justify-center gap-3"
                   >
                     {status.nextLabel} <ArrowRight className="h-4 w-4" />
                   </button>
                 )}
-             </div>
-          </div>
+            </div>
         </div>
 
         {/* Global Print Styles */}
-         <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page { margin: 0; size: 80mm auto; }
             body { margin: 0; padding: 0; background: white; width: 80mm; }
             body * { visibility: hidden; }
-            .print\\:hidden { display: none !important; }
-            .DialogContent, [role="dialog"] { 
+            .DialogContent { 
               visibility: visible !important; 
               position: absolute !important; 
-              left: 0 !important; 
-              top: 0 !important; 
+              left: 0 !important; top: 0 !important; 
               width: 80mm !important;
-              max-width: 80mm !important;
-              margin: 0 !important;
+              max-height: none !important;
               padding: 5mm !important;
-              border: none !important;
-              box-shadow: none !important;
               display: block !important;
+              background: white !important;
             }
             .DialogContent * { visibility: visible !important; }
-            .DialogContent .max-h-\\[90vh\\] { max-height: none !important; height: auto !important; overflow: visible !important; }
-            .custom-scrollbar { overflow: visible !important; height: auto !important; max-height: none !important; }
-            button { display: none !important; }
-            .bg-muted\\/20, .bg-muted\\/30, .bg-card, .bg-card\\/50 { background-color: transparent !important; background: transparent !important; border: 1px solid #000 !important; }
-            .text-3xl { font-size: 1.5rem !important; }
-            .text-lg { font-size: 1rem !important; }
-            .text-primary, .text-foreground, .text-muted-foreground { color: black !important; }
-            .rounded-[2.5rem], .rounded-2xl, .rounded-xl { border-radius: 0 !important; }
-            .p-8, .p-6, .px-8 { padding: 4mm !important; }
-            .gap-6 { gap: 2mm !important; }
-            .flex-row { flex-direction: column !important; }
-            .grid-cols-2 { grid-template-columns: 1fr !important; }
+            .print\\:hidden, button { display: none !important; }
           }
         `}} />
       </DialogContent>

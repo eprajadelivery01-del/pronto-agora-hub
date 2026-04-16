@@ -10,8 +10,18 @@ export function useStores(regionId?: string) {
     queryFn: async () => {
       let query = supabase.from("companies").select("*").eq("is_active", true);
       if (regionId) query = query.eq("region_id", regionId);
+      
       const { data, error } = await query;
-      if (error) throw error;
+      
+      if (error) {
+        // If region_id doesn't exist (Code 42703), retry without the filter
+        if (error.code === '42703') {
+           console.warn("[useStores] region_id not found in companies table, falling back...");
+           const retry = await supabase.from("companies").select("*").eq("is_active", true);
+           return retry.data;
+        }
+        throw error;
+      }
       return data;
     },
   });

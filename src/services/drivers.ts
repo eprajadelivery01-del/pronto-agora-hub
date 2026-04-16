@@ -111,7 +111,11 @@ export function useAvailableDeliveries(regionId?: string) {
         .eq("status", "pending")
         .is("driver_id", null);
       
-      if (regionId) query = query.eq("region_id", regionId);
+      // region_id doesn't exist on deliveries table. Use city_id if applicable.
+      if (regionId) {
+        // Fallback resilient query
+        query = query.or(`city_id.eq.${regionId}`);
+      }
 
       const { data, error } = await query;
       if (error) throw error;

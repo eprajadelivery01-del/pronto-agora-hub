@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import OrderDetailModal from "@/components/business/OrderDetailModal";
 
 type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
 
@@ -211,21 +212,25 @@ export default function BusinessOrdersPage() {
         
         // Helper to get real value or null if placeholder
         const cleanVal = (val: string | null | undefined, placeholder: string) => {
-          if (!val || val === placeholder || val === "Cliente Marketplace") return null;
+          if (!val || val === placeholder || val === "" || val === "Cliente Marketplace" || val === "Consumidor") return null;
           return val;
         };
+
+        const finalName = cleanVal(customerData.name, "Cliente Marketplace") || 
+                         cleanVal(o.customer_name, "Cliente Marketplace") || 
+                         cleanVal(o.customer?.name, "Cliente Marketplace") || 
+                         "Cliente Marketplace";
+
+        const finalPhone = cleanVal(customerData.phone, "Não informado") || 
+                          cleanVal(o.customer_phone, "Não informado") || 
+                          cleanVal(o.customer?.phone, "Não informado") || 
+                          "Não informado";
 
         return {
           ...o,
           customer: {
-            name: cleanVal(customerData.name, "Cliente Marketplace") || 
-                  cleanVal(o.customer_name, "Cliente Marketplace") || 
-                  cleanVal(o.customer?.name, "Cliente Marketplace") || 
-                  "Cliente Marketplace",
-            phone: cleanVal(customerData.phone, "Não informado") || 
-                   cleanVal(o.customer_phone, "Não informado") || 
-                   cleanVal(o.customer?.phone, "Não informado") || 
-                   "Não informado",
+            name: finalName,
+            phone: finalPhone,
             address: o.delivery_address || o.address || customerData.address || "Endereço não disponível"
           },
           items: o.order_items || []
@@ -630,254 +635,6 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
           </div>
         </div>
       </div>
-
-      <OrderDetailsModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        order={order}
-        onStatusUpdate={onRefresh}
-        updateStatus={updateStatus}
-      />
     </>
-  );
-}
-
-function OrderDetailsModal({ isOpen, onClose, order, onStatusUpdate, updateStatus }: {
-  isOpen: boolean;
-  onClose: () => void;
-  order: Order;
-  onStatusUpdate: () => void;
-  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>;
-}) {
-  const [items, setItems] = useState<any[]>(order.items || []);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && (!items || items.length === 0)) {
-      fetchItems();
-    }
-  }, [isOpen]);
-
-  const fetchItems = async () => {
-    setLoading(true);
-    console.log("[OrderDetailModal] Buscando itens para pedido:", order.id);
-    const { data, error } = await supabase
-      .from("order_items")
-      .select(`
-        id, quantity, price, product_name, unit_price,
-        products (id, name, image_url, description)
-      `)
-      .eq("order_id", order.id);
-    
-    if (data) {
-      console.log("[OrderDetailModal] Itens encontrados:", data.length);
-      setItems(data);
-    }
-    if (error) console.error("[OrderDetailModal] Erro:", error);
-    setLoading(false);
-  };
-
-  const parseImages = (imageUrl: string | null): string[] => {
-    if (!imageUrl) return [];
-    try {
-      const parsed = JSON.parse(imageUrl);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      if (imageUrl.startsWith("http")) return [imageUrl];
-    }
-    return [];
-  };
-
-  const isPending = order.status === "pending";
-  const action = getNextActions(order.status);
-
-  const onAdvance = () => {
-    if (action) {
-      updateStatus(order.id, action.next);
-      onStatusUpdate();
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl glass-dark text-white/90">
-        {/* Modern Glass Header */}
-        <div className="bg-primary/90 backdrop-blur-3xl px-10 py-14 relative overflow-hidden border-b border-white/10">
-            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                <ShoppingBag className="w-48 h-48 rotate-12" />
-            </div>
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-[80px] pointer-events-none" />
-            
-            <DialogHeader className="relative z-10">
-                <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
-                <div className="flex items-center gap-4 mb-4">
-                    <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-none shadow-xl", STATUS_COLORS[order.status])}>
-                        <span className="flex items-center gap-2">
-                           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-                           {STATUS_LABELS[order.status]}
-                        </span>
-                    </div>
-                    <div className="h-1 w-1 rounded-full bg-white/30" />
-                    <span className="text-white/60 text-xs font-bold leading-none">Efetuado há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min</span>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div>
-                        <DialogTitle className="text-4xl lg:text-5xl font-black tracking-tighter text-white">Pedido #{order.id.slice(-6).toUpperCase()}</DialogTitle>
-                        <div className="text-white/80 font-bold text-lg mt-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md"><User className="w-5 h-5" /></div> 
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
-                                {order.customer?.name || "Cliente Marketplace"}
-                                <span className="text-xs text-white/60 flex items-center gap-2 mt-1">
-                                    <Phone className="w-3 h-3" /> {order.customer?.phone || "Não informado"}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black mb-2">Endereço de Entrega</span>
-                        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 max-w-sm">
-                            <MapPin className="w-5 h-5 text-white shrink-0" />
-                            <p className="text-sm font-bold text-white leading-snug">
-                                {order.customer?.address || "Endereço não disponível."}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </DialogHeader>
-        </div>
-
-        <div className="p-10 pb-0 space-y-10 max-h-[55vh] overflow-y-auto custom-scrollbar bg-white/95 text-foreground selection:bg-primary/10">
-            {/* Items List */}
-            <div className="space-y-8">
-                <div className="flex items-center justify-between">
-                    <h3 className="font-black text-foreground/40 uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
-                        <Package className="w-4 h-4 text-primary" /> composição do pedido
-                    </h3>
-                    <div className="h-px flex-1 mx-6 bg-border/40" />
-                    <span className="font-black text-[10px] text-primary bg-primary/5 px-4 py-2 rounded-full tracking-widest">{items.length} ITENS</span>
-                </div>
-
-                {loading ? (
-                    <div className="py-20 flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 rounded-3xl border-[6px] border-primary/10 border-t-primary animate-spin" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Sincronizando Banco...</p>
-                    </div>
-                ) : items.length === 0 ? (
-                    <div className="py-20 flex flex-col items-center gap-6 bg-muted/20 rounded-[3rem] border-2 border-dashed border-border/60">
-                        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                            <AlertCircle className="w-10 h-10 text-muted-foreground/30" />
-                        </div>
-                        <div className="text-center px-6">
-                            <p className="text-sm font-black text-foreground/60 uppercase tracking-[0.1em]">Nenhum item detectado</p>
-                            <p className="text-[10px] text-muted-foreground mt-2 font-bold max-w-xs mx-auto">Tente carregar novamente se o pedido acabou de ser realizado.</p>
-                        </div>
-                        <button onClick={fetchItems} className="px-8 py-3.5 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">Recarregar agora</button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-5">
-                        {items.map((item, idx) => {
-                            const images = parseImages(item.products?.image_url);
-                            const mainImage = images[0];
-                            return (
-                                <div key={idx} className="flex gap-8 items-center p-8 rounded-[2.5rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all group relative overflow-hidden cursor-default">
-                                    <div className="w-32 h-32 rounded-[2rem] bg-muted overflow-hidden shrink-0 border border-border/50 shadow-sm relative z-10 transition-transform group-hover:scale-105">
-                                        {mainImage ? (
-                                            <img src={mainImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                                                <ImagePlus className="w-12 h-12" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0 relative z-10">
-                                        <div className="flex justify-between items-start gap-4">
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center text-[12px] font-black shadow-lg shadow-primary/20">
-                                                        {item.quantity}x
-                                                    </div>
-                                                    <h4 className="text-2xl font-black text-foreground tracking-tighter group-hover:text-primary transition-colors leading-none">
-                                                        {item.product_name || item.products?.name || "Produto"}
-                                                    </h4>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground/70 font-semibold leading-relaxed max-w-sm ml-14 line-clamp-2">{item.products?.description || "A descrição deste item não foi fornecida pelo estabelecimento."}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-0.5 opacity-40 select-none">Preço Unitário</p>
-                                                <p className="font-black text-2xl text-foreground tracking-tighter italic">R$ {item.price.toFixed(2).replace(".", ",")}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Observation & Calculations */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 pt-12 border-t border-border/40 pb-10">
-                <div className="lg:col-span-3 space-y-5">
-                    <h3 className="font-black text-foreground/40 uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
-                        <Bell className="w-4 h-4 text-primary" /> notas importantes
-                    </h3>
-                    <div className="p-10 rounded-[2.5rem] bg-warning/[0.03] border border-warning/10 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform"><Bell className="w-16 h-16" /></div>
-                        <p className={cn(
-                            "text-lg italic font-semibold leading-relaxed",
-                            order.notes ? "text-foreground" : "text-muted-foreground/40"
-                        )}>
-                            {order.notes ? `"${order.notes}"` : "O cliente não deixou nenhuma observação especial."}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-2 bg-secondary/20 rounded-[3rem] p-10 space-y-6 border border-border/20 shadow-inner">
-                    <div className="flex justify-between items-center text-[11px] font-black text-muted-foreground uppercase tracking-widest">
-                        <span>Produtos</span>
-                        <span className="text-foreground tracking-tighter font-black">R$ {(order.total - (order.delivery_fee || 0)).toFixed(2).replace(".", ",")}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px] font-black text-primary uppercase tracking-widest">
-                        <span>Taxa de Marketplace</span>
-                        <span className="tracking-tighter font-black">R$ {(order.delivery_fee || 0).toFixed(2).replace(".", ",")}</span>
-                    </div>
-                    <div className="h-px bg-border/40 my-4" />
-                    <div className="flex justify-between items-end">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-foreground/30 uppercase mb-2 tracking-[0.2em]">Total Liquido</span>
-                            <span className="text-5xl font-black text-primary tracking-tighter italic leading-none">R$ {order.total.toFixed(2).replace(".", ",")}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div className="p-10 flex flex-col sm:flex-row justify-end gap-5 bg-white border-t border-border/20">
-            <button 
-                onClick={onClose} 
-                className="px-14 py-6 rounded-2xl bg-secondary text-foreground font-black uppercase tracking-widest text-[10px] hover:bg-muted transition-all active:scale-95"
-            >
-                Voltar à Gestão
-            </button>
-            {action && (
-              <button 
-                onClick={() => {
-                   onAdvance();
-                   onClose();
-                }}
-                className={cn(
-                  "px-14 py-6 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl active:scale-95 flex items-center justify-center gap-4 group/btn",
-                  isPending ? "bg-primary text-white shadow-primary/30" : "bg-foreground text-background shadow-black/20"
-                )}
-              >
-                {action.label}
-                 <ArrowRight className="h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
-              </button>
-            )}
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
