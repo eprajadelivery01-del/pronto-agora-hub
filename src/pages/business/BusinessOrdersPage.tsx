@@ -100,24 +100,11 @@ export default function BusinessOrdersPage() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
-    // Chamada de diagnóstico aprimorada (imprime os nomes como texto para fácil cópia)
-    supabase.from("orders").select("*").limit(1).then(({ data: diag }) => {
-      if (diag && diag[0]) {
-        const columns = Object.keys(diag[0]).join(", ");
-        console.log("[Dashboard] COLUNAS ENCONTRADAS NO BANCO:", columns);
-      }
-    });
-
     if (error) {
-      console.error("[Dashboard] Erro Crítico na busca de pedidos:", error.message, error.details, error.hint);
+      console.error("[Dashboard] Erro Crítico na busca de pedidos:", error.message);
       toast.error("Erro ao carregar dados do banco.");
       setLoading(false);
       return;
-    }
-
-    console.log("[Dashboard] Pedidos brutos retornados pelo Supabase:", data?.length || 0);
-    if (data && data.length > 0) {
-      console.log("[Dashboard] COLUNAS REAIS NO BANCO:", Object.keys(data[0]));
     }
 
     if (data) {

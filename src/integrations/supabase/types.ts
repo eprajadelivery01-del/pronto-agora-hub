@@ -417,35 +417,61 @@ export type Database = {
       }
       orders: {
         Row: {
-          address_id?: string | null
+          address_id: string | null
+          city_id: string | null
           company_id: string
           created_at: string
           customer_id: string
-          delivery_fee?: number | null
+          delivery_address: string | null
+          delivery_fee: number | null
           delivery_id: string | null
+          delivery_latitude: number | null
+          delivery_longitude: number | null
           id: string
+          idempotency_key: string | null
+          notes: string | null
+          payment_method: string | null
+          region_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           total: number
           updated_at: string
         }
         Insert: {
           address_id?: string | null
+          city_id?: string | null
           company_id: string
           created_at?: string
           customer_id: string
+          delivery_address?: string | null
           delivery_fee?: number | null
           delivery_id?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          region_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
           updated_at?: string
         }
         Update: {
+          address_id?: string | null
+          city_id?: string | null
           company_id?: string
           created_at?: string
           customer_id?: string
+          delivery_address?: string | null
+          delivery_fee?: number | null
           delivery_id?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          payment_method?: string | null
+          region_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
           updated_at?: string
