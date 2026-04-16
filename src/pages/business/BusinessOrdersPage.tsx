@@ -95,17 +95,10 @@ export default function BusinessOrdersPage() {
       console.log(`[Dashboard] Iniciando busca de pedidos para Empresa: ${companyId}`);
       setLoading(true);
       
-      // BUSCA RESILIENTE: Campos operacionais completos
+      // BUSCA ULTRA-SEGURA: apenas campos vitais para evitar erro de schema
       let { data, error } = await supabase
         .from("orders")
-        .select(`
-          id, status, total, created_at, customer_id, 
-          delivery_address, payment_method, notes,
-          order_items (
-            id, quantity, price, product_name, unit_price,
-            products (id, name, image_url, description)
-          )
-        `)
+        .select("id, status, total, created_at, customer_id")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
@@ -273,7 +266,7 @@ export default function BusinessOrdersPage() {
             phone: finalPhone,
             address: o.delivery_address || o.address || customerDataFromMap.address || "Endereço não disponível"
           },
-          items: o.order_items || []
+          items: [] // Temporariamente vazio para estabilidade
         };
       });
       
