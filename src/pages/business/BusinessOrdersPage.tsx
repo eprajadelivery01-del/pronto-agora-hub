@@ -129,34 +129,60 @@ export default function BusinessOrdersPage() {
       console.log(`[Dashboard] Pedidos recebidos: ${data?.length || 0}`);
 
       if (data && data.length > 0) {
-      // Busca resiliente de clientes (evita falha de join no status 400)
-      const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
-      let customerMap: Record<string, any> = {};
-      
-      if (customerIds.length > 0) {
-        console.log("[Dashboard] Buscando detalhes de clientes e endereços...");
+        // 1. Extração IMEDIATA de todos os IDs necessários para busca paralela
+        const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
+        const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
+        const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
         
-        // Busca Contatos
-        const { data: customersData } = await supabase
-          .from("customers")
-          .select("id, name, phone")
-          .in("id", customerIds);
-        
-        if (customersData) {
-          customersData.forEach(c => { 
-            // Se o nome for genérico, marcamos como elegível para fallback
+        let customerMap: Record<string, any> = {};
+        customerIds.forEach(id => { customerMap[id] = { id }; });
+
+        console.log(`[Dashboard] Iniciando buscas paralelas para ${data.length} pedidos...`);
+
+        // 2. BUSCA PARALELA (Elimina o efeito cascata/waterfall)
+        const [customersRes, deliveriesRes, addressesRes] = await Promise.all([
+          customerIds.length > 0 ? supabase.from("customers").select("id, name, phone").in("id", customerIds) : Promise.resolve({ data: [] }),
+          deliveryIds.length > 0 ? supabase.from("deliveries").select("id, address, customer_name, customer_phone").in("id", deliveryIds) : Promise.resolve({ data: [] }),
+          addressIds.length > 0 ? supabase.from("addresses").select("*").in("id", addressIds) : Promise.resolve({ data: [] })
+        ]);
+
+        // 3. Processamento de Clientes (Base Principal)
+        if (customersRes.data) {
+          customersRes.data.forEach(c => {
             const isGeneric = !c.name || c.name === "Cliente Marketplace" || c.name === "Consumidor";
-            customerMap[c.id] = { 
-              ...c, 
-              name: isGeneric ? null : c.name 
-            }; 
+            customerMap[c.id] = { ...customerMap[c.id], ...c, name: isGeneric ? null : c.name };
           });
         }
 
-        // NOVO: Busca fallback em PROFILES para clientes do Marketplace (Resiliente: Testa ID e USER_ID)
+        // 4. Processamento de Entregas (Fallback de Endereço e Nome)
+        if (deliveriesRes.data) {
+          deliveriesRes.data.forEach(d => {
+            const order = data.find((o: any) => o.delivery_id === d.id);
+            if (order && customerMap[order.customer_id]) {
+              customerMap[order.customer_id].address = d.address;
+              if (!customerMap[order.customer_id].name && d.customer_name) {
+                customerMap[order.customer_id].name = d.customer_name;
+              }
+              if ((!customerMap[order.customer_id].phone || customerMap[order.customer_id].phone === "Não informado") && d.customer_phone) {
+                customerMap[order.customer_id].phone = d.customer_phone;
+              }
+            }
+          });
+        }
+
+        // 5. Processamento de Endereços Opcionais
+        if (addressesRes.data) {
+          addressesRes.data.forEach(a => {
+            if (customerMap[a.customer_id] && !customerMap[a.customer_id].address) {
+              customerMap[a.customer_id].address = `${a.street}, ${a.number}${a.complement ? ` - ${a.complement}` : ""} - ${a.neighborhood}, ${a.city}`;
+            }
+          });
+        }
+
+        // 6. Busca de Fallback em PROFILES (Apenas para quem ainda está sem nome)
         const missingFromCustomers = customerIds.filter(id => !customerMap[id] || !customerMap[id].name);
         if (missingFromCustomers.length > 0) {
-          console.log("[Dashboard] Buscando dados complementares na tabela Profiles...");
+          console.log("[Dashboard] Buscando fallback em Profiles para IDs pendentes...");
           const { data: profilesData } = await supabase
             .from("profiles")
             .select("id, name, phone, user_id")
@@ -164,66 +190,12 @@ export default function BusinessOrdersPage() {
           
           if (profilesData) {
             profilesData.forEach(p => {
-              // Mapeia o perfil encontrado para qualquer ID que combine (id ou user_id)
               missingFromCustomers.forEach(mId => {
                 if (p.id === mId || p.user_id === mId) {
-                  customerMap[mId] = {
-                    ...customerMap[mId],
-                    name: customerMap[mId]?.name || p.name,
-                    phone: customerMap[mId]?.phone || p.phone
-                  };
+                  customerMap[mId].name = customerMap[mId].name || p.name;
+                  customerMap[mId].phone = (customerMap[mId].phone && customerMap[mId].phone !== "Não informado") ? customerMap[mId].phone : p.phone;
                 }
               });
-            });
-          }
-        }
-
-        // Busca Endereços e Dados de Fallback (Resiliente: Tenta em Deliveries primeiro, depois em Addresses)
-        const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
-        
-        if (deliveryIds.length > 0) {
-          console.log("[Dashboard] Buscando endereços na tabela de Entregas...");
-          const { data: delivData } = await supabase
-            .from("deliveries")
-            .select("id, address, customer_name, customer_phone, company_id")
-            .in("id", deliveryIds);
-          
-          if (delivData) {
-            delivData.forEach(d => {
-               // Encontrar qual cliente é dono desta entrega
-               const order = data.find((o: any) => o.delivery_id === d.id);
-               if (order && customerMap[order.customer_id]) {
-                 // Salva o endereço
-                 customerMap[order.customer_id].address = d.address;
-                 
-                 // Se o nome no customerMap ainda for nulo (genérico), usa o da entrega
-                 if (!customerMap[order.customer_id].name && d.customer_name) {
-                   customerMap[order.customer_id].name = d.customer_name;
-                 }
-                 
-                 // Se o telefone no customerMap for nulo ou genérico, usa o da entrega
-                 if ((!customerMap[order.customer_id].phone || customerMap[order.customer_id].phone === "Não informado") && d.customer_phone) {
-                   customerMap[order.customer_id].phone = d.customer_phone;
-                 }
-               }
-            });
-          }
-        }
-
-        // Caso ainda falte endereço, tenta buscar por address_id (se a coluna existir no objeto retornado)
-        const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
-        if (addressIds.length > 0) {
-          const { data: addrData } = await supabase
-            .from("addresses")
-            .select("*")
-            .in("id", addressIds);
-          
-          if (addrData) {
-            addrData.forEach(a => {
-              const fullAddr = `${a.street}, ${a.number}${a.complement ? ` - ${a.complement}` : ""} - ${a.neighborhood}, ${a.city}`;
-              if (customerMap[a.customer_id] && !customerMap[a.customer_id].address) {
-                customerMap[a.customer_id].address = fullAddr;
-              }
             });
           }
         }

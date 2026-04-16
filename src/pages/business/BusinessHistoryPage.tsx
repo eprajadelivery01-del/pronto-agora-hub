@@ -55,28 +55,23 @@ export default function BusinessHistoryPage() {
       console.log("[HistoryPage] Buscando histórico para company:", companyId);
       
       try {
-        // Fetch Marketplace Orders
-        const { data: orders, error: ordersErr } = await supabase
-          .from("orders")
-          .select(`
-            id, status, total, created_at
-          `)
-          .eq("company_id", companyId)
-          .order("created_at", { ascending: false });
+        // BUSCA PARALELA: Marketplace e Entregas Manuais ao mesmo tempo
+        const [ordersRes, deliveriesRes] = await Promise.all([
+          supabase.from("orders")
+            .select(`id, status, total, created_at`)
+            .eq("company_id", companyId)
+            .order("created_at", { ascending: false }),
+          supabase.from("deliveries")
+            .select(`id, status, value, created_at, customer_name`)
+            .eq("company_id", companyId)
+            .order("created_at", { ascending: false })
+        ]);
 
-        if (ordersErr) console.error("[HistoryPage] Erro orders:", ordersErr);
+        if (ordersRes.error) console.error("[HistoryPage] Erro orders:", ordersRes.error);
+        if (deliveriesRes.error) console.error("[HistoryPage] Erro deliveries:", deliveriesRes.error);
 
-        // Fetch Manual Deliveries
-        const { data: deliveries, error: delivErr } = await supabase
-          .from("deliveries")
-          .select(`
-            id, status, value, created_at,
-            customer_name
-          `)
-          .eq("company_id", companyId)
-          .order("created_at", { ascending: false });
-
-        if (delivErr) console.error("[HistoryPage] Erro deliveries:", delivErr);
+        const orders = ordersRes.data;
+        const deliveries = deliveriesRes.data;
 
         const unifiedHistory: OrderHistory[] = [];
 
