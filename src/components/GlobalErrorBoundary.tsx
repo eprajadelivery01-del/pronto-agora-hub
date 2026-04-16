@@ -35,7 +35,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       return (
         <div style={{ padding: "20px", background: "#f8d7da", color: "#721c24", height: "100vh", overflow: "auto", fontFamily: "sans-serif" }}>
           <h1 style={{ fontSize: "24px", fontWeight: "bold" }}>A interface quebrou (React Crash)</h1>
-          <p>Tire um print ou copie o texto abaixo e envie para o Antigravity:</p>
+          <p>Tire um print ou copie o texto abaixo e envie para a Bonasoft:</p>
           <pre style={{ background: "#fff", padding: "10px", marginTop: "10px", borderRadius: "5px", border: "1px solid red" }}>
             {this.state.error && this.state.error.toString()}
             {"\n\n"}
