@@ -227,7 +227,7 @@ export default function BusinessHistoryPage() {
 
           <TabsContent value={activeTab} className="mt-0">
             <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-card">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto custom-scrollbar pb-2">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">

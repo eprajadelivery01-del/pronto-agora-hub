@@ -122,17 +122,21 @@
     background: linear-gradient(135deg, hsl(217, 91%, 50%), hsl(250, 85%, 60%));
   }
   .custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
+    width: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.2);
+    background: hsl(var(--muted-foreground) / 0.3);
     border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.4);
+    background: hsl(var(--muted-foreground) / 0.5);
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 
   /* ── Page Transitions ─────────────────────────────────── */

@@ -577,7 +577,7 @@ export default function BusinessOrdersPage() {
                 <MoreVertical className="h-4 w-4 text-muted-foreground/30" />
               </div>
 
-              <div className="space-y-4 min-h-[500px] bg-muted/30 rounded-[2.5rem] p-3 border border-border/50">
+              <div className="space-y-4 h-[65vh] overflow-y-auto custom-scrollbar bg-muted/30 rounded-[2.5rem] p-3 border border-border/50">
                 {ordersByColumn(col.key).map(order => (
                   <OrderCard
                     key={order.id}
