@@ -129,10 +129,10 @@ export default function BusinessHistoryPage() {
         const { data, error } = await supabase
           .from("orders")
           .select(`
-            *,
-            customers (*),
+            id, status, total, created_at, notes, delivery_address, company_id,
+            customers (id, name, phone),
             order_items (
-              id, quantity, price, product_name, unit_price,
+              id, quantity, price,
               products (id, name, image_url, description)
             )
           `)
