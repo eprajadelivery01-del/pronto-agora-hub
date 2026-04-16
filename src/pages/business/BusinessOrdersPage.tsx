@@ -427,45 +427,36 @@ export default function BusinessOrdersPage() {
     console.log(`[Dashboard] Atualizando pedido ${orderId} para status: ${newStatus}`);
     
     try {
-      const { data: authData } = await supabase.auth.getSession();
-      // Sincronizado com src/integrations/supabase/client.ts
-      const supabaseUrl = (window as any).SUPABASE_CONFIG?.url || "https://nptkxlrhrlssdsevpgqe.supabase.co";
-      const supabaseKey = (window as any).SUPABASE_CONFIG?.anonKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdGt4bHJocmxzc2RzZXZwZ3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDE4MTQsImV4cCI6MjA5MDYxNzgxNH0.t8Cu-yFnSqOURT4GXCZ_mBghpxucT89nRBFlBNA1vZs";
-
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Configuração do Supabase ausente.");
-      }
-
-      console.log("[Dashboard] Realizando PATCH cego para bypass de schema...");
-      const response = await fetch(`${supabaseUrl}/rest/v1/orders?id=eq.${orderId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${authData.session?.access_token}`,
-          'Prefer': 'return=minimal' // CRUCIAL: Diz ao banco para NÃO tentar ler a linha de volta
-        },
-        body: JSON.stringify({ status: newStatus })
+      console.log("[Dashboard] Usando RPC Chave Mestra para atualização blindada de status...");
+      
+      const { data, error } = await supabase.rpc('update_order_status_v3', {
+        p_order_id: orderId,
+        p_new_status: newStatus
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("[Dashboard] Erro técnico no update cego:", errorData);
-        throw errorData;
+      if (error) {
+        console.error("[Dashboard] Erro técnico na RPC de update:", error);
+        toast.error("Erro ao atualizar no banco: " + error.message);
+        return;
       }
 
-      console.log(`[Dashboard] Pedido ${orderId} atualizado com sucesso via Blind Update.`);
-      toast.success(`Pedido movido para ${STATUS_LABELS[newStatus]}!`);
+      if (data && data.success === false) {
+        console.error("[Dashboard] Negócio recusou o update:", data.message || data.error);
+        toast.error("Falha na atualização: " + (data.message || data.error));
+        return;
+      }
+
+      console.log("[Dashboard] Update via RPC concluído com sucesso!");
       
-      // Forçamos o recarregamento imediato e agressivo
-      fetchOrders();
-      return;
-    } catch (error: any) {
-      console.error(`[Dashboard] Falha crítica na atualização:`, error);
+      // Atualização otimista do estado local
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
       
-      // Mesmo se o servidor der erro no PATCH (devido a RLS/Trigger), tentamos forçar o fetch 
-      // para ver se a mudança "passou" apesar do erro de retorno.
-      toast.success(`Status ${STATUS_LABELS[newStatus]} solicitado.`);
+    } catch (err: any) {
+      console.error("[Dashboard] Falha catastrófica na atualização:", err);
+      toast.error("Erro crítico de banco de dados. Contate o suporte.");
+    } finally {
+      // Re-fetch para garantir sincronia real
       fetchOrders();
     }
   };
