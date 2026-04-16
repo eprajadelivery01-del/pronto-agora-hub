@@ -15,23 +15,31 @@ export default function LoginPage() {
   const { user, loading: authLoading, hasRole, roles, userStatus } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      // Redirecionamento quase imediato para sessões ativas
+    if (user && !authLoading) {
+      // Pequeno delay para garantir que o estado de status e roles está sincronizado
       const timer = setTimeout(() => {
         if (userStatus === "pending") {
           navigate("/pending-approval", { replace: true });
         } else if (hasRole("company")) {
           navigate("/business", { replace: true });
         } else if (hasRole("admin")) {
-          // Admin logging into Lojista panel
-          toast({ title: "Portal de Lojistas", description: "Detectamos que você é um Administrador. Por favor, utilize o painel admin.epraja.com.br", variant: "default" });
+          toast({ 
+            title: "Portal de Lojistas", 
+            description: "Você está logado como Administrador. Use o painel administrativo para gestão global.", 
+            variant: "default" 
+          });
         } else {
-          toast({ title: "Acesso Restrito", description: "Este portal é exclusivo para Lojistas parceiros.", variant: "destructive" });
+          // Só mostra se realmente não tiver perfil de empresa/admin após o carregamento
+          toast({ 
+            title: "Identificação Necessária", 
+            description: "Este portal é exclusivo para Lojistas parceiros.", 
+            variant: "destructive" 
+          });
         }
-      }, 100);
+      }, 200);
       return () => clearTimeout(timer);
     }
-  }, [user, userStatus, hasRole, navigate]);
+  }, [user, authLoading, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

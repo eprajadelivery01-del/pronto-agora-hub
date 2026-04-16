@@ -68,8 +68,8 @@ export default function BusinessLoginPage() {
           <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 mb-2">
             <Building2 className="h-6 w-6 text-primary shrink-0" />
             <div className="min-w-0">
-               <p className="text-xs font-bold text-primary uppercase tracking-widest">Acesso Restrito</p>
-               <p className="text-sm text-muted-foreground truncate">Entre com suas credenciais de parceiro</p>
+               <p className="text-xs font-bold text-primary uppercase tracking-widest">Portal do Parceiro</p>
+               <p className="text-sm text-muted-foreground truncate">Gestão operacional em tempo real</p>
             </div>
           </div>
 
