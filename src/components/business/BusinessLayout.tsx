@@ -134,11 +134,11 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         <button 
           onClick={toggleSidebar}
           className={cn(
-            "hidden lg:flex absolute -right-3.5 top-20 w-7 h-7 rounded-full bg-primary border-4 border-background items-center justify-center text-primary-foreground shadow-xl transition-all hover:scale-110 z-[60]",
+            "hidden lg:flex absolute -right-4 top-24 w-8 h-8 rounded-full bg-primary border-2 border-white ring-1 ring-black items-center justify-center text-primary-foreground shadow-xl transition-all hover:scale-110 z-[70]",
             collapsed && "rotate-180"
           )}
         >
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-4 w-4" />
         </button>
 
         {/* Brand/Store Info */}

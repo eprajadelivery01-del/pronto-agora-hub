@@ -84,11 +84,11 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
           <button 
             onClick={toggleSidebar}
             className={cn(
-              "hidden lg:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-primary border-2 border-background items-center justify-center text-primary-foreground transform transition-transform duration-300 hover:scale-110 z-50",
+              "hidden lg:flex absolute -right-4 top-10 w-8 h-8 rounded-full bg-primary border-2 border-white ring-1 ring-black items-center justify-center text-primary-foreground shadow-xl transform transition-all duration-300 hover:scale-110 z-[70]",
               collapsed && "rotate-180"
             )}
           >
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
