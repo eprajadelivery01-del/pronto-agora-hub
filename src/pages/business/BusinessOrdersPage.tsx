@@ -363,11 +363,12 @@ export default function BusinessOrdersPage() {
     console.log(`[Dashboard] Atualizando pedido ${orderId} para status: ${newStatus}`);
     
     try {
-      // Tentativa de update padrão
+      // Tentativa de update resiliente (select 'id' evita erro de coluna region_id não existente no retorno)
       const { error } = await supabase
         .from("orders")
         .update({ status: newStatus })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .select('id');
 
       if (error) {
         // Se for erro de coluna region_id não existente, tentamos ignorar se o status for alterado
