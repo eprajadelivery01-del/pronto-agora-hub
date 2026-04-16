@@ -74,12 +74,21 @@ export default function BusinessHomePage() {
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
     try {
-      const { error } = await supabase.from("orders").update({ status: nextStatus as any }).eq("id", orderId);
+      console.log("[Home] Atualizando status via RPC v4 resiliente...");
+      const { data, error } = await supabase.rpc('update_order_status_v4', {
+        p_order_id: orderId,
+        p_new_status: nextStatus
+      });
+
       if (error) throw error;
+      if (data && data.success === false) throw new Error(data.message || data.error);
+
       toast.success("Status do pedido atualizado");
       qc.invalidateQueries({ queryKey: ["marketplace-orders-active"] });
+      qc.invalidateQueries({ queryKey: ["deliveries"] });
     } catch (error: any) {
-      toast.error("Erro: " + error.message);
+      console.error("[Home] Falha na atualização:", error);
+      toast.error("Erro ao atualizar: " + error.message);
     }
   };
 
