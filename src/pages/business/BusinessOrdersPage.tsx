@@ -85,17 +85,20 @@ export default function BusinessOrdersPage() {
   const createDeliveryMut = useCreateDeliveryRequest();
 
   const fetchOrders = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     
-      // Consulta sem o join de clientes que está quebrado no schema cache
-      // Seleção explícita de colunas seguras (Evita erro de region_id ou outras colunas de schema desalinhado)
-      const query = supabase
+    try {
+      console.log("[Dashboard] Iniciando busca resiliente de pedidos...");
+      
+      // Seleção ULTRA-MINIMALISTA de colunas (Evita qualquer erro de esquema desalinhado)
+      const { data, error } = await supabase
         .from("orders")
         .select(`
           id, customer_id, company_id, status, total, 
-          delivery_address, delivery_latitude, delivery_longitude, 
-          payment_method, notes, created_at, updated_at, 
-          city_id, delivery_fee, idempotency_key,
+          delivery_address, created_at, update_at:updated_at,
           order_items (
             id, quantity, price, product_name, unit_price,
             products (id, name, image_url, description)
@@ -104,16 +107,13 @@ export default function BusinessOrdersPage() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
-      const { data, error } = await query;
+      if (error) {
+        console.error("[Dashboard] Erro na busca de pedidos:", error.message);
+        toast.error("Erro ao carregar dados do banco.");
+        return;
+      }
 
-    if (error) {
-      console.error("[Dashboard] Erro Crítico na busca de pedidos:", error.message);
-      toast.error("Erro ao carregar dados do banco.");
-      setLoading(false);
-      return;
-    }
-
-    if (data) {
+      if (data) {
       // Busca resiliente de clientes (evita falha de join no status 400)
       const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
       let customerMap: Record<string, any> = {};
@@ -279,8 +279,15 @@ export default function BusinessOrdersPage() {
         revenue: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).length,
         open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
       });
+      });
     }
-    setLoading(false);
+    } catch (err: any) {
+      console.error("[Dashboard] Falha catastrófica no fetchOrders:", err);
+      toast.error("Ocorreu um erro ao processar os dados.");
+    } finally {
+      setLoading(false);
+      console.log("[Dashboard] Carga finalizada.");
+    }
   }, [companyId]);
 
   useEffect(() => {
