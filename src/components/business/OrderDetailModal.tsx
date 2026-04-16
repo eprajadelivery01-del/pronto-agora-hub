@@ -26,10 +26,11 @@ export default function OrderDetailModal({
   onStatusUpdate
 }: OrderDetailModalProps) {
   const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState<{name: string | null, phone: string | null} | null>(null);
 
   useEffect(() => {
     if (isOpen && order?.id) {
+       // Fetch Items
        if (order.items && order.items.length > 0) {
          setItems(order.items);
        } else if (order.order_items && order.order_items.length > 0) {
@@ -37,8 +38,42 @@ export default function OrderDetailModal({
        } else {
          fetchItems();
        }
+
+       // Fetch Customer Info if generic
+       fetchCustomerDetails();
     }
-  }, [isOpen, order?.id]);
+  }, [isOpen, order?.id, order?.customer_id]);
+
+  const fetchCustomerDetails = async () => {
+    if (!order?.customer_id) return;
+    
+    // Check if we already have good data
+    const existingName = order.customer?.name || order.customer_name;
+    const isGeneric = !existingName || existingName === "Cliente Marketplace" || existingName === "Consumidor";
+    
+    if (!isGeneric) {
+      setCustomerInfo({
+        name: existingName,
+        phone: order.customer?.phone || order.customer_phone
+      });
+      return;
+    }
+
+    try {
+      console.log("[OrderDetailModal] Buscando dados reais do cliente em Profiles...");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, phone")
+        .eq("id", order.customer_id)
+        .maybeSingle();
+      
+      if (profile) {
+        setCustomerInfo({ name: profile.name, phone: profile.phone });
+      }
+    } catch (err) {
+      console.error("[OrderDetailModal] Erro ao buscar perfil:", err);
+    }
+  };
 
   const fetchItems = async () => {
     if (!order?.id) return;
@@ -113,8 +148,8 @@ export default function OrderDetailModal({
       <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10">
         <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
         
-        {/* Modern Glass Header */}
-        <div className="bg-primary/95 backdrop-blur-3xl px-8 py-10 md:px-10 md:py-14 relative overflow-hidden text-white">
+        {/* Modern Glass Header - Reduzido conforme solicitado */}
+        <div className="bg-primary/95 backdrop-blur-3xl px-8 py-6 md:px-10 md:py-8 relative overflow-hidden text-white">
             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                 <ShoppingBag className="w-48 h-48 rotate-12" />
             </div>
@@ -135,7 +170,7 @@ export default function OrderDetailModal({
                 
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 text-left">
                     <div>
-                        <DialogTitle className="text-3xl lg:text-5xl font-black tracking-tighter text-white">
+                        <DialogTitle className="text-2xl lg:text-3xl font-black tracking-tighter text-white">
                           Pedido #{order.id.slice(-6).toUpperCase()}
                         </DialogTitle>
                         <div className="text-white/80 font-bold text-lg mt-4 flex items-center gap-3">
@@ -144,9 +179,9 @@ export default function OrderDetailModal({
                             </div> 
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
-                                {order.customer?.name || order.customer_name || "Cliente Marketplace"}
+                                {customerInfo?.name || order.customer?.name || order.customer_name || "Cliente Marketplace"}
                                 <span className="text-xs text-white/60 flex items-center gap-2 mt-1">
-                                    <Phone className="w-3 h-3" /> {order.customer?.phone || order.customer_phone || "Não informado"}
+                                    <Phone className="w-3 h-3" /> {customerInfo?.phone || order.customer?.phone || order.customer_phone || "Não informado"}
                                 </span>
                             </div>
                         </div>
