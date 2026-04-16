@@ -13,6 +13,7 @@ import { DeliveryStatus, Order, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/business/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
@@ -80,9 +81,9 @@ export default function BusinessHomePage() {
   });
 
   const stats = {
-    pending: (deliveryStats?.pending ?? 0) + (marketplaceOrders?.filter((o: any) => o.status === 'pending').length ?? 0),
-    inRoute: (deliveryStats?.inTransit ?? 0) + (marketplaceOrders?.filter((o: any) => o.status === 'in_route').length ?? 0),
-    manualRevenue: (deliveryStats?.todayCollection ?? 0)
+    pending: deliveryStats?.pending ?? 0,
+    inRoute: deliveryStats?.inTransit ?? 0,
+    manualRevenue: deliveryStats?.todayCollection ?? 0
   };
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
@@ -169,118 +170,142 @@ export default function BusinessHomePage() {
                 </>
               ) : (
                 <>
-                  <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Marketplace + Manual" />
-                  <StatCard label="Em Rota" value={stats.inRoute} icon={Truck} color="primary" subtitle="Pedidos saindo" />
+                  <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Entregas manuais" />
+                  <StatCard label="Em Rota" value={stats.inRoute} icon={Truck} color="primary" subtitle="Em trânsito agora" />
                   <StatCard label="Hoje (Manual)" value={`R$ ${stats.manualRevenue.toFixed(2).replace('.', ',')}`} icon={Wallet} color="warning" subtitle="Cobrança Local" />
                 </>
               )}
             </div>
 
-            {/* Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Marketplace Orders */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Pedidos Marketplace Ativos
-                  </h3>
-                  <button 
-                    onClick={() => window.location.href = '/business/orders'}
-                    className="text-[10px] font-black uppercase text-primary hover:underline"
-                  >
-                    Ver Todos
-                  </button>
-                </div>
+            {/* Content Tabs */}
+            <Tabs defaultValue="deliveries" className="w-full space-y-6">
+              <TabsList className="bg-muted/50 p-1.5 rounded-2xl h-14 border border-border/50">
+                <TabsTrigger 
+                  value="deliveries" 
+                  className="rounded-xl px-8 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-primary transition-all gap-2"
+                >
+                  <Truck className="h-4 w-4" /> Entregas Manuais
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="marketplace" 
+                  className="rounded-xl px-8 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-primary transition-all gap-2"
+                >
+                  <ShoppingBag className="h-4 w-4" /> Novos Pedidos (Marketplace)
+                  {marketplaceOrders && marketplaceOrders.length > 0 && (
+                    <span className="bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-full animate-pulse">
+                      {marketplaceOrders.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
 
-                {isLoadingMarketplace ? (
-                   <div className="space-y-2">
-                     <Skeleton className="h-20 rounded-xl" />
-                     <Skeleton className="h-20 rounded-xl" />
-                   </div>
-                ) : marketplaceOrders && marketplaceOrders.length > 0 ? (
-                  <div className="space-y-2">
-                    {marketplaceOrders.slice(0, 5).map((order: any) => (
-                      <div 
-                        key={order.id}
-                        onClick={() => setSelectedOrder(order)}
-                        className="bg-card border border-border/50 rounded-xl p-4 hover:border-primary/30 transition-all cursor-pointer flex items-center justify-between group"
-                      >
-                        <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                              <ShoppingBag className="h-5 w-5 text-primary" />
-                           </div>
-                           <div>
-                              <p className="text-sm font-bold">#{order.id.slice(-6).toUpperCase()}</p>
-                              <p className="text-[10px] text-muted-foreground font-bold">{order.customer?.name || "Cliente"}</p>
-                           </div>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-xs font-black text-foreground">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
-                           <div className="mt-1 px-2 py-0.5 rounded-full bg-muted text-[8px] font-black uppercase inline-block">
-                              {order.status}
-                           </div>
-                        </div>
-                      </div>
-                    ))}
+              <TabsContent value="deliveries" className="m-0 focus-visible:outline-none">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-info" />
+                      Entregas Manuais em Andamento
+                    </h3>
                   </div>
-                ) : (
-                  <div className="bg-card/50 border border-dashed border-border rounded-xl p-8 text-center">
-                    <ShoppingBag className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-muted-foreground/60">Sem pedidos marketplace ativos</p>
-                  </div>
-                )}
-              </div>
 
-              {/* Manual Deliveries */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-info" />
-                    Entregas Manuais
-                  </h3>
-                </div>
-
-                {isLoadingDeliveries ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-20 rounded-xl" />
-                  </div>
-                ) : deliveries.length > 0 ? (
-                  <div className="space-y-2">
-                    {deliveries.map((delivery, i) => (
-                      <div
-                        key={delivery.id}
-                        className="bg-card border border-border/50 rounded-xl p-4 hover:border-primary/30 hover:shadow-card-hover transition-all duration-200 group flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
-                            <Truck className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-foreground truncate">{delivery.customer_name}</p>
-                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                              <MapPin className="h-3 w-3 shrink-0" />
-                              {delivery.address}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleCancel(delivery.id)}
-                          className="p-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all font-black text-xs"
+                  {isLoadingDeliveries ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-20 rounded-xl" />
+                    </div>
+                  ) : deliveries.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {deliveries.map((delivery, i) => (
+                        <div
+                          key={delivery.id}
+                          className="bg-card border border-border/50 rounded-xl p-4 hover:border-primary/30 hover:shadow-card-hover transition-all duration-200 group flex items-center justify-between"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+                              <Truck className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-foreground truncate">{delivery.customer_name}</p>
+                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                {delivery.address}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleCancel(delivery.id)}
+                            className="p-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all font-black text-xs"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-card/50 border border-dashed border-border rounded-xl p-12 text-center">
+                      <Truck className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-sm font-black text-muted-foreground/60 uppercase tracking-widest">Nenhuma entrega manual</p>
+                      <p className="text-xs text-muted-foreground/40 mt-1">Sincronizado com o centro de logística</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="marketplace" className="m-0 focus-visible:outline-none">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Novos Pedidos do Marketplace
+                    </h3>
+                    <button 
+                      onClick={() => window.location.href = '/business/orders'}
+                      className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                      Ver Gestão Completa
+                    </button>
                   </div>
-                ) : (
-                  <div className="bg-card/50 border border-dashed border-border rounded-xl p-8 text-center">
-                    <Truck className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-muted-foreground/60">Nenhuma entrega manual</p>
-                  </div>
-                )}
-              </div>
-            </div>
+
+                  {isLoadingMarketplace ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-20 rounded-xl" />
+                      <Skeleton className="h-20 rounded-xl" />
+                    </div>
+                  ) : marketplaceOrders && marketplaceOrders.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {marketplaceOrders.slice(0, 10).map((order: any) => (
+                        <div 
+                          key={order.id}
+                          onClick={() => setSelectedOrder(order)}
+                          className="bg-card border border-border/50 rounded-xl p-5 hover:border-primary/30 transition-all cursor-pointer flex items-center justify-between group shadow-sm hover:shadow-md"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                                <ShoppingBag className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-black">#{order.id.slice(-6).toUpperCase()}</p>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{order.customer?.name || "Cliente Marketplace"}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-base font-black text-foreground italic">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+                             <div className="mt-1 px-2.5 py-1 rounded-full bg-primary/5 text-primary text-[9px] font-black uppercase inline-block border border-primary/10">
+                                {order.status}
+                             </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-card/50 border border-dashed border-border rounded-xl p-12 text-center">
+                      <ShoppingBag className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-sm font-black text-muted-foreground/60 uppercase tracking-widest">Sem pedidos novos</p>
+                      <p className="text-xs text-muted-foreground/40 mt-1">Aguardando próximas vendas</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
