@@ -429,7 +429,7 @@ export default function BusinessOrdersPage() {
     try {
       console.log("[Dashboard] Usando RPC Chave Mestra para atualização blindada de status...");
       
-      const { data, error } = await supabase.rpc('update_order_status_v3', {
+      const { data, error } = await supabase.rpc('update_order_status_v4', {
         p_order_id: orderId,
         p_new_status: newStatus
       });
