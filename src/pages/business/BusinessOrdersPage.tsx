@@ -91,7 +91,10 @@ export default function BusinessOrdersPage() {
       const { data, error } = await supabase
         .from("orders")
         .select(`
-          *,
+          id, customer_id, company_id, status, total, 
+          delivery_address, delivery_latitude, delivery_longitude, 
+          payment_method, notes, created_at, updated_at, 
+          city_id, delivery_fee, idempotency_key,
           order_items (
             id, quantity, price, product_name, unit_price,
             products (id, name, image_url, description)
@@ -363,12 +366,13 @@ export default function BusinessOrdersPage() {
     console.log(`[Dashboard] Atualizando pedido ${orderId} para status: ${newStatus}`);
     
     try {
-      // Tentativa de update resiliente (select 'id' evita erro de coluna region_id não existente no retorno)
+      // Tentativa de update 'cego' (Usando select('id') para que PostgREST não tente retornar region_id no corpo da resposta)
       const { error } = await supabase
         .from("orders")
         .update({ status: newStatus })
         .eq("id", orderId)
-        .select('id');
+        .select('id')
+        .single();
 
       if (error) {
         // Se for erro de coluna region_id não existente, tentamos ignorar se o status for alterado
