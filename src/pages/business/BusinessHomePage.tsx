@@ -88,7 +88,7 @@ export default function BusinessHomePage() {
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
     try {
-      const { error } = await supabase.from("orders").update({ status: nextStatus }).eq("id", orderId);
+      const { error } = await supabase.from("orders").update({ status: nextStatus as any }).eq("id", orderId);
       if (error) throw error;
       toast.success("Status do pedido atualizado");
       qc.invalidateQueries({ queryKey: ["marketplace-orders-active"] });
