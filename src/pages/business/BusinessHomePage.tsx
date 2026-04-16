@@ -43,6 +43,27 @@ export default function BusinessHomePage() {
 
   const companyId = companyData?.id;
 
+  const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
+    companyId: companyId || undefined,
+    pageSize: 10
+  });
+
+  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
+
+  const deliveries = (deliveriesData?.data || []).filter(d => !["completed", "delivered", "cancelled"].includes(d.status));
+
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase
+      .channel("business-home-status")
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["deliveries"] });
+        qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId, qc]);
+
   const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
     queryKey: ["marketplace-orders-active", companyId],
     queryFn: async () => {
