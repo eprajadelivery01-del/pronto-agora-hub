@@ -69,16 +69,34 @@ export default function BusinessHomePage() {
     queryKey: ["marketplace-orders-active", companyId],
     queryFn: async () => {
        if (!companyId) return [];
-       const { data } = await supabase
+       const { data: orders, error } = await supabase
          .from("orders")
-         .select("*, customer:customers(name, phone)")
+         .select("*")
          .eq("company_id", companyId)
          .not("status", "in", '("completed","delivered","cancelled")')
          .order("created_at", { ascending: false });
-       return data || [];
+       if (error) {
+         console.error("[Home] Erro ao buscar marketplace orders:", error);
+         return [];
+       }
+       const list = orders || [];
+       if (list.length === 0) return list;
+
+       // Busca clientes em uma segunda query (sem depender de FK no schema cache)
+       const customerIds = Array.from(new Set(list.map((o: any) => o.customer_id).filter(Boolean)));
+       let customerMap: Record<string, any> = {};
+       if (customerIds.length > 0) {
+         const { data: customers } = await supabase
+           .from("customers")
+           .select("id, name, phone")
+           .in("id", customerIds);
+         (customers || []).forEach((c: any) => { customerMap[c.id] = c; });
+       }
+       return list.map((o: any) => ({ ...o, customer: customerMap[o.customer_id] || null }));
     },
     enabled: !!companyId
   });
+
 
   const stats = {
     pending: deliveryStats?.pending ?? 0,
