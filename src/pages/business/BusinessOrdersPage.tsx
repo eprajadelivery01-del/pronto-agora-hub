@@ -95,10 +95,17 @@ export default function BusinessOrdersPage() {
       console.log(`[Dashboard] Iniciando busca de pedidos para Empresa: ${companyId}`);
       setLoading(true);
       
-      // BUSCA ULTRA-SEGURA: apenas campos vitais para evitar erro de schema
+      // BUSCA RESILIENTE: Campos operacionais completos
       let { data, error } = await supabase
         .from("orders")
-        .select("id, status, total, created_at, customer_id")
+        .select(`
+          id, status, total, created_at, customer_id, 
+          delivery_address, payment_method, notes,
+          order_items (
+            id, quantity, price, product_name, unit_price,
+            products (id, name, image_url, description)
+          )
+        `)
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
