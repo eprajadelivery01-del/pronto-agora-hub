@@ -1,5 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ShoppingBag,
   Store,
@@ -39,6 +39,7 @@ interface BusinessLayoutProps {
 
 export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
