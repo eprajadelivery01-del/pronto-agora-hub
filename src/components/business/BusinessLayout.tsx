@@ -257,13 +257,9 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                   {updatingStatus ? "Atualizando..." : (isOpen ? "Status: Online" : "Status: Offline")}
                 </button>
              </div>
-             <button className="relative p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors lg:hidden">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background" />
-             </button>
              <div className="relative group">
                <button 
-                 onClick={() => window.location.href = "/business/orders"}
+                 onClick={() => navigate("/business/orders")}
                  className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all hover:scale-105"
                >
                   <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
