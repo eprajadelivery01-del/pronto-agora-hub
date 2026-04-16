@@ -135,7 +135,7 @@ export default function OrderDetailModal({
     cancelled: { label: "Cancelado", color: "bg-rose-500 text-white shadow-lg" }
   };
 
-  const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined };
+  const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined, prev: undefined, prevLabel: undefined };
   
   const handleAdvance = () => {
     if (status.next) {
