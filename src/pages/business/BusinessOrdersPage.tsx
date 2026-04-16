@@ -98,7 +98,7 @@ export default function BusinessOrdersPage() {
       // BUSCA ULTRA-SEGURA: apenas campos vitais para evitar erro de schema
       let { data, error } = await supabase
         .from("orders")
-        .select("id, status, total, created_at, customer_id, delivery_id")
+        .select("id, status, total, created_at, customer_id")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
 
