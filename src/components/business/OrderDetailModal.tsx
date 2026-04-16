@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
-  CheckCircle2, AlertCircle, X, Printer, ArrowRight, Trash2,
-  Package, ImagePlus, Loader2
+  CheckCircle2, AlertCircle, X, Printer, ArrowRight, ArrowLeft, Trash2,
+  Package, ImagePlus, Loader2, RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,10 +126,10 @@ export default function OrderDetailModal({
 
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string }> = {
     pending: { label: "Novo Pedido", color: "bg-amber-500 text-white shadow-lg", next: "preparing", nextLabel: "Aceitar Pedido" },
-    accepted: { label: "Aceito", color: "bg-indigo-500 text-white shadow-lg", next: "preparing", nextLabel: "Começar Preparo" },
-    preparing: { label: "Em Preparo", color: "bg-blue-500 text-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto" },
-    ready: { label: "Pronto", color: "bg-emerald-500 text-white shadow-lg", next: "ready", nextLabel: "Chamar Entregador" },
-    in_route: { label: "Em Rota", color: "bg-purple-500 text-white shadow-lg", next: "completed", nextLabel: "Concluir Pedido" },
+    accepted: { label: "Aceito", color: "bg-indigo-500 text-white shadow-lg", next: "preparing", nextLabel: "Começar Preparo", prev: "pending", prevLabel: "Voltar para Novos" },
+    preparing: { label: "Em Preparo", color: "bg-blue-500 text-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto", prev: "pending", prevLabel: "Voltar para Novos" },
+    ready: { label: "Pronto", color: "bg-emerald-500 text-white shadow-lg", next: "ready", nextLabel: "Chamar Entregador", prev: "preparing", prevLabel: "Voltar para Preparo" },
+    in_route: { label: "Em Rota", color: "bg-purple-500 text-white shadow-lg", next: "completed", nextLabel: "Concluir Pedido", prev: "ready", prevLabel: "Voltar para Pronto" },
     completed: { label: "Concluído", color: "bg-emerald-600 text-white shadow-lg" },
     delivered: { label: "Entregue", color: "bg-emerald-600 text-white shadow-lg" },
     cancelled: { label: "Cancelado", color: "bg-rose-500 text-white shadow-lg" }
@@ -143,6 +143,18 @@ export default function OrderDetailModal({
         onAdvance(order.id, status.next);
       } else if (updateStatus) {
         updateStatus(order.id, status.next).then(() => {
+          onStatusUpdate?.();
+        });
+      }
+    }
+  };
+
+  const handlePrev = () => {
+    if (status.prev) {
+      if (onAdvance) {
+        onAdvance(order.id, status.prev);
+      } else if (updateStatus) {
+        updateStatus(order.id, status.prev).then(() => {
           onStatusUpdate?.();
         });
       }
@@ -319,6 +331,16 @@ export default function OrderDetailModal({
                 >
                   Fechar
                 </button>
+                {status.prev && (
+                  <button 
+                    onClick={handlePrev}
+                    className="px-6 h-14 rounded-2xl border border-border bg-white text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center gap-2 group/btn"
+                    title={status.prevLabel}
+                  >
+                    <RotateCcw className="h-4 w-4 group-hover/btn:-rotate-45 transition-transform" />
+                    <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">{status.prevLabel}</span>
+                  </button>
+                )}
                 {status.next && (
                   <button 
                     onClick={handleAdvance}
