@@ -39,6 +39,8 @@ interface Order {
   notes?: string;
   customer?: { name: string; phone?: string };
   delivery_address?: string;
+  delivery_id?: string;
+  customer_id?: string;
   items?: OrderItem[];
 }
 
@@ -83,6 +85,11 @@ export default function BusinessOrdersPage() {
   const [isRinging, setIsRinging] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const createDeliveryMut = useCreateDeliveryRequest();
+  
+  // Estados para o Modal de Despacho
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState<Order | null>(null);
+  const [deliveryFee, setDeliveryFee] = useState<string>("0.00");
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) {
@@ -99,7 +106,7 @@ export default function BusinessOrdersPage() {
       let { data, error } = await supabase
         .from("orders")
         .select(`
-          id, status, total, created_at, customer_id, 
+          id, status, total, created_at, customer_id, delivery_id,
           delivery_address, payment_method, notes,
           order_items (
             id, quantity, price, product_name, unit_price,
@@ -409,13 +416,43 @@ export default function BusinessOrdersPage() {
     }
   };
 
-  const handleDispatch = async (order: Order) => {
+  const handleDispatch = (order: Order) => {
+    // 🛡️ TRAVA DE DUPLICIDADE
+    if (order.delivery_id) {
+      toast.error("Este pedido já possui uma solicitação de entrega ativa!", {
+        description: "Verifique o painel de entregas ou use o histórico.",
+        duration: 5000
+      });
+      return;
+    }
+
+    setSelectedOrderForDispatch(order);
+    setDeliveryFee("0.00");
+    setIsDispatchModalOpen(true);
+  };
+
+  const confirmDispatch = async () => {
+    if (!selectedOrderForDispatch) return;
+    
+    const fee = parseFloat(deliveryFee.replace(",", "."));
+    if (isNaN(fee)) {
+      toast.error("Por favor, insira um valor válido para a entrega.");
+      return;
+    }
+
     try {
+      setIsDispatchModalOpen(false);
       toast.info("Solicitando entregador...", { id: "dispatch" });
-      await createDeliveryMut.mutateAsync(order.id);
+      
+      await createDeliveryMut.mutateAsync({ 
+        orderId: selectedOrderForDispatch.id, 
+        customValue: fee 
+      });
+      
       toast.success("🚚 Entregador Solicitado! Aguardando aceite.", { id: "dispatch" });
       fetchOrders();
     } catch (err: any) {
+      console.error("[Dashboard] Erro ao despachar:", err);
       toast.error(`Falha ao despachar: ${err.message}`, { id: "dispatch" });
     }
   };
@@ -558,6 +595,65 @@ export default function BusinessOrdersPage() {
           ))}
         </div>
       </div>
+
+      {/* MODAL DE DESPACHO (CHAMAR ENTREGADOR) */}
+      <Dialog open={isDispatchModalOpen} onOpenChange={setIsDispatchModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0">
+          <div className="bg-primary/5 p-8 pb-4">
+            <div className="w-16 h-16 rounded-[1.5rem] bg-primary/10 flex items-center justify-center mb-6">
+              <Truck className="h-8 w-8 text-primary" />
+            </div>
+            <DialogHeader className="text-left p-0">
+              <DialogTitle className="text-2xl font-black tracking-tight text-foreground">Chamar Entregador</DialogTitle>
+              <DialogDescription className="text-muted-foreground font-bold text-sm leading-relaxed mt-2">
+                Informe o valor que será pago ao entregador por esta entrega. Este valor será visível para os motoboys da região.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="p-8 pt-6 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Valor da Entrega (R$)</label>
+              <div className="relative group">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                   <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <input
+                  type="text"
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full h-16 pl-16 pr-6 rounded-[1.25rem] bg-secondary/30 border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all text-2xl font-black tracking-tighter outline-none"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setIsDispatchModalOpen(false)}
+                className="flex-1 h-14 rounded-2xl bg-secondary text-foreground font-black text-xs uppercase tracking-widest hover:bg-secondary/80 transition-all border border-border"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDispatch}
+                disabled={createDeliveryMut.isPending}
+                className="flex-[2] h-14 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-widest hover:bg-foreground/90 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {createDeliveryMut.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Confirmar Solicitação
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </BusinessLayout>
   );
 }

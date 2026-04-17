@@ -137,8 +137,8 @@ export function useReassignDelivery() {
 /**
  * INTEGRAÇÕES COM PAINEL LOJISTA (iFood Style)
  */
-export async function createDeliveryRequest(orderId: string) {
-  console.log(`[Deliveries] Iniciando criação de entrega para pedido: ${orderId}`);
+export async function createDeliveryRequest({ orderId, customValue }: { orderId: string, customValue?: number }) {
+  console.log(`[Deliveries] Iniciando criação de entrega para pedido: ${orderId} (Valor customizado: ${customValue || 'Não'})`);
   
   // 1. Puxa os dados do pedido (Sem Joins problemáticos)
   const { data: order, error: orderError } = await supabase
@@ -191,7 +191,7 @@ export async function createDeliveryRequest(orderId: string) {
       company_id: order.company_id,
       customer_name: customerData?.name || order.customer_name || "Cliente Marketplace",
       address: dropoff,
-      value: order.total || 0,
+      value: customValue || order.total || 0,
       status: "pending"
     })
     .select()
