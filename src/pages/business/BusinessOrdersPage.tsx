@@ -416,14 +416,36 @@ export default function BusinessOrdersPage() {
     }
   };
 
-  const handleDispatch = (order: Order) => {
-    // 🛡️ TRAVA DE DUPLICIDADE
+  const handleDispatch = async (order: Order) => {
+    // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
     if (order.delivery_id) {
-      toast.error("Este pedido já possui uma solicitação de entrega ativa!", {
-        description: "Verifique o painel de entregas ou use o histórico.",
-        duration: 5000
-      });
-      return;
+      console.log(`[Dashboard] Verificando integridade da entrega vinculada: ${order.delivery_id}`);
+      
+      const { data: delivery, error } = await supabase
+        .from('deliveries')
+        .select('status')
+        .eq('id', order.delivery_id)
+        .maybeSingle();
+
+      // Se a entrega não existe (órfã) ou já foi cancelada, limpamos o vínculo e permitimos novo despacho
+      if (!delivery || delivery.status === 'cancelled') {
+        console.warn("[Dashboard] Vínculo de entrega inválido ou cancelado detectado. Liberando pedido para novo despacho.");
+        
+        // Limpamos no banco de dados para evitar recorrência
+        await supabase
+          .from('orders')
+          .update({ delivery_id: null } as any)
+          .eq('id', order.id);
+          
+        // Atualizamos localmente para permitir a abertura do modal sem refresh
+        order.delivery_id = null;
+      } else {
+        toast.error("Este pedido já possui uma solicitação de entrega ativa!", {
+          description: `Status atual da entrega: ${delivery.status}. Verifique o mapa ou painel de entregas.`,
+          duration: 5000
+        });
+        return;
+      }
     }
 
     setSelectedOrderForDispatch(order);
