@@ -90,9 +90,27 @@ export default function BusinessOrdersPage() {
   // Estados para o Modal de Despacho
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState<Order | null>(null);
-  const [deliveryFee, setDeliveryFee] = useState<string>("0.00");
+  const [deliveryFee, setDeliveryFee] = useState<string>("0,00");
   const [loadingFee, setLoadingFee] = useState(false);
   const [detectedRegion, setDetectedRegion] = useState<string | null>(null);
+
+  // Formata um número para o padrão monetário brasileiro: 10 → "10,00" / 1234.5 → "1.234,50"
+  const formatCurrency = (value: number): string => {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Máscara monetária: remove não-dígitos, divide por 100 e reformata
+  const applyMoneyMask = (raw: string): string => {
+    const digitsOnly = raw.replace(/\D/g, '');
+    if (!digitsOnly) return '0,00';
+    const numeric = parseInt(digitsOnly, 10) / 100;
+    return formatCurrency(numeric);
+  };
+
+  // Converte o valor mascarado de volta para número ("1.234,56" → 1234.56)
+  const parseCurrency = (masked: string): number => {
+    return parseFloat(masked.replace(/\./g, '').replace(',', '.')) || 0;
+  };
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) {
@@ -452,7 +470,7 @@ export default function BusinessOrdersPage() {
     }
 
     setSelectedOrderForDispatch(order);
-    setDeliveryFee("0.00");
+    setDeliveryFee("0,00");
     setDetectedRegion(null);
     setIsDispatchModalOpen(true);
 
@@ -473,9 +491,9 @@ export default function BusinessOrdersPage() {
         if (lat && lng) {
           const result = await calculateDeliveryFee(lat, lng, supabase);
           if (result.fee !== null && !result.isOutOfRange) {
-            setDeliveryFee(result.fee.toFixed(2));
+            setDeliveryFee(formatCurrency(result.fee));
             setDetectedRegion(result.regionName);
-            toast.info(`📍 Frete calculado: R$ ${result.fee.toFixed(2)} (${result.regionName})`);
+            toast.info(`📍 Frete calculado: R$ ${formatCurrency(result.fee)} (${result.regionName})`);
           } else if (result.isOutOfRange) {
             setDetectedRegion('Fora da área de cobertura');
           }
@@ -491,8 +509,8 @@ export default function BusinessOrdersPage() {
   const confirmDispatch = async () => {
     if (!selectedOrderForDispatch) return;
     
-    const fee = parseFloat(deliveryFee.replace(",", "."));
-    if (isNaN(fee)) {
+    const fee = parseCurrency(deliveryFee);
+    if (isNaN(fee) || fee < 0) {
       toast.error("Por favor, insira um valor válido para a entrega.");
       return;
     }
@@ -684,8 +702,9 @@ export default function BusinessOrdersPage() {
                 </div>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={deliveryFee}
-                  onChange={(e) => setDeliveryFee(e.target.value)}
+                  onChange={(e) => setDeliveryFee(applyMoneyMask(e.target.value))}
                   placeholder="0,00"
                   className="w-full h-16 pl-16 pr-6 rounded-[1.25rem] bg-secondary/30 border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all text-2xl font-black tracking-tighter outline-none"
                   autoFocus
