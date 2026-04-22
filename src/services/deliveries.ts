@@ -189,7 +189,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     .from("deliveries")
     .insert({
       company_id: order.company_id,
-      customer_name: customerData?.name || order.customer_name || "Cliente Marketplace",
+      customer_name: customerData?.name || (order as any).customer_name || "Cliente Marketplace",
       address: dropoff,
       value: customValue || order.total || 0,
       status: "pending"
