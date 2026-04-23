@@ -15,31 +15,41 @@ export default function LoginPage() {
   const { user, loading: authLoading, hasRole, roles, userStatus } = useAuth();
 
   useEffect(() => {
-    if (user && !authLoading) {
-      // Pequeno delay para garantir que o estado de status e roles está sincronizado
-      const timer = setTimeout(() => {
-        if (userStatus === "pending") {
-          navigate("/pending-approval", { replace: true });
-        } else if (hasRole("company")) {
-          navigate("/business", { replace: true });
-        } else if (hasRole("admin")) {
-          toast({ 
-            title: "Portal de Lojistas", 
-            description: "Você está logado como Administrador. Use o painel administrativo para gestão global.", 
-            variant: "default" 
-          });
-        } else {
-          // Só mostra se realmente não tiver perfil de empresa/admin após o carregamento
-          toast({ 
-            title: "Identificação Necessária", 
-            description: "Este portal é exclusivo para Lojistas parceiros.", 
-            variant: "destructive" 
-          });
-        }
-      }, 200);
-      return () => clearTimeout(timer);
+    if (!user || authLoading) return;
+
+    // Aguarda as roles serem carregadas antes de decidir o redirecionamento.
+    // Sem isso, o toast destrutivo dispara durante o intervalo entre o login
+    // e o fetch assíncrono dos perfis/roles, causando o falso "Identificação Necessária".
+    if (roles.length === 0) {
+      // Fallback: se após 4s ainda não houver roles, aí sim mostramos o aviso.
+      const fallback = setTimeout(() => {
+        toast({
+          title: "Identificação Necessária",
+          description: "Este portal é exclusivo para Lojistas parceiros.",
+          variant: "destructive",
+        });
+      }, 4000);
+      return () => clearTimeout(fallback);
     }
-  }, [user, authLoading, userStatus, hasRole, navigate, toast]);
+
+    if (userStatus === "pending") {
+      navigate("/pending-approval", { replace: true });
+    } else if (hasRole("company")) {
+      navigate("/business", { replace: true });
+    } else if (hasRole("admin")) {
+      toast({
+        title: "Portal de Lojistas",
+        description: "Você está logado como Administrador. Use o painel administrativo para gestão global.",
+        variant: "default",
+      });
+    } else {
+      toast({
+        title: "Identificação Necessária",
+        description: "Este portal é exclusivo para Lojistas parceiros.",
+        variant: "destructive",
+      });
+    }
+  }, [user, authLoading, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
