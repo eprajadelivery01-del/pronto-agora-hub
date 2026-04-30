@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Search, RefreshCw, User, Phone, MapPin, Calendar, ShoppingBag } from "lucide-react";
+import { Users, Search, RefreshCw, User, Phone, ShoppingBag, Plus, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CustomerRecord {
   id: string;
   name: string;
   phone?: string;
+  cpf?: string;
   total_orders: number;
   last_order_at?: string;
 }
@@ -20,6 +22,11 @@ export default function BusinessCustomersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [companyId, setCompanyId] = useState<string | null>(null);
 
+  // Modal de novo cliente
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: "", phone: "", cpf: "" });
+
   useEffect(() => {
     const init = async () => {
       if (!user) return;
@@ -29,54 +36,80 @@ export default function BusinessCustomersPage() {
     init();
   }, [user]);
 
-  useEffect(() => {
+  const fetchCustomers = async () => {
     if (!companyId) return;
-    const fetchCustomers = async () => {
-      setLoading(true);
-      // Fetching customers who have at least one order with this company
-      const { data } = await supabase
-        .from("orders")
-        .select(`
-          customers (id, name, phone),
-          created_at
-        `)
-        .eq("company_id", companyId);
+    setLoading(true);
+    const { data } = await supabase
+      .from("orders")
+      .select(`customers (id, name, phone, cpf), created_at`)
+      .eq("company_id", companyId);
 
-      if (data) {
-        const customerMap = new Map<string, CustomerRecord>();
-        data.forEach((o: any) => {
-          if (!o.customers) return;
-          const c = o.customers;
-          if (!customerMap.has(c.id)) {
-            customerMap.set(c.id, {
-              id: c.id,
-              name: c.name,
-              phone: c.phone,
-              total_orders: 0,
-              last_order_at: o.created_at
-            });
-          }
-          const record = customerMap.get(c.id)!;
-          record.total_orders += 1;
-          if (new Date(o.created_at) > new Date(record.last_order_at!)) {
-            record.last_order_at = o.created_at;
-          }
+    const customerMap = new Map<string, CustomerRecord>();
+    (data || []).forEach((o: any) => {
+      if (!o.customers) return;
+      const c = o.customers;
+      if (!customerMap.has(c.id)) {
+        customerMap.set(c.id, {
+          id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
+          total_orders: 0, last_order_at: o.created_at,
         });
-        setCustomers(Array.from(customerMap.values()));
       }
-      setLoading(false);
-    };
-    fetchCustomers();
+      const r = customerMap.get(c.id)!;
+      r.total_orders += 1;
+      if (new Date(o.created_at) > new Date(r.last_order_at!)) r.last_order_at = o.created_at;
+    });
+    setCustomers(Array.from(customerMap.values()));
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (companyId) fetchCustomers();
   }, [companyId]);
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error("Informe o nome do cliente");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("customers")
+        .insert({
+          name: form.name.trim(),
+          phone: form.phone.trim() || null,
+          cpf: form.cpf.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Adiciona à lista localmente (sem pedidos ainda)
+      setCustomers((prev) => [
+        { id: data.id, name: data.name, phone: data.phone, cpf: data.cpf, total_orders: 0, last_order_at: undefined },
+        ...prev,
+      ]);
+      toast.success("Cliente cadastrado com sucesso!");
+      setForm({ name: "", phone: "", cpf: "" });
+      setShowNewModal(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Erro ao cadastrar cliente");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.phone && c.phone.includes(searchTerm))
   );
 
   if (loading) return (
     <BusinessLayout title="Clientes">
-       <div className="flex items-center justify-center py-24"><RefreshCw className="h-8 w-8 animate-spin text-primary" /></div>
+      <div className="flex items-center justify-center py-24"><RefreshCw className="h-8 w-8 animate-spin text-primary" /></div>
     </BusinessLayout>
   );
 
@@ -88,15 +121,23 @@ export default function BusinessCustomersPage() {
             <h2 className="text-2xl font-black text-foreground">Sua Freguesia</h2>
             <p className="text-muted-foreground text-sm font-medium">Clientes que já realizaram pedidos no seu estabelecimento.</p>
           </div>
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input 
-              type="text"
-              placeholder="Buscar por nome ou fone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-border bg-card text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
-            />
+          <div className="flex gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar por nome ou fone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-border bg-card text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all shadow-card whitespace-nowrap"
+            >
+              <Plus className="h-4 w-4" /> Novo Cliente
+            </button>
           </div>
         </div>
 
@@ -105,7 +146,13 @@ export default function BusinessCustomersPage() {
             <div className="col-span-full py-24 text-center bg-card border border-dashed border-border rounded-[2.5rem]">
               <Users className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
               <h3 className="text-lg font-bold text-foreground">Nenhum cliente encontrado</h3>
-              <p className="text-muted-foreground">Sua lista de clientes automáticos aparecerá aqui.</p>
+              <p className="text-muted-foreground mb-6">Cadastre seu primeiro cliente ou aguarde novos pedidos.</p>
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all"
+              >
+                <Plus className="h-4 w-4" /> Cadastrar Cliente
+              </button>
             </div>
           ) : (
             filteredCustomers.map((customer) => (
@@ -143,6 +190,91 @@ export default function BusinessCustomersPage() {
           )}
         </div>
       </div>
+
+      {/* Modal Novo Cliente */}
+      {showNewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => !saving && setShowNewModal(false)}
+        >
+          <div
+            className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-md p-6 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-black text-foreground">Novo Cliente</h3>
+                <p className="text-xs text-muted-foreground font-medium mt-1">Cadastre um cliente manualmente.</p>
+              </div>
+              <button
+                onClick={() => !saving && setShowNewModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                disabled={saving}
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">Nome *</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: Maria Silva"
+                  className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                  required
+                  maxLength={100}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">Telefone</label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="(00) 00000-0000"
+                  className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                  maxLength={20}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">CPF</label>
+                <input
+                  type="text"
+                  value={form.cpf}
+                  onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                  placeholder="000.000.000-00"
+                  className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                  maxLength={14}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewModal(false)}
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-xl border border-border hover:bg-muted text-sm font-bold text-muted-foreground transition-all disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !form.name.trim()}
+                  className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</> : "Cadastrar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </BusinessLayout>
   );
 }
