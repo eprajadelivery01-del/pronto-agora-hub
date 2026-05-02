@@ -32,9 +32,11 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   
   const [notes, setNotes] = useState(initialData?.notes?.replace("[PAGO]", "").trim() || "");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [saveCustomer, setSaveCustomer] = useState(true);
   const [suggestedCustomer, setSuggestedCustomer] = useState<any>(null);
   const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
 
   // Smart Search: Find customer by phone as the user types
   useEffect(() => {
@@ -43,7 +45,6 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       
       const phoneClean = customerPhone.replace(/\D/g, "");
 
-      // 1. Search in global customers table first (higher priority)
       const { data: globalCust } = await supabase
         .from("customers")
         .select("name, phone, cpf")
@@ -61,7 +62,6 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
         return;
       }
 
-      // 2. Search in previous deliveries for address history
       const { data: prevDeliv } = await supabase
         .from("deliveries")
         .select("customer_name, customer_phone, customer_cpf, address")
@@ -115,6 +115,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       setNotes("");
       setIsPaid(false);
       setSuggestedCustomer(null);
+      setSelectedRegionName(null);
+      setSelectedRegionId(null);
       toast.info("Formulário limpo");
     }
   };
@@ -129,9 +131,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
     }
   };
 
-  // Helper to format currency on blur/change
   const handleCurrencyChange = (val: string, setter: (v: string) => void) => {
-    // Basic cleaning: allow only numbers and one comma (or dot which we convert)
     let clean = val.replace('.', ',').replace(/[^\d,]/g, "");
     if ((clean.match(/,/g) || []).length > 1) return;
     setter(clean);
@@ -153,11 +153,19 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   const handleRegionSelect = React.useCallback((fee: number, id: string, name: string) => {
     setDeliveryValue(fee.toFixed(2).replace('.', ','));
     setSelectedRegionName(name);
+    setSelectedRegionId(id);
     toast.success(`Região selecionada! Taxa: R$ ${fee.toFixed(2).replace('.', ',')}`);
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // Validate region selection
+    if (!selectedRegionId) {
+      toast.error("Selecione uma região de entrega antes de enviar.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -168,7 +176,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
       
       const finalNotes = isPaid ? `[PAGO] ${notes}`.trim() : notes.trim();
 
-      const payload = {
+      const payload: Record<string, any> = {
         company_id: companyId,
         customer_name: customerName,
         customer_phone: customerPhone.replace(/\D/g, ""),
@@ -179,7 +187,9 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
         value: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue, 
         estimated_value: isNaN(parsedCollectValue) ? 0 : parsedCollectValue,
         notes: finalNotes || null,
-        status: initialData ? initialData.status : "pending"
+        status: initialData ? initialData.status : "pending",
+        region_id: selectedRegionId,
+        region_name: selectedRegionName,
       };
 
       const query = initialData 
@@ -191,7 +201,6 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
 
       // Logic to save/update customer official record
       if (saveCustomer && !initialData) {
-        // Find if customer already exists in global customers table
         const { data: existingCust } = await supabase.from("customers")
           .select("id")
           .eq("phone", customerPhone.replace(/\D/g, ""))
@@ -213,13 +222,59 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
 
       toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
-      onClose();
+      setSubmitted(true);
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar entrega");
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Confirmation screen after successful submit
+  if (submitted) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-left-4 duration-300 pb-12">
+        <div className="bg-card border border-border rounded-[2.5rem] shadow-2xl overflow-hidden">
+          <div className="bg-success/10 p-8 border-b border-border flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-success flex items-center justify-center shadow-lg shadow-success/20">
+              <CheckCircle className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="text-2xl font-black text-foreground">Solicitação Enviada!</h2>
+            <p className="text-muted-foreground font-medium text-center">Seu pedido de entrega foi encaminhado para o painel administrativo.</p>
+          </div>
+          <div className="p-8 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Resumo do Pedido</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-4 bg-muted/30 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cliente</p>
+                <p className="font-bold text-foreground">{customerName}</p>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-2xl">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Endereço</p>
+                <p className="font-bold text-foreground truncate">{address}</p>
+              </div>
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Região</p>
+                <span className="inline-block bg-primary/10 text-primary text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border border-primary/20">
+                  {selectedRegionName}
+                </span>
+              </div>
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Taxa de Entrega</p>
+                <p className="text-xl font-black text-primary">R$ {deliveryValue}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-5 rounded-3xl bg-primary text-white text-lg font-black shadow-2xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all mt-4"
+            >
+              Voltar ao Painel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-left-4 duration-300 pb-12">
@@ -309,7 +364,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
              </div>
            </div>
 
-          {/* Sessão: Endereço & Mapa */}
+          {/* Sessão: Endereço & Região */}
           <div className="space-y-4">
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                 <MapPin className="h-3 w-3" /> Local de Entrega
@@ -326,12 +381,17 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                     />
                 </div>
                  <div className="space-y-1.5">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Região de Entrega *</label>
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">
+                     Região de Entrega <span className="text-destructive">*</span>
+                   </label>
                    <RegionPickerGrid 
                      cityId={companyData?.city_id || selectedCity} 
-                     onRegionSelect={handleRegionSelect} 
+                     onRegionSelect={handleRegionSelect}
+                     disabled={false}
                    />
-                   <p className="text-[9px] text-muted-foreground font-bold ml-2">Selecione uma região acima para definir a taxa.</p>
+                   {!selectedRegionId && (
+                     <p className="text-[9px] text-destructive font-bold ml-2">Selecione uma região acima para definir a taxa.</p>
+                   )}
                  </div>
              </div>
           </div>
@@ -426,7 +486,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
           <div className="pt-4">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !selectedRegionId}
               className="w-full py-6 rounded-3xl bg-primary text-white text-xl font-black shadow-2xl shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-3 active:scale-[0.98] transition-all outline-none focus:ring-8 focus:ring-primary/10"
             >
               {submitting && <Loader2 className="h-8 w-8 animate-spin" />}
@@ -438,4 +498,3 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
     </div>
   );
 }
-
