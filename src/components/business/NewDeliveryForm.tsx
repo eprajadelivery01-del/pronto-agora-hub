@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCity } from "@/contexts/CityContext";
-import { RegionPickerMap } from "@/components/business/RegionPickerMap";
+import { RegionPickerGrid } from "@/components/business/RegionPickerGrid";
 import { cn } from "@/lib/utils";
 
 interface NewDeliveryFormProps {
@@ -34,6 +34,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   const [submitting, setSubmitting] = useState(false);
   const [saveCustomer, setSaveCustomer] = useState(true);
   const [suggestedCustomer, setSuggestedCustomer] = useState<any>(null);
+  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
 
   // Smart Search: Find customer by phone as the user types
   useEffect(() => {
@@ -149,8 +150,9 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
     }
   };
 
-  const handleRegionSelect = React.useCallback((fee: number, id: string) => {
+  const handleRegionSelect = React.useCallback((fee: number, id: string, name: string) => {
     setDeliveryValue(fee.toFixed(2).replace('.', ','));
+    setSelectedRegionName(name);
     toast.success(`Região selecionada! Taxa: R$ ${fee.toFixed(2).replace('.', ',')}`);
   }, []);
 
@@ -323,12 +325,14 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                       required
                     />
                 </div>
-                <div className="rounded-[2rem] overflow-hidden border border-border shadow-inner">
-                  <RegionPickerMap 
-                    cityId={companyData?.city_id || selectedCity} 
-                    onRegionSelect={handleRegionSelect} 
-                  />
-                </div>
+                 <div className="space-y-1.5">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Região de Entrega *</label>
+                   <RegionPickerGrid 
+                     cityId={companyData?.city_id || selectedCity} 
+                     onRegionSelect={handleRegionSelect} 
+                   />
+                   <p className="text-[9px] text-muted-foreground font-bold ml-2">Selecione uma região acima para definir a taxa.</p>
+                 </div>
              </div>
           </div>
 
@@ -340,20 +344,24 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Taxa de Entrega */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega (R$)</label>
-                  <div className="relative">
-                    <div className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-primary/50 text-sm">R$</div>
-                    <input
-                      value={deliveryValue}
-                      onChange={(e) => handleCurrencyChange(e.target.value, setDeliveryValue)}
-                      onBlur={(e) => handleBlur(e.target.value, setDeliveryValue)}
-                      placeholder="0,00"
-                      className="w-full pl-12 pr-5 py-5 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-primary outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
-                      required
-                    />
-                  </div>
-                </div>
+                 <div className="space-y-1.5">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega (R$)</label>
+                   <div className="relative">
+                     <div className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-primary/50 text-sm">R$</div>
+                     <input
+                       value={deliveryValue}
+                       readOnly
+                       placeholder="0,00"
+                       className="w-full pl-12 pr-24 py-5 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-primary outline-none cursor-default transition-all"
+                       required
+                     />
+                     {selectedRegionName && (
+                       <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border border-primary/20">
+                         {selectedRegionName}
+                       </span>
+                     )}
+                   </div>
+                 </div>
 
                 {/* Valor a Receber */}
                 <div className={cn("space-y-1.5 transition-opacity", isPaid && "opacity-40 grayscale pointer-events-none")}>

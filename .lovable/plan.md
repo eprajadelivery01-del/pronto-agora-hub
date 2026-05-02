@@ -1,144 +1,39 @@
-# Plano: Melhorias de Arquitetura, Integração e UX
 
-Este plano cobre 5 blocos de trabalho, priorizados por impacto.
+## Objetivo
 
----
+Substituir o componente de mapa (`RegionPickerMap`) no formulário de nova solicitação por uma grade de cards/caixas selecionáveis, conforme os prints de referência. Cada card mostra um indicador colorido, o nome da região e o valor da entrega. O lojista apenas seleciona a região — não pode editar os valores.
 
-## Bloco 1: Camada de Serviços Centralizada
+## Alterações
 
-Criar `src/services/` com módulos que encapsulam todas as queries Supabase, eliminando chamadas diretas espalhadas pelos componentes.
+### 1. Criar componente `RegionPickerGrid`
 
-**Arquivos a criar:**
+Novo arquivo: `src/components/business/RegionPickerGrid.tsx`
 
-- `src/services/deliveries.ts` — CRUD de entregas, filtros, realtime subscription
-- `src/services/users.ts` — profiles, roles, convites
-- `src/services/regions.ts` — CRUD de regiões com GeoJSON
-- `src/services/drivers.ts` — status online/offline, localização
-- `src/services/companies.ts` — CRUD empresas
-- `src/services/realtime.ts` — setup centralizado de channels realtime
+- Busca as regiões do Supabase (filtrando por `city_id` se fornecido), igual ao `RegionPickerMap`
+- Renderiza um grid responsivo (3 colunas em desktop, 2 em mobile) de cards
+- Cada card exibe:
+  - Bolinha colorida (cor da região)
+  - Nome da região em negrito
+  - Valor (`R$ X,XX`) abaixo do nome
+- Ao clicar, o card fica selecionado (borda azul/primária, fundo levemente colorido, ícone de check)
+- Dispara `onRegionSelect(fee, regionId)` ao selecionar
+- Valores são somente leitura — o lojista não pode editá-los
 
-**Padrão:** cada service exporta funções assíncronas + hooks React Query (`useDeliveries`, `useRegions`, etc.) para cache e refetch automático.
+### 2. Atualizar `NewDeliveryForm.tsx`
 
-**Eventos realtime padronizados:** um único channel `deliveries` e `delivery_drivers` com listeners centralizados em `realtime.ts`, consumidos via hooks nos componentes.
+- Substituir o import e uso de `RegionPickerMap` por `RegionPickerGrid`
+- Remover o wrapper `rounded-[2rem] overflow-hidden border` do mapa
+- Adicionar label "Região de Entrega" acima do grid
+- Quando uma região é selecionada, o campo "Taxa de Entrega" é preenchido automaticamente e fica readonly (não editável manualmente), mostrando um badge com o nome da região selecionada
+- Manter toda a lógica de submit inalterada
 
----
+### 3. Opcionalmente manter `RegionPickerMap`
 
-## Bloco 2: Sistema de Convites e Cadastro
+O arquivo `RegionPickerMap.tsx` não será deletado (pode ser usado em outros contextos), apenas deixará de ser importado no formulário.
 
-### Rota `/invite/:token`
+## Detalhes técnicos
 
-Nova página pública de onboarding onde o convidado completa o cadastro:
-
-- Valida token contra tabela `invitations`
-- Formulário: nome, telefone, documento, senha, upload de avatar
-- Cria conta via `supabase.auth.signUp`, insere role e profile
-- Marca convite como `accepted`
-
-### Admin: Tela de Convites
-
-Em `/admin/users`, adicionar botão "Convidar Usuário" que abre modal:
-
-- Email, role (empresa/entregador)
-- Gera token e mostra link copiável
-
-### Tela de Perfil `/profile`
-
-- Foto, nome, telefone, documento
-- Upload de avatar para bucket `avatars`
-- Acessível por todos os roles
-
----
-
-## Bloco 3: Sistema de Regiões com Polígonos no Mapa
-
-### Refatorar `/admin/regions`
-
-Substituir a listagem atual por uma tela split: **mapa à esquerda + painel à direita**.
-
-**Mapa MapLibre:**
-
-- Renderizar regiões existentes como `fill` + `line` layers usando GeoJSON da coluna `geometry`
-- Cada região com sua cor (`color`) e transparência
-- Popup ao clicar: nome, preço
-
-**Editor de polígonos:**
-
-- Usar `@mapbox/mapbox-gl-draw` (compatível com MapLibre) para desenhar/editar polígonos
-- Ao salvar: converter coordenadas para GeoJSON e gravar na tabela `regions`
-- Botões: Criar Região, Editar, Excluir
-
-**Painel lateral:**
-
-- Lista de regiões com cor, nome, preço
-- Form para editar nome/cor/preço da região selecionada
-
-**Associação automática de endereço para região**
-
-- Criar função SQL `find_region_for_point(lat, lng)` que faz point-in-polygon usando os GeoJSON armazenados
-- Chamar ao criar/editar endereço
-
-### Migração SQL necessária
-
-- Função `find_region_for_point` que itera `regions` e verifica se o ponto está dentro do polígono
-
----
-
-## Bloco 4: Dashboard Admin com Dados Reais + Realtime
-
-Refatorar `DashboardPage.tsx` para usar os services ao invés de mockData:
-
-- `useDeliveries()` para contagens e lista
-- `useDrivers()` para motoboys online
-- `useCompanies()` para locais ativos
-- Realtime: subscrever `deliveries` e `delivery_drivers` para atualizar automaticamente
-
-**MapView melhorado:**
-
-- Mostrar entregadores com posição real (lat/lng da tabela `delivery_drivers`)
-- Mostrar corridas ativas com markers
-- Mostrar regiões como polígonos coloridos (reusar layer do Bloco 3)
-
----
-
-## Bloco 5: Tabela de Entregas Melhorada
-
-Refatorar `DeliveriesPage.tsx`:
-
-- Buscar dados reais via `useDeliveries()` com filtros server-side
-- Adicionar filtros: por empresa (select), por entregador (select), por data (date range)
-- Ações rápidas em cada linha: Editar, Cancelar, Reatribuir (dropdowns/modals)
-- Loading skeleton enquanto carrega
-- Paginação
-
----
-
-## Detalhes Técnicos
-
-**Dependências a adicionar:** `@mapbox/mapbox-gl-draw` para editor de polígonos
-
-**Estrutura de pastas final:**
-
-```text
-src/
-  services/        ← NOVO: camada de dados
-  hooks/           ← hooks existentes + novos React Query hooks
-  components/
-    admin/
-    auth/
-    business/
-    driver/
-    shared/        ← NOVO: componentes reutilizáveis entre módulos
-  pages/
-    admin/         ← NOVO: mover páginas admin para subpasta
-    driver/
-    business/
-    marketplace/
-```
-
-**Ordem de implementação:**
-
-1. Camada de serviços (base para tudo)
-2. Sistema de convites + perfil
-3. Regiões com polígonos no mapa
-4. Dashboard com dados reais
-5. Tabela de entregas melhorada
+- O grid usa classes Tailwind existentes (`grid grid-cols-2 md:grid-cols-3 gap-3`)
+- Estado `selectedRegionId` controlado no grid para highlight visual
+- O campo de taxa de entrega no form passa a ser `readOnly` quando uma região está selecionada, com um badge mostrando o nome da região
+- A busca de regiões reutiliza o mesmo padrão do `RegionPickerMap` (query direta ao Supabase na tabela `regions`)
