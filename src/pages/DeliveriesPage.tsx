@@ -156,7 +156,8 @@ export default function DeliveriesPage() {
         <div class="label">Status</div>
         <div class="value">${esc(delivery.status)}</div>
         <div class="label">Valor</div>
-        <div class="value">R$ ${Number(delivery.price ?? 0).toFixed(2)}</div>
+        <div class="value">R$ ${Number(delivery.value ?? delivery.price ?? 0).toFixed(2)}</div>
+        ${delivery.region_name ? `<div class="label">Região</div><div class="value">${esc(delivery.region_name)}</div>` : ""}
         <div class="label">Data</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
         ${delivery.notes ? `<div class="label">Observações</div><div class="value">${esc(delivery.notes)}</div>` : ""}
