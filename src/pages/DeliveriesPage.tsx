@@ -436,8 +436,16 @@ export default function DeliveriesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DetailField label="Cliente" value={detailDelivery.customer_name} />
                 <DetailField label="Empresa" value={(detailDelivery as any).companies?.name || "—"} />
-                <DetailField label="Valor" value={`R$ ${Number(detailDelivery.price ?? 0).toFixed(2)}`} />
+                <DetailField label="Valor" value={`R$ ${Number(detailDelivery.value ?? detailDelivery.price ?? 0).toFixed(2)}`} />
                 <DetailField label="Criado em" value={format(new Date(detailDelivery.created_at), "dd/MM/yyyy HH:mm")} />
+                {detailDelivery.region_name && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Região</p>
+                    <span className="inline-block bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full border border-primary/20">
+                      {detailDelivery.region_name}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <DetailField label="Endereço" value={detailDelivery.dropoff_address} />
