@@ -38,28 +38,45 @@ export async function getTransactions(walletId: string) {
 }
 
 export async function requestWithdrawal(amount: number, userId: string) {
-  // Aqui você integraria com um serviço de PIX/Bank ou criaria uma tabela de 'withdrawals'
-  // Por enquanto, apenas registramos uma saída na carteira
-  const wallet = await getWallet(userId);
-  if (wallet.balance < amount) throw new Error("Saldo insuficiente");
+  // Atomic withdrawal via Postgres RPC to prevent race-condition overdrafts.
+  // Falls back to client-side logic if the RPC doesn't exist yet.
+  const { error: rpcError } = await supabase.rpc("withdraw" as any, {
+    p_user_id: userId,
+    p_amount: amount,
+  });
 
-  const { error: updateError } = await supabase
-    .from("wallets")
-    .update({ balance: wallet.balance - amount })
-    .eq("id", wallet.id);
-  
-  if (updateError) throw updateError;
+  if (rpcError) {
+    // If the RPC function doesn't exist yet, fall back (temporary)
+    if (rpcError.message?.includes("function") && rpcError.message?.includes("does not exist")) {
+      console.warn("withdraw RPC not found — using legacy non-atomic path");
+      const wallet = await getWallet(userId);
+      if (wallet.balance < amount) throw new Error("Saldo insuficiente");
 
-  const { error: transError } = await supabase
-    .from("financial_transactions")
-    .insert({
-      wallet_id: wallet.id,
-      amount: -amount,
-      type: "debit",
-      description: "Saque solicitado",
-    });
+      const { error: updateError } = await supabase
+        .from("wallets")
+        .update({ balance: wallet.balance - amount })
+        .eq("id", wallet.id);
+      if (updateError) throw updateError;
 
-  if (transError) throw transError;
+      const { error: transError } = await supabase
+        .from("financial_transactions")
+        .insert({
+          wallet_id: wallet.id,
+          amount: -amount,
+          type: "debit",
+          description: "Saque solicitado",
+        });
+      if (transError) throw transError;
+      return { success: true };
+    }
+
+    // "Saldo insuficiente" raised from the DB function
+    if (rpcError.message?.includes("Saldo insuficiente")) {
+      throw new Error("Saldo insuficiente");
+    }
+    throw rpcError;
+  }
+
   return { success: true };
 }
 
