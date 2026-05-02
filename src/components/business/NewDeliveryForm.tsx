@@ -261,7 +261,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
               </div>
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Taxa de Entrega</p>
-                <p className="text-xl font-black text-primary">R$ {deliveryValue}</p>
+                <p className="text-xl font-black text-primary">{deliveryValue && deliveryValue !== "0,00" ? `R$ ${deliveryValue}` : "Sem valor"}</p>
               </div>
             </div>
             <button
