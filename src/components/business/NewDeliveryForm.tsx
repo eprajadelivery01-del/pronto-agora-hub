@@ -256,7 +256,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Região</p>
                 <span className="inline-block bg-primary/10 text-primary text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border border-primary/20">
-                  {selectedRegionName}
+                  {selectedRegionName || "Sem região"}
                 </span>
               </div>
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
