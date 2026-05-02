@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, User, Phone, MapPin, Plus, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
 interface Customer {

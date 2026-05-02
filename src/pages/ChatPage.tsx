@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { MessageSquare, User, Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";

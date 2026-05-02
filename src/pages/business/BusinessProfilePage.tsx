@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Store, Camera, ImagePlus, Loader2, Save, User, MapPin, Phone, 

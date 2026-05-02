@@ -4,7 +4,7 @@ import { useCompanies } from "@/services/companies";
 import { useRegions } from "@/services/regions";
 import { Building2, Phone, MapPin, Loader2, Plus, MoreHorizontal, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,

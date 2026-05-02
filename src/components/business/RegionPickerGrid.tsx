@@ -1,5 +1,5 @@
 import React, { useEffect, useState, memo } from 'react';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -7,12 +7,13 @@ interface RegionPickerGridProps {
   cityId?: string;
   onRegionSelect?: (fee: number, regionId: string, regionName: string) => void;
   disabled?: boolean;
+  initialSelectedId?: string | null;
 }
 
-export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled }: RegionPickerGridProps) => {
+export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled, initialSelectedId }: RegionPickerGridProps) => {
   const [loading, setLoading] = useState(true);
   const [regions, setRegions] = useState<any[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
 
   useEffect(() => {
     const fetchRegions = async () => {

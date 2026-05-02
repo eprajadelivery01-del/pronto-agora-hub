@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 export async function uploadImage(file: File, bucket: string, pathPrefix: string = "") {
   const ext = file.name.split(".").pop();

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import type { DeliveryStatus } from "@/types/models";
 
 export interface DeliveryWithRelations {
@@ -45,7 +45,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
-        .select("id, company_id, driver_id, customer_name, address, value, estimated_value, status, created_at, updated_at, notes, pickup_address, dropoff_address, companies(name, phone)", { count: "exact" })
+        .select("id, company_id, driver_id, customer_name, address, value, estimated_value, status, created_at, updated_at, notes, pickup_address, dropoff_address, region_id, region_name, companies(name, phone)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -62,7 +62,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { data: (data ?? []) as DeliveryWithRelations[], count: count || 0 };
+      return { data: (data ?? []) as unknown as DeliveryWithRelations[], count: count || 0 };
     },
   });
 }

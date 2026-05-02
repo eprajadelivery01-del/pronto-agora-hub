@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { Loader2, Info } from "lucide-react";
 
 interface RegionPickerMapProps {

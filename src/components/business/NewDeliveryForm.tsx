@@ -1,6 +1,6 @@
 import React, { useState, FormEvent, useEffect } from "react";
 import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCity } from "@/contexts/CityContext";
@@ -35,8 +35,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   const [submitted, setSubmitted] = useState(false);
   const [saveCustomer, setSaveCustomer] = useState(true);
   const [suggestedCustomer, setSuggestedCustomer] = useState<any>(null);
-  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
-  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(initialData?.region_name || null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(initialData?.region_id || null);
 
   // Smart Search: Find customer by phone as the user types
   useEffect(() => {
@@ -256,12 +256,12 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Região</p>
                 <span className="inline-block bg-primary/10 text-primary text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border border-primary/20">
-                  {selectedRegionName}
+                  {selectedRegionName || "Sem região"}
                 </span>
               </div>
               <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Taxa de Entrega</p>
-                <p className="text-xl font-black text-primary">R$ {deliveryValue}</p>
+                <p className="text-xl font-black text-primary">{deliveryValue && deliveryValue !== "0,00" ? `R$ ${deliveryValue}` : "Sem valor"}</p>
               </div>
             </div>
             <button
@@ -385,10 +385,11 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                      Região de Entrega <span className="text-destructive">*</span>
                    </label>
                    <RegionPickerGrid 
-                     cityId={companyData?.city_id || selectedCity} 
-                     onRegionSelect={handleRegionSelect}
-                     disabled={false}
-                   />
+                      cityId={companyData?.city_id || selectedCity} 
+                      onRegionSelect={handleRegionSelect}
+                      disabled={false}
+                      initialSelectedId={initialData?.region_id}
+                    />
                    {!selectedRegionId && (
                      <p className="text-[9px] text-destructive font-bold ml-2">Selecione uma região acima para definir a taxa.</p>
                    )}

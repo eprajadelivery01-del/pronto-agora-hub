@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import {
   DollarSign, TrendingUp, TrendingDown, Calendar, RefreshCw,
   ShoppingBag, ArrowUpRight, ArrowDownRight, Wallet, BarChart3,

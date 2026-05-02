@@ -1,9 +1,8 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Tables } from "@/integrations/supabase/types";
 
-export type ProfileRow = Tables<"profiles">;
-export type InvitationRow = Tables<"invitations">;
+export type ProfileRow = Record<string, any>;
+export type InvitationRow = Record<string, any>;
 
 export async function fetchProfiles() {
   const { data, error } = await supabase

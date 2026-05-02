@@ -156,7 +156,8 @@ export default function DeliveriesPage() {
         <div class="label">Status</div>
         <div class="value">${esc(delivery.status)}</div>
         <div class="label">Valor</div>
-        <div class="value">R$ ${Number(delivery.price ?? 0).toFixed(2)}</div>
+        <div class="value">R$ ${Number(delivery.value ?? delivery.price ?? 0).toFixed(2)}</div>
+        ${delivery.region_name ? `<div class="label">Região</div><div class="value">${esc(delivery.region_name)}</div>` : ""}
         <div class="label">Data</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
         ${delivery.notes ? `<div class="label">Observações</div><div class="value">${esc(delivery.notes)}</div>` : ""}
@@ -252,6 +253,11 @@ export default function DeliveriesPage() {
                     <tr key={delivery.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4">
                         <p className="text-sm font-medium text-foreground">{delivery.customer_name}</p>
+                        {delivery.region_name && (
+                          <span className="inline-block mt-0.5 bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {delivery.region_name}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 hidden md:table-cell">
                         <p className="text-sm text-foreground">{(delivery as any).companies?.name || "—"}</p>
@@ -263,7 +269,7 @@ export default function DeliveriesPage() {
                         <DeliveryStatusBadge status={delivery.status as DeliveryStatus} />
                       </td>
                       <td className="p-4 hidden sm:table-cell">
-                        <span className="text-sm font-semibold text-foreground">R$ {Number(delivery.price ?? 0).toFixed(2)}</span>
+                        <span className="text-sm font-semibold text-foreground">R$ {Number(delivery.value ?? delivery.price ?? 0).toFixed(2)}</span>
                       </td>
                       <td className="p-4 hidden lg:table-cell">
                         <span className="text-xs text-muted-foreground">
@@ -436,8 +442,16 @@ export default function DeliveriesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DetailField label="Cliente" value={detailDelivery.customer_name} />
                 <DetailField label="Empresa" value={(detailDelivery as any).companies?.name || "—"} />
-                <DetailField label="Valor" value={`R$ ${Number(detailDelivery.price ?? 0).toFixed(2)}`} />
+                <DetailField label="Valor" value={`R$ ${Number(detailDelivery.value ?? detailDelivery.price ?? 0).toFixed(2)}`} />
                 <DetailField label="Criado em" value={format(new Date(detailDelivery.created_at), "dd/MM/yyyy HH:mm")} />
+                {detailDelivery.region_name && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Região</p>
+                    <span className="inline-block bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full border border-primary/20">
+                      {detailDelivery.region_name}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <DetailField label="Endereço" value={detailDelivery.dropoff_address} />
