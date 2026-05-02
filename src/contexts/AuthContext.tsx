@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       // Fetch roles e profile simultaneamente - Seleção mínima absoluta para evitar erro de schema
-      const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
-      const profileFetch = supabase
+      const rolesFetch = (supabase as any).from("user_roles").select("role").eq("user_id", userId);
+      const profileFetch = (supabase as any)
         .from("profiles")
         .select("id, full_name, avatar_url, status, phone") 
         .eq("user_id", userId)
@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = async () => {
     if (!user) return;
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("profiles")
         .update({ status: "rejected" })
         .eq("user_id", user.id);
