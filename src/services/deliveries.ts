@@ -62,7 +62,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { data: (data ?? []) as DeliveryWithRelations[], count: count || 0 };
+      return { data: (data ?? []) as unknown as DeliveryWithRelations[], count: count || 0 };
     },
   });
 }
