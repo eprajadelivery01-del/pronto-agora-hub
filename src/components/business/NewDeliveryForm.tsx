@@ -385,10 +385,11 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                      Região de Entrega <span className="text-destructive">*</span>
                    </label>
                    <RegionPickerGrid 
-                     cityId={companyData?.city_id || selectedCity} 
-                     onRegionSelect={handleRegionSelect}
-                     disabled={false}
-                   />
+                      cityId={companyData?.city_id || selectedCity} 
+                      onRegionSelect={handleRegionSelect}
+                      disabled={false}
+                      initialSelectedId={initialData?.region_id}
+                    />
                    {!selectedRegionId && (
                      <p className="text-[9px] text-destructive font-bold ml-2">Selecione uma região acima para definir a taxa.</p>
                    )}
