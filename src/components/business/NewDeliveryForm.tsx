@@ -35,8 +35,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
   const [submitted, setSubmitted] = useState(false);
   const [saveCustomer, setSaveCustomer] = useState(true);
   const [suggestedCustomer, setSuggestedCustomer] = useState<any>(null);
-  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
-  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(initialData?.region_name || null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(initialData?.region_id || null);
 
   // Smart Search: Find customer by phone as the user types
   useEffect(() => {
