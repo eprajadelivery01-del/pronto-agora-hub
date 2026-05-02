@@ -1,10 +1,9 @@
 import { supabase } from "@/lib/supabaseClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
-export type RegionRow = Tables<"regions">;
-export type CreateRegionInput = TablesInsert<"regions"> & { city?: string };
-export type UpdateRegionInput = TablesUpdate<"regions"> & { city?: string };
+export type RegionRow = Record<string, any>;
+export type CreateRegionInput = Record<string, any>;
+export type UpdateRegionInput = Record<string, any>;
 
 export async function fetchRegions(city?: string) {
   const { data, error } = await supabase.from("regions").select("*").order("name");
