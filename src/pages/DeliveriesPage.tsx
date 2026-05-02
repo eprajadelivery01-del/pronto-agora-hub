@@ -268,7 +268,7 @@ export default function DeliveriesPage() {
                         <DeliveryStatusBadge status={delivery.status as DeliveryStatus} />
                       </td>
                       <td className="p-4 hidden sm:table-cell">
-                        <span className="text-sm font-semibold text-foreground">R$ {Number(delivery.price ?? 0).toFixed(2)}</span>
+                        <span className="text-sm font-semibold text-foreground">R$ {Number(delivery.value ?? delivery.price ?? 0).toFixed(2)}</span>
                       </td>
                       <td className="p-4 hidden lg:table-cell">
                         <span className="text-xs text-muted-foreground">
