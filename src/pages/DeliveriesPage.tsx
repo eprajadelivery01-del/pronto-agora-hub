@@ -252,6 +252,11 @@ export default function DeliveriesPage() {
                     <tr key={delivery.id} className="hover:bg-muted/30 transition-colors">
                       <td className="p-4">
                         <p className="text-sm font-medium text-foreground">{delivery.customer_name}</p>
+                        {delivery.region_name && (
+                          <span className="inline-block mt-0.5 bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {delivery.region_name}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 hidden md:table-cell">
                         <p className="text-sm text-foreground">{(delivery as any).companies?.name || "—"}</p>
