@@ -6,7 +6,7 @@ import {
   Package, ImagePlus, Loader2, RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 interface OrderDetailModalProps {
   order: any;

@@ -4,7 +4,7 @@ import { useDrivers, useToggleDriverOnline } from "@/services/drivers";
 import { useRegions } from "@/services/regions";
 import { Star, Phone, Bike, Loader2, MoreHorizontal, Plus, Camera, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
