@@ -27,6 +27,7 @@ import { PageTransition } from "@/components/shared/PageTransition";
 import BusinessOrdersPage from "./pages/business/BusinessOrdersPage";
 import BusinessFinancePage from "./pages/business/BusinessFinancePage";
 import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
+import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="/business/finance" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessFinancePage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/customers" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessCustomersPage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/history" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHistoryPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/business/coupons" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessCouponsPage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/profile" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProfilePage /></ProtectedRoute></PageTransition>} />
                 
                 <Route path="/" element={<Navigate to="/business" replace />} />
