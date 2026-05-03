@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Settings,
   LayoutDashboard,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +27,7 @@ const tabs = [
   { label: "Painel de Entregas", icon: Truck, href: "/business", category: "Operacional" },
   { label: "Novos Pedidos", icon: Bell, href: "/business/orders", category: "Operacional" },
   { label: "Cardápio/Produtos", icon: Package, href: "/business/products", category: "Marketplace" },
+  { label: "Cupons de Desconto", icon: Tag, href: "/business/coupons", category: "Marketplace" },
   { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
   { label: "Financeiro", icon: DollarSign, href: "/business/finance", category: "Gestão" },
   { label: "Histórico", icon: ClipboardList, href: "/business/history", category: "Gestão" },
