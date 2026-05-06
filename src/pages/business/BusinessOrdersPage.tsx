@@ -619,9 +619,10 @@ export default function BusinessOrdersPage() {
         </div>
 
         {/* Kanban Board */}
-        <div className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar snap-x">
+        {/* Kanban Board */}
+        <div className="flex gap-2 overflow-x-auto pb-6 custom-scrollbar snap-x">
           {COLUMNS.map(col => (
-            <div key={col.key} className="flex-none w-72 snap-start flex flex-col gap-3">
+            <div key={col.key} className="flex-none w-64 snap-start flex flex-col gap-3">
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-6 rounded-full bg-primary", 
