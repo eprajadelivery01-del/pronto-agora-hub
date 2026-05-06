@@ -86,7 +86,15 @@ export default function BusinessOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
+  const [stats, setStats] = useState({ 
+    pending: 0, 
+    preparing: 0, 
+    ready: 0, 
+    in_route: 0, 
+    revenue_today: 0, 
+    open_total: 0,
+    in_route_total: 0
+  });
   const [isRinging, setIsRinging] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const createDeliveryMut = useCreateDeliveryRequest();
@@ -268,20 +276,33 @@ export default function BusinessOrdersPage() {
         });
         
         setOrders(mapped);
+        
+        const openOrders = mapped.filter(o => ["pending", "accepted", "preparing", "ready"].includes(o.status));
+        const inRouteOrders = mapped.filter(o => o.status === "in_route");
+        const deliveredToday = data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr));
+
         setStats({
           pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
           preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
-          revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-          open_total: mapped.filter(o => ["pending", "accepted", "preparing", "ready"].includes(o.status)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          ready: mapped.filter(o => o.status === "ready").length,
+          in_route: inRouteOrders.length,
+          revenue_today: deliveredToday.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          open_total: openOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          in_route_total: inRouteOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         });
 
-        console.log("[Dashboard] Estatísticas finais:", {
-          revenue: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).length,
-          open: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).length
+        console.log("[Dashboard] Diagnóstico de Pedidos:", {
+          total_recebidos: data.length,
+          hoje: todayStr,
+          abertos_count: openOrders.length,
+          abertos_valor: openOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          em_rota_count: inRouteOrders.length,
+          entregues_hoje_count: deliveredToday.length,
+          detalhes_abertos: openOrders.map(o => ({ id: o.id.slice(-6), status: o.status, valor: o.total }))
         });
       } else {
         setOrders([]);
-        setStats({ pending: 0, preparing: 0, revenue_today: 0, open_total: 0 });
+        setStats({ pending: 0, preparing: 0, ready: 0, in_route: 0, revenue_today: 0, open_total: 0, in_route_total: 0 });
       }
       console.log("[Dashboard] Estatísticas finais carregadas.");
     } catch (err: any) {
@@ -557,32 +578,41 @@ export default function BusinessOrdersPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <div className="bg-card border border-border rounded-3xl p-6 shadow-card hover:border-primary/20 transition-all flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-warning/10 flex items-center justify-center">
-                 <Bell className="h-7 w-7 text-warning" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+           <div className="bg-card border border-border rounded-2xl p-5 shadow-card hover:border-primary/20 transition-all flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                 <Bell className="h-6 w-6 text-warning" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-foreground tracking-tight">{stats.pending}</p>
-                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Novos Pendentes</p>
+                 <p className="text-2xl font-black text-foreground tracking-tight">{stats.pending}</p>
+                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Novos</p>
               </div>
            </div>
-           <div className="bg-card border border-border rounded-3xl p-6 shadow-card hover:border-primary/20 transition-all flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                 <ChefHat className="h-7 w-7 text-primary" />
+           <div className="bg-card border border-border rounded-2xl p-5 shadow-card hover:border-primary/20 transition-all flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                 <ChefHat className="h-6 w-6 text-blue-500" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-foreground tracking-tight">{stats.preparing}</p>
+                 <p className="text-2xl font-black text-foreground tracking-tight">{stats.preparing}</p>
                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Na Cozinha</p>
               </div>
            </div>
-           <div className="bg-card border border-border rounded-3xl p-6 shadow-card hover:border-primary/20 transition-all flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center">
-                 <DollarSign className="h-7 w-7 text-success" />
+           <div className="bg-card border border-border rounded-2xl p-5 shadow-card hover:border-primary/20 transition-all flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                 <CheckCircle className="h-6 w-6 text-green-500" />
               </div>
               <div>
-                 <p className="text-3xl font-black text-foreground tracking-tight">R$ {(stats as any).open_total?.toFixed(2).replace(".", ",") || "0,00"}</p>
-                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total em Aberto</p>
+                 <p className="text-2xl font-black text-foreground tracking-tight">{stats.ready}</p>
+                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Prontos</p>
+              </div>
+           </div>
+           <div className="bg-card border border-border rounded-2xl p-5 shadow-card border-primary/20 bg-primary/[0.02] transition-all flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                 <DollarSign className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                 <p className="text-2xl font-black text-foreground tracking-tight">R$ {stats.open_total?.toFixed(2).replace(".", ",")}</p>
+                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Aberto</p>
               </div>
            </div>
         </div>
