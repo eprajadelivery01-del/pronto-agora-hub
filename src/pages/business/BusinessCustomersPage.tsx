@@ -43,22 +43,15 @@ export default function BusinessCustomersPage() {
     if (!companyId) return;
     setLoading(true);
     
-    // 1. Fetch all customers belonging to this store
+    const customerMap = new Map<string, CustomerRecord>();
+
+    // 1. Fetch all customers belonging DIRECTLY to this store
     const { data: directCustomers } = await supabase
       .from("customers")
       .select("*")
       .eq("company_id", companyId)
       .order("name");
 
-    // 2. Fetch all orders to get history (addresses, order counts, etc)
-    const { data: orderData } = await supabase
-      .from("orders")
-      .select(`customer_id, created_at, delivery_address`)
-      .eq("company_id", companyId);
-
-    const customerMap = new Map<string, CustomerRecord>();
-    
-    // Initialize with direct customers
     (directCustomers || []).forEach(c => {
       customerMap.set(c.id, {
         id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
@@ -67,12 +60,34 @@ export default function BusinessCustomersPage() {
       });
     });
 
-    // Enrich with order data
+    // 2. Fetch all orders (Marketplace + Manual) to get history and find Marketplace customers
+    const { data: orderData } = await supabase
+      .from("orders")
+      .select(`
+        customer_id, 
+        created_at, 
+        delivery_address,
+        customers (id, name, phone, cpf)
+      `)
+      .eq("company_id", companyId);
+
     (orderData || []).forEach((o: any) => {
       if (!o.customer_id) return;
       
-      const r = customerMap.get(o.customer_id);
-      if (!r) return; // Should not happen if data is consistent
+      let r = customerMap.get(o.customer_id);
+      
+      // If customer is not in map (Marketplace customer who hasn't been linked yet)
+      if (!r && o.customers) {
+        const c = o.customers;
+        r = {
+          id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
+          total_orders: 0, last_order_at: null,
+          addresses: [], phones: c.phone ? [c.phone] : []
+        };
+        customerMap.set(c.id, r);
+      }
+      
+      if (!r) return;
       
       r.total_orders += 1;
       
