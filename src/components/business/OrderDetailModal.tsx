@@ -267,7 +267,7 @@ export default function OrderDetailModal({
                                               
                                               {/* Descrição do Produto */}
                                               {item.products?.description && (
-                                                <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug">
+                                                <p className="text-sm text-foreground/80 mt-2 leading-relaxed bg-muted/40 p-4 rounded-xl border border-border/50 italic">
                                                   {item.products.description}
                                                 </p>
                                               )}
