@@ -5,7 +5,6 @@ import { Plus, Truck, Clock, Loader2, MapPin, Trash2, Wallet, Zap, ShoppingBag }
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useCity } from "@/contexts/CityContext";
 import { useDeliveries, useDeliveryStats } from "@/services/deliveries";
 import { format } from "date-fns";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
