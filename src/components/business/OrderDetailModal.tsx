@@ -228,7 +228,7 @@ export default function OrderDetailModal({
             </DialogHeader>
         </div>
 
-        <div className="flex-1 p-8 md:p-10 pb-10 space-y-10 overflow-y-auto custom-scrollbar bg-white/95">
+        <div className="flex-1 min-h-0 p-8 md:p-10 pb-10 space-y-10 overflow-y-auto custom-scrollbar bg-white/95">
             {/* Items List */}
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
