@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Truck, Clock, Loader2, MapPin, Trash2, Wallet, Zap } from "lucide-react";
+import { Plus, Truck, Clock, Loader2, MapPin, Trash2, Wallet, Zap, ShoppingBag } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -43,7 +43,6 @@ export default function BusinessHomePage() {
   });
 
   const companyId = companyData?.id;
-  const qc = useQueryClient();
 
   // 1. Fetch Marketplace Orders with active deliveries
   const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
@@ -103,6 +102,8 @@ export default function BusinessHomePage() {
     return () => { supabase.removeChannel(channel); };
   }, [companyId, qc]);
 
+
+  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
 
   const stats = {
     pending: deliveryStats?.pending ?? 0,
