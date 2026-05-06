@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCity } from "@/contexts/CityContext";
 import { RegionPickerGrid } from "@/components/business/RegionPickerGrid";
+import { CustomerSelector } from "@/components/business/CustomerSelector";
 import { cn } from "@/lib/utils";
 
 interface NewDeliveryFormProps {
@@ -310,17 +311,20 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                 <User className="h-3 w-3" /> Dados do Destinatário
              </h3>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Nome Completo</label>
-                  <input
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Ex: João Silva"
-                      className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
-                      required
-                    />
-                </div>
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                 <div className="space-y-1.5 md:col-span-2">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Buscar Cliente</label>
+                   <CustomerSelector 
+                      companyId={companyId || ""} 
+                      value={customerName} 
+                      onChange={(name, addr, ph, cp) => {
+                        setCustomerName(name);
+                        if (addr) setAddress(addr);
+                        if (ph) setCustomerPhone(ph ? maskPhone(ph) : "");
+                        if (cp) setCustomerCpf(cp ? maskCPF(cp) : "");
+                      }} 
+                   />
+                 </div>
                 <div className="space-y-1.5 md:col-span-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">CPF (Opcional)</label>
                   <input
@@ -330,7 +334,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
                       className="w-full px-5 py-4 rounded-2xl border border-border bg-background focus:border-primary outline-none transition-all font-bold"
                     />
                 </div>
-                <div className="space-y-1.5 relative">
+                <div className="space-y-1.5 md:col-span-1 relative">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Telefone</label>
                     <input
                         value={customerPhone}
