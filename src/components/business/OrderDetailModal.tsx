@@ -177,52 +177,41 @@ export default function OrderDetailModal({
       <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh]">
         <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
         
-        {/* Modern Glass Header - Reduzido conforme solicitado */}
-        <div className="bg-primary/95 backdrop-blur-3xl px-6 py-4 md:px-8 md:py-6 relative overflow-hidden text-white shrink-0">
-            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                <ShoppingBag className="w-48 h-48 rotate-12" />
+        {/* Header Ultra-Compacto */}
+        <div className="bg-primary/95 backdrop-blur-3xl px-5 py-4 relative overflow-hidden text-white shrink-0">
+            <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                <ShoppingBag className="w-32 h-32 rotate-12" />
             </div>
             
             <DialogHeader className="relative z-10">
-                <div className="flex items-center gap-4 mb-4">
-                    <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-none shadow-xl", status.color)}>
-                        <span className="flex items-center gap-2">
-                           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-                           {status.label}
+                <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border-none", status.color)}>
+                            {status.label}
+                        </div>
+                        <span className="text-white/60 text-[10px] font-bold leading-none">
+                          Há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
                         </span>
                     </div>
-                    <div className="h-1 w-1 rounded-full bg-white/30" />
-                    <span className="text-white/60 text-xs font-bold leading-none">
-                      Efetuado há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
-                    </span>
                 </div>
                 
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
-                    <div>
-                        <DialogTitle className="text-xl lg:text-2xl font-black tracking-tighter text-white">
-                          Pedido #{order.id.slice(-6).toUpperCase()}
+                <div className="flex flex-wrap items-center justify-between gap-4 text-left bg-white/10 p-3 rounded-2xl border border-white/10">
+                    <div className="flex items-center gap-3">
+                        <DialogTitle className="text-lg font-black tracking-tight text-white m-0 leading-none">
+                          #{order.id.slice(-6).toUpperCase()}
                         </DialogTitle>
-                        <div className="text-white/80 font-bold text-base mt-3 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md">
-                              <User className="w-4 h-4" />
-                            </div> 
-                            <div className="flex flex-col gap-0.5">
-                                <span className="text-[9px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
-                                {customerInfo?.name || order.customer?.name || order.customer_name || "Cliente Marketplace"}
-                                <span className="text-[11px] text-white/60 flex items-center gap-2 mt-0.5">
-                                    <Phone className="w-3 h-3" /> {customerInfo?.phone || order.customer?.phone || order.customer_phone || "Não informado"}
-                                </span>
-                            </div>
+                        <div className="h-4 w-px bg-white/20" />
+                        <div className="text-white/90 font-bold text-xs flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 opacity-70" />
+                            {customerInfo?.name || order.customer?.name || order.customer_name || "Cliente"}
+                            <span className="text-white/50 text-[9px] font-medium ml-1">({customerInfo?.phone || order.customer?.phone || order.customer_phone || "S/N"})</span>
                         </div>
                     </div>
-                    <div className="text-right flex flex-col items-end">
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black mb-2">Endereço de Entrega</span>
-                        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 max-w-sm">
-                            <MapPin className="w-5 h-5 text-white shrink-0" />
-                            <p className="text-sm font-bold text-white leading-snug">
-                                {order.customer?.address || order.delivery_address || order.address || "Endereço não disponível."}
-                            </p>
-                        </div>
+                    <div className="flex items-center gap-1.5 text-white/90 max-w-xs">
+                        <MapPin className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                        <p className="text-xs font-bold truncate">
+                            {order.customer?.address || order.delivery_address || order.address || "Endereço não informado"}
+                        </p>
                     </div>
                 </div>
             </DialogHeader>
@@ -260,8 +249,8 @@ export default function OrderDetailModal({
                             const images = parseImages(item.products?.image_url);
                             const mainImage = images[0];
                             return (
-                                <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.5rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
-                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-[1rem] bg-muted overflow-hidden shrink-0 border border-border/50">
+                                <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.25rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
+                                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/50">
                                         {mainImage ? (
                                             <img src={mainImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.product_name} />
                                         ) : (
@@ -273,15 +262,22 @@ export default function OrderDetailModal({
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start gap-3">
                                             <div>
-                                              <p className="font-bold text-foreground text-base leading-tight">{item.product_name || item.products?.name || "Produto"}</p>
-                                              <p className="text-xs text-muted-foreground font-medium mt-0.5">Un: R$ {item.price?.toFixed(2).replace('.', ',')}</p>
+                                              <p className="font-bold text-foreground text-sm leading-tight">{item.product_name || item.products?.name || "Produto"}</p>
+                                              <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">Un: R$ {item.price?.toFixed(2).replace('.', ',')}</p>
                                               
+                                              {/* Descrição do Produto */}
+                                              {item.products?.description && (
+                                                <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug">
+                                                  {item.products.description}
+                                                </p>
+                                              )}
+
                                               {/* Detalhes/Ingredientes/Observações */}
                                               {(item.choices || item.notes || item.observation) && (
-                                                <div className="mt-2 space-y-1.5">
+                                                <div className="mt-2 space-y-1">
                                                   {item.choices && (
-                                                    <p className="text-[11px] text-muted-foreground leading-snug">
-                                                      <span className="font-semibold text-foreground/70">Opções:</span> {
+                                                    <p className="text-[10px] text-foreground/80 leading-snug bg-muted/50 px-2 py-1 rounded-md">
+                                                      <span className="font-bold text-foreground/90">Opções:</span> {
                                                         typeof item.choices === 'string' ? item.choices : 
                                                         Array.isArray(item.choices) ? item.choices.map((c:any) => c.name || c).join(', ') :
                                                         JSON.stringify(item.choices)
@@ -289,7 +285,7 @@ export default function OrderDetailModal({
                                                     </p>
                                                   )}
                                                   {(item.notes || item.observation) && (
-                                                    <p className="text-[11px] text-warning-foreground bg-warning/10 px-2 py-1 rounded-md inline-block leading-snug">
+                                                    <p className="text-[10px] text-warning-foreground bg-warning/10 px-2 py-1 rounded-md inline-block leading-snug mt-1">
                                                       <span className="font-bold">Obs:</span> {item.notes || item.observation}
                                                     </p>
                                                   )}
@@ -298,7 +294,7 @@ export default function OrderDetailModal({
                                             </div>
                                             <div className="flex flex-col items-end shrink-0">
                                               <p className="text-[10px] font-black text-primary uppercase mb-0.5 bg-primary/10 px-1.5 py-0.5 rounded-md">{item.quantity}x</p>
-                                              <p className="font-black text-lg text-foreground mt-1">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                                              <p className="font-black text-base text-foreground mt-1">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
                                             </div>
                                         </div>
                                     </div>
