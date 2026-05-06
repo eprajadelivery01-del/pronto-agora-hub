@@ -620,9 +620,9 @@ export default function BusinessOrdersPage() {
 
         {/* Kanban Board */}
         {/* Kanban Board */}
-        <div className="flex gap-2 overflow-x-auto pb-6 custom-scrollbar snap-x">
+        <div className="flex gap-1 overflow-x-auto pb-6 custom-scrollbar snap-x">
           {COLUMNS.map(col => (
-            <div key={col.key} className="flex-none w-64 snap-start flex flex-col gap-3">
+            <div key={col.key} className="flex-none w-60 snap-start flex flex-col gap-2">
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-6 rounded-full bg-primary", 
@@ -638,7 +638,7 @@ export default function BusinessOrdersPage() {
                 <MoreVertical className="h-4 w-4 text-muted-foreground/30" />
               </div>
 
-              <div className="space-y-3 h-[65vh] overflow-y-auto custom-scrollbar bg-muted/30 rounded-[2rem] p-2 border border-border/50">
+              <div className="space-y-2 h-[65vh] overflow-y-auto custom-scrollbar bg-muted/20 rounded-[1.5rem] p-1.5 border border-border/40">
                 {ordersByColumn(col.key).map(order => (
                   <OrderCard
                     key={order.id}
@@ -757,111 +757,97 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
   return (
     <>
       <div className={cn(
-        "bg-white border-2 border-transparent rounded-[2.5rem] p-6 shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group animate-in zoom-in-95 duration-300 relative overflow-hidden cursor-pointer premium-shadow hover:-translate-y-1",
-        isPending && "border-warning/30 shadow-warning/5 bg-warning/[0.01]"
+        "bg-white border border-border/60 rounded-[1.5rem] p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30 group animate-in zoom-in-95 duration-300 relative overflow-hidden cursor-pointer",
+        isPending && "border-warning/40 bg-warning/[0.02]"
       )}
       onClick={() => setIsModalOpen(true)}
       >
         {isPending && (
-          <div className="absolute top-0 right-0 px-5 py-2 bg-warning text-white text-[10px] font-black uppercase tracking-widest rounded-bl-3xl shadow-lg">
-            Aguardando Aceite
+          <div className="absolute top-0 right-0 px-3 py-1 bg-warning text-white text-[8px] font-black uppercase tracking-widest rounded-bl-xl">
+            Novo
           </div>
         )}
 
-        {/* Header: ID & Status Badge */}
-        <div className="flex items-center justify-between mb-2">
+        {/* Header Compacto */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-70">Identificação</span>
-            <p className="font-black text-xl text-foreground tracking-tight">#{order.id.slice(-6).toUpperCase()}</p>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight opacity-60">ID Pedido</span>
+            <p className="font-black text-lg text-foreground tracking-tight leading-none">#{order.id.slice(-6).toUpperCase()}</p>
           </div>
           {!isPending && (
-            <div className={cn("px-4 py-2 rounded-2xl border-none font-black text-[10px] uppercase tracking-tighter shadow-sm", STATUS_COLORS[order.status])}>
-               <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-                  {STATUS_LABELS[order.status]}
-               </span>
+            <div className={cn("px-2 py-1 rounded-lg border-none font-black text-[9px] uppercase tracking-tighter", STATUS_COLORS[order.status])}>
+               {STATUS_LABELS[order.status]}
             </div>
           )}
         </div>
 
-        {/* Customer Info */}
-        <div className="flex items-center gap-4 py-4">
-          <div className="w-12 h-12 rounded-[1.25rem] bg-secondary/50 flex items-center justify-center shrink-0 border border-border/50 group-hover:scale-110 transition-transform">
-            <User className="h-6 w-6 text-primary" />
+        {/* Customer Info Compacto */}
+        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-border/40">
+          <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0 border border-primary/10">
+            <User className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-base font-black text-foreground truncate">{order.customer?.name}</p>
-            <div className="flex flex-col gap-1 mt-1">
-               <p className="text-[11px] text-primary font-black flex items-center gap-1.5">
-                  <Phone className="h-3 w-3" /> {order.customer?.phone}
-               </p>
-               <div className="flex items-center gap-3">
-                  <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
-                    <Timer className="h-3 w-3" /> {age} min
-                  </p>
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{order.payment_method || 'Pagamento Offline'}</p>
-               </div>
-            </div>
+            <p className="text-sm font-black text-foreground truncate leading-tight">{order.customer?.name}</p>
+            <p className="text-[10px] text-primary font-bold flex items-center gap-1 mt-0.5">
+               <Phone className="h-2.5 w-2.5" /> {order.customer?.phone}
+            </p>
           </div>
         </div>
 
-        {/* Items Preview */}
-        <div className="py-5 border-y border-border/40 group-hover:border-primary/10 transition-colors">
-          <div className="space-y-2.5">
-            {order.items && order.items.length > 0 ? (
-              order.items.slice(0, 2).map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-sm">
-                  <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="font-black text-[10px] text-primary">{item.quantity}x</span>
-                  </div>
-                  <span className="font-bold text-foreground/80 truncate">{item.product_name || item.products?.name || "Produto"}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground font-medium flex items-center gap-2 py-1">
-                <Package className="h-4 w-4 opacity-40" /> Toque para ver detalhes...
-              </p>
-            )}
-            {order.items && order.items.length > 2 && (
-              <div className="flex items-center gap-2 pt-1">
-                 <div className="h-px flex-1 bg-border/40" />
-                 <span className="text-[9px] text-primary font-black uppercase tracking-widest">Ver mais {order.items.length - 2} itens</span>
-                 <div className="h-px flex-1 bg-border/40" />
+        {/* Info Row */}
+        <div className="flex items-center gap-4 mb-3">
+            <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+              <Timer className="h-3 w-3" /> {age} min
+            </p>
+            <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[100px]">{order.payment_method || 'Offline'}</p>
+        </div>
+
+        {/* Items List - Tight */}
+        <div className="space-y-1.5 mb-4">
+          {order.items && order.items.length > 0 ? (
+            order.items.slice(0, 3).map((item, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-xs">
+                <span className="font-black text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-md leading-none">{item.quantity}x</span>
+                <span className="font-bold text-foreground/80 truncate leading-none">{item.product_name || item.products?.name}</span>
               </div>
-            )}
-          </div>
+            ))
+          ) : (
+            <p className="text-[10px] text-muted-foreground italic">Toque para detalhes...</p>
+          )}
+          {order.items && order.items.length > 3 && (
+            <p className="text-[9px] text-primary font-black uppercase tracking-widest pl-1 mt-1">+ {order.items.length - 3} itens</p>
+          )}
         </div>
 
-        {/* Action Button & Total */}
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black text-muted-foreground uppercase mb-0.5 opacity-60">Valor do Pedido</span>
-            <p className="text-2xl font-black text-primary tracking-tighter italic">R$ {order.total.toFixed(2).replace(".", ",")}</p>
+        {/* Action & Price Footer */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-black text-muted-foreground uppercase opacity-60">Total</span>
+            <p className="text-lg font-black text-primary tracking-tighter italic leading-none">R$ {order.total.toFixed(2).replace(".", ",")}</p>
           </div>
           
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             {isPending && (
               <button 
                 onClick={onCancel}
-                className="w-12 h-12 rounded-2xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all premium-shadow"
-                title="Recusar"
+                className="w-10 h-10 rounded-xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all"
               >
-                <XCircle className="h-5 w-5" />
+                <XCircle className="h-4 w-4" />
               </button>
             )}
             {action && (
               <button
                 onClick={onAdvance}
                 className={cn(
-                  "h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.1em] transition-all flex items-center gap-3 active:scale-95 group/btn",
+                  "flex-1 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                   isPending 
-                    ? "bg-primary text-white shadow-xl shadow-primary/20 hover:shadow-primary/40" 
-                    : "bg-foreground text-background shadow-xl hover:bg-foreground/90"
+                    ? "bg-primary text-white shadow-md shadow-primary/20" 
+                    : "bg-foreground text-background"
                 )}
               >
                 {action.label}
-                <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                <ArrowRight className="h-3 w-3" />
               </button>
             )}
           </div>
