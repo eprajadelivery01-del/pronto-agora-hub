@@ -42,36 +42,49 @@ export default function BusinessCustomersPage() {
   const fetchCustomers = async () => {
     if (!companyId) return;
     setLoading(true);
-    const { data } = await supabase
+    
+    // 1. Fetch all customers belonging to this store
+    const { data: directCustomers } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("company_id", companyId)
+      .order("name");
+
+    // 2. Fetch all orders to get history (addresses, order counts, etc)
+    const { data: orderData } = await supabase
       .from("orders")
-      .select(`customers (id, name, phone, cpf), created_at, delivery_address`)
+      .select(`customer_id, created_at, delivery_address`)
       .eq("company_id", companyId);
 
     const customerMap = new Map<string, CustomerRecord>();
-    (data || []).forEach((o: any) => {
-      if (!o.customers) return;
-      const c = o.customers;
-      if (!customerMap.has(c.id)) {
-        customerMap.set(c.id, {
-          id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
-          total_orders: 0, last_order_at: o.created_at,
-          addresses: [], phones: []
-        });
-      }
-      const r = customerMap.get(c.id)!;
+    
+    // Initialize with direct customers
+    (directCustomers || []).forEach(c => {
+      customerMap.set(c.id, {
+        id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
+        total_orders: 0, last_order_at: null,
+        addresses: [], phones: c.phone ? [c.phone] : []
+      });
+    });
+
+    // Enrich with order data
+    (orderData || []).forEach((o: any) => {
+      if (!o.customer_id) return;
+      
+      const r = customerMap.get(o.customer_id);
+      if (!r) return; // Should not happen if data is consistent
+      
       r.total_orders += 1;
       
       if (o.delivery_address && !r.addresses.includes(o.delivery_address)) {
         r.addresses.push(o.delivery_address);
       }
       
-      const orderPhone = c.phone;
-      if (orderPhone && !r.phones.includes(orderPhone)) {
-        r.phones.push(orderPhone);
+      if (!r.last_order_at || new Date(o.created_at) > new Date(r.last_order_at)) {
+        r.last_order_at = o.created_at;
       }
-
-      if (new Date(o.created_at) > new Date(r.last_order_at!)) r.last_order_at = o.created_at;
     });
+
     setCustomers(Array.from(customerMap.values()));
     setLoading(false);
   };
@@ -86,6 +99,10 @@ export default function BusinessCustomersPage() {
       toast.error("Informe o nome do cliente");
       return;
     }
+    if (!companyId) {
+      toast.error("Erro: Empresa não identificada.");
+      return;
+    }
     setSaving(true);
     try {
       const { data, error } = await supabase
@@ -94,20 +111,17 @@ export default function BusinessCustomersPage() {
           name: form.name.trim(),
           phone: form.phone.trim() || null,
           cpf: form.cpf.trim() || null,
+          company_id: companyId // CRITICAL: Link to store
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Adiciona à lista localmente (sem pedidos ainda)
-      setCustomers((prev) => [
-        { id: data.id, name: data.name, phone: data.phone, cpf: data.cpf, total_orders: 0, last_order_at: undefined },
-        ...prev,
-      ]);
       toast.success("Cliente cadastrado com sucesso!");
       setForm({ name: "", phone: "", cpf: "" });
       setShowNewModal(false);
+      fetchCustomers(); // Refresh list
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || "Erro ao cadastrar cliente");
