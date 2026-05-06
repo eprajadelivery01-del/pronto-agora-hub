@@ -183,12 +183,25 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   
   if (!dropoff) dropoff = "Retirada no Local ou Endereço Inválido";
 
-  // 2. Insere na tabela de deliveries
-  console.log(`[Deliveries] Criando registro na tabela de Entregas para ${customerData?.name || "Cliente"}...`);
+  // 2. VERIFICAÇÃO DE DUPLICIDADE: Verifica se já existe uma entrega para este pedido
+  const { data: existingDelivery } = await supabase
+    .from("deliveries")
+    .select("*")
+    .eq("order_id", orderId)
+    .not("status", "eq", "cancelled")
+    .maybeSingle();
+
+  if (existingDelivery) {
+    console.log(`[Deliveries] Entrega já existe para o pedido ${orderId}. Retornando existente.`);
+    return existingDelivery;
+  }
+
+  // 3. Cria a entrega vinculada
   const { data: delivery, error: deliveryError } = await supabase
     .from("deliveries")
     .insert({
       company_id: order.company_id,
+      order_id: orderId,
       customer_name: customerData?.name || (order as any).customer_name || "Cliente Marketplace",
       address: dropoff,
       value: customValue || order.total || 0,
