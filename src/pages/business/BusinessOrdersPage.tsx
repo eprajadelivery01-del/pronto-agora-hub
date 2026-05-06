@@ -279,7 +279,11 @@ export default function BusinessOrdersPage() {
         
         const openOrders = mapped.filter(o => ["pending", "accepted", "preparing", "ready"].includes(o.status));
         const inRouteOrders = mapped.filter(o => o.status === "in_route");
-        const deliveredToday = data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr));
+        // Receita de hoje: pedidos concluídos/entregues cuja atualização final (ou criação) foi hoje
+        const deliveredToday = data.filter(o => 
+          ["completed", "delivered"].includes(o.status) && 
+          (o.created_at.startsWith(todayStr) || (o.updated_at && o.updated_at.startsWith(todayStr)))
+        );
 
         setStats({
           pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
@@ -291,15 +295,17 @@ export default function BusinessOrdersPage() {
           in_route_total: inRouteOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         });
 
-        console.log("[Dashboard] Diagnóstico de Pedidos:", {
-          total_recebidos: data.length,
-          hoje: todayStr,
-          abertos_count: openOrders.length,
-          abertos_valor: openOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-          em_rota_count: inRouteOrders.length,
-          entregues_hoje_count: deliveredToday.length,
-          detalhes_abertos: openOrders.map(o => ({ id: o.id.slice(-6), status: o.status, valor: o.total }))
-        });
+        console.log("[Dashboard] --- DIAGNÓSTICO DE PEDIDOS ---");
+        console.log(`[Dashboard] Hoje: ${todayStr} | Total Recebidos: ${data.length}`);
+        console.log(`[Dashboard] Abertos: ${openOrders.length} | Em Rota: ${inRouteOrders.length} | Entregues Hoje: ${deliveredToday.length}`);
+        if (openOrders.length > 0) {
+          console.table(openOrders.map(o => ({ 
+            ID: o.id.slice(-6).toUpperCase(), 
+            Status: o.status, 
+            Valor: fmt(Number(o.total || 0)),
+            Cliente: o.customer?.name 
+          })));
+        }
       } else {
         setOrders([]);
         setStats({ pending: 0, preparing: 0, ready: 0, in_route: 0, revenue_today: 0, open_total: 0, in_route_total: 0 });
