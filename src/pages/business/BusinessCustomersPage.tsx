@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { Users, Search, RefreshCw, User, Phone, ShoppingBag, Plus, X, Loader2 } from "lucide-react";
+import { Users, Search, RefreshCw, User, Phone, ShoppingBag, Plus, X, Loader2, MapPin, Calendar, CreditCard, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface CustomerRecord {
@@ -13,6 +13,8 @@ interface CustomerRecord {
   cpf?: string;
   total_orders: number;
   last_order_at?: string;
+  addresses: string[];
+  phones: string[];
 }
 
 export default function BusinessCustomersPage() {
@@ -24,6 +26,7 @@ export default function BusinessCustomersPage() {
 
   // Modal de novo cliente
   const [showNewModal, setShowNewModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", cpf: "" });
 
@@ -41,7 +44,7 @@ export default function BusinessCustomersPage() {
     setLoading(true);
     const { data } = await supabase
       .from("orders")
-      .select(`customers (id, name, phone, cpf), created_at`)
+      .select(`customers (id, name, phone, cpf), created_at, delivery_address`)
       .eq("company_id", companyId);
 
     const customerMap = new Map<string, CustomerRecord>();
@@ -52,10 +55,21 @@ export default function BusinessCustomersPage() {
         customerMap.set(c.id, {
           id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
           total_orders: 0, last_order_at: o.created_at,
+          addresses: [], phones: []
         });
       }
       const r = customerMap.get(c.id)!;
       r.total_orders += 1;
+      
+      if (o.delivery_address && !r.addresses.includes(o.delivery_address)) {
+        r.addresses.push(o.delivery_address);
+      }
+      
+      const orderPhone = c.phone;
+      if (orderPhone && !r.phones.includes(orderPhone)) {
+        r.phones.push(orderPhone);
+      }
+
       if (new Date(o.created_at) > new Date(r.last_order_at!)) r.last_order_at = o.created_at;
     });
     setCustomers(Array.from(customerMap.values()));
@@ -156,20 +170,32 @@ export default function BusinessCustomersPage() {
             </div>
           ) : (
             filteredCustomers.map((customer) => (
-              <div key={customer.id} className="bg-card border border-border rounded-3xl p-6 shadow-card hover:border-primary/20 transition-all group">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div key={customer.id} className="bg-card border border-border rounded-3xl p-6 shadow-card hover:border-primary/20 transition-all group flex flex-col h-full">
+                <div className="flex items-start gap-4 mb-5">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0">
                     <User className="h-6 w-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{customer.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate">{customer.name}</h3>
                     <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
                       <Phone className="h-3 w-3" /> {customer.phone || "Sem telefone"}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3 flex-1 mb-6">
+                  {customer.addresses.length > 0 && (
+                    <div className="flex gap-2 text-xs text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <p className="line-clamp-2 leading-relaxed">{customer.addresses[0]}</p>
+                    </div>
+                  )}
+                  {customer.addresses.length > 1 && (
+                    <p className="text-[10px] font-bold text-primary ml-5">+ {customer.addresses.length - 1} endereços conhecidos</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-auto">
                   <div className="bg-muted/30 rounded-2xl p-3 text-center">
                     <p className="text-xl font-black text-foreground">{customer.total_orders}</p>
                     <p className="text-[10px] font-black text-muted-foreground uppercase opacity-60">Pedidos</p>
@@ -182,8 +208,11 @@ export default function BusinessCustomersPage() {
                   </div>
                 </div>
 
-                <button className="w-full mt-4 py-3 rounded-2xl border border-border hover:bg-muted text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-2">
-                  <ShoppingBag className="h-3.5 w-3.5" /> Ver Histórico
+                <button 
+                  onClick={() => setSelectedCustomer(customer)}
+                  className="w-full mt-4 py-3 rounded-2xl bg-foreground text-background hover:bg-foreground/90 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5" /> Ver Detalhes
                 </button>
               </div>
             ))
@@ -272,6 +301,101 @@ export default function BusinessCustomersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detalhes do Cliente */}
+      {selectedCustomer && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setSelectedCustomer(null)}
+        >
+          <div 
+            className="w-full max-w-lg h-full bg-background shadow-2xl border-l border-border animate-in slide-in-from-right duration-300 overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <button 
+                  onClick={() => setSelectedCustomer(null)}
+                  className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5 rotate-180" />
+                </button>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Ficha do Cliente</span>
+              </div>
+
+              <div className="flex items-center gap-6 mb-12">
+                <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+                  <User className="h-10 w-10 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black text-foreground tracking-tighter">{selectedCustomer.name}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-success/10 text-success uppercase tracking-wider">Ativo</span>
+                    <span className="text-xs font-medium text-muted-foreground">{selectedCustomer.total_orders} pedidos realizados</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                {/* Contatos */}
+                <section>
+                  <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Informações de Contato</h4>
+                  <div className="space-y-3">
+                    {selectedCustomer.phones.map((p, i) => (
+                      <div key={i} className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-border">
+                        <Phone className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-bold text-foreground">{p}</span>
+                      </div>
+                    ))}
+                    {selectedCustomer.cpf && (
+                      <div className="flex items-center gap-3 p-4 rounded-2xl bg-card border border-border">
+                        <CreditCard className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-bold text-foreground">CPF: {selectedCustomer.cpf}</span>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Endereços */}
+                <section>
+                  <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Endereços de Entrega ({selectedCustomer.addresses.length})</h4>
+                  <div className="space-y-3">
+                    {selectedCustomer.addresses.map((addr, i) => (
+                      <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-card border border-border">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        <span className="text-sm font-medium text-muted-foreground leading-relaxed">{addr}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Histórico rápido */}
+                <section>
+                  <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Última Atividade</h4>
+                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Último Pedido</p>
+                        <p className="text-xs text-muted-foreground">Realizado em {new Date(selectedCustomer.last_order_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div className="mt-12 pt-8 border-t border-border">
+                <button 
+                  onClick={() => toast.info("Relatório detalhado do cliente em desenvolvimento.")}
+                  className="w-full py-4 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-widest hover:bg-foreground/90 transition-all shadow-xl"
+                >
+                  Gerar Relatório Completo
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
