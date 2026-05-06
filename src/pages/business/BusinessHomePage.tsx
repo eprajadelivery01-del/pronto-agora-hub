@@ -21,7 +21,6 @@ const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDet
 
 export default function BusinessHomePage() {
   const { profile, user } = useAuth();
-  const { selectedCity } = useCity();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -105,12 +104,11 @@ export default function BusinessHomePage() {
   }, [companyId, qc]);
 
 
-
-  const stats = {
+  const stats = useMemo(() => ({
     pending: deliveryStats?.pending ?? 0,
     inRoute: deliveryStats?.inTransit ?? 0,
     manualRevenue: deliveryStats?.todayCollection ?? 0
-  };
+  }), [deliveryStats]);
 
   const handleAdvanceOrder = async (orderId: string, nextStatus: string) => {
     try {
@@ -198,9 +196,9 @@ export default function BusinessHomePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 font-black">
               {isLoadingStats ? (
                 <>
-                  <Skeleton className="h-32 rounded-2xl" />
-                  <Skeleton className="h-32 rounded-2xl" />
-                  <Skeleton className="h-32 rounded-2xl" />
+                  <Skeleton className="h-32 rounded-2xl border-none shadow-sm" />
+                  <Skeleton className="h-32 rounded-2xl border-none shadow-sm" />
+                  <Skeleton className="h-32 rounded-2xl border-none shadow-sm" />
                 </>
               ) : (
                 <>

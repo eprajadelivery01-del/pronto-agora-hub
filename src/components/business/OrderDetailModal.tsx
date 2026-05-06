@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
   CheckCircle2, AlertCircle, X, Printer, ArrowRight, ArrowLeft, Trash2,
-  Package, ImagePlus, Loader2, RotateCcw
+  Package, ImagePlus, Loader2, RotateCcw, Truck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import DeliveryTrackingMap from "./DeliveryTrackingMap";
 
 interface OrderDetailModalProps {
   order: any;
@@ -218,6 +219,24 @@ export default function OrderDetailModal({
         </div>
 
         <div className="flex-1 min-h-0 p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar bg-white/95">
+            {/* Tracking Map Section */}
+            {order.delivery_id && (
+              <div className="mb-8">
+                 <div className="flex items-center justify-between mb-3 px-1">
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 flex items-center gap-2">
+                     <Truck className="h-4 w-4 text-primary" />
+                     Acompanhamento da Entrega
+                   </h3>
+                   <span className="text-[9px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-lg uppercase animate-pulse">Tempo Real</span>
+                 </div>
+                 <DeliveryTrackingMap 
+                    deliveryId={order.delivery_id} 
+                    driverId={order.deliveries?.driver_id || order.deliveryInfo?.driver_id}
+                    destinationAddress={order.delivery_address || order.address}
+                 />
+              </div>
+            )}
+
             {/* Items List */}
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
