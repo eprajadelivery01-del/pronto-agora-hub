@@ -105,7 +105,6 @@ export default function BusinessHomePage() {
   }, [companyId, qc]);
 
 
-  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
 
   const stats = {
     pending: deliveryStats?.pending ?? 0,
