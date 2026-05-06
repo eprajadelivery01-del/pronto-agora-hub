@@ -72,21 +72,31 @@ export default function BusinessHomePage() {
   // 2. Fetch all active deliveries
   const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
     companyId: companyId || undefined,
-    pageSize: 50 // Increased page size
+    pageSize: 100 // Increased for safety
   });
 
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
 
-  const activeDeliveries = (deliveriesData?.data || []).filter(d => !["completed", "delivered", "cancelled"].includes(d.status));
+  // Filter deliveries to only show active ones and sync with order status
+  const activeDeliveries = (deliveriesData?.data || []).filter(d => {
+    // Hide final states
+    if (["completed", "delivered", "cancelled"].includes(d.status)) return false;
+    
+    // If it's a marketplace delivery, also check if the order is already done
+    const linkedOrder = marketplaceOrders?.find(o => o.delivery_id === d.id || o.id === d.order_id);
+    if (d.order_id && linkedOrder && ["completed", "delivered", "cancelled"].includes(linkedOrder.status)) return false;
+    
+    return true;
+  });
 
-  // 3. Separate Manual vs Marketplace
-  const marketplaceDeliveryIds = new Set((marketplaceOrders || []).map(o => o.delivery_id));
-  
-  const manualDeliveries = activeDeliveries.filter(d => !marketplaceDeliveryIds.has(d.id));
-  const marketplaceDeliveriesWithOrders = (marketplaceOrders || []).map(order => {
-    // Tenta encontrar a entrega vinculada
-    const delivery = activeDeliveries.find(d => d.id === order.delivery_id);
-    return { ...order, deliveryInfo: delivery };
+  // 3. Separate Manual vs Marketplace correctly using order_id
+  const marketplaceDeliveries = activeDeliveries.filter(d => d.order_id !== null);
+  const manualDeliveries = activeDeliveries.filter(d => d.order_id === null);
+
+  const marketplaceDeliveriesWithOrders = marketplaceDeliveries.map(delivery => {
+    // Tenta encontrar a ordem correspondente para enriquecer os dados
+    const order = (marketplaceOrders || []).find(o => o.delivery_id === delivery.id || o.id === delivery.order_id);
+    return { ...order, id: order?.id || delivery.order_id, total: order?.total || delivery.value, deliveryInfo: delivery };
   });
 
   useEffect(() => {
@@ -140,6 +150,34 @@ export default function BusinessHomePage() {
       qc.invalidateQueries({ queryKey: ["deliveries"] });
     } catch (error: any) {
       toast.error("Erro: " + error.message);
+    }
+  };
+
+  const handleComplete = async (delivery: any) => {
+    if (!confirm("Deseja finalizar esta entrega? Ela sairá do painel de monitoramento.")) return;
+    try {
+      // 1. Atualiza a entrega para 'completed'
+      const { error: deliveryError } = await supabase
+        .from("deliveries")
+        .update({ status: "completed", updated_at: new Date().toISOString() })
+        .eq("id", delivery.id);
+
+      if (deliveryError) throw deliveryError;
+
+      // 2. Se houver pedido vinculado, atualiza o pedido para 'delivered'
+      if (delivery.order_id) {
+        await supabase
+          .from("orders")
+          .update({ status: "delivered" } as any)
+          .eq("id", delivery.order_id);
+      }
+
+      toast.success("Entrega finalizada com sucesso!");
+      qc.invalidateQueries({ queryKey: ["deliveries"] });
+      qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+      qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
+    } catch (error: any) {
+      toast.error("Erro ao finalizar: " + error.message);
     }
   };
 
@@ -272,9 +310,17 @@ export default function BusinessHomePage() {
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Pedido</span>
                             <span className="text-sm font-black text-foreground">#{order.id.slice(-6).toUpperCase()}</span>
                           </div>
-                          <div className="text-right">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Valor</span>
-                            <p className="text-base font-black text-primary italic">R$ {order.total.toFixed(2).replace('.', ',')}</p>
+                          <div className="flex items-center gap-2">
+                             <button
+                                onClick={(e) => { e.stopPropagation(); handleComplete(order.deliveryInfo); }}
+                                className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-green-600 transition-colors shadow-sm"
+                             >
+                                Finalizar
+                             </button>
+                             <div className="text-right ml-2">
+                               <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Valor</span>
+                               <p className="text-base font-black text-primary italic">R$ {order.total.toFixed(2).replace('.', ',')}</p>
+                             </div>
                           </div>
                         </div>
                       </div>
@@ -338,8 +384,16 @@ export default function BusinessHomePage() {
                       </div>
 
                       <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                        <span className="text-[10px] font-bold text-muted-foreground">Criado às {format(new Date(delivery.created_at), "HH:mm")}</span>
-                        <p className="text-sm font-black text-warning italic">R$ {(delivery.value || 0).toFixed(2).replace('.', ',')}</p>
+                        <div className="flex flex-col">
+                           <span className="text-[10px] font-bold text-muted-foreground">Criado às {format(new Date(delivery.created_at), "HH:mm")}</span>
+                           <p className="text-sm font-black text-warning italic mt-0.5">R$ {(delivery.value || 0).toFixed(2).replace('.', ',')}</p>
+                        </div>
+                        <button
+                           onClick={(e) => { e.stopPropagation(); handleComplete(delivery); }}
+                           className="px-4 py-2 rounded-xl bg-warning text-warning-foreground text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-md"
+                        >
+                           Concluir
+                        </button>
                       </div>
                     </div>
                   ))}

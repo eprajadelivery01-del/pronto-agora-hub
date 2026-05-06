@@ -17,6 +17,12 @@ export interface Coupon {
   created_at: string;
 }
 
+export interface CouponProduct {
+  id: string;
+  coupon_id: string;
+  product_id: string;
+}
+
 export function useCoupons(companyId?: string) {
   return useQuery({
     queryKey: ["coupons", companyId],
@@ -33,6 +39,22 @@ export function useCoupons(companyId?: string) {
   });
 }
 
+export function useCouponProducts(couponId?: string) {
+  return useQuery({
+    queryKey: ["coupon-products", couponId],
+    queryFn: async () => {
+      if (!couponId) return [];
+      const { data, error } = await supabase
+        .from("coupon_products")
+        .select("*")
+        .eq("coupon_id", couponId);
+      if (error) throw error;
+      return data as CouponProduct[];
+    },
+    enabled: !!couponId,
+  });
+}
+
 export function useCouponMutations(companyId?: string) {
   const qc = useQueryClient();
 
@@ -46,28 +68,48 @@ export function useCouponMutations(companyId?: string) {
       expires_at?: string | null;
       min_order_value?: number;
       max_discount_value?: number | null;
+      product_ids?: string[];
     }) => {
+      const { product_ids, ...couponData } = payload;
       const { data, error } = await supabase
         .from("coupons")
-        .insert({ ...payload, company_id: companyId, active: true } as any)
+        .insert({ ...couponData, company_id: companyId, active: true } as any)
         .select()
         .single();
       if (error) throw error;
+
+      if (product_ids?.length) {
+        const rows = product_ids.map((pid) => ({
+          coupon_id: (data as any).id,
+          product_id: pid,
+        }));
+        await supabase.from("coupon_products").insert(rows as any);
+      }
+
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coupons"] }),
   });
 
   const updateCoupon = useMutation({
-    mutationFn: async ({ id, data: updateData }: { id: string; data: Partial<Coupon> }) => {
+    mutationFn: async ({ id, data: updateData, product_ids }: { id: string; data: Partial<Coupon>, product_ids?: string[] }) => {
       const { error } = await supabase
         .from("coupons")
         .update(updateData as any)
         .eq("id", id);
       if (error) throw error;
+
+      if (product_ids !== undefined) {
+        await supabase.from("coupon_products").delete().eq("coupon_id", id);
+        if (product_ids.length > 0) {
+          const rows = product_ids.map((pid) => ({ coupon_id: id, product_id: pid }));
+          await supabase.from("coupon_products").insert(rows as any);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coupons"] });
+      qc.invalidateQueries({ queryKey: ["coupon-products"] });
     },
   });
 
@@ -116,15 +158,32 @@ export async function validateCoupon(code: string, companyId: string) {
     return { valid: false, message: "Cupom esgotado." } as const;
   }
 
-  return { valid: true, coupon } as const;
+  // Get linked products
+  const { data: links } = await supabase
+    .from("coupon_products")
+    .select("product_id")
+    .eq("coupon_id", coupon.id);
+  
+  const productIds = (links || []).map((l: any) => l.product_id);
+
+  return { valid: true, coupon, productIds } as const;
 }
 
 /** Calculate discount for cart items */
 export function calculateDiscount(
   coupon: Coupon,
+  applicableProductIds: string[],
   cartItems: { id: string; price: number; quantity: number }[]
 ) {
-  const eligibleTotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
+  const isSpecific = applicableProductIds.length > 0;
+  
+  const eligibleItems = isSpecific
+    ? cartItems.filter((i) => applicableProductIds.includes(i.id))
+    : cartItems;
+
+  const eligibleTotal = eligibleItems.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  if (eligibleTotal === 0) return 0;
 
   if (coupon.discount_type === "percentage") {
     const discount = (eligibleTotal * coupon.discount_value) / 100;

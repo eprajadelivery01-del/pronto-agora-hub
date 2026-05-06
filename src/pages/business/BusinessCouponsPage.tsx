@@ -30,6 +30,7 @@ export default function BusinessCouponsPage() {
   const { user } = useAuth();
   const [companyId, setCompanyId] = useState<string>();
   const { data: coupons, isLoading } = useCoupons(companyId);
+  const { data: products } = useProductsManager(companyId);
   const { createCoupon, updateCoupon, deleteCoupon, toggleActive } = useCouponMutations(companyId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -40,6 +41,8 @@ export default function BusinessCouponsPage() {
   const [description, setDescription] = useState("");
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [discountValue, setDiscountValue] = useState("");
+  const [appliesTo, setAppliesTo] = useState<"all" | "specific">("all");
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [usageLimit, setUsageLimit] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [minOrderValue, setMinOrderValue] = useState("");
@@ -62,6 +65,8 @@ export default function BusinessCouponsPage() {
     setDescription("");
     setDiscountType("percentage");
     setDiscountValue("");
+    setAppliesTo("all");
+    setSelectedProducts([]);
     setUsageLimit("");
     setExpiresAt("");
     setMinOrderValue("");
@@ -74,7 +79,7 @@ export default function BusinessCouponsPage() {
     setDialogOpen(true);
   };
 
-  const openEdit = (coupon: Coupon) => {
+  const openEdit = async (coupon: Coupon) => {
     setEditing(coupon);
     setCode(coupon.code);
     setDescription(coupon.description || "");
@@ -84,6 +89,17 @@ export default function BusinessCouponsPage() {
     setExpiresAt(coupon.expires_at ? coupon.expires_at.slice(0, 16) : "");
     setMinOrderValue(String(coupon.min_order_value || 0));
     setMaxDiscountValue(coupon.max_discount_value ? String(coupon.max_discount_value) : "");
+
+    // Fetch linked products
+    const { data } = await supabase
+      .from("coupon_products")
+      .select("product_id")
+      .eq("coupon_id", coupon.id);
+    
+    const pids = (data || []).map((d: any) => d.product_id);
+    setSelectedProducts(pids);
+    setAppliesTo(pids.length > 0 ? "specific" : "all");
+
     setDialogOpen(true);
   };
 
@@ -91,6 +107,7 @@ export default function BusinessCouponsPage() {
     if (!code.trim()) return toast.error("Informe o código do cupom.");
     if (!discountValue || Number(discountValue) <= 0) return toast.error("Informe um valor de desconto válido.");
     if (discountType === "percentage" && Number(discountValue) > 100) return toast.error("Percentual não pode ser maior que 100%.");
+    if (appliesTo === "specific" && selectedProducts.length === 0) return toast.error("Selecione ao menos um produto.");
 
     const payload = {
       code: code.toUpperCase().trim(),
@@ -101,11 +118,12 @@ export default function BusinessCouponsPage() {
       expires_at: expiresAt || null,
       min_order_value: minOrderValue ? Number(minOrderValue) : 0,
       max_discount_value: maxDiscountValue ? Number(maxDiscountValue) : null,
+      product_ids: appliesTo === "specific" ? selectedProducts : [],
     };
 
     try {
       if (editing) {
-        await updateCoupon.mutateAsync({ id: editing.id, data: payload });
+        await updateCoupon.mutateAsync({ id: editing.id, data: payload, product_ids: payload.product_ids });
         toast.success("Cupom atualizado!");
       } else {
         await createCoupon.mutateAsync(payload);
@@ -271,7 +289,7 @@ export default function BusinessCouponsPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) resetForm(); setDialogOpen(o); }}>
-        <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-0 border-none shadow-2xl">
           <DialogDescription className="sr-only">
             Formulário para criação e edição de cupons de desconto.
           </DialogDescription>
@@ -345,6 +363,56 @@ export default function BusinessCouponsPage() {
                 </div>
               </div>
 
+              {/* Applies to */}
+              <div className="space-y-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Aplicar em</Label>
+                <Select value={appliesTo} onValueChange={(v) => setAppliesTo(v as any)}>
+                  <SelectTrigger className="h-12 rounded-xl border-2 border-muted font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-2">
+                    <SelectItem value="all" className="rounded-lg font-bold">Todos os produtos</SelectItem>
+                    <SelectItem value="specific" className="rounded-lg font-bold">Produtos específicos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Product selection */}
+              {appliesTo === "specific" && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Selecione os produtos</Label>
+                  <div className="border-2 border-muted rounded-2xl p-4 max-h-60 overflow-y-auto space-y-3 bg-muted/10">
+                    {!products?.length ? (
+                      <p className="text-xs text-muted-foreground text-center py-4 font-bold uppercase">Nenhum produto cadastrado.</p>
+                    ) : (
+                      products.map((p: any) => (
+                        <label key={p.id} className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-background cursor-pointer transition-all border border-transparent hover:border-primary/20">
+                          <Checkbox
+                            checked={selectedProducts.includes(p.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedProducts((prev) =>
+                                checked ? [...prev, p.id] : prev.filter((id) => id !== p.id)
+                              );
+                            }}
+                            className="h-5 w-5 rounded-md"
+                          />
+                          <Package className="h-4 w-4 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black truncate">{p.name}</p>
+                            <p className="text-[10px] font-bold text-primary">
+                              {(p.price || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </p>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  {selectedProducts.length > 0 && (
+                    <p className="text-[10px] font-black text-primary uppercase ml-1 tracking-widest">{selectedProducts.length} item(s) selecionado(s)</p>
+                  )}
+                </div>
+              )}
+
               {/* Advanced Limits */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -400,7 +468,7 @@ export default function BusinessCouponsPage() {
               </div>
             </div>
 
-            <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-bold" onClick={() => setDialogOpen(false)}>
                 Descartar
               </Button>
