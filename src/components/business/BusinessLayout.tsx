@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Navigation tabs
 const tabs = [
@@ -54,6 +55,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const [company, setCompany] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -70,6 +72,39 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     };
     fetchCompany();
   }, [user]);
+
+  useEffect(() => {
+    if (!company?.id) return;
+    
+    const fetchPending = async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, created_at, customer_name, total")
+        .eq("company_id", company.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      
+      if (data) setPendingOrders(data);
+    };
+    
+    fetchPending();
+
+    const channel = supabase
+      .channel('business_notifications')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `company_id=eq.${company.id}`
+      }, () => {
+        fetchPending();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id]);
 
   const toggleStoreStatus = async () => {
     if (!company?.id || updatingStatus) return;
@@ -260,15 +295,60 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                   {updatingStatus ? "Atualizando..." : (isOpen ? "Status: Online" : "Status: Offline")}
                 </button>
              </div>
-             <div className="relative group">
-               <button 
-                 onClick={() => navigate("/business/orders")}
-                 className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all hover:scale-105"
-               >
-                  <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse" />
-               </button>
-             </div>
+             <Popover>
+               <PopoverTrigger asChild>
+                 <button 
+                   className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all hover:scale-105"
+                 >
+                    <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
+                    {pendingOrders.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse flex items-center justify-center text-[8px] text-white font-black">
+                        {pendingOrders.length > 9 ? '9+' : pendingOrders.length}
+                      </span>
+                    )}
+                 </button>
+               </PopoverTrigger>
+               <PopoverContent className="w-80 p-0 mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden" align="end">
+                 <div className="bg-primary/5 px-6 py-4 border-b border-border">
+                   <h3 className="font-black text-sm uppercase tracking-widest text-primary">Notificações</h3>
+                 </div>
+                 <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                   {pendingOrders.length === 0 ? (
+                     <div className="p-8 text-center flex flex-col items-center gap-3">
+                       <Bell className="w-8 h-8 text-muted-foreground/30" />
+                       <p className="text-xs text-muted-foreground font-medium">Nenhuma notificação nova.</p>
+                     </div>
+                   ) : (
+                     <div className="flex flex-col">
+                       {pendingOrders.map(order => (
+                         <div 
+                           key={order.id} 
+                           onClick={() => navigate('/business/orders')} 
+                           className="p-5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
+                         >
+                           <div className="flex items-center justify-between">
+                             <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
+                             <span className="text-[10px] font-bold text-muted-foreground">
+                               Há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
+                             </span>
+                           </div>
+                           <p className="text-sm font-bold mt-2">Pedido #{order.id.slice(-6).toUpperCase()}</p>
+                           <p className="text-xs text-muted-foreground">Cliente: {order.customer_name || "Não informado"}</p>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                 </div>
+                 {pendingOrders.length > 0 && (
+                   <div 
+                     className="bg-muted/30 p-4 text-center cursor-pointer hover:bg-muted transition-colors border-t border-border"
+                     onClick={() => navigate('/business/orders')}
+                   >
+                     <span className="text-xs font-black uppercase tracking-widest text-primary">Ir para Pedidos</span>
+                   </div>
+                 )}
+               </PopoverContent>
+             </Popover>
           </div>
         </header>
 
