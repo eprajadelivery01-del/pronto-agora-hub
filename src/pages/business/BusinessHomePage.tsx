@@ -43,23 +43,61 @@ export default function BusinessHomePage() {
   });
 
   const companyId = companyData?.id;
+  const qc = useQueryClient();
 
-  const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
-    companyId: companyId || undefined,
-    pageSize: 10
+  // 1. Fetch Marketplace Orders with active deliveries
+  const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
+    queryKey: ["marketplace-deliveries-active", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          id, status, total, created_at, customer_id, delivery_id,
+          delivery_address, payment_method, customer_name,
+          order_items (
+            id, quantity, price, product_name,
+            products (id, name, image_url, description)
+          )
+        `)
+        .eq("company_id", companyId)
+        .not("delivery_id", "is", null)
+        .not("status", "in", '("completed", "delivered", "cancelled")');
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId
   });
 
-  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
+  // 2. Fetch all active deliveries
+  const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
+    companyId: companyId || undefined,
+    pageSize: 20
+  });
 
-  const deliveries = (deliveriesData?.data || []).filter(d => !["completed", "delivered", "cancelled"].includes(d.status));
+  const activeDeliveries = (deliveriesData?.data || []).filter(d => !["completed", "delivered", "cancelled"].includes(d.status));
+
+  // 3. Separate Manual vs Marketplace
+  const marketplaceDeliveryIds = new Set((marketplaceOrders || []).map(o => o.delivery_id));
+  
+  const manualDeliveries = activeDeliveries.filter(d => !marketplaceDeliveryIds.has(d.id));
+  const marketplaceDeliveriesWithOrders = (marketplaceOrders || []).map(order => {
+    const delivery = activeDeliveries.find(d => d.id === order.delivery_id);
+    return { ...order, deliveryInfo: delivery };
+  }).filter(o => o.deliveryInfo); // Only show if the delivery record is still active
 
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
-      .channel("business-home-status")
+      .channel("business-home-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` }, () => {
         qc.invalidateQueries({ queryKey: ["deliveries"] });
         qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+        qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -171,52 +209,141 @@ export default function BusinessHomePage() {
               )}
             </div>
 
-            {/* Content Section */}
+            {/* Content Section - Marketplace Deliveries */}
             <div className="space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-info" />
-                  Entregas Manuais em Andamento
-                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 bg-primary rounded-full" />
+                  <h3 className="text-lg font-black text-foreground tracking-tight">Entregas do Marketplace</h3>
+                  <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">{marketplaceDeliveriesWithOrders.length}</span>
+                </div>
               </div>
 
-              {isLoadingDeliveries ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-20 rounded-xl" />
+              {isLoadingMarketplace || isLoadingDeliveries ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Skeleton className="h-32 rounded-2xl" />
+                  <Skeleton className="h-32 rounded-2xl" />
                 </div>
-              ) : deliveries.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {deliveries.map((delivery, i) => (
+              ) : marketplaceDeliveriesWithOrders.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {marketplaceDeliveriesWithOrders.map((order) => (
                     <div
-                      key={delivery.id}
-                      className="bg-card border border-border/50 rounded-xl p-4 hover:border-primary/30 hover:shadow-card-hover transition-all duration-200 group flex items-center justify-between"
+                      key={order.id}
+                      onClick={() => {
+                        setSelectedOrder({
+                          ...order,
+                          customer: { 
+                            name: order.customer_name, 
+                            address: order.delivery_address 
+                          },
+                          items: order.order_items || []
+                        });
+                      }}
+                      className="bg-card border border-border/60 rounded-[2rem] p-5 hover:border-primary/40 hover:shadow-xl transition-all duration-300 group cursor-pointer relative overflow-hidden"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
-                          <Truck className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform">
+                        <ShoppingBag className="w-16 h-16" />
+                      </div>
+                      
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest">
+                          Marketplace
                         </div>
+                        <DeliveryStatusBadge status={order.deliveryInfo?.status || "pending"} />
+                      </div>
+
+                      <div className="space-y-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">{delivery.customer_name}</p>
-                          <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            {delivery.address}
-                          </p>
+                          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-60">Cliente</p>
+                          <p className="text-base font-black text-foreground truncate">{order.customer_name}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold">
+                          <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate">{order.delivery_address}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Pedido</span>
+                            <span className="text-sm font-black text-foreground">#{order.id.slice(-6).toUpperCase()}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Valor</span>
+                            <p className="text-base font-black text-primary italic">R$ {order.total.toFixed(2).replace('.', ',')}</p>
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleCancel(delivery.id)}
-                        className="p-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all font-black text-xs"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="bg-card/50 border border-dashed border-border rounded-xl p-12 text-center">
-                  <Truck className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-sm font-black text-muted-foreground/60 uppercase tracking-widest">Nenhuma entrega manual</p>
-                  <p className="text-xs text-muted-foreground/40 mt-1">Sincronizado com o centro de logística</p>
+                <div className="bg-muted/30 border border-dashed border-border rounded-[2rem] p-12 text-center">
+                  <ShoppingBag className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-xs font-black text-muted-foreground/50 uppercase tracking-widest">Nenhuma entrega do marketplace agora</p>
+                </div>
+              )}
+            </div>
+
+            {/* Content Section - Manual Deliveries */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 bg-warning rounded-full" />
+                  <h3 className="text-lg font-black text-foreground tracking-tight">Entregas Manuais</h3>
+                  <span className="bg-warning/10 text-warning px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">{manualDeliveries.length}</span>
+                </div>
+              </div>
+
+              {isLoadingDeliveries ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Skeleton className="h-24 rounded-2xl" />
+                </div>
+              ) : manualDeliveries.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {manualDeliveries.map((delivery) => (
+                    <div
+                      key={delivery.id}
+                      className="bg-card border border-border/60 rounded-[1.5rem] p-5 hover:border-warning/40 hover:shadow-xl transition-all duration-300 group relative overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center shrink-0 border border-warning/10 group-hover:scale-105 transition-transform">
+                            <Truck className="h-5 w-5 text-warning" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest opacity-60">Entrega Manual</p>
+                            <p className="text-sm font-black text-foreground truncate max-w-[150px]">{delivery.customer_name}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <DeliveryStatusBadge status={delivery.status} />
+                          <button
+                            onClick={() => handleCancel(delivery.id)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
+                            title="Cancelar Entrega"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold mb-3">
+                        <MapPin className="h-3.5 w-3.5 text-warning shrink-0" />
+                        <span className="truncate">{delivery.address}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground">Criado às {format(new Date(delivery.created_at), "HH:mm")}</span>
+                        <p className="text-sm font-black text-warning italic">R$ {(delivery.value || 0).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-muted/30 border border-dashed border-border rounded-[1.5rem] p-12 text-center">
+                  <Truck className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-xs font-black text-muted-foreground/50 uppercase tracking-widest">Sem entregas manuais em andamento</p>
                 </div>
               )}
             </div>
