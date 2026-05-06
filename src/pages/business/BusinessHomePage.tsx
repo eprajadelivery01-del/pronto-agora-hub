@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Truck, Clock, Loader2, MapPin, Trash2, Wallet, Zap } from "lucide-react";
+import { Plus, Truck, Clock, Loader2, MapPin, Trash2, Wallet, Zap, ShoppingBag } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
