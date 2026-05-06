@@ -36,6 +36,16 @@ const PIE_COLORS = [
   "hsl(210, 100%, 52%)" // info
 ];
 
+const PAYMENT_LABELS: Record<string, string> = {
+  money: "Dinheiro",
+  pix: "Pix",
+  credit_card: "Cartão de Crédito",
+  debit_card: "Cartão de Débito",
+  voucher: "Vale Refeição",
+  online: "Pagamento Online",
+  "Não informado": "Não informado"
+};
+
 export default function BusinessFinancePage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
@@ -452,8 +462,8 @@ export default function BusinessFinancePage() {
                             </span>
                           </div>
                           <div className="col-span-2">
-                            <span className="text-xs text-muted-foreground font-medium capitalize">
-                              {order.payment_method || "—"}
+                            <span className="text-xs text-muted-foreground font-medium">
+                              {PAYMENT_LABELS[order.payment_method] || order.payment_method || "—"}
                             </span>
                           </div>
                           <div className="col-span-2 text-right">
@@ -543,7 +553,7 @@ export default function BusinessFinancePage() {
                           return (
                             <div key={i}>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-bold text-muted-foreground capitalize">{item.name}</span>
+                                <span className="text-xs font-bold text-muted-foreground">{PAYMENT_LABELS[item.name] || item.name}</span>
                                 <span className="text-xs font-black text-foreground">{fmt(item.value)}</span>
                               </div>
                               <div className="h-2 bg-muted rounded-full overflow-hidden">
