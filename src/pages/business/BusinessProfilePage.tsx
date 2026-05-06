@@ -225,9 +225,6 @@ export default function BusinessProfilePage() {
                       </div>
                   </div>
                   <div className="flex gap-3">
-                     <button className="px-6 py-3 rounded-2xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-all">
-                        Ver Página Pública
-                     </button>
                      <button 
                         onClick={() => handleSave()}
                         className="px-8 py-3 rounded-2xl bg-foreground text-background font-black text-sm uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10"
