@@ -63,11 +63,12 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       const { data } = await supabase
         .from("companies")
         .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data) {
-        setCompany(data as any);
-        setIsOpen((data as any).is_open ?? true);
+        .eq("user_id", user.id);
+        
+      if (data && data.length > 0) {
+        const bestCompany = data.find(c => !c.name.toLowerCase().includes("teste")) || data[0];
+        setCompany(bestCompany);
+        setIsOpen(bestCompany.is_open ?? true);
       }
     };
     fetchCompany();

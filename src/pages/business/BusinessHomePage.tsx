@@ -32,9 +32,11 @@ export default function BusinessHomePage() {
       const { data } = await supabase
         .from("companies")
         .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      return data;
+        .eq("user_id", user.id);
+      
+      if (!data || data.length === 0) return null;
+      // Seleciona a melhor empresa (não teste ou a primeira)
+      return data.find(c => !c.name.toLowerCase().includes("teste")) || data[0];
     },
     enabled: !!user?.id
   });

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import OrderDetailModal from "@/components/business/OrderDetailModal";
 
-type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
+type OrderStatus = "pending" | "preparing" | "ready" | "in_route" | "delivered" | "cancelled";
 
 interface OrderItem {
   id: string;
@@ -49,6 +49,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Novo",
   preparing: "Em Preparo",
   ready: "Pronto",
+  in_route: "Em Rota",
   delivered: "Entregue",
   cancelled: "Cancelado",
 };
@@ -57,6 +58,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   preparing: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   ready: "bg-green-500/10 text-green-600 border-green-500/20",
+  in_route: "bg-purple-500/10 text-purple-600 border-purple-500/20",
   delivered: "bg-success/10 text-success border-success/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
 };
