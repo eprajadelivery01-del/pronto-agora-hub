@@ -28,18 +28,17 @@ export default function BusinessHomePage() {
   const qc = useQueryClient();
   
   const { data: companyData } = useQuery({
-    queryKey: ["company-info", (profile as any)?.id || user?.id],
+    queryKey: ["company-info", user?.id],
     queryFn: async () => {
-      const currentId = (profile as any)?.id || user?.id;
-      if (!currentId) return null;
+      if (!user?.id) return null;
       const { data } = await supabase
         .from("companies")
         .select("*")
-        .eq("user_id", currentId)
+        .eq("user_id", user.id)
         .maybeSingle();
       return data;
     },
-    enabled: !!((profile as any)?.id || user?.id)
+    enabled: !!user?.id
   });
 
   const companyId = companyData?.id;
@@ -72,8 +71,10 @@ export default function BusinessHomePage() {
   // 2. Fetch all active deliveries
   const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
     companyId: companyId || undefined,
-    pageSize: 20
+    pageSize: 50 // Increased page size
   });
+
+  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
 
   const activeDeliveries = (deliveriesData?.data || []).filter(d => !["completed", "delivered", "cancelled"].includes(d.status));
 
@@ -82,9 +83,10 @@ export default function BusinessHomePage() {
   
   const manualDeliveries = activeDeliveries.filter(d => !marketplaceDeliveryIds.has(d.id));
   const marketplaceDeliveriesWithOrders = (marketplaceOrders || []).map(order => {
+    // Tenta encontrar a entrega vinculada
     const delivery = activeDeliveries.find(d => d.id === order.delivery_id);
     return { ...order, deliveryInfo: delivery };
-  }).filter(o => o.deliveryInfo); // Only show if the delivery record is still active
+  });
 
   useEffect(() => {
     if (!companyId) return;
