@@ -67,15 +67,17 @@ const getNextActions = (status: OrderStatus) => {
   const actions: Record<string, { label: string, next: OrderStatus }> = {
     pending: { label: "Aceitar Pedido", next: "preparing" },
     preparing: { label: "Marcar Pronto", next: "ready" },
-    ready: { label: "Chamar Entregador", next: "ready" }, // Status stays ready until delivery is created or pickup
+    ready: { label: "Chamar Entregador", next: "ready" },
+    in_route: { label: "Finalizar", next: "delivered" },
   };
   return actions[status];
 };
 
 const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] = [
   { key: "pending", label: "Novos", icon: Bell, color: "warning" },
-  { key: "preparing", label: "Preparando", icon: ChefHat, color: "blue" },
+  { key: "preparing", label: "Na Cozinha", icon: ChefHat, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
+  { key: "in_route", label: "Em Rota", icon: Truck, color: "purple" },
   { key: "delivered", label: "Concluídos", icon: CheckCircle, color: "success" },
 ];
 
@@ -270,7 +272,7 @@ export default function BusinessOrdersPage() {
           pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
           preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
           revenue_today: data.filter(o => ["completed", "delivered"].includes(o.status) && o.created_at.startsWith(todayStr)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-          open_total: data.filter(o => !["completed", "delivered", "cancelled"].includes(o.status)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          open_total: mapped.filter(o => ["pending", "accepted", "preparing", "ready"].includes(o.status)).reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         });
 
         console.log("[Dashboard] Estatísticas finais:", {
@@ -774,7 +776,7 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
         <div className="flex items-center justify-between mb-3">
           <div className="flex flex-col">
             <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight opacity-60">ID Pedido</span>
-            <p className="font-black text-lg text-foreground tracking-tight leading-none">#{order.id.slice(-6).toUpperCase()}</p>
+            <p className="font-black text-lg text-foreground tracking-tight leading-none">#{order.id?.slice(-6).toUpperCase() || "..."}</p>
           </div>
           {!isPending && (
             <div className={cn("px-2 py-1 rounded-lg border-none font-black text-[9px] uppercase tracking-tighter", STATUS_COLORS[order.status])}>
