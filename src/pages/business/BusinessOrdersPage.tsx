@@ -619,9 +619,9 @@ export default function BusinessOrdersPage() {
         </div>
 
         {/* Kanban Board */}
-        <div className="flex gap-6 overflow-x-auto pb-6 custom-scrollbar snap-x">
+        <div className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar snap-x">
           {COLUMNS.map(col => (
-            <div key={col.key} className="flex-none w-80 snap-start flex flex-col gap-4">
+            <div key={col.key} className="flex-none w-72 snap-start flex flex-col gap-3">
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-6 rounded-full bg-primary", 
@@ -637,7 +637,7 @@ export default function BusinessOrdersPage() {
                 <MoreVertical className="h-4 w-4 text-muted-foreground/30" />
               </div>
 
-              <div className="space-y-4 h-[65vh] overflow-y-auto custom-scrollbar bg-muted/30 rounded-[2.5rem] p-3 border border-border/50">
+              <div className="space-y-3 h-[65vh] overflow-y-auto custom-scrollbar bg-muted/30 rounded-[2rem] p-2 border border-border/50">
                 {ordersByColumn(col.key).map(order => (
                   <OrderCard
                     key={order.id}
