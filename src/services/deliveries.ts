@@ -45,7 +45,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
-        .select("id, company_id, driver_id, customer_name, address, value, estimated_value, status, created_at, updated_at, notes, pickup_address, dropoff_address, region_id, region_name, companies(name, phone)", { count: "exact" })
+        .select("id, company_id, driver_id, customer_name, address, value, status, created_at, updated_at, region_id, region_name, companies(name, phone)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -78,7 +78,7 @@ export function useDeliveryStats(params?: { companyId?: string }) {
 
       let query = supabase
         .from("deliveries")
-        .select("status, value, estimated_value")
+        .select("status, value")
         .gte("created_at", today.toISOString());
 
       if (companyId) {
@@ -101,7 +101,7 @@ export function useDeliveryStats(params?: { companyId?: string }) {
         delivered: data.filter((d) => d.status === "completed").length,
         cancelled: data.filter((d) => d.status === "cancelled").length,
         todayRevenue: data.filter((d) => d.status === "completed").reduce((sum, d) => sum + Number((d as any).value ?? 0), 0),
-        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + Number((d as any).estimated_value ?? 0), 0),
+        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + Number((d as any).value ?? 0), 0),
       };
     },
     refetchInterval: 30000,

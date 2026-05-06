@@ -538,7 +538,7 @@ export default function BusinessOrdersPage() {
   const ordersByColumn = (status: OrderStatus) => {
     if (status === "pending") {
       // Show pending AND any unknown active statuses in the first column
-      const knownStatuses = ["preparing", "ready", "delivered", "cancelled"];
+      const knownStatuses = ["preparing", "ready", "in_route", "delivered", "cancelled"];
       return orders.filter(o => o.status === "pending" || !knownStatuses.includes(o.status));
     }
     if (status === "preparing") {
