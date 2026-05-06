@@ -46,58 +46,61 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       }
       setLoading(true);
       
-      const searchTerms = cleanQuery.split(" ").filter(t => t.length >= 2);
-      const firstTerm = searchTerms[0] || "";
       const numericQuery = cleanQuery.replace(/\D/g, "");
 
       try {
-        // 1. Search in existing 'customers' table (Business data)
+        // 1. Search in store's own 'customers' table (those manually added or previous manual deliveries)
         let customersQuery = supabase
           .from("customers")
           .select("id, name, phone, cpf")
+          .eq("company_id", companyId) // CRITICAL: Only this store's customers
           .or(`name.ilike.%${cleanQuery}%,cpf.ilike.%${cleanQuery}%`);
         
         if (numericQuery) {
           customersQuery = customersQuery.or(`cpf.ilike.%${numericQuery}%,phone.ilike.%${numericQuery}%`);
         }
 
-        const { data: customersData } = await customersQuery.limit(8);
+        const { data: customersData } = await customersQuery.limit(10);
 
-        // 2. Search in 'profiles' table (Marketplace users)
-        // We filter by role 'customer' in user_roles if possible, 
-        // but often simpler to just search profiles and let the logic handle it.
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("id, full_name, phone")
-          .ilike("full_name", `%${cleanQuery}%`)
-          .limit(5);
+        // 2. Search in 'orders' table for Marketplace customers who bought from THIS store
+        // We look for orders with this company_id and join with customers/profiles
+        const { data: ordersData } = await supabase
+          .from("orders")
+          .select(`
+            customer_id,
+            customers!inner (id, name, phone, cpf)
+          `)
+          .eq("company_id", companyId)
+          .or(`customers.name.ilike.%${cleanQuery}%,customers.phone.ilike.%${numericQuery || cleanQuery}%`)
+          .limit(10);
 
         // Merge and deduplicate
         const merged: any[] = [];
         const seenIds = new Set();
-        const seenNames = new Set();
 
         const addResult = (item: any, source: "loja" | "marketplace") => {
+          if (!item || !item.id) return;
           const id = item.id;
-          const name = (item.name || item.full_name || "").trim();
-          if (!name) return;
           
-          const key = `${name.toLowerCase()}_${item.cpf || item.phone || ""}`;
-          if (seenIds.has(id) || seenNames.has(key)) return;
-
+          if (seenIds.has(id)) return;
           seenIds.add(id);
-          seenNames.add(key);
+
           merged.push({
             id: item.id,
-            name: name,
+            name: item.name,
             phone: item.phone || null,
             cpf: item.cpf || null,
             isMarketplace: source === "marketplace"
           });
         };
 
+        // Add manual customers first
         (customersData || []).forEach(c => addResult(c, "loja"));
-        (profilesData || []).forEach(p => addResult(p, "marketplace"));
+        
+        // Add marketplace customers who bought here
+        (ordersData || []).forEach(o => {
+          if (o.customers) addResult(o.customers, "marketplace");
+        });
 
         setResults(merged);
       } catch (err) {
