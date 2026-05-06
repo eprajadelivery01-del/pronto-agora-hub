@@ -295,63 +295,28 @@ export default function BusinessOrdersPage() {
 
   useEffect(() => {
     const init = async () => {
-      console.log("[Dashboard] Inicializando Diagnóstico de Visibilidade...");
-      if (!user) {
-         console.warn("[Dashboard] Usuário não logado.");
-         return;
-      }
+      if (!user?.id || companyId) return;
       
-      setLoading(true);
       try {
-        console.log(`[Dashboard] ANALISANDO CONTAS PARA: ${user.id}`);
-        
-        // 1. Buscar TODAS as empresas vinculadas ao usuário
-        const { data: companies, error: compErr } = await supabase
+        console.log("[Dashboard] Buscando empresa vinculada...");
+        const { data: companies } = await supabase
           .from("companies")
           .select("id, name")
           .eq("user_id", user.id);
         
-        if (compErr) {
-          console.error("[Dashboard] Erro ao buscar empresas:", compErr);
-        }
-
         if (companies && companies.length > 0) {
-          console.log(`[Dashboard] ENCONTRADAS ${companies.length} EMPRESAS:`, companies);
-          
-          // Se tiver mais de uma, logamos o alerta
-          if (companies.length > 1) {
-            console.warn("[Dashboard] ATENÇÃO: Você tem múltiplas empresas vinculadas! O sistema pode estar carregando a errada.");
-            toast.info(`Várias empresas encontradas: ${companies.map(c => c.name).join(", ")}`);
-          }
-
-          // Tenta encontrar uma que NÃO seja de teste se houver escolha
           const bestCompany = companies.find(c => !c.name.toLowerCase().includes("teste")) || companies[0];
-          
-          console.log(`[Dashboard] Selecionando Empresa Principal: ${bestCompany.name} (${bestCompany.id})`);
           setCompanyId(bestCompany.id);
-        } else {
-          console.error("[Dashboard] NENHUMA empresa encontrada para este usuário. Por isso os pedidos estão 0.");
-          setLoading(false);
         }
-
-        // 2. AUDITORIA DE EMERGÊNCIA: Quantos pedidos existem no TOTAL do banco para este usuário?
-        const { count, error: countErr } = await supabase
-          .from("orders")
-          .select("*", { count: "exact", head: true });
-        
-        console.log(`[Dashboard] Auditoria Global: Existem ${count} pedidos totais acessíveis por RLS.`);
-        
       } catch (err) {
-        console.error("[Dashboard] Exceção na inicialização:", err);
-        setLoading(false);
+        console.error("[Dashboard] Erro na inicialização:", err);
       }
     };
     init();
-  }, [user]);
+  }, [user?.id, companyId]);
 
   useEffect(() => {
     if (companyId) {
-      console.log("[Dashboard] companyId atualizado, disparando fetchOrders...");
       fetchOrders();
     }
   }, [companyId, fetchOrders]);
