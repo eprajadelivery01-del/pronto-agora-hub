@@ -43,7 +43,6 @@ export default function BusinessHomePage() {
   });
 
   const companyId = companyData?.id;
-  const qc = useQueryClient();
 
   // 1. Fetch Marketplace Orders with active deliveries
   const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
