@@ -99,7 +99,7 @@ export default function OrderDetailModal({
       const { data, error } = await supabase
         .from("order_items")
         .select(`
-          id, quantity, price, product_name, unit_price,
+          *,
           products (id, name, image_url, description)
         `)
         .eq("order_id", order.id);
@@ -178,7 +178,7 @@ export default function OrderDetailModal({
         <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
         
         {/* Modern Glass Header - Reduzido conforme solicitado */}
-        <div className="bg-primary/95 backdrop-blur-3xl px-8 py-6 md:px-10 md:py-8 relative overflow-hidden text-white shrink-0">
+        <div className="bg-primary/95 backdrop-blur-3xl px-6 py-4 md:px-8 md:py-6 relative overflow-hidden text-white shrink-0">
             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                 <ShoppingBag className="w-48 h-48 rotate-12" />
             </div>
@@ -197,19 +197,19 @@ export default function OrderDetailModal({
                     </span>
                 </div>
                 
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 text-left">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
                     <div>
-                        <DialogTitle className="text-2xl lg:text-3xl font-black tracking-tighter text-white">
+                        <DialogTitle className="text-xl lg:text-2xl font-black tracking-tighter text-white">
                           Pedido #{order.id.slice(-6).toUpperCase()}
                         </DialogTitle>
-                        <div className="text-white/80 font-bold text-lg mt-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md">
-                              <User className="w-5 h-5" />
+                        <div className="text-white/80 font-bold text-base mt-3 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-md">
+                              <User className="w-4 h-4" />
                             </div> 
                             <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
+                                <span className="text-[9px] uppercase tracking-widest text-white/40 font-black">Comprador</span>
                                 {customerInfo?.name || order.customer?.name || order.customer_name || "Cliente Marketplace"}
-                                <span className="text-xs text-white/60 flex items-center gap-2 mt-1">
+                                <span className="text-[11px] text-white/60 flex items-center gap-2 mt-0.5">
                                     <Phone className="w-3 h-3" /> {customerInfo?.phone || order.customer?.phone || order.customer_phone || "Não informado"}
                                 </span>
                             </div>
@@ -228,9 +228,9 @@ export default function OrderDetailModal({
             </DialogHeader>
         </div>
 
-        <div className="flex-1 min-h-0 p-8 md:p-10 pb-10 space-y-10 overflow-y-auto custom-scrollbar bg-white/95">
+        <div className="flex-1 min-h-0 p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar bg-white/95">
             {/* Items List */}
-            <div className="space-y-8">
+            <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <h3 className="font-black text-foreground/40 uppercase tracking-[0.3em] text-[10px] flex items-center gap-2">
                         <Package className="w-4 h-4 text-primary" /> composição do pedido
@@ -255,30 +255,50 @@ export default function OrderDetailModal({
                         </div>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-5">
+                    <div className="grid grid-cols-1 gap-4">
                         {items.map((item, idx) => {
                             const images = parseImages(item.products?.image_url);
                             const mainImage = images[0];
                             return (
-                                <div key={idx} className="flex gap-6 items-center p-6 rounded-[2.5rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-xl transition-all group">
-                                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-[1.5rem] bg-muted overflow-hidden shrink-0 border border-border/50">
+                                <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.5rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-[1rem] bg-muted overflow-hidden shrink-0 border border-border/50">
                                         {mainImage ? (
                                             <img src={mainImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.product_name} />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                                                <ImagePlus className="w-8 h-8" />
+                                                <ImagePlus className="w-6 h-6" />
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-center gap-4">
+                                        <div className="flex justify-between items-start gap-3">
                                             <div>
-                                              <p className="font-black text-foreground text-lg">{item.product_name || item.products?.name || "Produto"}</p>
-                                              <p className="text-xs text-muted-foreground font-bold">Un: R$ {item.price?.toFixed(2).replace('.', ',')}</p>
+                                              <p className="font-bold text-foreground text-base leading-tight">{item.product_name || item.products?.name || "Produto"}</p>
+                                              <p className="text-xs text-muted-foreground font-medium mt-0.5">Un: R$ {item.price?.toFixed(2).replace('.', ',')}</p>
+                                              
+                                              {/* Detalhes/Ingredientes/Observações */}
+                                              {(item.choices || item.notes || item.observation) && (
+                                                <div className="mt-2 space-y-1.5">
+                                                  {item.choices && (
+                                                    <p className="text-[11px] text-muted-foreground leading-snug">
+                                                      <span className="font-semibold text-foreground/70">Opções:</span> {
+                                                        typeof item.choices === 'string' ? item.choices : 
+                                                        Array.isArray(item.choices) ? item.choices.map((c:any) => c.name || c).join(', ') :
+                                                        JSON.stringify(item.choices)
+                                                      }
+                                                    </p>
+                                                  )}
+                                                  {(item.notes || item.observation) && (
+                                                    <p className="text-[11px] text-warning-foreground bg-warning/10 px-2 py-1 rounded-md inline-block leading-snug">
+                                                      <span className="font-bold">Obs:</span> {item.notes || item.observation}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="flex flex-col items-end">
-                                              <p className="text-[10px] font-black text-primary uppercase mb-1">{item.quantity}x unidades</p>
-                                              <p className="font-black text-xl text-foreground italic">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
+                                            <div className="flex flex-col items-end shrink-0">
+                                              <p className="text-[10px] font-black text-primary uppercase mb-0.5 bg-primary/10 px-1.5 py-0.5 rounded-md">{item.quantity}x</p>
+                                              <p className="font-black text-lg text-foreground mt-1">R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -300,18 +320,18 @@ export default function OrderDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-8 md:p-10 border-t border-border flex flex-wrap gap-6 items-center justify-between bg-muted/10 shrink-0">
+        <div className="p-6 md:p-8 border-t border-border flex flex-wrap gap-4 items-center justify-between bg-muted/10 shrink-0">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => window.print()} 
-                className="h-14 w-14 rounded-2xl bg-white border border-border flex items-center justify-center hover:bg-muted transition-all text-muted-foreground print:hidden shadow-sm"
+                className="h-12 w-12 rounded-xl bg-white border border-border flex items-center justify-center hover:bg-muted transition-all text-muted-foreground print:hidden shadow-sm"
                 title="Imprimir Pedido"
               >
-                 <Printer className="h-6 w-6" />
+                 <Printer className="h-5 w-5" />
               </button>
               <div className="flex flex-col text-left">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
-                 <p className="text-3xl font-black text-primary italic leading-none">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
+                 <p className="text-2xl font-black text-primary italic leading-none mt-0.5">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
               </div>
             </div>
 
@@ -319,34 +339,34 @@ export default function OrderDetailModal({
                 {order.status !== 'cancelled' && order.status !== 'completed' && order.status !== 'delivered' && (
                   <button 
                     onClick={handleCancel}
-                    className="h-14 w-14 rounded-2xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
+                    className="h-12 w-12 rounded-xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
                     title="Cancelar Pedido"
                   >
-                    <Trash2 className="h-5 w-5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 )}
                 <button 
                   onClick={onClose}
-                  className="px-8 h-14 rounded-2xl border border-border bg-white text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
+                  className="px-6 h-12 rounded-xl border border-border bg-white text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
                 >
                   Fechar
                 </button>
                 {status.prev && (
                   <button 
                     onClick={handlePrev}
-                    className="px-6 h-14 rounded-2xl border border-border bg-white text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center gap-2 group/btn"
+                    className="px-5 h-12 rounded-xl border border-border bg-white text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center gap-2 group/btn"
                     title={status.prevLabel}
                   >
-                    <RotateCcw className="h-4 w-4 group-hover/btn:-rotate-45 transition-transform" />
-                    <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">{status.prevLabel}</span>
+                    <RotateCcw className="h-3 w-3 group-hover/btn:-rotate-45 transition-transform" />
+                    <span className="hidden md:inline text-[9px] font-black uppercase tracking-widest">{status.prevLabel}</span>
                   </button>
                 )}
                 {status.next && (
                   <button 
                     onClick={handleAdvance}
-                    className="flex-1 md:flex-none px-10 h-14 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10 flex items-center justify-center gap-3"
+                    className="flex-1 md:flex-none px-8 h-12 rounded-xl bg-foreground text-background font-black text-[10px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-lg shadow-foreground/10 flex items-center justify-center gap-2"
                   >
-                    {status.nextLabel} <ArrowRight className="h-4 w-4" />
+                    {status.nextLabel} <ArrowRight className="h-3 w-3" />
                   </button>
                 )}
             </div>
