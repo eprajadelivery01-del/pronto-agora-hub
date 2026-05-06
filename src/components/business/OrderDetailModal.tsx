@@ -199,7 +199,7 @@ export default function OrderDetailModal({
                 <div className="flex flex-wrap items-center justify-between gap-4 text-left bg-white/10 p-3 rounded-2xl border border-white/10">
                     <div className="flex items-center gap-3">
                         <DialogTitle className="text-lg font-black tracking-tight text-white m-0 leading-none">
-                          #{order.id.slice(-6).toUpperCase()}
+                          #{order.id?.slice(-6).toUpperCase() || "..."}
                         </DialogTitle>
                         <div className="h-4 w-px bg-white/20" />
                         <div className="text-white/90 font-bold text-xs flex items-center gap-1.5">

@@ -308,7 +308,7 @@ export default function BusinessHomePage() {
                         <div className="flex items-center justify-between pt-3 border-t border-border/50">
                           <div className="flex flex-col">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Pedido</span>
-                            <span className="text-sm font-black text-foreground">#{order.id.slice(-6).toUpperCase()}</span>
+                            <span className="text-sm font-black text-foreground">#{order.id?.slice(-6).toUpperCase() || "..."}</span>
                           </div>
                           <div className="flex items-center gap-2">
                              <button
