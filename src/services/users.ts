@@ -98,49 +98,30 @@ export async function validateInvitation(token: string) {
 }
 
 export async function acceptInvitation(token: string, userData: { email: string; password: string; fullName: string; phone: string; document: string }) {
-  const invitation = await validateInvitation(token);
-
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: userData.email,
-    password: userData.password,
-    options: { data: { full_name: userData.fullName } },
-  });
-  if (authError) throw authError;
-  if (!authData.user) throw new Error("Erro ao criar conta");
-
-  await supabase
-    .from("profiles")
-    .update({
-      full_name: userData.fullName,
+  // Server-side invitation acceptance via edge function to prevent client-side role manipulation
+  const res = await supabase.functions.invoke("accept-invitation", {
+    body: {
+      token,
+      email: userData.email,
+      password: userData.password,
+      fullName: userData.fullName,
       phone: userData.phone,
       document: userData.document,
-    })
-    .eq("user_id", authData.user.id);
-
-  await supabase.from("user_roles").insert({
-    user_id: authData.user.id,
-    role: invitation.role,
+    },
   });
 
-  if (invitation.role === "driver") {
-    await supabase.from("delivery_drivers").insert({
-      user_id: authData.user.id,
-    });
-  }
+  if (res.error) throw new Error(res.error.message);
+  const data = res.data as any;
+  if (data?.error) throw new Error(data.error);
 
-  if (invitation.role === "company") {
-    await supabase.from("companies").insert({
-      user_id: authData.user.id,
-      name: userData.fullName,
-    });
-  }
+  // Sign in the newly created user
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email: userData.email,
+    password: userData.password,
+  });
+  if (signInError) throw signInError;
 
-  await supabase
-    .from("invitations")
-    .update({ status: "accepted" })
-    .eq("token", token);
-
-  return authData;
+  return signInData;
 }
 
 export function useProfiles() {
