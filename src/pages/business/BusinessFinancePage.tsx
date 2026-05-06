@@ -49,6 +49,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 export default function BusinessFinancePage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState("30d");
@@ -76,48 +77,74 @@ export default function BusinessFinancePage() {
     if (!companyId) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      const startIso = startOfDay(dateRange.from).toISOString();
+      const endIso = endOfDay(dateRange.to).toISOString();
+
+      // 1. Busca Pedidos do Marketplace
+      const { data: ordersData } = await supabase
         .from("orders")
         .select("id, total, status, created_at, delivery_fee, payment_method")
         .eq("company_id", companyId)
-        .gte("created_at", startOfDay(dateRange.from).toISOString())
-        .lte("created_at", endOfDay(dateRange.to).toISOString())
+        .gte("created_at", startIso)
+        .lte("created_at", endIso)
         .order("created_at", { ascending: false });
-      setOrders(data || []);
+
+      // 2. Busca Entregas Manuais (Gastos com logística direta)
+      // Filtramos apenas as que NÃO possuem order_id ou que foram cobradas avulsas
+      const { data: deliveriesData } = await supabase
+        .from("deliveries")
+        .select("id, value, status, created_at, order_id")
+        .eq("company_id", companyId)
+        .gte("created_at", startIso)
+        .lte("created_at", endIso);
+
+      setOrders(ordersData || []);
+      setDeliveries(deliveriesData || []);
       setLoading(false);
     })();
   }, [companyId, dateRange]);
 
   // Computed metrics
   const metrics = useMemo(() => {
-    const completed = orders.filter(o => ["completed", "delivered"].includes(o.status));
-    const pending = orders.filter(o => !["completed", "delivered", "cancelled"].includes(o.status));
-    const cancelled = orders.filter(o => o.status === "cancelled");
+    const completedOrders = orders.filter(o => ["completed", "delivered"].includes(o.status));
+    const pendingOrders = orders.filter(o => !["completed", "delivered", "cancelled"].includes(o.status));
+    const cancelledOrders = orders.filter(o => o.status === "cancelled");
 
-    const totalRevenue = completed.reduce((s, o) => s + (o.total || 0), 0);
-    const totalDeliveryFees = completed.reduce((s, o) => s + (o.delivery_fee || 0), 0);
-    const avgTicket = completed.length > 0 ? totalRevenue / completed.length : 0;
+    // Marketplace Revenue
+    const marketplaceRevenue = completedOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const marketplaceDeliveryFees = completedOrders.reduce((s, o) => s + (Number(o.delivery_fee) || 0), 0);
+    
+    // Manual Delivery Spending (only non-cancelled deliveries)
+    const activeDeliveries = deliveries.filter(d => d.status !== "cancelled");
+    const manualDeliverySpending = activeDeliveries.reduce((s, d) => s + (Number(d.value) || 0), 0);
+
+    const avgTicket = completedOrders.length > 0 ? marketplaceRevenue / completedOrders.length : 0;
 
     // Today
-    const todayOrders = completed.filter(o => isSameDay(new Date(o.created_at), new Date()));
-    const todayRevenue = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const todayOrders = completedOrders.filter(o => isSameDay(new Date(o.created_at), new Date()));
+    const todayRevenue = todayOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
 
     // Yesterday for comparison
     const yesterday = subDays(new Date(), 1);
-    const yesterdayOrders = completed.filter(o => isSameDay(new Date(o.created_at), yesterday));
-    const yesterdayRevenue = yesterdayOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const yesterdayRevenue = completedOrders.filter(o => isSameDay(new Date(o.created_at), yesterday))
+      .reduce((s, o) => s + (Number(o.total) || 0), 0);
     const revenueChange = yesterdayRevenue > 0 ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 : 0;
 
     return {
-      totalRevenue, totalDeliveryFees, avgTicket,
-      todayRevenue, revenueChange,
-      completedCount: completed.length,
-      pendingCount: pending.length,
-      cancelledCount: cancelled.length,
+      marketplaceRevenue,
+      manualDeliverySpending,
+      netBalance: marketplaceRevenue - manualDeliverySpending,
+      avgTicket,
+      todayRevenue,
+      revenueChange,
+      completedCount: completedOrders.length,
+      pendingCount: pendingOrders.length,
+      cancelledCount: cancelledOrders.length,
       totalOrders: orders.length,
-      conversionRate: orders.length > 0 ? (completed.length / orders.length) * 100 : 0,
+      conversionRate: orders.length > 0 ? (completedOrders.length / orders.length) * 100 : 0,
+      totalDeliveryVolume: deliveries.length,
     };
-  }, [orders]);
+  }, [orders, deliveries]);
 
   // Chart data: daily revenue
   const dailyChartData = useMemo(() => {
@@ -242,17 +269,17 @@ export default function BusinessFinancePage() {
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Total Revenue */}
+              {/* Marketplace Revenue */}
               <div className="relative bg-gradient-to-br from-primary/10 via-card to-card border border-primary/20 rounded-2xl p-5 overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8" />
                 <div className="relative">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
-                      <DollarSign className="h-4.5 w-4.5 text-primary" />
+                      <ShoppingBag className="h-4.5 w-4.5 text-primary" />
                     </div>
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Receita Total</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Faturamento Marketplace</span>
                   </div>
-                  <p className="text-2xl font-black text-foreground tracking-tight">{fmt(metrics.totalRevenue)}</p>
+                  <p className="text-2xl font-black text-foreground tracking-tight">{fmt(metrics.marketplaceRevenue)}</p>
                   <div className="flex items-center gap-1 mt-2">
                     {metrics.revenueChange >= 0 ? (
                       <ArrowUpRight className="h-3.5 w-3.5 text-success" />
@@ -266,45 +293,45 @@ export default function BusinessFinancePage() {
                 </div>
               </div>
 
-              {/* Today */}
+              {/* Today Revenue */}
               <div className="bg-card border border-border/60 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
                     <TrendingUp className="h-4.5 w-4.5 text-success" />
                   </div>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Hoje</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Vendas Hoje</span>
                 </div>
                 <p className="text-2xl font-black text-foreground tracking-tight">{fmt(metrics.todayRevenue)}</p>
                 <p className="text-[11px] text-muted-foreground font-medium mt-2">
-                  {orders.filter(o => isSameDay(new Date(o.created_at), new Date())).length} pedidos
+                  {metrics.completedCount} pedidos entregues
                 </p>
               </div>
 
-              {/* Avg Ticket */}
+              {/* Logistics Spending */}
               <div className="bg-card border border-border/60 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-warning/10 flex items-center justify-center">
-                    <BarChart3 className="h-4.5 w-4.5 text-warning" />
+                  <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center">
+                    <Bike className="h-4.5 w-4.5 text-destructive" />
                   </div>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Ticket Médio</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Gasto Logística</span>
                 </div>
-                <p className="text-2xl font-black text-foreground tracking-tight">{fmt(metrics.avgTicket)}</p>
+                <p className="text-2xl font-black text-destructive tracking-tight">{fmt(metrics.manualDeliverySpending)}</p>
                 <p className="text-[11px] text-muted-foreground font-medium mt-2">
-                  por pedido concluído
+                  {metrics.totalDeliveryVolume} entregas manuais
                 </p>
               </div>
 
-              {/* Conversion */}
-              <div className="bg-card border border-border/60 rounded-2xl p-5">
+              {/* Net Balance */}
+              <div className="bg-card border border-primary/10 bg-primary/[0.02] rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-info/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-4.5 w-4.5 text-info" />
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Wallet className="h-4.5 w-4.5 text-primary" />
                   </div>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Taxa Conversão</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Saldo Líquido</span>
                 </div>
-                <p className="text-2xl font-black text-foreground tracking-tight">{metrics.conversionRate.toFixed(1)}%</p>
+                <p className="text-2xl font-black text-foreground tracking-tight">{fmt(metrics.netBalance)}</p>
                 <p className="text-[11px] text-muted-foreground font-medium mt-2">
-                  {metrics.completedCount} de {metrics.totalOrders} pedidos
+                  Faturamento - Logística
                 </p>
               </div>
             </div>
@@ -527,16 +554,16 @@ export default function BusinessFinancePage() {
                     </div>
                   </div>
 
-                  {/* Delivery fees */}
+                  {/* Logistics detail */}
                   <div className="bg-card border border-border/60 rounded-2xl p-6">
-                    <h3 className="text-base font-black text-foreground mb-1">Taxas de Entrega</h3>
-                    <p className="text-xs text-muted-foreground font-medium mb-4">Receita de delivery no período</p>
+                    <h3 className="text-base font-black text-foreground mb-1">Gastos com Entregas</h3>
+                    <p className="text-xs text-muted-foreground font-medium mb-4">Custo total de logística (Entregas Manuais)</p>
                     <div className="flex flex-col items-center justify-center py-4">
-                      <p className="text-3xl font-black text-foreground tracking-tight">{fmt(metrics.totalDeliveryFees)}</p>
-                      <p className="text-xs text-muted-foreground font-medium mt-2">
-                        {metrics.completedCount > 0
-                          ? `Média de ${fmt(metrics.totalDeliveryFees / metrics.completedCount)} por entrega`
-                          : "Sem entregas concluídas"}
+                      <p className="text-3xl font-black text-destructive tracking-tight">{fmt(metrics.manualDeliverySpending)}</p>
+                      <p className="text-xs text-muted-foreground font-medium mt-2 text-center">
+                        {metrics.totalDeliveryVolume > 0
+                          ? `${metrics.totalDeliveryVolume} entregas realizadas no período`
+                          : "Nenhuma entrega manual registrada"}
                       </p>
                     </div>
                   </div>
