@@ -463,10 +463,10 @@ export default function BusinessOrdersPage() {
         // Atualizamos localmente para permitir a abertura do modal sem refresh
         order.delivery_id = null;
       } else {
-        toast.error("Este pedido já possui uma solicitação de entrega ativa!", {
-          description: `Status atual da entrega: ${delivery.status}. Verifique o mapa ou painel de entregas.`,
-          duration: 5000
-        });
+        // Se já existe entrega ativa, apenas garantimos que o status do pedido seja atualizado para sair do Kanban
+        console.log("[Dashboard] Entrega ativa detectada. Atualizando status do pedido para 'in_route'.");
+        await updateStatus(order.id, "in_route");
+        toast.info("Este pedido já possui uma entrega ativa. Movendo para o painel de entregas...");
         return;
       }
     }

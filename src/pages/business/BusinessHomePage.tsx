@@ -52,7 +52,8 @@ export default function BusinessHomePage() {
         .from("orders")
         .select(`
           id, status, total, created_at, customer_id, delivery_id,
-          delivery_address, payment_method, customer_name,
+          delivery_address, payment_method,
+          customers (name),
           order_items (
             id, quantity, price, product_name,
             products (id, name, image_url, description)
@@ -60,7 +61,7 @@ export default function BusinessHomePage() {
         `)
         .eq("company_id", companyId)
         .not("delivery_id", "is", null)
-        .not("status", "in", '("completed", "delivered", "cancelled")');
+        .not("status", "in", "(completed,delivered,cancelled)");
       
       if (error) throw error;
       return data || [];
@@ -234,7 +235,7 @@ export default function BusinessHomePage() {
                         setSelectedOrder({
                           ...order,
                           customer: { 
-                            name: order.customer_name, 
+                            name: order.customers?.name || order.deliveryInfo?.customer_name || "Cliente", 
                             address: order.delivery_address 
                           },
                           items: order.order_items || []
@@ -256,7 +257,9 @@ export default function BusinessHomePage() {
                       <div className="space-y-3">
                         <div className="min-w-0">
                           <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-60">Cliente</p>
-                          <p className="text-base font-black text-foreground truncate">{order.customer_name}</p>
+                          <p className="text-base font-black text-foreground truncate">
+                            {order.customers?.name || order.deliveryInfo?.customer_name || "Cliente Marketplace"}
+                          </p>
                         </div>
                         
                         <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold">

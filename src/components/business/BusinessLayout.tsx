@@ -80,7 +80,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     const fetchPending = async () => {
       const { data } = await supabase
         .from("orders")
-        .select("id, created_at, customer_name, total")
+        .select("id, created_at, total")
         .eq("company_id", company.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
@@ -334,7 +334,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                              </span>
                            </div>
                            <p className="text-sm font-bold mt-2">Pedido #{order.id.slice(-6).toUpperCase()}</p>
-                           <p className="text-xs text-muted-foreground">Cliente: {order.customer_name || "Não informado"}</p>
+                           <p className="text-xs text-muted-foreground">Novo pedido recebido!</p>
                          </div>
                        ))}
                      </div>
