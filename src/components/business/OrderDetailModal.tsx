@@ -174,11 +174,11 @@ export default function OrderDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10">
+      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh]">
         <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
         
         {/* Modern Glass Header - Reduzido conforme solicitado */}
-        <div className="bg-primary/95 backdrop-blur-3xl px-8 py-6 md:px-10 md:py-8 relative overflow-hidden text-white">
+        <div className="bg-primary/95 backdrop-blur-3xl px-8 py-6 md:px-10 md:py-8 relative overflow-hidden text-white shrink-0">
             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                 <ShoppingBag className="w-48 h-48 rotate-12" />
             </div>
@@ -228,7 +228,7 @@ export default function OrderDetailModal({
             </DialogHeader>
         </div>
 
-        <div className="p-8 md:p-10 pb-10 space-y-10 max-h-[70vh] overflow-y-auto custom-scrollbar bg-white/95">
+        <div className="flex-1 p-8 md:p-10 pb-10 space-y-10 overflow-y-auto custom-scrollbar bg-white/95">
             {/* Items List */}
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
@@ -300,7 +300,7 @@ export default function OrderDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-8 md:p-10 border-t border-border flex flex-wrap gap-6 items-center justify-between bg-muted/10">
+        <div className="p-8 md:p-10 border-t border-border flex flex-wrap gap-6 items-center justify-between bg-muted/10 shrink-0">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => window.print()} 
