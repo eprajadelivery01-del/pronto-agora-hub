@@ -235,7 +235,7 @@ export default function BusinessHomePage() {
                         setSelectedOrder({
                           ...order,
                           customer: { 
-                            name: order.customers?.name || order.deliveryInfo?.customer_name || "Cliente", 
+                            name: (order.customers as any)?.name || order.deliveryInfo?.customer_name || "Cliente", 
                             address: order.delivery_address 
                           },
                           items: order.order_items || []
@@ -258,7 +258,7 @@ export default function BusinessHomePage() {
                         <div className="min-w-0">
                           <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-60">Cliente</p>
                           <p className="text-base font-black text-foreground truncate">
-                            {order.customers?.name || order.deliveryInfo?.customer_name || "Cliente Marketplace"}
+                            {(order.customers as any)?.name || order.deliveryInfo?.customer_name || "Cliente Marketplace"}
                           </p>
                         </div>
                         
