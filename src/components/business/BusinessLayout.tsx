@@ -283,7 +283,15 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           
           <div className="flex items-center gap-3">
              <div className="hidden sm:flex flex-col items-end mr-2">
-                <span className="text-xs font-black text-foreground leading-none">{profile?.full_name?.split(" ")[0]}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-foreground leading-none">{profile?.full_name?.split(" ")[0]}</span>
+                  <button 
+                    onClick={signOut}
+                    className="text-[9px] font-black uppercase text-muted-foreground hover:text-destructive transition-colors flex items-center gap-0.5"
+                  >
+                    (Sair)
+                  </button>
+                </div>
                 <button 
                   onClick={toggleStoreStatus}
                   disabled={updatingStatus}
