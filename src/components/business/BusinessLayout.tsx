@@ -181,7 +181,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </button>
 
         {/* Brand/Store Info */}
-        <div className={cn("px-6 py-8 transition-all", collapsed && "px-0 flex justify-center")}>
+        <div className={cn("flex-none px-6 py-8 transition-all", collapsed && "px-0 flex justify-center")}>
           <div className="flex items-center gap-4">
             <div className="relative group shrink-0">
               <div className="absolute -inset-1 bg-gradient-to-tr from-primary to-primary-foreground/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
@@ -191,7 +191,6 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             </div>
             {!collapsed && (
               <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
-
                 <h2 className="text-base font-black text-foreground leading-tight truncate">
                   {company?.name || profile?.full_name || "Minha Loja"}
                 </h2>
@@ -201,44 +200,49 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </div>
 
         {/* Navigation Categories */}
-        <div className="flex-1 px-3 space-y-8 overflow-y-auto custom-scrollbar pb-8">
-          {["Operacional", "Marketplace", "Gestão", "Configurações"].map((category) => (
-            <div key={category} className="space-y-1">
-              {!collapsed && (
-                <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 pb-2 animate-in fade-in duration-300">
-                  {category}
-                </h3>
-              )}
-              <div className="space-y-1">
-                {tabs.filter(t => t.category === category).map((tab) => {
-                  const active = isActive(tab.href);
-                  return (
-                    <Link
-                      key={tab.href}
-                      to={tab.href}
-                      onClick={() => setSidebarOpen(false)}
-                      className={cn(
-                        "group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200",
-                        active
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                        collapsed && "justify-center px-0"
-                      )}
-                      title={collapsed ? tab.label : ""}
-                    >
-                      <tab.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
-                      {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
-                      {active && !collapsed && <ChevronRight className="h-4 w-4 opacity-50" />}
-                    </Link>
-                  );
-                })}
+        <div className="flex-1 min-h-0 px-3 space-y-8 overflow-y-auto custom-scrollbar pb-8">
+          {["Operacional", "Marketplace", "Gestão", "Configurações"].map((category) => {
+            const categoryTabs = tabs.filter(t => t.category === category);
+            if (categoryTabs.length === 0) return null;
+            
+            return (
+              <div key={category} className="space-y-1">
+                {!collapsed && (
+                  <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 pb-2 animate-in fade-in duration-300">
+                    {category}
+                  </h3>
+                )}
+                <div className="space-y-1">
+                  {categoryTabs.map((tab) => {
+                    const active = isActive(tab.href);
+                    return (
+                      <Link
+                        key={tab.href}
+                        to={tab.href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={cn(
+                          "group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200",
+                          active
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                          collapsed && "justify-center px-0"
+                        )}
+                        title={collapsed ? tab.label : ""}
+                      >
+                        <tab.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
+                        {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
+                        {active && !collapsed && <ChevronRight className="h-4 w-4 opacity-50" />}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer Sidebar Actions */}
-        <div className={cn("p-4 border-t border-border space-y-1", collapsed && "flex flex-col items-center px-0")}>
+        <div className={cn("flex-none p-4 border-t border-border space-y-1", collapsed && "flex flex-col items-center px-0")}>
           <Link
             to="/business/profile"
             className={cn(
