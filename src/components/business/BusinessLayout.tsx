@@ -253,7 +253,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                         {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
                         {!collapsed && <ExternalLink className="h-3 w-3 opacity-30" />}
                       </a>
-                    )}
+                    );
                   })}
                 </div>
               </div>
