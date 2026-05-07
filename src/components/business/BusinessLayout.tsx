@@ -162,7 +162,9 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             {!collapsed && (
               <div className="animate-in fade-in slide-in-from-left-2 duration-300">
                 <span className="text-sm font-black text-foreground tracking-tighter uppercase block">É Pra Já</span>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block opacity-70">Lojista</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block opacity-70 truncate max-w-[120px]">
+                  {profile?.full_name || "Lojista"}
+                </span>
               </div>
             )}
           </div>
@@ -354,7 +356,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                     </div>
                     <div className="hidden sm:block text-left mr-1">
                       <p className="text-[10px] font-black uppercase text-foreground leading-tight truncate max-w-[100px]">
-                        {profile?.full_name?.split(' ')[0] || 'Lojista'}
+                        {profile?.full_name || 'Lojista'}
                       </p>
                       <ChevronDown className="h-3 w-3 text-muted-foreground" />
                     </div>
@@ -362,7 +364,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                 </PopoverTrigger>
                 <PopoverContent className="w-56 p-2 mr-4 mt-2 rounded-[1.5rem] shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl" align="end">
                   <div className="px-4 py-3 mb-2 border-b border-border/50">
-                    <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{profile?.full_name || 'Estabelecimento'}</p>
+                    <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{profile?.full_name || 'Lojista'}</p>
                     <p className="text-[10px] font-bold text-muted-foreground truncate">{user?.email}</p>
                   </div>
                   <Link 
