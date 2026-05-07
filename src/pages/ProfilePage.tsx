@@ -20,6 +20,7 @@ import {
 export default function ProfilePage() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState(profile?.full_name || "");
