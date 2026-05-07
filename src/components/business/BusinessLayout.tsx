@@ -1,161 +1,142 @@
-import { ReactNode, useState, useEffect } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
+  LayoutDashboard,
   ShoppingBag,
   Store,
-  User,
-  LogOut,
-  Menu,
-  Package,
-  Truck,
+  Tag,
+  Percent,
   Users,
   DollarSign,
-  ClipboardList,
-  Bell,
-  ChevronRight,
-  Settings,
-  LayoutDashboard,
-  Tag,
+  History,
+  Palette,
   MessageCircle,
-  ExternalLink,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Menu,
+  X,
+  User,
+  Bell,
+  ChevronDown,
+  Package,
+  Truck,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-// Navigation tabs
-const tabs = [
-  { label: "Painel de Entregas", icon: Truck, href: "/business", category: "Operacional" },
-  { label: "Novos Pedidos", icon: Bell, href: "/business/orders", category: "Operacional" },
-  { label: "Cardápio/Produtos", icon: Package, href: "/business/products", category: "Marketplace" },
-  { label: "Cupons de Desconto", icon: Tag, href: "/business/coupons", category: "Marketplace" },
-  { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
-  { label: "Financeiro", icon: DollarSign, href: "/business/finance", category: "Gestão" },
-  { label: "Histórico", icon: ClipboardList, href: "/business/history", category: "Gestão" },
-  { label: "Identidade Visual", icon: Store, href: "/business/profile", category: "Configurações" },
-  { label: "Suporte", icon: MessageCircle, href: "https://wa.me/5565996112999", category: "Configurações", external: true },
-];
+import { supabase } from "@/lib/supabase";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface BusinessLayoutProps {
   children: ReactNode;
   title?: string;
 }
 
+const tabs = [
+  { label: "Painel de Entregas", icon: LayoutDashboard, href: "/business", category: "Operacional" },
+  { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
+  { label: "Marketplace", icon: Store, href: "/business/history", category: "Marketplace" },
+  { label: "Cardápio/Produtos", icon: Tag, href: "/business/products", category: "Marketplace" },
+  { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
+  { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
+  { label: "Financeiro", icon: DollarSign, href: "/business/finance", category: "Gestão" },
+  { label: "Histórico", icon: History, href: "/business/history", category: "Gestão" },
+  { label: "Configurações", icon: Settings, href: "/business/profile", category: "Configurações" },
+  { label: "Suporte", icon: MessageCircle, href: "https://wa.me/5565996112999", category: "Configurações", external: true },
+];
+
 export function BusinessLayout({ children, title }: BusinessLayoutProps) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { signOut, profile, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("epj_biz_sidebar_collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
-  const [company, setCompany] = useState<any>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchCompany = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("user_id", user.id);
-        
-      if (data && data.length > 0) {
-        const bestCompany = data.find(c => !c.name.toLowerCase().includes("teste")) || data[0];
-        setCompany(bestCompany);
-        setIsOpen(bestCompany.is_open ?? true);
-      }
-    };
-    fetchCompany();
-  }, [user]);
-
-  useEffect(() => {
-    if (!company?.id) return;
-    
-    const fetchPending = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, created_at, total")
-        .eq("company_id", company.id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-      
-      if (data) setPendingOrders(data);
-    };
-    
-    fetchPending();
-
-    const channel = supabase
-      .channel('business_notifications')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders',
-        filter: `company_id=eq.${company.id}`
-      }, () => {
-        fetchPending();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [company?.id]);
-
-  const toggleStoreStatus = async () => {
-    if (!company?.id || updatingStatus) return;
-    setUpdatingStatus(true);
-    const newStatus = !isOpen;
-    
-    try {
-      const { error } = await supabase
-        .from("companies")
-        .update({ is_open: newStatus } as any)
-        .eq("id", company.id);
-        
-      if (error) throw error;
-      setIsOpen(newStatus);
-      toast.success(newStatus ? "Loja ABERTA para pedidos!" : "Loja FECHADA no marketplace.");
-    } catch (err: any) {
-      toast.error("Erro ao atualizar status: " + err.message);
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
-
-  const toggleSidebar = () => {
-    const newState = !collapsed;
-    setCollapsed(newState);
-    localStorage.setItem("epj_biz_sidebar_collapsed", String(newState));
-  };
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, profile, user } = useAuth();
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
     return location.pathname.startsWith(href);
   };
 
-  // Helper to parse logo
-  const getLogo = () => {
-    if (!company?.logo_url) return "/logo.png";
+  const categories = Array.from(new Set(tabs.map(t => t.category)));
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from('companies')
+        .select('is_open')
+        .eq('id', profile.id)
+        .single();
+      
+      if (data) setIsOpen(data.is_open);
+    };
+
+    const fetchPendingOrders = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('company_id', profile.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      
+      if (data) setPendingOrders(data);
+    };
+
+    fetchStatus();
+    fetchPendingOrders();
+
+    const channel = supabase
+      .channel('business-updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `company_id=eq.${profile.id}`
+      }, () => {
+        fetchPendingOrders();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'companies',
+        filter: `id=eq.${profile.id}`
+      }, (payload) => {
+        setIsOpen(payload.new.is_open);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
+
+  const toggleStoreStatus = async () => {
+    if (!profile?.id || updatingStatus) return;
+    setUpdatingStatus(true);
     try {
-      const parsed = JSON.parse(company.logo_url);
-      return parsed.logo || "/logo.png";
-    } catch {
-      return company.logo_url;
+      const { error } = await supabase
+        .from('companies')
+        .update({ is_open: !isOpen })
+        .eq('id', profile.id);
+      
+      if (!error) setIsOpen(!isOpen);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col lg:flex-row font-sans selection:bg-primary/20">
-      {/* Sidebar overlay (mobile) */}
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row overflow-hidden font-sans">
+      {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-300"
@@ -167,46 +148,36 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       <aside
         className={cn(
           "fixed top-0 left-0 z-50 h-full bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none",
-          "lg:translate-x-0 lg:static lg:z-auto",
+          "lg:translate-x-0 lg:sticky lg:top-0 lg:z-40",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "w-20" : "w-72"
         )}
       >
-        {/* Toggle Button (Desktop) */}
-        <button 
-          onClick={toggleSidebar}
-          className={cn(
-            "hidden lg:flex absolute -right-4 top-24 w-8 h-8 rounded-full bg-primary border-2 border-white ring-1 ring-black items-center justify-center text-primary-foreground shadow-xl transition-all hover:scale-110 z-[70]",
-            collapsed && "rotate-180"
-          )}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-
-        {/* Brand/Store Info */}
-        <div className={cn("flex-none px-6 py-8 transition-all", collapsed && "px-0 flex justify-center")}>
-          <div className="flex items-center gap-4">
-            <div className="relative group shrink-0">
-              <div className="absolute -inset-1 bg-gradient-to-tr from-primary to-primary-foreground/20 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-              <div className="relative w-12 h-12 rounded-2xl bg-white flex items-center justify-center border border-border shadow-md overflow-hidden">
-                <img src={getLogo()} alt="Logo" className="w-full h-full object-cover" />
-              </div>
+        {/* Brand */}
+        <div className={cn("flex-none p-6 border-b border-border flex items-center justify-between", collapsed && "justify-center px-0")}>
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="h-10 w-10 rounded-2xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+              <img src="/logo.png" alt="" className="h-7 w-7 object-contain brightness-0 invert" />
             </div>
             {!collapsed && (
-              <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
-                <h2 className="text-base font-black text-foreground leading-tight truncate">
-                  {company?.name || profile?.full_name || "Minha Loja"}
-                </h2>
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                <span className="text-sm font-black text-foreground tracking-tighter uppercase block">É Pra Já</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block opacity-70">Lojista</span>
               </div>
             )}
           </div>
+          <button 
+            onClick={() => setSidebarOpen(false)} 
+            className="lg:hidden p-2 rounded-xl hover:bg-muted transition-colors"
+          >
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
         </div>
 
-        {/* Navigation Categories */}
-        <div className="flex-1 min-h-0 px-3 space-y-8 overflow-y-auto custom-scrollbar pb-8">
-          {["Operacional", "Marketplace", "Gestão", "Configurações"].map((category) => {
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
+          {categories.map((category) => {
             const categoryTabs = tabs.filter(t => t.category === category);
-            if (categoryTabs.length === 0) return null;
             
             return (
               <div key={category} className="space-y-1">
@@ -260,7 +231,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           })}
         </div>
 
-        {/* Footer Sidebar Actions */}
+        {/* Sidebar Footer */}
         <div className={cn("flex-none p-4 border-t border-border space-y-1", collapsed && "flex flex-col items-center px-0")}>
           <Link
             to="/business/profile"
@@ -268,21 +239,19 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
               "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all",
               collapsed && "justify-center px-0"
             )}
-            title={collapsed ? "Configurações" : ""}
           >
             <Settings className="h-5 w-5" />
-            {!collapsed && <span className="animate-in fade-in slide-in-from-left-2 transition-all">Configurações</span>}
+            {!collapsed && <span className="animate-in fade-in duration-300">Configurações</span>}
           </Link>
           <button
             onClick={signOut}
             className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all",
               collapsed && "justify-center px-0"
             )}
-            title={collapsed ? "Sair do Painel" : ""}
           >
             <LogOut className="h-5 w-5" />
-            {!collapsed && <span className="animate-in fade-in slide-in-from-left-2 transition-all">Sair do Painel</span>}
+            {!collapsed && <span className="animate-in fade-in duration-300">Sair do Painel</span>}
           </button>
         </div>
       </aside>
@@ -304,83 +273,115 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             </h1>
           </div>
           
-          <div className="flex items-center gap-3">
-             <div className="hidden sm:flex flex-col items-end mr-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-foreground leading-none">{profile?.full_name?.split(" ")[0]}</span>
-                  <button 
-                    onClick={signOut}
-                    className="text-[9px] font-black uppercase text-muted-foreground hover:text-destructive transition-colors flex items-center gap-0.5"
-                  >
-                    (Sair)
-                  </button>
-                </div>
-                <button 
-                  onClick={toggleStoreStatus}
-                  disabled={updatingStatus}
-                  className={cn(
-                    "text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 hover:opacity-80 transition-all",
-                    isOpen ? "text-success" : "text-destructive"
-                  )}
-                >
-                  <div className={cn("w-1.5 h-1.5 rounded-full", isOpen ? "bg-success animate-pulse" : "bg-destructive")} />
-                  {updatingStatus ? "Atualizando..." : (isOpen ? "Status: Online" : "Status: Offline")}
-                </button>
-             </div>
-             <Popover>
-               <PopoverTrigger asChild>
-                 <button 
-                   className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all hover:scale-105"
-                 >
+          <div className="flex items-center gap-4">
+            {/* Status Button */}
+            <div className="hidden md:flex items-center gap-3 mr-2">
+              <button 
+                onClick={toggleStoreStatus}
+                disabled={updatingStatus}
+                className={cn(
+                  "px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm",
+                  isOpen 
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
+                    : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                )}
+              >
+                <div className={cn("w-2 h-2 rounded-full", isOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+                {updatingStatus ? "..." : (isOpen ? "Status: Online" : "Status: Offline")}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Notifications */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all group">
                     <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
                     {pendingOrders.length > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse flex items-center justify-center text-[8px] text-white font-black">
                         {pendingOrders.length > 9 ? '9+' : pendingOrders.length}
                       </span>
                     )}
-                 </button>
-               </PopoverTrigger>
-               <PopoverContent className="w-80 p-0 mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden" align="end">
-                 <div className="bg-primary/5 px-6 py-4 border-b border-border">
-                   <h3 className="font-black text-sm uppercase tracking-widest text-primary">Notificações</h3>
-                 </div>
-                 <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
-                   {pendingOrders.length === 0 ? (
-                     <div className="p-8 text-center flex flex-col items-center gap-3">
-                       <Bell className="w-8 h-8 text-muted-foreground/30" />
-                       <p className="text-xs text-muted-foreground font-medium">Nenhuma notificação nova.</p>
-                     </div>
-                   ) : (
-                     <div className="flex flex-col">
-                       {pendingOrders.map(order => (
-                         <div 
-                           key={order.id} 
-                           onClick={() => navigate('/business/orders')} 
-                           className="p-5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
-                         >
-                           <div className="flex items-center justify-between">
-                             <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
-                             <span className="text-[10px] font-bold text-muted-foreground">
-                               Há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
-                             </span>
-                           </div>
-                           <p className="text-sm font-bold mt-2">Pedido #{order.id.slice(-6).toUpperCase()}</p>
-                           <p className="text-xs text-muted-foreground">Novo pedido recebido!</p>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                 </div>
-                 {pendingOrders.length > 0 && (
-                   <div 
-                     className="bg-muted/30 p-4 text-center cursor-pointer hover:bg-muted transition-colors border-t border-border"
-                     onClick={() => navigate('/business/orders')}
-                   >
-                     <span className="text-xs font-black uppercase tracking-widest text-primary">Ir para Pedidos</span>
-                   </div>
-                 )}
-               </PopoverContent>
-             </Popover>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0 mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden" align="end">
+                  <div className="bg-primary/5 px-6 py-4 border-b border-border">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-primary">Notificações</h3>
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {pendingOrders.length === 0 ? (
+                      <div className="p-8 text-center flex flex-col items-center gap-3">
+                        <Bell className="w-8 h-8 text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground font-medium">Nenhuma notificação nova.</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col">
+                        {pendingOrders.map(order => (
+                          <div 
+                            key={order.id} 
+                            onClick={() => {
+                              setSidebarOpen(false);
+                              navigate('/business/orders');
+                            }} 
+                            className="p-5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
+                              <span className="text-[10px] font-bold text-muted-foreground">
+                                Há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
+                              </span>
+                            </div>
+                            <p className="text-sm font-bold mt-2">Pedido #{order.id.slice(-6).toUpperCase()}</p>
+                            <p className="text-xs text-muted-foreground truncate">{order.customer_name || 'Cliente Marketplace'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Profile Dropdown */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-2 p-1 rounded-2xl hover:bg-muted transition-all group border border-transparent hover:border-border">
+                    <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                    <div className="hidden sm:block text-left mr-1">
+                      <p className="text-[10px] font-black uppercase text-foreground leading-tight truncate max-w-[100px]">
+                        {profile?.full_name?.split(' ')[0] || 'Lojista'}
+                      </p>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 mr-4 mt-2 rounded-[1.5rem] shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl" align="end">
+                  <div className="px-4 py-3 mb-2 border-b border-border/50">
+                    <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{profile?.full_name || 'Estabelecimento'}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                  <Link 
+                    to="/business/profile" 
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Configurações
+                  </Link>
+                  <button 
+                    onClick={signOut}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all mt-1"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair do Painel
+                  </button>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </header>
 
@@ -392,7 +393,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation (Premium Float) */}
+      {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden bg-card/80 backdrop-blur-2xl border border-white/10 flex items-center gap-2 py-2 px-3 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5 animate-in slide-in-from-bottom-10 duration-700">
         {[
           { icon: Truck, href: "/business" },
