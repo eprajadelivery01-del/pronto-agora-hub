@@ -235,7 +235,6 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                         <tab.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
                         {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
                         {active && !collapsed && <ChevronRight className="h-4 w-4 opacity-50" />}
-                        {tab.external && !collapsed && <ExternalLink className="h-3 w-3 opacity-30" />}
                       </Link>
                     ) : (
                       <a

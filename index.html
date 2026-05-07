@@ -50,6 +50,9 @@
         opacity: 0;
         pointer-events: none;
       }
+      #splash-screen.hidden {
+        display: none !important;
+      }
     </style>
     <meta name="theme-color" content="#FF7A00">
     <link rel="manifest" href="/manifest.json">
@@ -78,6 +81,7 @@
         const root = document.getElementById('root');
         const splash = document.getElementById('splash-screen');
         if (root && root.children.length > 0 && splash) {
+          splash.classList.add('hidden');
           splash.style.opacity = '0';
           splash.style.pointerEvents = 'none';
           setTimeout(() => { if (splash.parentNode) splash.remove(); }, 500);
@@ -88,7 +92,7 @@
       if (rootEl) {
         if (rootEl.children.length > 0) {
           const s = document.getElementById('splash-screen');
-          if (s) s.remove();
+          if (s) s.classList.add('hidden');
         } else {
           splashObserver.observe(rootEl, { childList: true });
         }
