@@ -3,7 +3,18 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile, uploadAvatar } from "@/services/users";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Save, Loader2, User, Phone, FileText } from "lucide-react";
+import { Camera, Save, Loader2, User, Phone, FileText, Trash2, AlertCircle, ShieldCheck } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ProfilePage() {
   const { user, profile } = useAuth();
@@ -15,6 +26,9 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const { deleteAccount } = useAuth();
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,6 +56,18 @@ export default function ProfilePage() {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      toast({ title: "Conta excluída", description: "Seus dados foram removidos conforme solicitado." });
+    } catch (err: any) {
+      toast({ title: "Erro na exclusão", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -104,9 +130,71 @@ export default function ProfilePage() {
             className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? "Salvando..." : "Salvar alterações"}
           </button>
         </form>
+
+        {/* Legal Links */}
+        <div className="grid grid-cols-2 gap-3 mt-8">
+          <button 
+            onClick={() => navigate("/terms")}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border hover:bg-muted transition-colors group"
+          >
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Termos de Uso</span>
+          </button>
+          <button 
+            onClick={() => navigate("/privacy")}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border hover:bg-muted transition-colors group"
+          >
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Privacidade</span>
+          </button>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="pt-8 mt-8 border-t border-border">
+          <div className="bg-destructive/5 rounded-2xl p-6 border border-destructive/20">
+            <h3 className="text-sm font-bold text-destructive flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4" />
+              Zona de Perigo
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Ao excluir sua conta, todos os seus dados serão removidos permanentemente. Esta ação não pode ser desfeita.
+            </p>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="flex items-center gap-2 text-xs font-bold text-destructive hover:underline transition-all">
+                  <Trash2 className="h-4 w-4" />
+                  Quero excluir minha conta permanentemente
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-3xl max-w-[90vw] sm:max-w-lg">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação excluirá permanentemente seu perfil e removerá todos os seus dados de nossos servidores.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                  <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteAccount}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+                  >
+                    {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Sim, excluir conta
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
       </div>
     </AdminLayout>
   );

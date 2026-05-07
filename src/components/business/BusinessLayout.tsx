@@ -16,6 +16,8 @@ import {
   Settings,
   LayoutDashboard,
   Tag,
+  MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +35,7 @@ const tabs = [
   { label: "Financeiro", icon: DollarSign, href: "/business/finance", category: "Gestão" },
   { label: "Histórico", icon: ClipboardList, href: "/business/history", category: "Gestão" },
   { label: "Identidade Visual", icon: Store, href: "/business/profile", category: "Configurações" },
+  { label: "Suporte", icon: MessageCircle, href: "https://wa.me/5565996112999", category: "Configurações", external: true },
 ];
 
 interface BusinessLayoutProps {
@@ -215,7 +218,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                 <div className="space-y-1">
                   {categoryTabs.map((tab) => {
                     const active = isActive(tab.href);
-                    return (
+                    return !tab.external ? (
                       <Link
                         key={tab.href}
                         to={tab.href}
@@ -232,8 +235,25 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                         <tab.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
                         {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
                         {active && !collapsed && <ChevronRight className="h-4 w-4 opacity-50" />}
+                        {tab.external && !collapsed && <ExternalLink className="h-3 w-3 opacity-30" />}
                       </Link>
-                    );
+                    ) : (
+                      <a
+                        key={tab.label}
+                        href={tab.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(
+                          "group flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted",
+                          collapsed && "justify-center px-0"
+                        )}
+                        title={collapsed ? tab.label : ""}
+                      >
+                        <tab.icon className="h-5 w-5 shrink-0 transition-transform group-hover:scale-110 text-muted-foreground" />
+                        {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
+                        {!collapsed && <ExternalLink className="h-3 w-3 opacity-30" />}
+                      </a>
+                    });
                   })}
                 </div>
               </div>

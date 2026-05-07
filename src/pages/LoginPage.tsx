@@ -139,9 +139,25 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Acesso exclusivo por convite do administrador
-        </p>
+        <div className="mt-8 space-y-4">
+          <p className="text-center text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+            Acesso exclusivo por convite do administrador
+          </p>
+          <div className="flex justify-center gap-4">
+            <button 
+              onClick={() => navigate("/privacy")}
+              className="text-[10px] text-primary hover:underline font-bold uppercase tracking-wider"
+            >
+              Privacidade
+            </button>
+            <button 
+              onClick={() => navigate("/terms")}
+              className="text-[10px] text-primary hover:underline font-bold uppercase tracking-wider"
+            >
+              Termos de Uso
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

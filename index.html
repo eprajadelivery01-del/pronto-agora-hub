@@ -73,6 +73,29 @@
     <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
     
     <script>
+      // Garantir que o splash screen desapareça quando o app carregar
+      const splashObserver = new MutationObserver(() => {
+        const root = document.getElementById('root');
+        const splash = document.getElementById('splash-screen');
+        if (root && root.children.length > 0 && splash) {
+          splash.style.opacity = '0';
+          splash.style.pointerEvents = 'none';
+          setTimeout(() => { if (splash.parentNode) splash.remove(); }, 500);
+          splashObserver.disconnect();
+        }
+      });
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        if (rootEl.children.length > 0) {
+          const s = document.getElementById('splash-screen');
+          if (s) s.remove();
+        } else {
+          splashObserver.observe(rootEl, { childList: true });
+        }
+      }
+    </script>
+    
+    <script>
       window.SUPABASE_CONFIG = {
         url: "https://nptkxlrhrlssdsevpgqe.supabase.co",
         anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdGt4bHJocmxzc2RzZXZwZ3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDE4MTQsImV4cCI6MjA5MDYxNzgxNH0.t8Cu-yFnSqOURT4GXCZ_mBghpxucT89nRBFlBNA1vZs"

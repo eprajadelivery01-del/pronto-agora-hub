@@ -14,6 +14,7 @@ import InvitePage from "./pages/InvitePage";
 import ProfilePage from "./pages/ProfilePage";
 import SystemLogsPage from "./pages/SystemLogsPage";
 import PendingApprovalPage from "./pages/PendingApprovalPage";
+import LegalPage from "./pages/LegalPage";
 import NotFound from "./pages/NotFound";
 import BusinessLoginPage from "./pages/BusinessLoginPage";
 import BusinessHomePage from "./pages/business/BusinessHomePage";
@@ -46,6 +47,8 @@ const App = () => (
                 <Route path="/login/business" element={<PageTransition><BusinessLoginPage /></PageTransition>} />
                 <Route path="/invite/:token" element={<PageTransition><InvitePage /></PageTransition>} />
                 <Route path="/pending-approval" element={<PageTransition><PendingApprovalPage /></PageTransition>} />
+                <Route path="/terms" element={<PageTransition><LegalPage /></PageTransition>} />
+                <Route path="/privacy" element={<PageTransition><LegalPage /></PageTransition>} />
                 
                 {/* Lojista Routes */}
                 <Route path="/business" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHomePage /></ProtectedRoute></PageTransition>} />
