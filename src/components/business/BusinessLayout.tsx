@@ -68,13 +68,13 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const categories = Array.from(new Set(tabs.map(t => t.category)));
 
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!user?.id) return;
 
     const fetchStatus = async () => {
       const { data } = await supabase
         .from('companies')
         .select('is_open')
-        .eq('id', profile.id)
+        .eq('id', user?.id)
         .single();
       
       if (data) setIsOpen(data.is_open);
@@ -84,7 +84,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .eq('company_id', profile.id)
+        .eq('company_id', user?.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       
@@ -100,7 +100,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         event: '*', 
         schema: 'public', 
         table: 'orders',
-        filter: `company_id=eq.${profile.id}`
+        filter: `company_id=eq.${user?.id}`
       }, () => {
         fetchPendingOrders();
       })
@@ -108,7 +108,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         event: 'UPDATE',
         schema: 'public',
         table: 'companies',
-        filter: `id=eq.${profile.id}`
+        filter: `id=eq.${user?.id}`
       }, (payload) => {
         setIsOpen(payload.new.is_open);
       })
@@ -117,16 +117,16 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.id]);
+  }, [user?.id]);
 
   const toggleStoreStatus = async () => {
-    if (!profile?.id || updatingStatus) return;
+    if (!user?.id || updatingStatus) return;
     setUpdatingStatus(true);
     try {
       const { error } = await supabase
         .from('companies')
         .update({ is_open: !isOpen })
-        .eq('id', profile.id);
+        .eq('id', user?.id);
       
       if (!error) setIsOpen(!isOpen);
     } finally {
