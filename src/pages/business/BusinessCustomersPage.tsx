@@ -341,10 +341,10 @@ export default function BusinessCustomersPage() {
           onClick={() => setSelectedCustomer(null)}
         >
           <div 
-            className="w-full max-w-lg h-full bg-background shadow-2xl border-l border-border animate-in slide-in-from-right duration-300 overflow-y-auto"
+            className="w-full max-w-lg h-full bg-background shadow-2xl border-l border-border animate-in slide-in-from-right duration-300 overflow-y-auto custom-scrollbar"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-8">
+            <div className="p-8 pb-24">
               <div className="flex items-center justify-between mb-8">
                 <button 
                   onClick={() => setSelectedCustomer(null)}
