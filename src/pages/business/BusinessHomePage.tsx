@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useDeliveries, useDeliveryStats } from "@/services/deliveries";
+import { useCompany } from "@/services/companies";
 import { format } from "date-fns";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import { DeliveryStatus, Order, Delivery } from "@/types/models";
@@ -25,21 +26,7 @@ export default function BusinessHomePage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const qc = useQueryClient();
   
-  const { data: companyData } = useQuery({
-    queryKey: ["company-info", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("user_id", user.id);
-      
-      if (!data || data.length === 0) return null;
-      // Seleciona a melhor empresa (não teste ou a primeira)
-      return data.find(c => !c.name.toLowerCase().includes("teste")) || data[0];
-    },
-    enabled: !!user?.id
-  });
+  const { data: companyData } = useCompany(user?.id);
 
   const companyId = companyData?.id;
 
@@ -213,7 +200,7 @@ export default function BusinessHomePage() {
                     <span className="text-xs font-bold uppercase tracking-widest text-white/70">Painel em Tempo Real</span>
                   </div>
                   <h2 className="text-2xl md:text-3xl font-black tracking-tight">
-                    {greeting}, {profile?.full_name?.split(" ")[0] || "Lojista"}!
+                    {greeting}, {companyData?.name || profile?.full_name?.split(" ")[0] || "Lojista"}!
                   </h2>
                   <p className="text-sm text-white/70 font-medium">
                     Gerencie suas vendas e entregas em um só lugar.

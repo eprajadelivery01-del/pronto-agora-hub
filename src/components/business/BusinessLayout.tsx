@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
+import { useCompany } from "@/services/companies";
 import {
   Popover,
   PopoverContent,
@@ -40,6 +41,7 @@ interface BusinessLayoutProps {
 const tabs = [
   { label: "Painel de Entregas", icon: LayoutDashboard, href: "/business", category: "Operacional" },
   { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
+  { label: "Editar Perfil", icon: User, href: "/business/profile", category: "Marketplace" },
   { label: "Marketplace", icon: Store, href: "/business/history", category: "Marketplace" },
   { label: "Cardápio/Produtos", icon: Tag, href: "/business/products", category: "Marketplace" },
   { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
@@ -59,6 +61,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
+  const { data: companyData } = useCompany(user?.id);
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
@@ -156,14 +159,20 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         {/* Brand */}
         <div className={cn("flex-none p-6 border-b border-border flex items-center justify-between", collapsed && "justify-center px-0")}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="h-10 w-10 rounded-2xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-              <img src="/logo.png" alt="" className="h-7 w-7 object-contain brightness-0 invert" />
+            <div className="h-10 w-10 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-border shrink-0 overflow-hidden">
+              {companyData?.logo_url ? (
+                <img src={companyData.logo_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full gradient-primary flex items-center justify-center">
+                  <Store className="h-5 w-5 text-white" />
+                </div>
+              )}
             </div>
             {!collapsed && (
               <div className="animate-in fade-in slide-in-from-left-2 duration-300">
                 <span className="text-sm font-black text-foreground tracking-tighter uppercase block">É Pra Já</span>
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block opacity-70 truncate max-w-[120px]">
-                  {profile?.full_name || "Lojista"}
+                  {companyData?.name || profile?.full_name || "Lojista"}
                 </span>
               </div>
             )}
@@ -356,7 +365,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                     </div>
                     <div className="hidden sm:block text-left mr-1">
                       <p className="text-[10px] font-black uppercase text-foreground leading-tight truncate max-w-[100px]">
-                        {profile?.full_name || 'Lojista'}
+                        {companyData?.name || profile?.full_name || 'Lojista'}
                       </p>
                       <ChevronDown className="h-3 w-3 text-muted-foreground" />
                     </div>
@@ -364,7 +373,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                 </PopoverTrigger>
                 <PopoverContent className="w-56 p-2 mr-4 mt-2 rounded-[1.5rem] shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl" align="end">
                   <div className="px-4 py-3 mb-2 border-b border-border/50">
-                    <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{profile?.full_name || 'Lojista'}</p>
+                    <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{companyData?.name || profile?.full_name || 'Lojista'}</p>
                     <p className="text-[10px] font-bold text-muted-foreground truncate">{user?.email}</p>
                   </div>
                   <Link 

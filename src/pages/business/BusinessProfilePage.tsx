@@ -26,6 +26,7 @@ export default function BusinessProfilePage() {
   const [category, setCategory] = useState("restaurante");
   const [isOpen, setIsOpen] = useState(true);
   const [businessHours, setBusinessHours] = useState("");
+  const [gallery, setGallery] = useState<string[]>([]);
 
   // Edit states for overlays
   const [isEditingLogo, setIsEditingLogo] = useState(false);
@@ -58,6 +59,7 @@ export default function BusinessProfilePage() {
         setCategory(company.category || "restaurante");
         setIsOpen(company.is_open ?? true);
         setBusinessHours(company.business_hours || "");
+        setGallery(company.gallery || []);
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
@@ -115,6 +117,52 @@ export default function BusinessProfilePage() {
     }
   };
 
+  const handleGalleryUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !companyId) return;
+
+    setIsUploading(true);
+    try {
+      const newUrls: string[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`Arquivo ${file.name} é muito grande! Pulei.`);
+          continue;
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `gallery-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${companyId}/gallery/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('store-assets')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from('store-assets')
+          .getPublicUrl(filePath);
+
+        newUrls.push(data.publicUrl);
+      }
+
+      setGallery(prev => [...prev, ...newUrls]);
+      toast.success(`${newUrls.length} fotos adicionadas à galeria!`);
+    } catch (error: any) {
+      console.error('Erro no upload da galeria:', error);
+      toast.error("Erro ao enviar algumas fotos.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeGalleryItem = (url: string) => {
+    setGallery(prev => prev.filter(item => item !== url));
+  };
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
@@ -133,6 +181,7 @@ export default function BusinessProfilePage() {
           category: category,
           is_open: isOpen,
           business_hours: businessHours,
+          gallery: gallery,
         })
         .eq("id", companyId);
 
@@ -315,37 +364,70 @@ export default function BusinessProfilePage() {
                   </div>
 
                   <div className="space-y-6">
-                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                        <Phone className="h-3 w-3" /> Contato e Localização
-                     </div>
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                         <Phone className="h-3 w-3" /> Contato e Localização
+                      </div>
 
-                     <div className="space-y-4">
-                        <div className="space-y-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">WhatsApp de Vendas</label>
-                           <div className="relative">
-                              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <input
-                                 value={phone}
-                                 onChange={(e) => setPhone(e.target.value)}
-                                 className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
-                                 placeholder="(00) 00000-0000"
-                              />
-                           </div>
-                        </div>
-                        <div className="space-y-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Endereço Fiscal/Físico</label>
-                           <div className="relative">
-                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <input
-                                 value={address}
-                                 onChange={(e) => setAddress(e.target.value)}
-                                 className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold italic text-sm"
-                                 placeholder="Av. Brasil, 123 - Centro"
-                              />
-                           </div>
-                        </div>
-                     </div>
-                  </div>
+                      <div className="space-y-4">
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">WhatsApp de Vendas</label>
+                            <div className="relative">
+                               <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                               <input
+                                  value={phone}
+                                  onChange={(e) => setPhone(e.target.value)}
+                                  className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
+                                  placeholder="(00) 00000-0000"
+                               />
+                            </div>
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Endereço Fiscal/Físico</label>
+                            <div className="relative">
+                               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                               <input
+                                  value={address}
+                                  onChange={(e) => setAddress(e.target.value)}
+                                  className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold italic text-sm"
+                                  placeholder="Av. Brasil, 123 - Centro"
+                               />
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* GALLERY SECTION */}
+                      <div className="pt-8 space-y-4">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                               <ImagePlus className="h-3 w-3" /> Galeria de Fotos
+                            </div>
+                            <label className="cursor-pointer px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
+                               Adicionar
+                               <input type="file" multiple accept="image/*" className="hidden" onChange={handleGalleryUpload} />
+                            </label>
+                         </div>
+                         
+                         <div className="grid grid-cols-3 gap-3">
+                            {gallery.map((url, idx) => (
+                               <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group/item border border-border/50">
+                                  <img src={url} className="w-full h-full object-cover" />
+                                  <button 
+                                    onClick={() => removeGalleryItem(url)}
+                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                               </div>
+                            ))}
+                            {gallery.length === 0 && (
+                               <div className="col-span-3 py-12 border-2 border-dashed border-border rounded-[2rem] flex flex-col items-center justify-center text-muted-foreground/30">
+                                  <ImagePlus className="h-8 w-8 mb-2" />
+                                  <p className="text-[10px] font-bold uppercase tracking-widest">Sua galeria está vazia</p>
+                                </div>
+                            )}
+                         </div>
+                      </div>
+                   </div>
                </div>
             </div>
           </div>

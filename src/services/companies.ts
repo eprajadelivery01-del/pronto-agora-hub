@@ -27,6 +27,27 @@ export async function fetchCompanies() {
   }));
 }
 
+export async function fetchCompanyByUserId(userId: string) {
+  const { data, error } = await supabase
+    .from("companies")
+    .select("*")
+    .eq("user_id", userId);
+  
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+  
+  // Return the best company (not a test one, or the first one)
+  return data.find(c => !c.name.toLowerCase().includes("teste")) || data[0];
+}
+
+export function useCompany(userId?: string) {
+  return useQuery({
+    queryKey: ["company", userId],
+    queryFn: () => (userId ? fetchCompanyByUserId(userId) : null),
+    enabled: !!userId,
+  });
+}
+
 export function useCompanies() {
   return useQuery({
     queryKey: ["companies"],
