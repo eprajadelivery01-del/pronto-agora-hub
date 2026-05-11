@@ -190,7 +190,6 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
         notes: finalNotes || null,
         status: initialData ? initialData.status : "pending",
         region_id: selectedRegionId,
-        region_name: selectedRegionName,
       };
 
       const query = initialData 
@@ -211,7 +210,6 @@ export default function NewDeliveryForm({ onClose, initialData, companyId, compa
           name: customerName,
           phone: customerPhone.replace(/\D/g, ""),
           cpf: customerCpf.replace(/\D/g, "") || null,
-          company_id: companyId, // Ensure link to store
           updated_at: new Date().toISOString()
         };
 

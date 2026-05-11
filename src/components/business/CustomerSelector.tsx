@@ -49,11 +49,10 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
       const numericQuery = cleanQuery.replace(/\D/g, "");
 
       try {
-        // 1. Search in store's own 'customers' table (those manually added or previous manual deliveries)
+        // 1. Search in 'customers' table (global or manual customers)
         let customersQuery = supabase
           .from("customers")
           .select("id, name, phone, cpf")
-          .eq("company_id", companyId) // CRITICAL: Only this store's customers
           .or(`name.ilike.%${cleanQuery}%,cpf.ilike.%${cleanQuery}%`);
         
         if (numericQuery) {
@@ -62,16 +61,12 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
 
         const { data: customersData } = await customersQuery.limit(10);
 
-        // 2. Search in 'orders' table for Marketplace customers who bought from THIS store
-        // We look for orders with this company_id and join with customers/profiles
-        const { data: ordersData } = await supabase
-          .from("orders")
-          .select(`
-            customer_id,
-            customers!inner (id, name, phone, cpf)
-          `)
+        // 2. Search in 'deliveries' table instead of orders to avoid schema join issues
+        const { data: deliveriesData } = await supabase
+          .from("deliveries")
+          .select("id, customer_name, customer_phone, customer_cpf")
           .eq("company_id", companyId)
-          .or(`customers.name.ilike.%${cleanQuery}%,customers.phone.ilike.%${numericQuery || cleanQuery}%`)
+          .or(`customer_name.ilike.%${cleanQuery}%` + (numericQuery ? `,customer_phone.ilike.%${numericQuery}%` : ''))
           .limit(10);
 
         // Merge and deduplicate
@@ -97,9 +92,14 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
         // Add manual customers first
         (customersData || []).forEach(c => addResult(c, "loja"));
         
-        // Add marketplace customers who bought here
-        (ordersData || []).forEach(o => {
-          if (o.customers) addResult(o.customers, "marketplace");
+        // Add deliveries history customers
+        (deliveriesData || []).forEach(d => {
+          addResult({
+            id: d.id, // Using delivery id as a pseudo-id for uniqueness in the list
+            name: d.customer_name,
+            phone: d.customer_phone,
+            cpf: d.customer_cpf
+          }, "loja");
         });
 
         setResults(merged);
