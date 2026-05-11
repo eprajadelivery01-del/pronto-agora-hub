@@ -30,7 +30,7 @@ export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled, initia
 
   const handleSelect = (region: any) => {
     if (disabled) return;
-    const fee = Number(region.delivery_fee ?? region.price ?? 0);
+    const fee = Number(region.price ?? region.delivery_fee ?? 0);
     setSelectedId(region.id);
     onRegionSelect?.(fee, region.id, region.name);
   };
@@ -54,7 +54,7 @@ export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled, initia
   return (
     <div className={cn("grid grid-cols-2 md:grid-cols-3 gap-3", disabled && "opacity-50 pointer-events-none")}>
       {regions.map((region) => {
-        const fee = Number(region.delivery_fee ?? region.price ?? null);
+        const fee = Number(region.price ?? region.delivery_fee ?? null);
         const hasFee = fee != null && !isNaN(fee);
         const isSelected = selectedId === region.id;
         const color = region.color || '#3b82f6';
