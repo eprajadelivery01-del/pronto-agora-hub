@@ -367,11 +367,11 @@ export default function RegionsPage() {
   };
 
   return (
-    <AdminLayout title="Regiões" subtitle="Gestão de regiões e precificação">
-      <div className="flex flex-col lg:flex-row gap-0 -m-4 md:-m-6 h-[calc(100vh-73px)]">
+    <AdminLayout title="Regiões" subtitle="Gestão de regiões e precificação" fullHeight>
+      <div className="flex flex-col lg:flex-row h-full w-full absolute inset-0">
         {/* Map */}
-        <div className="flex-1 relative min-h-[300px]">
-          <div ref={mapContainerRef} className="w-full h-full" />
+        <div className="flex-1 relative h-full min-h-[300px]">
+          <div ref={mapContainerRef} className="absolute inset-0" />
 
           {/* City search */}
           <div className="absolute top-4 right-4 w-72 z-10">
