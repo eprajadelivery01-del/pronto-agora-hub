@@ -77,13 +77,13 @@ export default function BusinessHomePage() {
   });
 
   // 3. Separate Manual vs Marketplace correctly using order_id
-  const marketplaceDeliveries = activeDeliveries.filter(d => d.order_id !== null);
-  const manualDeliveries = activeDeliveries.filter(d => d.order_id === null);
+  const marketplaceDeliveries = activeDeliveries.filter(d => !!d.order_id || (marketplaceOrders || []).some(o => o.delivery_id === d.id));
+  const manualDeliveries = activeDeliveries.filter(d => !d.order_id && !(marketplaceOrders || []).some(o => o.delivery_id === d.id));
 
   const marketplaceDeliveriesWithOrders = marketplaceDeliveries.map(delivery => {
     // Tenta encontrar a ordem correspondente para enriquecer os dados
     const order = (marketplaceOrders || []).find(o => o.delivery_id === delivery.id || o.id === delivery.order_id);
-    return { ...order, id: order?.id || delivery.order_id, total: order?.total || delivery.value, deliveryInfo: delivery };
+    return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || delivery.value || 0, deliveryInfo: delivery };
   });
 
   useEffect(() => {
