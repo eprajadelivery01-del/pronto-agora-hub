@@ -45,7 +45,7 @@ export default function RegionsPage() {
     if (!mapContainerRef.current || mapRef.current) return;
     const m = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
       center: [-56.0974, -15.5989],
       zoom: 12,
     });
@@ -101,7 +101,7 @@ export default function RegionsPage() {
           if (popupRef.current) popupRef.current.remove();
           const popup = new maplibregl.Popup({ closeButton: false, offset: 10 })
             .setLngLat(e.lngLat)
-            .setHTML(`<div style="font-family:sans-serif;padding:4px 8px;border-radius:8px;background:#1e1e1e;color:white;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)"><strong>${region.name}</strong><br/><span style="color:#a1a1aa">R$ ${Number(region.price).toFixed(2)}</span></div>`)
+            .setHTML(`<div style="font-family:sans-serif;padding:4px 0"><strong>${region.name}</strong><br/><span style="color:#888">R$ ${Number(region.price).toFixed(2)}</span></div>`)
             .addTo(m);
           popupRef.current = popup;
         });
@@ -274,9 +274,9 @@ export default function RegionsPage() {
     searchTimeout.current = setTimeout(async () => {
       setSearchingCity(true);
       try {
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=8`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=br`);
         const data = await res.json();
-        setCitySuggestions(data.features || []);
+        setCitySuggestions(data);
       } catch { setCitySuggestions([]); }
       setSearchingCity(false);
     }, 400);
@@ -284,13 +284,9 @@ export default function RegionsPage() {
 
   const selectCity = (item: any) => {
     const m = mapRef.current;
-    if (m && item.geometry?.coordinates) {
-      m.flyTo({ center: item.geometry.coordinates as [number, number], zoom: 13, duration: 1500 });
-    }
-    
-    const name = item.properties?.name || "";
-    setCitySearch(name);
-    setEditCity(name);
+    if (m) m.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 13, duration: 1500 });
+    setCitySearch(item.display_name.split(",")[0]);
+    setEditCity(item.display_name.split(",")[0]);
     setCitySuggestions([]);
   };
 
@@ -395,19 +391,12 @@ export default function RegionsPage() {
             </div>
             {citySuggestions.length > 0 && (
               <div className="mt-1 bg-card rounded-xl border border-border shadow-lg overflow-hidden max-h-60 overflow-y-auto">
-                {citySuggestions.map((s, i) => {
-                  const name = s.properties?.name || "";
-                  const state = s.properties?.state || "";
-                  const country = s.properties?.country || "";
-                  const subtext = [state, country].filter(Boolean).join(", ");
-                  
-                  return (
-                    <button key={i} onClick={() => selectCity(s)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors border-b border-border last:border-0">
-                      <p className="font-medium text-foreground truncate">{name}</p>
-                      {subtext && <p className="text-xs text-muted-foreground truncate">{subtext}</p>}
-                    </button>
-                  );
-                })}
+                {citySuggestions.map((s, i) => (
+                  <button key={i} onClick={() => selectCity(s)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors border-b border-border last:border-0">
+                    <p className="font-medium text-foreground truncate">{s.display_name.split(",")[0]}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.display_name}</p>
+                  </button>
+                ))}
               </div>
             )}
             {searchingCity && (
