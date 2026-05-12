@@ -19,7 +19,9 @@ export default function InvitePage() {
   const [phone, setPhone] = useState("");
   const [document, setDocument] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -40,8 +42,13 @@ export default function InvitePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!invitation || !token) return;
-    setSubmitting(true);
 
+    if (password !== confirmPassword) {
+      toast({ title: "Senhas não coincidem", description: "Certifique-se de que as senhas sejam iguais.", variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await acceptInvitation(token, {
         email,
@@ -50,7 +57,7 @@ export default function InvitePage() {
         phone,
         document,
       });
-      toast({ title: "Conta criada!", description: "Verifique seu email para confirmar o cadastro." });
+      toast({ title: "Conta criada!", description: "Bem-vindo ao É Pra Já!" });
       navigate("/login");
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -89,14 +96,14 @@ export default function InvitePage() {
             <Package className="h-7 w-7 text-primary-foreground" />
           </div>
           <h1 className="font-display text-2xl font-bold text-foreground">Complete seu cadastro</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Você foi convidado como <strong>{roleLabels[invitation.role] || invitation.role}</strong>
+          <p className="text-sm text-muted-foreground mt-1 text-center">
+            Você foi convidado para se tornar um <strong>{roleLabels[invitation.role] || invitation.role} Parceiro</strong>.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card rounded-2xl p-6 shadow-card space-y-4">
+        <form onSubmit={handleSubmit} className="bg-card rounded-2xl p-6 shadow-card space-y-4 border border-border/50">
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Seu E-mail *</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">E-mail de Acesso</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -104,72 +111,91 @@ export default function InvitePage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Nome completo</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">Nome Completo</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Seu nome"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                placeholder="Ex: José da Silva"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Telefone</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(00) 00000-0000"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
-                required
-              />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">Telefone</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">CPF/CNPJ</label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={document}
+                  onChange={(e) => setDocument(e.target.value)}
+                  placeholder="000.000..."
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
+                  required
+                />
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">CPF / Documento</label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={document}
-                onChange={(e) => setDocument(e.target.value)}
-                placeholder="000.000.000-00"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Senha</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">Criar Senha</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 6 dígitos"
                 minLength={6}
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                className="w-full pl-10 pr-10 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
                 required
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2">
-                {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">Repetir Senha</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirme sua senha"
+                className="w-full pl-10 pr-10 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
+                required
+              />
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
@@ -177,11 +203,15 @@ export default function InvitePage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-2.5 rounded-xl gradient-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-xl bg-primary text-primary-foreground text-sm font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {submitting ? "Criando conta..." : "Criar conta"}
+            {submitting ? "Criando Conta..." : "Finalizar Cadastro e Entrar"}
           </button>
+          
+          <p className="text-[10px] text-center text-muted-foreground mt-4 font-medium">
+            Ao se cadastrar, você concorda com nossos <span className="text-primary font-black cursor-pointer hover:underline">Termos de Uso</span>.
+          </p>
         </form>
       </div>
     </div>

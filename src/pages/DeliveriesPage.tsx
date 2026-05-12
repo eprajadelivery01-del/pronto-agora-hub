@@ -7,7 +7,7 @@ import { useDrivers } from "@/services/drivers";
 import { useDeliveriesRealtime } from "@/services/realtime";
 import {
   Search, Filter, Eye, MoreHorizontal, X as XIcon, ChevronLeft, ChevronRight,
-  Loader2, Printer, UserCheck, Package, Radio, Send, MapPin
+  Loader2, Printer, UserCheck, Package, Radio, Send, MapPin, Plus
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -37,6 +37,8 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+import NewDeliveryForm from "@/components/business/NewDeliveryForm";
+
 export default function DeliveriesPage() {
   useDeliveriesRealtime();
   const { toast } = useToast();
@@ -48,6 +50,7 @@ export default function DeliveriesPage() {
   const [page, setPage] = useState(0);
   const pageSize = 20;
 
+  const [showNewForm, setShowNewForm] = useState(false);
   const [detailDelivery, setDetailDelivery] = useState<DeliveryWithRelations | null>(null);
   const [reassignDelivery, setReassignDelivery] = useState<DeliveryWithRelations | null>(null);
   const [dispatchDelivery, setDispatchDelivery] = useState<DeliveryWithRelations | null>(null);
@@ -171,7 +174,19 @@ export default function DeliveriesPage() {
 
   return (
     <AdminLayout title="Entregas" subtitle="Gestão de corridas e ordens de serviço">
-      {/* Filters */}
+      {showNewForm ? (
+        <NewDeliveryForm isAdmin onClose={() => setShowNewForm(false)} />
+      ) : (
+        <>
+          <div className="flex justify-end mb-4">
+             <button
+               onClick={() => setShowNewForm(true)}
+               className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-black flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
+             >
+               <Plus className="h-5 w-5" /> Nova Entrega
+             </button>
+          </div>
+          {/* Filters */}
       <div className="flex flex-col gap-3 mb-5">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex items-center gap-2 bg-card rounded-lg px-3 py-2 shadow-card flex-1 max-w-md">
@@ -609,6 +624,8 @@ export default function DeliveriesPage() {
           )}
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </AdminLayout>
   );
 }

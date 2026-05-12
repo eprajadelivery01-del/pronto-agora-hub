@@ -30,6 +30,20 @@ import BusinessFinancePage from "./pages/business/BusinessFinancePage";
 import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
 import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
 
+// Admin Panel Pages (Missing in this App.tsx)
+import DashboardPage from "./pages/DashboardPage";
+import DeliveriesPage from "./pages/DeliveriesPage";
+import CompaniesPage from "./pages/CompaniesPage";
+import DriversPage from "./pages/DriversPage";
+import RegionsPage from "./pages/RegionsPage";
+import ReportsPage from "./pages/ReportsPage";
+import UsersPage from "./pages/UsersPage";
+import ReviewsPage from "./pages/ReviewsPage";
+import SettingsPage from "./pages/SettingsPage";
+import MapPage from "./pages/MapPage";
+import OccurrencesPage from "./pages/OccurrencesPage";
+import CustomersPage from "./pages/CustomersPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -59,6 +73,22 @@ const App = () => (
                 <Route path="/business/history" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHistoryPage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/coupons" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessCouponsPage /></ProtectedRoute></PageTransition>} />
                 <Route path="/business/profile" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProfilePage /></ProtectedRoute></PageTransition>} />
+                
+                {/* Admin Panel Routes (Restored) */}
+                <Route path="/admin" element={<PageTransition><ProtectedRoute requiredRole="admin"><DashboardPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/deliveries" element={<PageTransition><ProtectedRoute requiredRole="admin"><DeliveriesPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/companies" element={<PageTransition><ProtectedRoute requiredRole="admin"><CompaniesPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/drivers" element={<PageTransition><ProtectedRoute requiredRole="admin"><DriversPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/regions" element={<PageTransition><ProtectedRoute requiredRole="admin"><RegionsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/reports" element={<PageTransition><ProtectedRoute requiredRole="admin"><ReportsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/users" element={<PageTransition><ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/reviews" element={<PageTransition><ProtectedRoute requiredRole="admin"><ReviewsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/settings" element={<PageTransition><ProtectedRoute requiredRole="admin"><SettingsPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/map" element={<PageTransition><ProtectedRoute requiredRole="admin"><MapPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/occurrences" element={<PageTransition><ProtectedRoute requiredRole="admin"><OccurrencesPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/customers" element={<PageTransition><ProtectedRoute requiredRole="admin"><CustomersPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/chat" element={<PageTransition><ProtectedRoute requiredRole="admin"><ChatPage /></ProtectedRoute></PageTransition>} />
+                <Route path="/admin/profile" element={<PageTransition><ProtectedRoute requiredRole="admin"><ProfilePage /></ProtectedRoute></PageTransition>} />
                 
                 <Route path="/" element={<Navigate to="/business" replace />} />
 

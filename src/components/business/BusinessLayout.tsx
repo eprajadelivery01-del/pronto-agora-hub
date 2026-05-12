@@ -43,7 +43,7 @@ const tabs = [
   { label: "Painel de Entregas", icon: LayoutDashboard, href: "/business", category: "Operacional" },
   { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
   { label: "Editar Perfil", icon: User, href: "/business/profile", category: "Marketplace" },
-  { label: "Marketplace", icon: Store, href: "/business/history", category: "Marketplace" },
+  { label: "Marketplace", icon: Store, href: "https://eprajadelivery.com/marketplace", category: "Marketplace", external: true },
   { label: "Cardápio/Produtos", icon: Tag, href: "/business/products", category: "Marketplace" },
   { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
   { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
@@ -125,19 +125,27 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
 
   const toggleStoreStatus = async () => {
     if (!user?.id || updatingStatus) return;
+    
+    const previousStatus = isOpen;
+    const newStatus = !isOpen;
+    
+    // Immediate UI feedback
+    setIsOpen(newStatus);
     setUpdatingStatus(true);
+    
     try {
       const { error } = await supabase
         .from('companies')
-        .update({ is_open: !isOpen })
+        .update({ is_open: newStatus })
         .eq('user_id', user?.id);
       
-      if (!error) {
-        setIsOpen(!isOpen);
-        toast.success(!isOpen ? "Loja aberta!" : "Loja fechada!");
-      } else {
-        toast.error("Erro ao atualizar status");
-      }
+      if (error) throw error;
+      
+      toast.success(newStatus ? "Loja aberta!" : "Loja fechada!");
+    } catch (err: any) {
+      // Revert on error
+      setIsOpen(previousStatus);
+      toast.error("Erro ao atualizar status: " + err.message);
     } finally {
       setUpdatingStatus(false);
     }

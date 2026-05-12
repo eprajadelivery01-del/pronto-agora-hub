@@ -386,10 +386,26 @@ export default function BusinessProfilePage() {
                            </div>
 
                            <div className="space-y-3">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Horário de Funcionamento</label>
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Horário de Funcionamento</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const firstActive = workingDays.find(d => d.active);
+                                    if (firstActive) {
+                                      const newDays = workingDays.map(d => ({ ...d, start: firstActive.start, end: firstActive.end }));
+                                      setWorkingDays(newDays);
+                                      toast.success("Horários aplicados a todos os dias!");
+                                    }
+                                  }}
+                                  className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
+                                >
+                                  Repetir Horários (Aplicar a todos)
+                                </button>
+                              </div>
                               <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
                                 {workingDays.map((wd, idx) => (
-                                  <div key={wd.day} className="flex items-center justify-between gap-4 py-1.5 border-b border-border/20 last:border-0">
+                                  <div key={wd.day} className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0">
                                     <div className="flex items-center gap-3">
                                       <input 
                                         type="checkbox" 
@@ -397,25 +413,31 @@ export default function BusinessProfilePage() {
                                         onChange={(e) => updateWorkingDay(idx, 'active', e.target.checked)}
                                         className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
                                       />
-                                      <span className={cn("text-xs font-bold w-8", wd.active ? "text-foreground" : "text-muted-foreground")}>{wd.day}</span>
+                                      <span className={cn("text-xs font-bold w-10", wd.active ? "text-foreground" : "text-muted-foreground")}>{wd.day}</span>
                                     </div>
                                     
-                                    <div className={cn("flex items-center gap-2 transition-opacity", !wd.active && "opacity-30 pointer-events-none")}>
-                                      <input 
-                                        type="text" 
-                                        value={wd.start} 
-                                        onChange={(e) => updateWorkingDay(idx, 'start', e.target.value)}
-                                        className="w-14 px-1.5 py-1 text-[11px] font-black bg-background border border-border rounded-lg text-center outline-none focus:border-primary"
-                                        placeholder="00:00"
-                                      />
-                                      <span className="text-[10px] text-muted-foreground">às</span>
-                                      <input 
-                                        type="text" 
-                                        value={wd.end} 
-                                        onChange={(e) => updateWorkingDay(idx, 'end', e.target.value)}
-                                        className="w-14 px-1.5 py-1 text-[11px] font-black bg-background border border-border rounded-lg text-center outline-none focus:border-primary"
-                                        placeholder="00:00"
-                                      />
+                                    <div className={cn("flex items-center gap-3 transition-all", !wd.active && "opacity-20 pointer-events-none")}>
+                                      <div className="relative">
+                                        <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                                        <input 
+                                          type="text" 
+                                          value={wd.start} 
+                                          onChange={(e) => updateWorkingDay(idx, 'start', e.target.value)}
+                                          className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                                          placeholder="08:00"
+                                        />
+                                      </div>
+                                      <span className="text-[10px] font-black text-muted-foreground/30">➜</span>
+                                      <div className="relative">
+                                        <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                                        <input 
+                                          type="text" 
+                                          value={wd.end} 
+                                          onChange={(e) => updateWorkingDay(idx, 'end', e.target.value)}
+                                          className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                                          placeholder="18:00"
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
@@ -505,7 +527,10 @@ export default function BusinessProfilePage() {
               
               {/* Minimalist Phone Card Preview */}
               <div className="w-full max-w-[260px] mx-auto aspect-[9/18] bg-foreground rounded-[3rem] p-2.5 shadow-2xl overflow-hidden group">
-                 <div className="w-full h-full bg-background rounded-[2.2rem] overflow-hidden flex flex-col relative">
+                 <div className={cn(
+                    "w-full h-full bg-background rounded-[2.2rem] overflow-hidden flex flex-col relative transition-all duration-500",
+                    !isOpen && "grayscale opacity-50"
+                 )}>
                     <div className="h-20 bg-muted overflow-hidden relative">
                        {coverUrl && <img src={coverUrl} className="w-full h-full object-cover" />}
                        <div className="absolute inset-0 bg-black/20" />
