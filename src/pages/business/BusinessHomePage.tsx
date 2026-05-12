@@ -213,7 +213,7 @@ export default function BusinessHomePage() {
                   {marketplaceDeliveriesWithOrders.map((order) => (
                     <div
                       key={order.id}
-                      onClick={() => setSelectedOrder({ ...order, customer: { name: order.customers?.name || order.deliveryInfo?.customer_name, address: order.delivery_address }, items: order.order_items || [] })}
+                      onClick={() => setSelectedOrder({ ...order, customer: { name: (order.customers as any)?.name || (order.customers as any)?.[0]?.name || order.deliveryInfo?.customer_name, address: order.delivery_address }, items: order.order_items || [] })}
                       className="bg-card border border-border/50 rounded-[2.5rem] p-6 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer relative overflow-hidden"
                     >
                       <div className="flex items-center justify-between mb-4">
@@ -223,7 +223,7 @@ export default function BusinessHomePage() {
                       <div className="space-y-4">
                         <div className="min-w-0">
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Destinatário</p>
-                          <p className="text-lg font-black text-foreground truncate">{order.customers?.name || order.deliveryInfo?.customer_name || "Cliente"}</p>
+                          <p className="text-lg font-black text-foreground truncate">{(order.customers as any)?.name || (order.customers as any)?.[0]?.name || order.deliveryInfo?.customer_name || "Cliente"}</p>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold">
                           <MapPin className="h-4 w-4 text-primary shrink-0" />
