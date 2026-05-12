@@ -23,7 +23,7 @@ CREATE POLICY "Owners and admins can view company details" ON public.companies
   USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
 
 -- Create a SAFE VIEW for the Marketplace/Public
--- This view hides sensitive columns like phone, document, etc.
+-- This view hides sensitive columns like phone, document, and email.
 CREATE OR REPLACE VIEW public.store_public_info AS
 SELECT 
     id, 
@@ -32,6 +32,8 @@ SELECT
     cover_url, 
     description, 
     address, 
+    latitude, 
+    longitude, 
     is_active,
     created_at
 FROM public.companies
@@ -58,6 +60,7 @@ CREATE POLICY "Drivers can view assigned deliveries" ON public.deliveries
   FOR SELECT TO authenticated
   USING (
     driver_id IN (SELECT id FROM public.delivery_drivers WHERE user_id = auth.uid())
+    OR motoboy_id IN (SELECT id FROM public.motoboys WHERE user_id = auth.uid()) -- Support for both driver tables
     OR public.has_role(auth.uid(), 'admin')
   );
 
@@ -70,15 +73,17 @@ SELECT
     -- Redact PII
     'Cliente'::TEXT as customer_name,
     '***'::TEXT as customer_phone,
-    address, 
-    region_id, 
+    '***'::TEXT as customer_cpf,
+    delivery_address, 
+    delivery_latitude, 
+    delivery_longitude, 
     status, 
     value, 
     commission, 
     notes,
     created_at
 FROM public.deliveries
-WHERE (status = 'pending' OR status = 'broadcasted') AND driver_id IS NULL;
+WHERE (status = 'pending' OR status = 'broadcasted') AND driver_id IS NULL AND motoboy_id IS NULL;
 
 -- Grant access to the view
 GRANT SELECT ON public.available_deliveries TO authenticated;
@@ -101,24 +106,12 @@ CREATE POLICY "Relevant parties can view reviews" ON public.reviews
   USING (
     -- Admins
     public.has_role(auth.uid(), 'admin')
-    -- Companies see reviews for their deliveries
-    OR EXISTS (
-      SELECT 1 FROM public.deliveries d
-      JOIN public.companies c ON d.company_id = c.id
-      WHERE d.id = reviews.delivery_id AND c.user_id = auth.uid()
-    )
-    -- Drivers see reviews for themselves
-    OR EXISTS (
-      SELECT 1 FROM public.delivery_drivers dr
-      WHERE dr.id = reviews.driver_id AND dr.user_id = auth.uid()
-    )
-    -- The reviewer (if user_id exists in reviews, otherwise linked via delivery/order)
-    OR EXISTS (
-      SELECT 1 FROM public.deliveries d
-      JOIN public.orders o ON d.id = o.delivery_id
-      JOIN public.customers cu ON o.customer_id = cu.id
-      WHERE d.id = reviews.delivery_id AND cu.user_id = auth.uid()
-    )
+    -- User who wrote the review
+    OR user_id = auth.uid()
+    -- Company being reviewed
+    OR (company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid()))
+    -- Driver being reviewed
+    OR (driver_id IN (SELECT id FROM public.delivery_drivers WHERE user_id = auth.uid()))
   );
 
 -- ======================================================================================
@@ -148,25 +141,20 @@ CREATE POLICY "Admins and Companies can view motoboys" ON public.motoboys
 -- 5. PLATFORM SETTINGS - RESTRICT TO ADMINS
 -- ======================================================================================
 
--- Try to secure the settings table (handling multiple possible names)
-DO $$ 
-BEGIN 
-  -- Handle 'platform_settings'
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='platform_settings') THEN
-    ALTER TABLE public.platform_settings ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "Autenticados podem ler as configurações da plataforma" ON public.platform_settings;
-    CREATE POLICY "Only admins can read platform settings" ON public.platform_settings
-      FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
-  END IF;
+ALTER TABLE IF EXISTS public.platform_settings ENABLE ROW LEVEL SECURITY;
 
-  -- Handle 'platform_config'
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='platform_config') THEN
-    ALTER TABLE public.platform_config ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "Anyone can view platform config" ON public.platform_config;
-    CREATE POLICY "Only admins can read platform config" ON public.platform_config
-      FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
-  END IF;
+-- Drop ALL existing policies on platform_settings to start fresh
+DO $$ 
+DECLARE pol record;
+BEGIN
+    FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'platform_settings' AND schemaname = 'public') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.platform_settings', pol.policyname);
+    END LOOP;
 END $$;
+
+CREATE POLICY "Only admins can read platform settings" ON public.platform_settings
+  FOR SELECT TO authenticated 
+  USING (public.has_role(auth.uid(), 'admin'));
 
 COMMIT;
 NOTIFY pgrst, 'reload schema';
