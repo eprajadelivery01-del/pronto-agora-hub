@@ -32,8 +32,6 @@ SELECT
     cover_url, 
     description, 
     address, 
-    latitude, 
-    longitude, 
     is_active,
     created_at
 FROM public.companies
@@ -77,8 +75,6 @@ SELECT
     status, 
     value, 
     commission, 
-    latitude, 
-    longitude, 
     notes,
     created_at
 FROM public.deliveries
