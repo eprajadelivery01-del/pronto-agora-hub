@@ -26,6 +26,7 @@ import ScrollToTop from "@/components/shared/ScrollToTop";
 import { PageTransition } from "@/components/shared/PageTransition";
 
 import BusinessOrdersPage from "./pages/business/BusinessOrdersPage";
+import ChatPage from "./pages/ChatPage";
 import BusinessFinancePage from "./pages/business/BusinessFinancePage";
 import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
 import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
