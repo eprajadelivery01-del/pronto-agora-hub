@@ -17,10 +17,11 @@ BEGIN
     END LOOP;
 END $$;
 
--- Restrict base table access to Authenticated Owners/Admins
-CREATE POLICY "Owners and admins can view company details" ON public.companies
-  FOR SELECT TO authenticated
-  USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+-- Allow Companies to manage their own record (ALL operations)
+CREATE POLICY "Companies can manage own record" ON public.companies
+  FOR ALL TO authenticated
+  USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+  WITH CHECK (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
 
 -- Create a SAFE VIEW for the Marketplace/Public
 -- This view hides sensitive columns like phone, document, and email.
@@ -54,6 +55,18 @@ BEGIN
         EXECUTE format('DROP POLICY IF EXISTS %I ON public.deliveries', pol.policyname);
     END LOOP;
 END $$;
+
+-- Allow Companies to manage their own deliveries (ALL operations)
+CREATE POLICY "Companies can manage own deliveries" ON public.deliveries
+  FOR ALL TO authenticated
+  USING (
+    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid()) 
+    OR public.has_role(auth.uid(), 'admin')
+  )
+  WITH CHECK (
+    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid()) 
+    OR public.has_role(auth.uid(), 'admin')
+  );
 
 -- Allow drivers to only see deliveries explicitly assigned to them in full
 CREATE POLICY "Drivers can view assigned deliveries" ON public.deliveries
