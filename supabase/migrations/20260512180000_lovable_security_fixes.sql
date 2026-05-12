@@ -30,7 +30,6 @@ SELECT
     address, 
     latitude, 
     longitude, 
-    region_id, 
     is_active,
     created_at
 FROM public.companies
