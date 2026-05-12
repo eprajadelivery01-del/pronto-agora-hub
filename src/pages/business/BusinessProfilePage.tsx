@@ -27,6 +27,15 @@ export default function BusinessProfilePage() {
   const [isOpen, setIsOpen] = useState(true);
   const [businessHours, setBusinessHours] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
+  const [workingDays, setWorkingDays] = useState([
+    { day: 'Seg', active: true, start: '08:00', end: '18:00' },
+    { day: 'Ter', active: true, start: '08:00', end: '18:00' },
+    { day: 'Qua', active: true, start: '08:00', end: '18:00' },
+    { day: 'Qui', active: true, start: '08:00', end: '18:00' },
+    { day: 'Sex', active: true, start: '08:00', end: '18:00' },
+    { day: 'Sab', active: true, start: '08:00', end: '12:00' },
+    { day: 'Dom', active: false, start: '00:00', end: '00:00' },
+  ]);
 
   // Edit states for overlays
   const [isEditingLogo, setIsEditingLogo] = useState(false);
@@ -60,6 +69,14 @@ export default function BusinessProfilePage() {
         setIsOpen(company.is_open ?? true);
         setBusinessHours(company.business_hours || "");
         setGallery(company.gallery || []);
+
+        if (company.business_hours && company.business_hours.includes("{")) {
+          try {
+            setWorkingDays(JSON.parse(company.business_hours));
+          } catch (e) {
+            console.error("Erro ao parsear horários estruturados");
+          }
+        }
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
@@ -163,12 +180,33 @@ export default function BusinessProfilePage() {
     setGallery(prev => prev.filter(item => item !== url));
   };
 
+  const toggleOpenStatus = async () => {
+    if (!companyId) return;
+    const newStatus = !isOpen;
+    setIsOpen(newStatus);
+    try {
+      const { error } = await supabase.from("companies").update({ is_open: newStatus }).eq("id", companyId);
+      if (error) throw error;
+      toast.success(newStatus ? "Loja aberta para pedidos!" : "Loja fechada temporariamente.");
+    } catch {
+      setIsOpen(!newStatus);
+      toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const updateWorkingDay = (index: number, field: string, value: any) => {
+    const newDays = [...workingDays];
+    newDays[index] = { ...newDays[index], [field]: value };
+    setWorkingDays(newDays);
+  };
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
     setSaving(true);
 
     try {
+      const hoursJson = JSON.stringify(workingDays);
       const { error } = await (supabase as any)
         .from("companies")
         .update({
@@ -180,7 +218,7 @@ export default function BusinessProfilePage() {
           cover_url: coverUrl,
           category: category,
           is_open: isOpen,
-          business_hours: businessHours,
+          business_hours: hoursJson,
           gallery: gallery,
         })
         .eq("id", companyId);
@@ -334,7 +372,7 @@ export default function BusinessProfilePage() {
                               </div>
                               <button
                                  type="button"
-                                 onClick={() => setIsOpen(!isOpen)}
+                                 onClick={toggleOpenStatus}
                                  className={cn(
                                     "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
                                     isOpen ? "bg-primary" : "bg-muted-foreground/30"
@@ -347,16 +385,40 @@ export default function BusinessProfilePage() {
                               </button>
                            </div>
 
-                           <div className="space-y-2">
+                           <div className="space-y-3">
                               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Horário de Funcionamento</label>
-                              <div className="relative">
-                                 <Clock3 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                 <input
-                                    value={businessHours}
-                                    onChange={(e) => setBusinessHours(e.target.value)}
-                                    placeholder="Ex: Seg a Sab, 08h às 18h"
-                                    className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
-                                 />
+                              <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
+                                {workingDays.map((wd, idx) => (
+                                  <div key={wd.day} className="flex items-center justify-between gap-4 py-1.5 border-b border-border/20 last:border-0">
+                                    <div className="flex items-center gap-3">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={wd.active} 
+                                        onChange={(e) => updateWorkingDay(idx, 'active', e.target.checked)}
+                                        className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                                      />
+                                      <span className={cn("text-xs font-bold w-8", wd.active ? "text-foreground" : "text-muted-foreground")}>{wd.day}</span>
+                                    </div>
+                                    
+                                    <div className={cn("flex items-center gap-2 transition-opacity", !wd.active && "opacity-30 pointer-events-none")}>
+                                      <input 
+                                        type="text" 
+                                        value={wd.start} 
+                                        onChange={(e) => updateWorkingDay(idx, 'start', e.target.value)}
+                                        className="w-14 px-1.5 py-1 text-[11px] font-black bg-background border border-border rounded-lg text-center outline-none focus:border-primary"
+                                        placeholder="00:00"
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">às</span>
+                                      <input 
+                                        type="text" 
+                                        value={wd.end} 
+                                        onChange={(e) => updateWorkingDay(idx, 'end', e.target.value)}
+                                        className="w-14 px-1.5 py-1 text-[11px] font-black bg-background border border-border rounded-lg text-center outline-none focus:border-primary"
+                                        placeholder="00:00"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                            </div>
                         </div>

@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
+import { toast } from "sonner";
 import {
   Popover,
   PopoverContent,
@@ -77,8 +78,8 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       const { data } = await supabase
         .from('companies')
         .select('is_open')
-        .eq('id', user?.id)
-        .single();
+        .eq('user_id', user?.id)
+        .maybeSingle();
       
       if (data) setIsOpen(data.is_open);
     };
@@ -111,7 +112,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         event: 'UPDATE',
         schema: 'public',
         table: 'companies',
-        filter: `id=eq.${user?.id}`
+        filter: `user_id=eq.${user?.id}`
       }, (payload) => {
         setIsOpen(payload.new.is_open);
       })
@@ -129,9 +130,14 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       const { error } = await supabase
         .from('companies')
         .update({ is_open: !isOpen })
-        .eq('id', user?.id);
+        .eq('user_id', user?.id);
       
-      if (!error) setIsOpen(!isOpen);
+      if (!error) {
+        setIsOpen(!isOpen);
+        toast.success(!isOpen ? "Loja aberta!" : "Loja fechada!");
+      } else {
+        toast.error("Erro ao atualizar status");
+      }
     } finally {
       setUpdatingStatus(false);
     }
