@@ -68,10 +68,23 @@ CREATE POLICY "Companies can manage own deliveries" ON public.deliveries
     OR public.has_role(auth.uid(), 'admin')
   );
 
--- Allow drivers to only see deliveries explicitly assigned to them in full
+-- Allow drivers to see deliveries explicitly assigned to them in full
 CREATE POLICY "Drivers can view assigned deliveries" ON public.deliveries
   FOR SELECT TO authenticated
   USING (
+    driver_id IN (SELECT id FROM public.delivery_drivers WHERE user_id = auth.uid())
+    OR public.has_role(auth.uid(), 'admin')
+  );
+
+-- Allow drivers to accept and update their deliveries
+CREATE POLICY "Drivers can update assigned deliveries" ON public.deliveries
+  FOR UPDATE TO authenticated
+  USING (
+    driver_id IN (SELECT id FROM public.delivery_drivers WHERE user_id = auth.uid())
+    OR (status IN ('pending', 'broadcasted') AND driver_id IS NULL) -- Allow claiming
+    OR public.has_role(auth.uid(), 'admin')
+  )
+  WITH CHECK (
     driver_id IN (SELECT id FROM public.delivery_drivers WHERE user_id = auth.uid())
     OR public.has_role(auth.uid(), 'admin')
   );
