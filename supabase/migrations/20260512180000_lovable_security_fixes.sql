@@ -60,7 +60,6 @@ CREATE POLICY "Drivers can view assigned deliveries" ON public.deliveries
   FOR SELECT TO authenticated
   USING (
     driver_id IN (SELECT id FROM public.delivery_drivers WHERE user_id = auth.uid())
-    OR motoboy_id IN (SELECT id FROM public.motoboys WHERE user_id = auth.uid()) -- Support for both driver tables
     OR public.has_role(auth.uid(), 'admin')
   );
 
