@@ -8,10 +8,14 @@ BEGIN;
 -- 1. COMPANIES - RESTRICT SENSITIVE DATA (Email, Phone, Document)
 -- ======================================================================================
 
--- Drop existing broad policies
-DROP POLICY IF EXISTS "Public can view active companies" ON public.companies;
-DROP POLICY IF EXISTS "Anyone can view active companies" ON public.companies;
-DROP POLICY IF EXISTS "Public can view basic company info" ON public.companies;
+-- Drop ALL existing policies on companies to start fresh
+DO $$ 
+DECLARE pol record;
+BEGIN
+    FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'companies' AND schemaname = 'public') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.companies', pol.policyname);
+    END LOOP;
+END $$;
 
 -- Restrict base table access to Authenticated Owners/Admins
 CREATE POLICY "Owners and admins can view company details" ON public.companies
@@ -42,9 +46,14 @@ GRANT SELECT ON public.store_public_info TO anon, authenticated;
 -- 2. DELIVERIES - PROTECT CUSTOMER PII (Name, Phone, CPF)
 -- ======================================================================================
 
--- Drop the policy that allows drivers to see all info on broadcasted deliveries
-DROP POLICY IF EXISTS "Drivers can view available deliveries" ON public.deliveries;
-DROP POLICY IF EXISTS "Drivers can view pending deliveries" ON public.deliveries;
+-- Drop ALL existing policies on deliveries to start fresh
+DO $$ 
+DECLARE pol record;
+BEGIN
+    FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'deliveries' AND schemaname = 'public') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.deliveries', pol.policyname);
+    END LOOP;
+END $$;
 
 -- Allow drivers to only see deliveries explicitly assigned to them in full
 CREATE POLICY "Drivers can view assigned deliveries" ON public.deliveries
@@ -82,8 +91,14 @@ GRANT SELECT ON public.available_deliveries TO authenticated;
 -- 3. REVIEWS - RESTRICT TO RELEVANT PARTIES
 -- ======================================================================================
 
-DROP POLICY IF EXISTS "Anyone can view reviews" ON public.reviews;
-DROP POLICY IF EXISTS "Autenticados podem visualizar avaliações" ON public.reviews;
+-- Drop ALL existing policies on reviews to start fresh
+DO $$ 
+DECLARE pol record;
+BEGIN
+    FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'reviews' AND schemaname = 'public') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.reviews', pol.policyname);
+    END LOOP;
+END $$;
 
 CREATE POLICY "Relevant parties can view reviews" ON public.reviews
   FOR SELECT TO authenticated
@@ -116,9 +131,14 @@ CREATE POLICY "Relevant parties can view reviews" ON public.reviews
 
 ALTER TABLE IF EXISTS public.motoboys ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Usuários autenticados leem motoboys" ON public.motoboys;
-DROP POLICY IF EXISTS "Usuários autenticados podem visualizar motoboys" ON public.motoboys;
-DROP POLICY IF EXISTS "Admins can manage motoboys" ON public.motoboys;
+-- Drop ALL existing policies on motoboys to start fresh
+DO $$ 
+DECLARE pol record;
+BEGIN
+    FOR pol IN (SELECT policyname FROM pg_policies WHERE tablename = 'motoboys' AND schemaname = 'public') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.motoboys', pol.policyname);
+    END LOOP;
+END $$;
 
 -- Only Admins and Companies can see the full list of drivers for dispatch
 CREATE POLICY "Admins and Companies can view motoboys" ON public.motoboys
