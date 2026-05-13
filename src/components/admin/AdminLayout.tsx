@@ -32,8 +32,14 @@ export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
           </div>
           
           {/* Global Branding Footer */}
-          <div className="w-full py-10 flex justify-center opacity-10 pointer-events-none select-none mt-auto">
-            <p className="text-[10px] font-black tracking-[0.4em] text-muted-foreground uppercase">
+          <div className="w-full py-10 flex flex-col items-center justify-center pointer-events-none select-none mt-auto">
+            <p className="text-[11px] font-black tracking-widest text-muted-foreground opacity-60 mb-2">
+              É Pra Já Delivery
+            </p>
+            <p className="text-[10px] font-medium text-muted-foreground/40 mb-2">
+              © 2026 • Todos os direitos reservados
+            </p>
+            <p className="text-[10px] font-black tracking-[0.4em] text-muted-foreground uppercase opacity-20">
               BONASOFT
             </p>
           </div>
