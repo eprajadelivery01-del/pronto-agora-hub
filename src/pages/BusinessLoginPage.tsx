@@ -53,8 +53,8 @@ export default function BusinessLoginPage() {
 
       <div className="w-full max-w-md relative z-10 space-y-8 animate-in fade-in zoom-in duration-700">
         <div className="flex flex-col items-center text-center">
-          <div className="w-20 h-20 rounded-[2rem] bg-card border border-border shadow-2xl flex items-center justify-center mb-6 p-4">
-            <img src="/logo.png" alt="É Pra Já" className="w-full h-full object-contain" />
+          <div className="w-20 h-20 rounded-[2rem] bg-card border border-border shadow-2xl flex items-center justify-center mb-6 overflow-hidden">
+            <img src="/logo.png" alt="É Pra Já" className="w-full h-full object-cover" />
           </div>
           <h1 className="font-display text-4xl font-black text-foreground tracking-tighter mb-2">
             Central do Lojista

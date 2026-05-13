@@ -71,8 +71,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-4 shadow-lg p-2">
-            <img src="/logo.png" alt="É Pra Já" className="w-full h-full object-contain" />
+          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-4 shadow-lg overflow-hidden border border-border">
+            <img src="/logo.png" alt="É Pra Já" className="w-full h-full object-cover" />
           </div>
           <h1 className="font-display text-2xl font-extrabold text-foreground tracking-tight">É Pra Já</h1>
           <p className="text-sm text-muted-foreground mt-1 font-medium">Delivery • Painel de Gestão</p>
