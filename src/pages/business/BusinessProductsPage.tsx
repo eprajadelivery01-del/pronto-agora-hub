@@ -383,18 +383,11 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                   
                   {/* Category Selection */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria Temática</label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none cursor-pointer focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base appearance-none"
-                      required
-                    >
-                      <option value="Lanches">ðŸ” Lanches & Sanduíches</option>
-                      <option value="Pizza">ðŸ• Pizzas</option>
-                      <option value="Doces">ðŸ« Doces & Sobremesas</option>
-                      <option value="Bebidas">ðŸ¥¤ Bebidas & Sucos</option>
-                      <option value="Outros">ðŸ·ï¸ Categoria Geral (Outros)</option>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em]                       <option value="Lanches">🍔 Lanches & Sanduíches</option>
+                      <option value="Pizza">🍕 Pizzas</option>
+                      <option value="Doces">🍫 Doces & Sobremesas</option>
+                      <option value="Bebidas">🥤 Bebidas & Sucos</option>
+                      <option value="Outros">🍽️ Categoria Geral (Outros)</option>
                     </select>
                   </div>
 
@@ -495,7 +488,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                         </div>
                      </label>
                   </div>
-                  <p className="text-[9px] text-muted-foreground italic px-2">ðŸ“· Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
+                  <p className="text-[9px] text-muted-foreground italic px-2">📷 Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
                </div>
             </div>
         </div>
