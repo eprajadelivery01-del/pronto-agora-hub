@@ -23,10 +23,7 @@ export default function ChatPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("conversations")
-        .select(`
-          *,
-          messages (content, created_at)
-        `)
+        .select("*")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -84,7 +81,7 @@ export default function ChatPage() {
             ) : (
               conversations?.map((conv) => {
                 const Icon = getConvIcon(conv);
-                const lastMsg = conv.messages?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+                const lastMsg = conv.messages ? conv.messages.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] : null;
                 
                 return (
                   <button
