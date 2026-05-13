@@ -43,6 +43,7 @@ export default function BusinessProfilePage() {
   const [tempUrl, setTempUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
+  useEffect(() => {
     fetchCompanyData();
 
     // Subscribe to realtime changes for store status synchronization
