@@ -43,6 +43,7 @@ const tabs = [
   { label: "Painel de Entregas", icon: LayoutDashboard, href: "/business", category: "Operacional" },
   { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
   { label: "Editar Perfil", icon: User, href: "/business/profile", category: "Marketplace" },
+  { label: "Chat", icon: MessageCircle, href: "/business/chat", category: "Operacional" },
   { label: "Marketplace", icon: Store, href: "https://eprajadelivery.com/marketplace", category: "Marketplace", external: true },
   { label: "Cardápio/Produtos", icon: Tag, href: "/business/products", category: "Marketplace" },
   { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
