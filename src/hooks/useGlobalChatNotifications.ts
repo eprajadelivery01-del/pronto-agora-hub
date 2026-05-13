@@ -38,18 +38,23 @@ export function useGlobalChatNotifications() {
           // For simplicity, we just notify if they are not on the chat page.
           const isChatPage = location.pathname.includes("/chat");
           
-          if (!isChatPage) {
-            const isLojista = hasRole("company");
-            
-            toast.info("Nova mensagem recebida!", {
-              description: newMessage.content,
-              duration: 8000,
-              action: {
-                label: "Abrir Chat",
-                onClick: () => navigate(isLojista ? "/business/chat" : "/admin/chat")
-              }
-            });
+          try {
+             const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+             audio.volume = 0.5;
+             audio.play().catch(e => console.warn("[Audio] Bloqueio de auto-play pelo navegador:", e)); 
+          } catch (err) {
+             console.error("[Audio] Erro ao reproduzir som:", err);
           }
+
+          const isLojista = hasRole("company");
+          toast.info("Nova mensagem recebida!", {
+            description: newMessage.content,
+            duration: 8000,
+            action: isChatPage ? undefined : {
+              label: "Abrir Chat",
+              onClick: () => navigate(isLojista ? "/business/chat" : "/admin/chat")
+            }
+          });
 
           // Invalidate messages and conversations to keep sidebar fresh
           qc.invalidateQueries({ queryKey: ["conversations"] });
