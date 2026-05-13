@@ -79,7 +79,7 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl w-[95vw]">
         <DialogHeader>
-          <DialogTitle>Gerar Link de Convite</DialogTitle>
+          <DialogTitle>Gerar Link de Convite (VERSÃO NOVA)</DialogTitle>
         </DialogHeader>
 
         {!inviteLink ? (
