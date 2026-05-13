@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useDrivers, useToggleDriverOnline } from "@/services/drivers";
 import { useRegions } from "@/services/regions";
@@ -36,7 +36,7 @@ export default function DriversPage() {
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Entregador excluÃ­da" });
+      toast({ title: "Entregador excluída" });
       qc.invalidateQueries({ queryKey: ["drivers"] });
     }
   };
@@ -51,7 +51,7 @@ export default function DriversPage() {
   };
 
   return (
-    <AdminLayout title="Entregadores" subtitle="GestÃ£o de motoboys e frota">
+    <AdminLayout title="Entregadores" subtitle="Gestão de motoboys e frota">
       <div className="flex items-center justify-between mb-6">
         <div />
         <div className="flex items-center gap-2">
@@ -223,7 +223,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
     setLoading(false);
   };
 
-  const steps = ["Dados de Acesso", "Dados Pessoais", "VeÃ­culo e ComissÃ£o"];
+  const steps = ["Dados de Acesso", "Dados Pessoais", "Veículo e Comissão"];
 
   return (
     <div className="space-y-5 mt-2">
@@ -247,9 +247,9 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
               <input type="file" capture="environment" accept="image/*" onChange={handleAvatar} className="hidden" />
             </label>
           </div>
-          <FieldInput label="Nome completo *" value={form.fullName} onChange={(v) => set("fullName", v)} placeholder="JoÃ£o da Silva" />
+          <FieldInput label="Nome completo *" value={form.fullName} onChange={(v) => set("fullName", v)} placeholder="João da Silva" />
           <FieldInput label="Email *" type="email" value={form.email} onChange={(v) => set("email", v)} placeholder="joao@email.com" />
-          <FieldInput label="Senha *" type="password" value={form.password} onChange={(v) => set("password", v)} placeholder="MÃ­nimo 8 caracteres" />
+          <FieldInput label="Senha *" type="password" value={form.password} onChange={(v) => set("password", v)} placeholder="Mínimo 8 caracteres" />
         </div>
       )}
 
@@ -263,7 +263,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
       {step === 2 && (
         <div className="space-y-3">
           <div>
-            <label className="text-sm font-medium mb-1.5 block text-foreground">Tipo de veÃ­culo</label>
+            <label className="text-sm font-medium mb-1.5 block text-foreground">Tipo de veículo</label>
             <div className="flex gap-2">
               {[{ value: "motorcycle", label: "Moto" }, { value: "bicycle", label: "Bicicleta" }, { value: "car", label: "Carro" }].map((v) => (
                 <button key={v.value} type="button" onClick={() => set("vehicle", v.value)}
@@ -274,7 +274,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
             </div>
           </div>
           <FieldInput label="Placa" value={form.licensePlate} onChange={(v) => set("licensePlate", v)} placeholder="ABC-1234" />
-          <FieldInput label="ComissÃ£o (%)" type="number" value={form.commissionRate} onChange={(v) => set("commissionRate", v)} placeholder="15" />
+          <FieldInput label="Comissão (%)" type="number" value={form.commissionRate} onChange={(v) => set("commissionRate", v)} placeholder="15" />
         </div>
       )}
 
@@ -283,7 +283,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
           <button onClick={() => setStep(step - 1)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">Voltar</button>
         )}
         {step < 2 ? (
-          <button onClick={() => setStep(step + 1)} disabled={!canNext()} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors">PrÃ³ximo</button>
+          <button onClick={() => setStep(step + 1)} disabled={!canNext()} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition-colors">Próximo</button>
         ) : (
           <button onClick={handleSubmit} disabled={loading} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />} Cadastrar Entregador

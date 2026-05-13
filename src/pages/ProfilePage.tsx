@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,16 +65,16 @@ export default function ProfilePage() {
     setDeleting(true);
     try {
       await deleteAccount();
-      toast({ title: "Conta excluÃ­da", description: "Seus dados foram removidos conforme solicitado." });
+      toast({ title: "Conta excluída", description: "Seus dados foram removidos conforme solicitado." });
     } catch (err: any) {
-      toast({ title: "Erro na exclusÃ£o", description: err.message, variant: "destructive" });
+      toast({ title: "Erro na exclusão", description: err.message, variant: "destructive" });
     } finally {
       setDeleting(false);
     }
   };
 
   return (
-    <AdminLayout title="Meu Perfil" subtitle="Gerencie suas informaÃ§Ãµes">
+    <AdminLayout title="Meu Perfil" subtitle="Gerencie suas informações">
       <div className="max-w-lg mx-auto">
         {/* Avatar */}
         <div className="flex flex-col items-center mb-8">
@@ -165,7 +165,7 @@ export default function ProfilePage() {
               Zona de Perigo
             </h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Ao excluir sua conta, todos os seus dados serÃ£o removidos permanentemente. Esta aÃ§Ã£o nÃ£o pode ser desfeita.
+              Ao excluir sua conta, todos os seus dados serão removidos permanentemente. Esta ação não pode ser desfeita.
             </p>
             
             <AlertDialog>
@@ -179,7 +179,7 @@ export default function ProfilePage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta aÃ§Ã£o excluirÃ¡ permanentemente seu perfil e removerÃ¡ todos os seus dados de nossos servidores.
+                    Esta ação excluirá permanentemente seu perfil e removerá todos os seus dados de nossos servidores.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="flex-col sm:flex-row gap-2">
