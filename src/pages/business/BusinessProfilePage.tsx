@@ -43,8 +43,26 @@ export default function BusinessProfilePage() {
   const [tempUrl, setTempUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
     fetchCompanyData();
+
+    // Subscribe to realtime changes for store status synchronization
+    const channel = supabase
+      .channel('store-status-sync')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'companies',
+        filter: `user_id=eq.${user?.id}`
+      }, (payload) => {
+        if (payload.new.is_open !== undefined) {
+          setIsOpen(payload.new.is_open);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const fetchCompanyData = async () => {
@@ -487,7 +505,7 @@ export default function BusinessProfilePage() {
                             </div>
                             <label className="cursor-pointer px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
                                Adicionar
-                               <input type="file" multiple accept="image/*" className="hidden" onChange={handleGalleryUpload} />
+                               <input type="file" multiple accept="image/*" capture="environment" className="hidden" onChange={handleGalleryUpload} />
                             </label>
                          </div>
                          
@@ -591,6 +609,7 @@ export default function BusinessProfilePage() {
                         id="file-upload" 
                         className="hidden" 
                         accept="image/*"
+                        capture="environment"
                         onChange={(e) => handleFileUpload(e, isEditingLogo ? 'logo' : 'cover')}
                         disabled={isUploading}
                       />

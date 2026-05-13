@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -102,11 +102,11 @@ export default function BusinessProductsPage() {
   }
 
   return (
-    <BusinessLayout title="Gestão de Cardápio">
+    <BusinessLayout title="GestÃ£o de CardÃ¡pio">
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
-            <h2 className="text-2xl font-black text-foreground tracking-tight">Seu Catálogo</h2>
+            <h2 className="text-2xl font-black text-foreground tracking-tight">Seu CatÃ¡logo</h2>
             <p className="text-muted-foreground text-sm font-medium">
               Organize os itens que seus clientes podem comprar no marketplace.
             </p>
@@ -131,16 +131,16 @@ export default function BusinessProductsPage() {
             <div className="w-24 h-24 rounded-[2rem] bg-muted/50 flex items-center justify-center mx-auto mb-8">
               <Package className="h-12 w-12 text-muted-foreground/30" />
             </div>
-            <h3 className="text-2xl font-black text-foreground mb-4">Seu cardápio está vazio</h3>
+            <h3 className="text-2xl font-black text-foreground mb-4">Seu cardÃ¡pio estÃ¡ vazio</h3>
             <p className="text-muted-foreground max-w-sm mx-auto mb-10 font-medium">
-              Adicione fotos apetitosas e descrições detalhadas para vender mais.
+              Adicione fotos apetitosas e descriÃ§Ãµes detalhadas para vender mais.
             </p>
             <button
               onClick={() => setShowForm(true)}
               disabled={!companyId}
               className="px-10 py-4 rounded-2xl gradient-primary text-primary-foreground font-black text-lg shadow-xl disabled:opacity-50"
             >
-              Começar agora
+              ComeÃ§ar agora
             </button>
           </div>
         ) : (
@@ -161,7 +161,7 @@ export default function BusinessProductsPage() {
   );
 }
 
-// ─── Product Card ────────────────────────────────────────────
+// â”€â”€â”€ Product Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ProductCard({ product, onEdit, onDelete, onToggle }: {
   product: Product;
   onEdit: () => void;
@@ -209,7 +209,7 @@ function ProductCard({ product, onEdit, onDelete, onToggle }: {
       <div className="p-6 space-y-4">
         <div className="min-h-[56px]">
           <h3 className="font-black text-foreground text-lg leading-tight truncate group-hover:text-primary transition-colors">{product.name}</h3>
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium leading-relaxed">{product.description || "Sem descrição disponível"}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium leading-relaxed">{product.description || "Sem descriÃ§Ã£o disponÃ­vel"}</p>
         </div>
 
         {/* Actions Grid */}
@@ -239,7 +239,7 @@ function ProductCard({ product, onEdit, onDelete, onToggle }: {
   );
 }
 
-// ─── Product Form ────────────────────────────────────────────
+// â”€â”€â”€ Product Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ProductForm({ companyId, product, onClose, onSaved }: {
   companyId: string;
   product: Product | null;
@@ -260,7 +260,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
     if (!file || !companyId) return;
 
     if (imageUrls.length >= 3) {
-      toast.error("Máximo de 3 fotos");
+      toast.error("MÃ¡ximo de 3 fotos");
       return;
     }
 
@@ -299,11 +299,11 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
     const url = newUrl.trim();
     if (!url) return;
     if (imageUrls.length >= 3) {
-      toast.error("Máximo de 3 fotos");
+      toast.error("MÃ¡ximo de 3 fotos");
       return;
     }
     if (!url.startsWith("http")) {
-      toast.error("Insira uma URL válida");
+      toast.error("Insira uma URL vÃ¡lida");
       return;
     }
     setImageUrls([...imageUrls, url]);
@@ -352,7 +352,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
   return (
     <div className="space-y-6 animate-in slide-in-from-left-4 duration-500">
       <button onClick={onClose} className="group flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all">
-        <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Voltar ao Cardápio
+        <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Voltar ao CardÃ¡pio
       </button>
 
       <div className="bg-card border border-border rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
@@ -383,24 +383,24 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                   
                   {/* Category Selection */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria Temática</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria TemÃ¡tica</label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none cursor-pointer focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base appearance-none"
                       required
                     >
-                      <option value="Lanches">🍔 Lanches & Sanduíches</option>
-                      <option value="Pizza">🍕 Pizzas</option>
-                      <option value="Doces">🍫 Doces & Sobremesas</option>
-                      <option value="Bebidas">🥤 Bebidas & Sucos</option>
-                      <option value="Outros">🏷️ Categoria Geral (Outros)</option>
+                      <option value="Lanches">ðŸ” Lanches & SanduÃ­ches</option>
+                      <option value="Pizza">ðŸ• Pizzas</option>
+                      <option value="Doces">ðŸ« Doces & Sobremesas</option>
+                      <option value="Bebidas">ðŸ¥¤ Bebidas & Sucos</option>
+                      <option value="Outros">ðŸ·ï¸ Categoria Geral (Outros)</option>
                     </select>
                   </div>
 
                   {/* Price */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Preço de Venda *</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">PreÃ§o de Venda *</label>
                     <div className="relative">
                       <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
                       <input
@@ -416,11 +416,11 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
 
                   {/* Description */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Descrição / Ingredientes</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">DescriÃ§Ã£o / Ingredientes</label>
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Os clientes são atraídos por boas descrições. Liste os ingredientes ou defina as propriedades do seu lanche."
+                      placeholder="Os clientes sÃ£o atraÃ­dos por boas descriÃ§Ãµes. Liste os ingredientes ou defina as propriedades do seu lanche."
                       rows={4}
                       className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all placeholder:font-normal placeholder:opacity-60"
                     />
@@ -433,7 +433,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                 className="w-full py-5 rounded-[2rem] gradient-primary text-primary-foreground text-lg font-black shadow-2xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-95 transition-all"
               >
                 {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-6 w-6" />}
-                {saving ? "Publicando..." : (product ? "Salvar Alterações" : "Adicionar ao Marketplace")}
+                {saving ? "Publicando..." : (product ? "Salvar AlteraÃ§Ãµes" : "Adicionar ao Marketplace")}
               </button>
             </form>
 
@@ -474,7 +474,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                <div className="space-y-4">
                   <div className="relative">
                      <input 
-                        type="file" 
+                        type="file" capture="environment" 
                         id="prod-upload" 
                         className="hidden" 
                         accept="image/*"
@@ -495,7 +495,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                         </div>
                      </label>
                   </div>
-                  <p className="text-[9px] text-muted-foreground italic px-2">📷 Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
+                  <p className="text-[9px] text-muted-foreground italic px-2">ðŸ“· Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
                </div>
             </div>
         </div>
@@ -504,7 +504,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
   );
 }
 
-// ─── Helper for parsing image_url ────────────────────────────
+// â”€â”€â”€ Helper for parsing image_url â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
   try {
@@ -515,3 +515,4 @@ function parseImages(imageUrl: string | null): string[] {
   }
   return [];
 }
+
