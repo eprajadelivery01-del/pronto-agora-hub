@@ -53,7 +53,7 @@ export function NotificationsPopover() {
     try {
       const { data, error } = await supabase
         .from("deliveries")
-        .select("id, status, customer_name, region_name, value, updated_at, companies(name)")
+        .select("id, status, customer_name, value, updated_at, companies(name), regions(name)")
         .order("updated_at", { ascending: false })
         .limit(20);
 
@@ -62,12 +62,13 @@ export function NotificationsPopover() {
       const mapped: AppNotification[] = (data ?? []).map((d: any) => {
         const info = STATUS_MAP[d.status] ?? { title: `Status: ${d.status}`, type: "info" as const, icon: <Package className="h-4 w-4" /> };
         const companyName = d.companies?.name || "Empresa";
+        const regionName = d.regions?.name;
         const value = Number(d.value ?? 0).toFixed(2);
 
         return {
           id: `${d.id}-${d.status}`,
           title: info.title,
-          message: `${companyName} → ${d.customer_name || "Cliente"}${d.region_name ? ` (${d.region_name})` : ""} • R$ ${value}`,
+          message: `${companyName} → ${d.customer_name || "Cliente"}${regionName ? ` (${regionName})` : ""} • R$ ${value}`,
           time: new Date(d.updated_at),
           read: readIds.has(`${d.id}-${d.status}`),
           type: info.type,

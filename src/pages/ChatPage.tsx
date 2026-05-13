@@ -24,7 +24,6 @@ export default function ChatPage() {
         .from("conversations")
         .select(`
           *,
-          profiles:user_id (full_name, avatar_url),
           messages (content, created_at)
         `)
         .order("updated_at", { ascending: false });
@@ -108,7 +107,7 @@ export default function ChatPage() {
                           )}
                         </div>
                         <p className="text-[11px] font-bold text-muted-foreground truncate mt-0.5">
-                          {conv.profiles?.full_name || "Cliente"}
+                          {isLojista ? "Suporte (Admin)" : "Cliente / Entregador"}
                         </p>
                         <p className="text-[10px] text-muted-foreground/60 truncate italic mt-1">
                           {lastMsg?.content || "Iniciando conversa..."}
@@ -136,7 +135,7 @@ export default function ChatPage() {
                     <User className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <span className="font-black text-sm block">{selectedConv.profiles?.full_name || "Cliente"}</span>
+                    <span className="font-black text-sm block">{isLojista ? "Suporte da Plataforma" : "Cliente / Entregador"}</span>
                     <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{getConvTitle(selectedConv)}</span>
                   </div>
                 </div>
