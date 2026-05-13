@@ -604,11 +604,10 @@ export default function BusinessProfilePage() {
                           <div className="h-6 bg-muted/40 rounded-lg" />
                        </div>
                     </div>
-                 </div>
-              </div>
-          </div>
-        </div>
-      </div>
+                  </div>
+               </div>
+           </div>
+         </div>
 
       {/* URL EDIT MODALS/OVERLAYS */}
       {(isEditingLogo || isEditingCover) && (
