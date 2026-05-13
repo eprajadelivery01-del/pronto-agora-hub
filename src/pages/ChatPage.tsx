@@ -10,15 +10,16 @@ import { useMessages, useSendMessage } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ChatPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, hasRole } = useAuth();
   const [selectedConv, setSelectedConv] = useState<any>(null);
   const [message, setMessage] = useState("");
   
-  const isLojista = profile?.role === 'company';
+  const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
   
-  const { data: conversations, isLoading: loadingConvs } = useQuery({
-    queryKey: ["admin-conversations"],
+  const { data: conversations, isLoading: loadingConvs, isError } = useQuery({
+    queryKey: ["conversations", user?.id],
+    enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("conversations")
@@ -71,6 +72,10 @@ export default function ChatPage() {
             {loadingConvs ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : isError ? (
+              <div className="p-8 text-center opacity-40">
+                <p className="text-xs font-bold uppercase text-destructive">Erro ao carregar</p>
               </div>
             ) : conversations?.length === 0 ? (
               <div className="p-8 text-center opacity-40">
