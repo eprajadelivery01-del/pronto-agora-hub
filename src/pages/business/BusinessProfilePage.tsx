@@ -24,6 +24,7 @@ export default function BusinessProfilePage() {
   const [coverUrl, setCoverUrl] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("restaurante");
+  const [deliveryFee, setDeliveryFee] = useState("0.00");
   const [isOpen, setIsOpen] = useState(true);
   const [businessHours, setBusinessHours] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
@@ -86,6 +87,7 @@ export default function BusinessProfilePage() {
         setCoverUrl(company.cover_url || "");
         setCategory(company.category || "restaurante");
         setIsOpen(company.is_open ?? true);
+        setDeliveryFee(company.delivery_fee?.toString() || "0.00");
         setBusinessHours(company.business_hours || "");
         setGallery(company.gallery || []);
 
@@ -236,6 +238,7 @@ export default function BusinessProfilePage() {
           logo_url: logoUrl,
           cover_url: coverUrl,
           category: category,
+          delivery_fee: parseFloat(deliveryFee.replace(',', '.')),
           is_open: isOpen,
           business_hours: hoursJson,
           gallery: gallery,
@@ -496,6 +499,19 @@ export default function BusinessProfilePage() {
                                />
                             </div>
                          </div>
+
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega Padrão (R$)</label>
+                            <div className="relative">
+                               <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                               <input
+                                  value={deliveryFee}
+                                  onChange={(e) => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
+                                  className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-black text-primary text-lg"
+                                  placeholder="0,00"
+                               />
+                            </div>
+                         </div>
                       </div>
 
                       {/* GALLERY SECTION */}
@@ -556,6 +572,20 @@ export default function BusinessProfilePage() {
                        <div className="absolute -bottom-3 left-3 w-10 h-10 rounded-xl bg-white p-1 shadow-lg">
                           <div className="w-full h-full rounded-lg bg-muted overflow-hidden">
                              {logoUrl && <img src={logoUrl} className="w-full h-full object-cover" />}
+                          </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega (R$)</label>
+                             <div className="relative">
+                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                                <input
+                                   value={deliveryFee}
+                                   onChange={(e) => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
+                                   className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-black text-primary text-lg"
+                                   placeholder="0,00"
+                                />
+                             </div>
                           </div>
                        </div>
                     </div>
