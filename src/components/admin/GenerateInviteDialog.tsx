@@ -41,7 +41,7 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
 
       const currentRole = fixedRole || role;
       const baseUrl = currentRole === "driver" 
-        ? "https://entregador.eprajadelivery.com/driver"
+        ? "https://entregador.eprajadelivery.com/invite"
         : "https://lojista.eprajadelivery.com/invite";
         
       const link = `${baseUrl}/${token}`;
