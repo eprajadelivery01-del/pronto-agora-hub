@@ -46,7 +46,27 @@ export function useGlobalChatNotifications() {
             .eq("user_id", newMessage.sender_id)
             .single();
 
-          toast.info(profile?.full_name || "Nova mensagem recebida!", {
+          let senderName = profile?.full_name;
+          
+          if (!senderName) {
+            const { data: company } = await supabase
+              .from("companies")
+              .select("name")
+              .eq("user_id", newMessage.sender_id)
+              .single();
+            senderName = company?.name;
+          }
+
+          if (!senderName) {
+            const { data: driver } = await supabase
+              .from("delivery_drivers")
+              .select("full_name")
+              .eq("user_id", newMessage.sender_id)
+              .single();
+            senderName = driver?.full_name;
+          }
+
+          toast.info(senderName || "Nova mensagem recebida!", {
             description: newMessage.content,
             duration: 8000,
             action: isChatPage ? undefined : {
