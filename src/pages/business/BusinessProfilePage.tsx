@@ -627,7 +627,7 @@ export default function BusinessProfilePage() {
                            <ImagePlus className="h-10 w-10 text-primary" />
                          )}
                          <div className="text-center">
-                            <span className="text-sm font-black uppercase tracking-widest text-primary block">Selecionar do Dispositivo</span>
+                            <span className="text-sm font-black uppercase tracking-widest text-primary block">Tirar Foto / Galeria</span>
                             <span className="text-[10px] text-muted-foreground font-bold mt-1 block">PNG, JPG ou WEBP até 5MB</span>
                          </div>
                       </label>

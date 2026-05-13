@@ -491,8 +491,8 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                      >
                         {isUploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <ImagePlus className="h-8 w-8 text-primary" />}
                         <div className="text-center">
-                           <span className="text-sm font-black uppercase tracking-widest text-primary block">Enviar do Dispositivo</span>
-                           <span className="text-[10px] text-muted-foreground font-bold mt-1 block">Clique para selecionar foto local</span>
+                           <span className="text-sm font-black uppercase tracking-widest text-primary block">Tirar Foto / Galeria</span>
+                           <span className="text-[10px] text-muted-foreground font-bold mt-1 block">Use a câmera ou escolha um arquivo</span>
                         </div>
                      </label>
                   </div>
