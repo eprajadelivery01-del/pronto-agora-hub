@@ -30,6 +30,40 @@ export default function ChatPage() {
     }
   });
 
+  // Profiles map for conversation display
+  const { data: profilesMap } = useQuery({
+    queryKey: ["profiles-map", conversations?.length],
+    enabled: !!conversations && conversations.length > 0,
+    queryFn: async () => {
+      if (!conversations) return {};
+      const participantIds = Array.from(new Set(
+        conversations.flatMap(c => c.participants || [])
+      ));
+      
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url, role")
+        .in("user_id", participantIds);
+
+      const { data: companies } = await supabase
+        .from("companies")
+        .select("user_id, name, logo_url")
+        .in("user_id", participantIds);
+
+      const map: Record<string, any> = {};
+      data?.forEach(p => {
+        map[p.user_id] = p;
+      });
+      companies?.forEach(c => {
+        if (map[c.user_id]) {
+          map[c.user_id].full_name = c.name;
+          map[c.user_id].avatar_url = c.logo_url;
+        }
+      });
+      return map;
+    },
+  });
+
   const { data: messages, isLoading: loadingMessages } = useMessages(selectedConv?.id);
   const sendMessageMutation = useSendMessage();
 
@@ -46,10 +80,15 @@ export default function ChatPage() {
     }
   };
 
+  const getOtherParticipantId = (conv: any) => {
+    return conv.participants?.find((id: string) => id !== user?.id);
+  };
+
   const getConvTitle = (conv: any) => {
     if (conv.order_id) return `Pedido #${conv.order_id.slice(-6).toUpperCase()}`;
-    if (conv.topic === 'driver_application') return "Inscrição Entregador";
-    return conv.title || conv.topic || "Suporte Geral";
+    const otherId = getOtherParticipantId(conv);
+    const otherProfile = profilesMap?.[otherId];
+    return otherProfile?.full_name || conv.title || conv.topic || "Suporte Geral";
   };
 
   const getConvIcon = (conv: any) => {
@@ -109,7 +148,7 @@ export default function ChatPage() {
                           )}
                         </div>
                         <p className="text-[11px] font-bold text-muted-foreground truncate mt-0.5">
-                          {isLojista ? "Suporte (Admin)" : "Cliente / Entregador"}
+                          {profilesMap?.[getOtherParticipantId(conv)]?.role === 'admin' ? "Suporte (Admin)" : "Usuário / Entregador"}
                         </p>
                         <p className="text-[10px] text-muted-foreground/60 truncate italic mt-1">
                           {lastMsg?.content || "Iniciando conversa..."}
@@ -133,12 +172,16 @@ export default function ChatPage() {
               {/* Header */}
               <div className="p-4 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                    {profilesMap?.[getOtherParticipantId(selectedConv)]?.avatar_url ? (
+                      <img src={profilesMap[getOtherParticipantId(selectedConv)].avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-5 w-5 text-primary" />
+                    )}
                   </div>
                   <div>
-                    <span className="font-black text-sm block">{isLojista ? "Suporte da Plataforma" : "Cliente / Entregador"}</span>
-                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{getConvTitle(selectedConv)}</span>
+                    <span className="font-black text-sm block">{getConvTitle(selectedConv)}</span>
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Online</span>
                   </div>
                 </div>
               </div>

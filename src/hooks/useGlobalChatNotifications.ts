@@ -14,10 +14,9 @@ export function useGlobalChatNotifications() {
   useEffect(() => {
     if (!user) return;
 
-    // Use a short random string to avoid channel name collisions across tabs/reloads
     const sessionId = Math.random().toString(36).substring(2, 10);
     const channel = supabase
-      .channel(`global-chat-notifications-${sessionId}`)
+      .channel(`global-notifications-${sessionId}`)
       .on(
         "postgres_changes",
         {
@@ -25,18 +24,12 @@ export function useGlobalChatNotifications() {
           schema: "public",
           table: "messages",
         },
-        (payload) => {
+        async (payload) => {
           const newMessage = payload.new as any;
-          
-          // Ignore messages sent by the current user
           if (newMessage.sender_id === user.id) return;
 
-          // Only notify if we are NOT currently on the chat page, 
-          // OR if we are on the chat page but it's a message for a different conversation?
-          // Actually, if we are on the chat page, let's still notify so they know another chat got a message, 
-          // unless they are actively in THAT conversation. But we don't have the active conversation state here.
-          // For simplicity, we just notify if they are not on the chat page.
-          const isChatPage = location.pathname.includes("/chat");
+          // Check location inside callback to keep subscription stable
+          const isChatPage = window.location.pathname.includes("/chat");
           
           try {
              const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
@@ -46,17 +39,22 @@ export function useGlobalChatNotifications() {
              console.error("[Audio] Erro ao reproduzir som:", err);
           }
 
-          const isLojista = hasRole("company");
-          toast.info("Nova mensagem recebida!", {
+          // Fetch sender name for better notification
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", newMessage.sender_id)
+            .single();
+
+          toast.info(profile?.full_name || "Nova mensagem recebida!", {
             description: newMessage.content,
             duration: 8000,
             action: isChatPage ? undefined : {
               label: "Abrir Chat",
-              onClick: () => navigate(isLojista ? "/business/chat" : "/admin/chat")
+              onClick: () => navigate(hasRole("company") ? "/business/chat" : "/admin/chat")
             }
           });
 
-          // Invalidate messages and conversations to keep sidebar fresh
           qc.invalidateQueries({ queryKey: ["conversations"] });
           qc.invalidateQueries({ queryKey: ["admin-conversations"] });
           qc.invalidateQueries({ queryKey: ["messages", newMessage.conversation_id] });
@@ -67,7 +65,7 @@ export function useGlobalChatNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, location.pathname, navigate, hasRole, qc]);
+  }, [user?.id, navigate, qc]); // Removed location.pathname to keep channel stable
 }
 
 export function GlobalChatListener() {
