@@ -30,6 +30,7 @@ import ChatPage from "./pages/ChatPage";
 import BusinessFinancePage from "./pages/business/BusinessFinancePage";
 import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
 import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
+import { GlobalChatListener } from "@/hooks/useGlobalChatNotifications";
 
 // Admin Panel Pages (Missing in this App.tsx)
 import DashboardPage from "./pages/DashboardPage";
@@ -57,6 +58,7 @@ const App = () => (
           <ScrollToTop />
           <CityProvider>
             <AuthProvider>
+              <GlobalChatListener />
               <Routes>
                 <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
                 <Route path="/login/business" element={<PageTransition><BusinessLoginPage /></PageTransition>} />
