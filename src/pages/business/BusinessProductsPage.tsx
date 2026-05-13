@@ -383,7 +383,15 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                   
                   {/* Category Selection */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em]                       <option value="Lanches">🍔 Lanches & Sanduíches</option>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria *</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+                      required
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      <option value="Lanches">🍔 Lanches & Sanduíches</option>
                       <option value="Pizza">🍕 Pizzas</option>
                       <option value="Doces">🍫 Doces & Sobremesas</option>
                       <option value="Bebidas">🥤 Bebidas & Sucos</option>
