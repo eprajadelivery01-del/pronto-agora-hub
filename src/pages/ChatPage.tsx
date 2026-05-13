@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { MessageSquare, User, Loader2, Send, Bike, HelpCircle } from "lucide-react";
@@ -9,9 +10,12 @@ import { useMessages, useSendMessage } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ChatPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedConv, setSelectedConv] = useState<any>(null);
   const [message, setMessage] = useState("");
+  
+  const isLojista = profile?.role === 'company';
+  const Layout = isLojista ? BusinessLayout : AdminLayout;
   
   const { data: conversations, isLoading: loadingConvs } = useQuery({
     queryKey: ["admin-conversations"],
@@ -57,7 +61,7 @@ export default function ChatPage() {
   };
 
   return (
-    <AdminLayout title="Suporte / Chat" subtitle="Gerenciamento de conversas em tempo real">
+    <Layout title="Suporte / Chat" subtitle="Gerenciamento de conversas em tempo real">
       <div className="flex h-[calc(100vh-180px)] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar */}
         <div className="w-80 border-r border-border flex flex-col bg-muted/30">
@@ -196,6 +200,6 @@ export default function ChatPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </Layout>
   );
 }
