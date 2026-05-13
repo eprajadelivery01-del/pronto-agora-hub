@@ -49,10 +49,11 @@ CREATE POLICY "Companies can manage own record" ON public.companies
   USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'))
   WITH CHECK (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
 
--- Re-add a SELECT policy for active companies to prevent JOIN failures
-CREATE POLICY "Authenticated users can view active companies" ON public.companies
-  FOR SELECT TO authenticated
-  USING (is_active = true);
+-- Re-add a SELECT policy for companies to be visible to everyone (Marketplace)
+DROP POLICY IF EXISTS "Authenticated users can view active companies" ON public.companies;
+CREATE POLICY "Public users can view companies" ON public.companies
+  FOR SELECT TO anon, authenticated
+  USING (true);
 
 -- Refine Deliveries Policy: Use a more direct check for company_id
 DROP POLICY IF EXISTS "Companies can manage own deliveries" ON public.deliveries;
