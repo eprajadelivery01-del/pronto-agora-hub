@@ -13,7 +13,7 @@ export interface DeliveryWithRelations {
   created_at: string;
   updated_at: string;
   companies?: { name: string; phone: string | null } | null;
-  // Extended fields (may exist in DB but not in generated types)
+  delivery_drivers?: { id: string; user_id: string; vehicle: string } | null;
   pickup_latitude?: number | null;
   pickup_longitude?: number | null;
   dropoff_address?: string | null;
@@ -59,7 +59,8 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           pickup_address,
           dropoff_address,
           notes,
-          companies(name, phone)
+          companies(name, phone),
+          delivery_drivers(id, user_id, vehicle)
         `, { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);

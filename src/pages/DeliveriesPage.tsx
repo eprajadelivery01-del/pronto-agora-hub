@@ -471,10 +471,42 @@ export default function DeliveriesPage() {
                 )}
               </div>
 
-              <DetailField label="Endereço" value={detailDelivery.dropoff_address} />
+              <DetailField label="Endereço" value={detailDelivery.dropoff_address || detailDelivery.address || "—"} />
               
               {detailDelivery.notes && (
                 <DetailField label="Observações" value={detailDelivery.notes} />
+              )}
+
+              {/* Driver Section */}
+              {detailDelivery.driver_id && (
+                <div className="p-4 bg-muted/50 rounded-2xl border border-border space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Entregador Responsável</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <UserCheck className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">
+                          {drivers?.find(d => d.id === detailDelivery.driver_id)?.profiles?.full_name || "Entregador Localizado"}
+                        </p>
+                        <p className="text-xs text-muted-foreground uppercase font-medium">
+                          {drivers?.find(d => d.id === detailDelivery.driver_id)?.vehicle || "Veículo não inf."}
+                        </p>
+                      </div>
+                    </div>
+                    {drivers?.find(d => d.id === detailDelivery.driver_id)?.profiles?.phone && (
+                      <a
+                        href={`https://wa.me/55${drivers.find(d => d.id === detailDelivery.driver_id)?.profiles?.phone.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 text-white text-xs font-black hover:bg-green-600 transition-colors"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> WHATSAPP
+                      </a>
+                    )}
+                  </div>
+                </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
