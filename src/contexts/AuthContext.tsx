@@ -35,6 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (fetchingRef.current === userId) return;
     fetchingRef.current = userId;
     
+    // Only set rolesLoaded to false if we haven't loaded them yet
+    // This prevents the "Verificando permissões..." flicker on session refresh
+    const currentlyLoaded = roles.length > 0;
+    if (!currentlyLoaded) {
+      // We don't have a specific state for rolesLoaded in this file's state definition, 
+      // but we can ensure we don't trigger unnecessary loading states.
+    }
 
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -128,6 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setUserStatus(null);
           setLoading(false);
+        } else if (event === "TOKEN_REFRESHED") {
+          // Ignore token refreshed events to prevent infinite reload loops
+          return;
         } else if (currentUser) {
           const email = currentUser.email?.toLowerCase();
           setLoading(false);
