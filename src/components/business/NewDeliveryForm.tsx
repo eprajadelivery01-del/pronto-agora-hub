@@ -84,6 +84,15 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
       toast.error("Selecione uma região de entrega.");
       return;
     }
+
+    if (!isPaid) {
+      const val = parseFloat(collectValue.replace(',', '.'));
+      if (isNaN(val) || val <= 0) {
+        toast.error("Atenção: Você precisa preencher o valor a ser cobrado do cliente ou marcar que o pedido já foi pago!");
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
@@ -222,6 +231,9 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
              <div className={cn("space-y-1.5", isPaid && "opacity-40 grayscale pointer-events-none")}>
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Valor a Cobrar (R$)</label>
                <input value={isPaid ? "0,00" : collectValue} onChange={e => setCollectValue(e.target.value)} className="w-full px-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none" />
+               {!isPaid && (parseFloat(collectValue.replace(',', '.')) <= 0 || !collectValue) && (
+                 <p className="text-[9px] text-warning font-bold animate-pulse ml-2 mt-1">⚠️ Preenchimento Obrigatório</p>
+               )}
              </div>
              <div className="flex flex-col justify-end">
                <button type="button" onClick={() => setIsPaid(!isPaid)} className={cn("w-full h-[68px] rounded-2xl border-2 flex items-center justify-between px-6 font-black uppercase text-[10px]", isPaid ? "bg-green-500 border-green-500 text-white" : "bg-muted/30 border-border text-muted-foreground")}>
