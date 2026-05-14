@@ -146,7 +146,7 @@ export default function UsersPage() {
                       )}>{inv.status}</span>
                     </td>
                     <td className="p-4">
-                      {inv.status === "pending" && <CopyLinkButton token={inv.token} />}
+                      {inv.status === "pending" && <CopyLinkButton token={inv.token} role={inv.role} />}
                     </td>
                   </tr>
                 ))}
@@ -326,9 +326,15 @@ function InviteDialog() {
   );
 }
 
-function CopyLinkButton({ token }: { token: string }) {
+function CopyLinkButton({ token, role }: { token: string, role?: string }) {
   const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}/invite/${token}`;
+  
+  // Use fixed domains for consistent invite links
+  const baseUrl = role === "driver" 
+    ? "https://entregador.eprajadelivery.com" 
+    : "https://lojista.eprajadelivery.com";
+    
+  const link = `${baseUrl}/invite/${token}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(link);
