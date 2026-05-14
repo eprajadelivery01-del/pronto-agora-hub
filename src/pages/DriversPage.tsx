@@ -52,25 +52,28 @@ export default function DriversPage() {
 
   return (
     <AdminLayout title="Entregadores" subtitle="Gestão de motoboys e frota">
-      <div className="flex items-center justify-between mb-6">
-        <div />
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-card shadow-card p-6 rounded-2xl border border-border/50">
+        <div className="space-y-1">
+          <h2 className="text-xl font-black text-foreground tracking-tight">Painel de Controle</h2>
+          <p className="text-sm text-muted-foreground font-medium">Gerencie sua frota de entregadores</p>
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <GenerateInviteDialog fixedRole="driver" triggerLabel="Convidar Entregador" />
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              <Plus className="h-4 w-4" /> Cadastrar Entregador
-            </button>
-          </DialogTrigger>
-          <DialogContent 
-            onOpenAutoFocus={(e) => e.preventDefault()}
-            className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
-          >
-            <DialogHeader>
-              <DialogTitle>Cadastrar Entregador</DialogTitle>
-            </DialogHeader>
-            <CreateDriverForm onSuccess={() => setCreateOpen(false)} />
-          </DialogContent>
+            <DialogTrigger asChild>
+              <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                <Plus className="h-5 w-5" /> Cadastrar Entregador
+              </button>
+            </DialogTrigger>
+            <DialogContent 
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl"
+            >
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black">Cadastrar Entregador</DialogTitle>
+              </DialogHeader>
+              <CreateDriverForm onSuccess={() => setCreateOpen(false)} />
+            </DialogContent>
           </Dialog>
         </div>
       </div>
