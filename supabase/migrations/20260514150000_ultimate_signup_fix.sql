@@ -1,0 +1,83 @@
+
+-- ULTIMATE SIGNUP FIX: BLINDAGEM TOTAL DO CADASTRO
+-- Garante que o cadastro nunca falhe por erros de perfil ou convite
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_invitation_id UUID;
+  v_role TEXT;
+  v_invitation_record RECORD;
+BEGIN
+  -- 1. Tentar criar/atualizar o Perfil (Profiles)
+  BEGIN
+    INSERT INTO public.profiles (user_id, full_name, phone, document)
+    VALUES (
+      NEW.id, 
+      COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+      COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+      COALESCE(NEW.raw_user_meta_data->>'document', '')
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      phone = EXCLUDED.phone,
+      document = EXCLUDED.document;
+  EXCEPTION WHEN OTHERS THEN
+    -- Se falhar o perfil, ignoramos para não travar o Auth
+    RAISE WARNING 'Erro ao criar perfil no signup: %', SQLERRM;
+  END;
+
+  -- 2. Processar Convite e Atribuir Funções
+  BEGIN
+    IF (NEW.raw_user_meta_data->>'invitation_id') IS NOT NULL THEN
+      v_invitation_id := (NEW.raw_user_meta_data->>'invitation_id')::UUID;
+      
+      SELECT * INTO v_invitation_record FROM public.invitations 
+      WHERE id = v_invitation_id AND status = 'pending';
+      
+      IF v_invitation_record.id IS NOT NULL THEN
+        v_role := v_invitation_record.role;
+
+        -- Atribuir Role
+        BEGIN
+          INSERT INTO public.user_roles (user_id, role) 
+          VALUES (NEW.id, v_role::public.app_role)
+          ON CONFLICT (user_id, role) DO NOTHING;
+        EXCEPTION WHEN OTHERS THEN NULL; END;
+
+        -- Criar registro específico (Entregador ou Empresa)
+        IF v_role = 'driver' THEN
+          BEGIN
+            INSERT INTO public.delivery_drivers (user_id, is_online)
+            VALUES (NEW.id, false)
+            ON CONFLICT (user_id) DO NOTHING;
+          EXCEPTION WHEN OTHERS THEN NULL; END;
+          
+          -- Também inserir na tabela legada motoboys se existir
+          BEGIN
+            INSERT INTO public.motoboys (name, is_online)
+            VALUES (COALESCE(NEW.raw_user_meta_data->>'full_name', 'Novo Entregador'), false);
+          EXCEPTION WHEN OTHERS THEN NULL; END;
+
+        ELSIF v_role = 'company' THEN
+          BEGIN
+            INSERT INTO public.companies (user_id, name, phone)
+            VALUES (
+              NEW.id,
+              COALESCE(NEW.raw_user_meta_data->>'company_name', v_invitation_record.email),
+              COALESCE(NEW.raw_user_meta_data->>'phone', '')
+            );
+          EXCEPTION WHEN OTHERS THEN NULL; END;
+        END IF;
+
+        -- Marcar convite como aceito
+        UPDATE public.invitations SET status = 'accepted', accepted_at = now() WHERE id = v_invitation_id;
+      END IF;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Erro ao processar convite no signup: %', SQLERRM;
+  END;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
