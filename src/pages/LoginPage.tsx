@@ -37,11 +37,7 @@ export default function LoginPage() {
     } else if (hasRole("company")) {
       navigate("/business", { replace: true });
     } else if (hasRole("admin")) {
-      toast({
-        title: "Portal de Lojistas",
-        description: "Você está logado como Administrador. Use o painel administrativo para gestão global.",
-        variant: "default",
-      });
+      navigate("/admin", { replace: true });
     } else {
       toast({
         title: "Identificação Necessária",
