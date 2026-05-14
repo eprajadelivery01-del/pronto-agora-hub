@@ -489,16 +489,16 @@ export default function DeliveriesPage() {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-foreground">
-                          {drivers?.find(d => d.id === detailDelivery.driver_id)?.profiles?.full_name || "Entregador Localizado"}
+                          {detailDelivery.delivery_drivers?.profiles?.full_name || "Entregador Atribuído"}
                         </p>
                         <p className="text-xs text-muted-foreground uppercase font-medium">
-                          {drivers?.find(d => d.id === detailDelivery.driver_id)?.vehicle || "Veículo não inf."}
+                          {detailDelivery.delivery_drivers?.vehicle || "Veículo não inf."}
                         </p>
                       </div>
                     </div>
-                    {drivers?.find(d => d.id === detailDelivery.driver_id)?.profiles?.phone && (
+                    {detailDelivery.delivery_drivers?.profiles?.phone && (
                       <a
-                        href={`https://wa.me/55${drivers.find(d => d.id === detailDelivery.driver_id)?.profiles?.phone.replace(/\D/g, "")}`}
+                        href={`https://wa.me/55${detailDelivery.delivery_drivers.profiles.phone.replace(/\D/g, "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 text-white text-xs font-black hover:bg-green-600 transition-colors"
