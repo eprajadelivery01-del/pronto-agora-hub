@@ -142,6 +142,19 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
               </button>
             )}
           </div>
+          
+          {/* Global Branding Footer (Desktop Sidebar) */}
+          <div className="mt-4 px-2 pointer-events-none select-none">
+            <p className={cn("text-[9px] font-black tracking-widest text-slate-400 mb-1", collapsed && "text-center tracking-normal")}>
+              {collapsed ? "EPJ" : "É Pra Já Delivery"}
+            </p>
+            {!collapsed && (
+              <>
+                <p className="text-[8px] font-medium text-slate-400/60 mb-1">© 2026</p>
+                <p className="text-[8px] font-black tracking-[0.2em] text-slate-400 uppercase">BONASOFT</p>
+              </>
+            )}
+          </div>
         </div>
       </aside>
     </>
