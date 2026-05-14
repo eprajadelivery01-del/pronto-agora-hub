@@ -58,7 +58,14 @@ export default function InvitePage() {
         document,
       });
       toast({ title: "Conta criada!", description: "Bem-vindo ao É Pra Já!" });
-      navigate("/login");
+      
+      const redirectUrl = invitation.role === "company" 
+        ? "https://lojista.eprajadelivery.com/login" 
+        : "https://entregador.eprajadelivery.com/login";
+
+      setTimeout(() => {
+        window.location.href = redirectUrl;
+      }, 2000);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
