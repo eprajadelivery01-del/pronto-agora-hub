@@ -33,7 +33,7 @@ BEGIN
       v_invitation_id := (NEW.raw_user_meta_data->>'invitation_id')::UUID;
       
       SELECT * INTO v_invitation_record FROM public.invitations 
-      WHERE id = v_invitation_id AND status = 'pending';
+      WHERE id = v_invitation_id AND status IN ('pending', 'accepted');
       
       IF v_invitation_record.id IS NOT NULL THEN
         v_role := v_invitation_record.role;
