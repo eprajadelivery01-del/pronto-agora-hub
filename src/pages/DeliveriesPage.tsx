@@ -278,7 +278,9 @@ export default function DeliveriesPage() {
                         <p className="text-sm text-foreground">{(delivery as any).companies?.name || "—"}</p>
                       </td>
                       <td className="p-4 hidden lg:table-cell">
-                        <p className="text-sm text-muted-foreground truncate max-w-[200px]">{delivery.dropoff_address}</p>
+                        <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          {delivery.dropoff_address || delivery.address || "—"}
+                        </p>
                       </td>
                       <td className="p-4">
                         <DeliveryStatusBadge status={delivery.status as DeliveryStatus} />

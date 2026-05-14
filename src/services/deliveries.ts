@@ -45,12 +45,31 @@ export function useDeliveries(params?: UseDeliveriesParams) {
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
-        .select("id, company_id, driver_id, customer_name, address, value, status, created_at, updated_at, region_id, companies(name, phone)", { count: "exact" })
+        .select(`
+          id, 
+          company_id, 
+          driver_id, 
+          customer_name, 
+          address, 
+          value, 
+          status, 
+          created_at, 
+          updated_at, 
+          region_id,
+          pickup_address,
+          dropoff_address,
+          notes,
+          companies(name, phone)
+        `, { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
       if (status && status !== "all") query = query.eq("status", status as any);
-      if (search) query = query.ilike("customer_name", `%${search}%`);
+      
+      if (search) {
+        // Multi-column search for better UX
+        query = query.or(`customer_name.ilike.%${search}%,address.ilike.%${search}%,dropoff_address.ilike.%${search}%`);
+      }
       if (companyId) query = query.eq("company_id", companyId);
       if (driverId) query = query.eq("driver_id", driverId);
       if (dateFrom) query = query.gte("created_at", new Date(dateFrom).toISOString());

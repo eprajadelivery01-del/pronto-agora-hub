@@ -32,6 +32,7 @@ import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
 import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
 import { GlobalChatListener } from "@/hooks/useGlobalChatNotifications";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
+import { SoundEnabler } from "@/components/shared/SoundEnabler";
 
 // Admin Panel Pages (Missing in this App.tsx)
 import DashboardPage from "./pages/DashboardPage";

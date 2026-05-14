@@ -18,8 +18,8 @@ const navItems = [
   { label: "Clientes", icon: ShoppingBag, href: "/admin/customers" },
   { label: "Regiões", icon: MapPin, href: "/admin/regions" },
   { label: "Financeiro", icon: DollarSign, href: "/admin/reports" },
-  { label: "Ocorrências", icon: AlertTriangle, href: "/admin/occurrences" },
-  { label: "Configurações", icon: Settings, href: "/admin/settings" },
+  { label: "Meu Perfil", icon: User, href: "/admin/profile" },
+  { label: "Suporte", icon: MessageSquare, href: "https://wa.me/5565996112999", external: true },
 ];
 
 interface AdminSidebarProps {
@@ -97,6 +97,24 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
           {navItems.map((item) => {
             const isActive = location.pathname === item.href ||
               (item.href !== "/admin" && location.pathname.startsWith(item.href));
+            if ((item as any).external) {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    collapsed && "justify-center px-0"
+                  )}
+                  title={collapsed ? item.label : ""}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span className="animate-in fade-in slide-in-from-left-2 duration-300">{item.label}</span>}
+                </a>
+              );
+            }
             return (
               <Link
                 key={item.href}
