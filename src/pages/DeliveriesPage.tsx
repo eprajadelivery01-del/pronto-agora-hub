@@ -8,7 +8,8 @@ import { useDeliveriesRealtime } from "@/services/realtime";
 import { useUniqueDeliveries } from "@/hooks/useUniqueDeliveries";
 import {
   Search, Filter, Eye, MoreHorizontal, X as XIcon, ChevronLeft, ChevronRight,
-  Loader2, Printer, UserCheck, Package, Radio, Send, MapPin, Plus
+  Loader2, Printer, UserCheck, Package, Radio, Send, MapPin, Plus,
+  MessageSquare, Clock, Calendar
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -457,41 +458,57 @@ export default function DeliveriesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DetailField label="Cliente" value={detailDelivery.customer_name} />
-                <DetailField label="Empresa" value={(detailDelivery as any).companies?.name || "—"} />
-                <DetailField label="Valor" value={`R$ ${Number(detailDelivery.value ?? detailDelivery.price ?? 0).toFixed(2)}`} />
-                <DetailField label="Criado em" value={format(new Date(detailDelivery.created_at), "dd/MM/yyyy HH:mm")} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 bg-muted/30 p-4 rounded-2xl border border-border">
+                <DetailField label="Cliente" value={detailDelivery.customer_name} icon={<UserCheck className="h-3.5 w-3.5 text-primary" />} />
+                <DetailField label="Empresa" value={(detailDelivery as any).companies?.name || "—"} icon={<Package className="h-3.5 w-3.5 text-primary" />} />
+                <DetailField label="Valor da Corrida" value={`R$ ${Number(detailDelivery.value ?? detailDelivery.price ?? 0).toFixed(2)}`} icon={<Clock className="h-3.5 w-3.5 text-primary" />} />
+                <DetailField label="Criado em" value={format(new Date(detailDelivery.created_at), "dd/MM/yyyy HH:mm")} icon={<Calendar className="h-3.5 w-3.5 text-primary" />} />
                 {detailDelivery.region_name && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Região</p>
-                    <span className="inline-block bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full border border-primary/20">
+                  <div className="sm:col-span-2">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Região de Atuação</p>
+                    <span className="inline-block bg-primary/10 text-primary text-xs font-black px-3 py-1 rounded-lg border border-primary/20">
                       {detailDelivery.region_name}
                     </span>
                   </div>
                 )}
               </div>
 
-              <DetailField label="Endereço" value={detailDelivery.dropoff_address || detailDelivery.address || "—"} />
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Endereço de Entrega</p>
+                <div className="p-3 bg-card border border-border rounded-xl flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-sm font-medium text-foreground">{detailDelivery.dropoff_address || detailDelivery.address || "—"}</p>
+                </div>
+              </div>
               
               {detailDelivery.notes && (
-                <DetailField label="Observações" value={detailDelivery.notes} />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Observações</p>
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-900 leading-relaxed">
+                    {detailDelivery.notes}
+                  </div>
+                </div>
               )}
 
               {/* Driver Section */}
-              {detailDelivery.driver_id && (
-                <div className="p-4 bg-muted/50 rounded-2xl border border-border space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Entregador Responsável</p>
+              {detailDelivery.driver_id ? (
+                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Entregador Responsável</p>
+                    <div className="flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Em Atividade
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <UserCheck className="h-5 w-5 text-primary" />
+                      <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                        <UserCheck className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-foreground">
+                        <p className="text-base font-black text-foreground">
                           {detailDelivery.delivery_drivers?.profiles?.full_name || "Entregador Atribuído"}
                         </p>
-                        <p className="text-xs text-muted-foreground uppercase font-medium">
+                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wide">
                           {detailDelivery.delivery_drivers?.vehicle || "Veículo não inf."}
                         </p>
                       </div>
@@ -501,20 +518,35 @@ export default function DeliveriesPage() {
                         href={`https://wa.me/55${detailDelivery.delivery_drivers.profiles.phone.replace(/\D/g, "")}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 text-white text-xs font-black hover:bg-green-600 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-green-500/20"
                       >
-                        <MessageSquare className="h-3.5 w-3.5" /> WHATSAPP
+                        <MessageSquare className="h-4 w-4" /> WHATSAPP
                       </a>
                     )}
                   </div>
                 </div>
+              ) : (
+                <div className="p-4 bg-muted/50 rounded-2xl border border-dashed border-border text-center">
+                  <p className="text-xs font-bold text-muted-foreground uppercase">Nenhum entregador vinculado</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Aguardando aceite ou atribuição manual</p>
+                </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
-                {detailDelivery.accepted_at && <span>Aceita: {format(new Date(detailDelivery.accepted_at), "dd/MM HH:mm")}</span>}
-                {detailDelivery.collected_at && <span>Coletada: {format(new Date(detailDelivery.collected_at), "dd/MM HH:mm")}</span>}
-                {detailDelivery.delivered_at && <span>Finalizada: {format(new Date(detailDelivery.delivered_at), "dd/MM HH:mm")}</span>}
-                {detailDelivery.cancelled_at && <span>Cancelada: {format(new Date(detailDelivery.cancelled_at), "dd/MM HH:mm")}</span>}
+              {/* Timeline Section */}
+              <div className="space-y-3 pt-2">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Linha do Tempo (Status)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <StatusTimeCard label="Criada" time={detailDelivery.created_at} active />
+                  <StatusTimeCard label="Aceita" time={detailDelivery.accepted_at} active={!!detailDelivery.accepted_at} />
+                  <StatusTimeCard label="Coletada" time={detailDelivery.collected_at} active={!!detailDelivery.collected_at} />
+                  <StatusTimeCard label="Finalizada" time={detailDelivery.delivered_at} active={!!detailDelivery.delivered_at} />
+                </div>
+                {detailDelivery.cancelled_at && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-black text-destructive uppercase tracking-widest">Cancelada em:</span>
+                    <span className="text-xs font-bold text-destructive">{format(new Date(detailDelivery.cancelled_at), "dd/MM HH:mm")}</span>
+                  </div>
+                )}
               </div>
 
               {!["delivered", "cancelled"].includes(detailDelivery.status) && (
@@ -665,11 +697,29 @@ export default function DeliveriesPage() {
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
+function DetailField({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-foreground">{value}</p>
+      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+        {icon} {label}
+      </p>
+      <p className="text-sm font-bold text-foreground truncate">{value}</p>
+    </div>
+  );
+}
+
+function StatusTimeCard({ label, time, active }: { label: string; time?: string | null; active: boolean }) {
+  return (
+    <div className={cn(
+      "p-2.5 rounded-xl border flex flex-col gap-0.5 transition-all",
+      active 
+        ? "bg-card border-border shadow-sm" 
+        : "bg-muted/20 border-transparent opacity-40 grayscale"
+    )}>
+      <p className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground">{label}</p>
+      <p className="text-xs font-black text-foreground">
+        {time ? format(new Date(time), "dd/MM HH:mm") : "--/-- --:--"}
+      </p>
     </div>
   );
 }
