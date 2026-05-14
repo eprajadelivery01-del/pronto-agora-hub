@@ -48,9 +48,16 @@ BEGIN
         -- Criar registro específico (Entregador ou Empresa)
         IF v_role = 'driver' THEN
           BEGIN
-            INSERT INTO public.delivery_drivers (user_id, is_online)
-            VALUES (NEW.id, false)
-            ON CONFLICT (user_id) DO NOTHING;
+            INSERT INTO public.delivery_drivers (user_id, is_online, full_name, phone)
+            VALUES (
+              NEW.id, 
+              false,
+              COALESCE(NEW.raw_user_meta_data->>'full_name', 'Entregador'),
+              COALESCE(NEW.raw_user_meta_data->>'phone', '')
+            )
+            ON CONFLICT (user_id) DO UPDATE SET
+              full_name = EXCLUDED.full_name,
+              phone = EXCLUDED.phone;
           EXCEPTION WHEN OTHERS THEN NULL; END;
           
           -- Também inserir na tabela legada motoboys se existir

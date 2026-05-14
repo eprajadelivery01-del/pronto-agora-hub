@@ -66,9 +66,16 @@ BEGIN
 
   -- 5. Create specific record
   IF v_role = 'driver' THEN
-    INSERT INTO public.delivery_drivers (user_id, is_online)
-    VALUES (v_user_id, false)
-    ON CONFLICT (user_id) DO NOTHING;
+    INSERT INTO public.delivery_drivers (user_id, is_online, full_name, phone)
+    VALUES (
+      v_user_id, 
+      false,
+      COALESCE((SELECT full_name FROM profiles WHERE user_id = v_user_id), 'Entregador'),
+      COALESCE((SELECT phone FROM profiles WHERE user_id = v_user_id), '')
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      phone = EXCLUDED.phone;
     
     INSERT INTO public.motoboys (name, is_online)
     VALUES (COALESCE((SELECT full_name FROM profiles WHERE user_id = v_user_id), 'Entregador'), false);
