@@ -102,9 +102,10 @@ export default function InvitePage() {
           <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4">
             <Package className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Complete seu cadastro</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">Complete seu cadastro v2</h1>
           <p className="text-sm text-muted-foreground mt-1 text-center">
             Você foi convidado para se tornar um <strong>{roleLabels[invitation.role] || invitation.role} Parceiro</strong>.
+            Sistema de Convites Ativo - Versão 14/05/2026.
           </p>
         </div>
 
