@@ -28,12 +28,19 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'message', 'Usuário já possui permissões');
   END IF;
 
-  -- 2. Get invitation_id from auth.users metadata
-  SELECT (raw_user_meta_data->>'invitation_id')::UUID INTO v_invitation_id 
+  -- 2. Get invitation_id from auth.users metadata (Check both 'invitation_id' and 'id')
+  SELECT 
+    COALESCE(
+      (raw_user_meta_data->>'invitation_id'),
+      (raw_user_meta_data->>'id')
+    )::UUID INTO v_invitation_id 
   FROM auth.users WHERE id = v_user_id;
 
   IF v_invitation_id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Convite não encontrado no perfil');
+    RETURN jsonb_build_object(
+      'success', false, 
+      'error', 'Convite não encontrado no seu cadastro. Metadata: ' || (SELECT raw_user_meta_data::text FROM auth.users WHERE id = v_user_id)
+    );
   END IF;
 
   -- 3. Lookup invitation
@@ -41,7 +48,13 @@ BEGIN
   WHERE id = v_invitation_id;
 
   IF v_invitation_record.id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Convite inválido ou excluído');
+    -- Try searching by token instead of id
+    SELECT * INTO v_invitation_record FROM public.invitations 
+    WHERE token::text = v_invitation_id::text;
+    
+    IF v_invitation_record.id IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Convite #' || v_invitation_id || ' não localizado no sistema.');
+    END IF;
   END IF;
 
   v_role := v_invitation_record.role;
