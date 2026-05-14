@@ -5,6 +5,7 @@ import { useDeliveries, useUpdateDeliveryStatus, useReassignDelivery, type Deliv
 import { useCompanies } from "@/services/companies";
 import { useDrivers } from "@/services/drivers";
 import { useDeliveriesRealtime } from "@/services/realtime";
+import { useUniqueDeliveries } from "@/hooks/useUniqueDeliveries";
 import {
   Search, Filter, Eye, MoreHorizontal, X as XIcon, ChevronLeft, ChevronRight,
   Loader2, Printer, UserCheck, Package, Radio, Send, MapPin, Plus
@@ -70,7 +71,7 @@ export default function DeliveriesPage() {
   const updateStatus = useUpdateDeliveryStatus();
   const reassignMut = useReassignDelivery();
 
-  const deliveries = data?.data ?? [];
+  const deliveries = useUniqueDeliveries(data?.data);
   const totalCount = data?.count ?? 0;
   const totalPages = Math.ceil(totalCount / pageSize);
 
