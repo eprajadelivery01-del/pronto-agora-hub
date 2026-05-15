@@ -278,18 +278,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             <LogOut className="h-5 w-5" />
             {!collapsed && <span className="animate-in fade-in duration-300">Sair do Painel</span>}
           </button>
-          {/* Global Branding Footer (Desktop Sidebar) */}
-          <div className="mt-auto px-4 py-6 border-t border-border/40 pointer-events-none select-none">
-            <p className="text-[9px] font-black tracking-widest text-slate-400 mb-1">
-              É Pra Já Delivery
-            </p>
-            <p className="text-[8px] font-medium text-slate-400/60 mb-1">
-              © 2026
-            </p>
-            <p className="text-[8px] font-black tracking-[0.2em] text-slate-400 uppercase">
-              BONASOFT
-            </p>
-          </div>
+
         </div>
       </aside>
 
@@ -427,18 +416,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           <div className="max-w-7xl mx-auto w-full space-y-6 pb-10 flex-1">
             {children}
           </div>
-          {/* Global Branding Footer (Mobile) */}
-          <div className="w-full py-10 flex flex-col items-center justify-center pointer-events-none select-none mt-auto pb-40 lg:hidden">
-            <p className="text-[11px] font-black tracking-widest text-slate-400 mb-2">
-              É Pra Já Delivery
-            </p>
-            <p className="text-[10px] font-medium text-slate-400/80 mb-2">
-              © 2026 • Todos os direitos reservados
-            </p>
-            <p className="text-[10px] font-black tracking-[0.4em] text-slate-400 uppercase">
-              BONASOFT
-            </p>
-          </div>
+
         </main>
       </div>
 
