@@ -39,7 +39,7 @@ export default function BusinessHomePage() {
           delivery_address, payment_method,
           customers (name),
           order_items (
-            id, quantity, price, product_name,
+            id, quantity, price, product_name, notes, observation,
             products (id, name, image_url, description)
           )
         `)
