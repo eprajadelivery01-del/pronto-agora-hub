@@ -61,8 +61,6 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           created_at, 
           updated_at, 
           region_id,
-          pickup_address,
-          dropoff_address,
           notes,
           companies(name, phone),
           delivery_drivers(id, user_id, vehicle, profiles(full_name, phone))
@@ -270,7 +268,7 @@ export function useDeliveryTracking(orderId?: string | null) {
     queryKey: ["order", orderId],
     queryFn: async () => {
       if (!orderId) return null;
-      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, created_at, pickup_address, dropoff_address)").eq("id", orderId).single();
+      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, created_at)").eq("id", orderId).single();
       return data;
     },
     enabled: !!orderId,

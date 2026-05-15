@@ -142,7 +142,7 @@ export default function BusinessOrdersPage() {
           id, status, total, created_at, customer_id, delivery_id,
           delivery_address, payment_method, notes,
           order_items (
-            id, quantity, price, product_name, unit_price,
+            id, quantity, price, notes, observation,
             products (id, name, image_url, description)
           )
         `)
@@ -302,7 +302,7 @@ export default function BusinessOrdersPage() {
           console.table(openOrders.map(o => ({ 
             ID: o.id.slice(-6).toUpperCase(), 
             Status: o.status, 
-            Valor: fmt(Number(o.total || 0)),
+            Valor: formatCurrency(Number(o.total || 0)),
             Cliente: o.customer?.name 
           })));
         }
