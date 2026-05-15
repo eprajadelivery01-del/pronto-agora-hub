@@ -101,7 +101,33 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     const channel = supabase
       .channel('business-updates')
       .on('postgres_changes', { 
-        event: '*', 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `company_id=eq.${user?.id}`
+      }, () => {
+        fetchPendingOrders();
+        // Tocar som de novo pedido
+        try {
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+          audio.volume = 1.0;
+          audio.play().catch(e => console.warn("Erro ao reproduzir som:", e));
+        } catch (err) {}
+        toast.success("NOVO PEDIDO RECEBIDO!", {
+          description: "Um novo pedido chegou no marketplace.",
+          duration: 10000,
+        });
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `company_id=eq.${user?.id}`
+      }, () => {
+        fetchPendingOrders();
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
         schema: 'public', 
         table: 'orders',
         filter: `company_id=eq.${user?.id}`
