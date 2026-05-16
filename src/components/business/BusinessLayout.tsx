@@ -84,29 +84,36 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       if (data) setIsOpen(data.is_open);
     };
 
-    const fetchPendingOrders = async () => {
+    const fetchPendingOrders = async (cId) => {
+      const targetId = cId || companyData?.id;
+      if (!targetId) return;
+
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .eq('company_id', user?.id)
+        .eq('company_id', targetId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       
       if (data) setPendingOrders(data);
     };
 
-    fetchStatus();
-    fetchPendingOrders();
+    if (companyData?.id) {
+      fetchStatus();
+      fetchPendingOrders(companyData.id);
+    }
+
+    if (!companyData?.id) return;
 
     const channel = supabase
-      .channel('business-updates')
+      .channel(`business-global-${companyData.id}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
         table: 'orders',
-        filter: `company_id=eq.${user?.id}`
+        filter: `company_id=eq.${companyData.id}`
       }, () => {
-        fetchPendingOrders();
+        fetchPendingOrders(companyData.id);
         // Tocar som de novo pedido
         try {
           const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
@@ -122,23 +129,23 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         event: 'UPDATE', 
         schema: 'public', 
         table: 'orders',
-        filter: `company_id=eq.${user?.id}`
+        filter: `company_id=eq.${companyData.id}`
       }, () => {
-        fetchPendingOrders();
+        fetchPendingOrders(companyData.id);
       })
       .on('postgres_changes', { 
         event: 'DELETE', 
         schema: 'public', 
         table: 'orders',
-        filter: `company_id=eq.${user?.id}`
+        filter: `company_id=eq.${companyData.id}`
       }, () => {
-        fetchPendingOrders();
+        fetchPendingOrders(companyData.id);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'companies',
-        filter: `user_id=eq.${user?.id}`
+        filter: `id=eq.${companyData.id}`
       }, (payload) => {
         setIsOpen(payload.new.is_open);
       })
@@ -147,7 +154,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, companyData?.id]);
 
   const toggleStoreStatus = async () => {
     if (!user?.id || updatingStatus) return;

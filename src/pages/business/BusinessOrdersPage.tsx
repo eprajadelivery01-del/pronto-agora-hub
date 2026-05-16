@@ -383,21 +383,6 @@ export default function BusinessOrdersPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
           fetchOrders();
-          if (payload.eventType === "INSERT") {
-             toast.success("📦 NOVO PEDIDO RECEBIDO!", {
-               description: "Acesse a aba 'Novos' para aceitar.",
-               duration: 8000,
-               position: "top-center"
-             });
-             // Try play notification sound (Mixkit Stable Ping)
-             try { 
-               const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-               audio.volume = 0.5;
-               audio.play().catch(e => console.warn("[Audio] Bloqueio de auto-play pelo navegador:", e)); 
-             } catch (err) {
-               console.error("[Audio] Erro ao reproduzir som:", err);
-             }
-          }
         }
       )
       .subscribe();
