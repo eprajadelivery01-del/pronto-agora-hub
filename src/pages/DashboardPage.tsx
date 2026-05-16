@@ -58,7 +58,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <AdminLayout title="Dashboard">
+    <AdminLayout title="Painel">
       <HeroMapSection 
         title="Central de Comando Lojista" 
         subtitle="Gestão da sua loja e entregas em tempo real." 

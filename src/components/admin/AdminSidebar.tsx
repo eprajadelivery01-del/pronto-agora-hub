@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
+  { label: "Painel", icon: LayoutDashboard, href: "/admin" },
   { label: "Corridas (OS)", icon: Truck, href: "/admin/deliveries" },
   { label: "Chat", icon: MessageSquare, href: "/admin/chat" },
   { label: "Mapa", icon: Map, href: "/admin/map" },
