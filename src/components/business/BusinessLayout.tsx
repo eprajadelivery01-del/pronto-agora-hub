@@ -339,7 +339,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                 )}
               >
                 <div className={cn("w-2 h-2 rounded-full", isOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
-                {updatingStatus ? "..." : (isOpen ? "Status: Online" : "Status: Offline")}
+                {updatingStatus ? "..." : (isOpen ? "Status: Aberto" : "Status: Fechado")}
               </button>
             </div>
 

@@ -805,7 +805,13 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
               <Timer className="h-3 w-3" /> {age} min
             </p>
             <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[100px]">{order.payment_method || 'Offline'}</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[100px]">
+              {order.payment_method === 'money' ? 'Dinheiro' : 
+               order.payment_method === 'pix' ? 'Pix' : 
+               order.payment_method === 'credit_card' ? 'Cartão' : 
+               order.payment_method === 'debit_card' ? 'Débito' : 
+               order.payment_method || 'Presencial'}
+            </p>
         </div>
 
         {/* Items List - Tight */}
