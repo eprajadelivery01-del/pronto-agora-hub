@@ -142,7 +142,7 @@ export default function BusinessOrdersPage() {
           id, status, total, created_at, customer_id, delivery_id,
           delivery_address, payment_method, notes,
           order_items (
-            id, quantity, price, notes, observation,
+            id, quantity, price, notes,
             products (id, name, image_url, description)
           )
         `)
