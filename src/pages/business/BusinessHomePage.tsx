@@ -45,7 +45,7 @@ export default function BusinessHomePage() {
         `)
         .eq("company_id", companyId)
         .not("delivery_id", "is", null)
-        .not("status", "in", "(completed,delivered,cancelled)");
+        .not("status", "in", '("delivered","cancelled")');
       
       if (error) throw error;
       return data || [];
