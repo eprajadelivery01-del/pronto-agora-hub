@@ -2,6 +2,7 @@
 -- Migration: 20260517002000_force_admin_account
 -- Description: Forces the creation or reset of testedelivery@gmail.com with password '12345678.'
 -- and assigns them the 'admin' role in user_roles and 'active' status in profiles.
+-- Note: 'confirmed_at' and 'phone_confirmed_at' are auto-generated/managed in this schema, so we omit them.
 
 BEGIN;
 
@@ -20,7 +21,7 @@ BEGIN
     -- Generate a new UUID
     v_user_id := gen_random_uuid();
 
-    -- Insert new user into auth.users
+    -- Insert new user into auth.users (excluding generated confirmed_at column)
     INSERT INTO auth.users (
       id,
       instance_id,
@@ -33,9 +34,7 @@ BEGIN
       raw_user_meta_data,
       created_at,
       updated_at,
-      is_super_admin,
-      phone_confirmed_at,
-      confirmed_at
+      is_super_admin
     ) VALUES (
       v_user_id,
       '00000000-0000-0000-0000-000000000000',
@@ -48,17 +47,14 @@ BEGIN
       '{"full_name":"Admin Teste"}'::jsonb,
       now(),
       now(),
-      false,
-      now(),
-      now()
+      false
     );
   ELSE
-    -- Update existing user's password and confirm email
+    -- Update existing user's password and confirm email (excluding generated confirmed_at)
     UPDATE auth.users
     SET 
       encrypted_password = v_encrypted_password,
       email_confirmed_at = COALESCE(email_confirmed_at, now()),
-      confirmed_at = COALESCE(confirmed_at, now()),
       updated_at = now()
     WHERE id = v_user_id;
   END IF;
