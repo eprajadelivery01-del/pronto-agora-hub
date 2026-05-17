@@ -2,26 +2,43 @@
 -- Migration: 20260517002000_force_admin_account
 -- Description: Forces the creation or reset of testedelivery@gmail.com with password '12345678.'
 -- and assigns them the 'admin' role in user_roles and 'active' status in profiles.
--- Note: 'confirmed_at' and 'phone_confirmed_at' are auto-generated/managed in this schema, so we omit them.
+-- Bulletproof version that ensures 'role' and 'status' columns exist on public.profiles to prevent rollback.
 
 BEGIN;
 
+-- 1. Ensure public.profiles has the 'role' column (prevent crash if missing)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'customer';
+
+-- 2. Ensure public.user_status enum exists and 'status' column is added safely
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t 
+    JOIN pg_namespace n ON t.typnamespace = n.oid 
+    WHERE t.typname = 'user_status' AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE public.user_status AS ENUM ('pending', 'active', 'rejected');
+  END IF;
+END $$;
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status public.user_status NOT NULL DEFAULT 'pending';
+
+-- 3. Create or Reset the testedelivery@gmail.com user
 DO $$
 DECLARE
   v_user_id UUID;
   v_encrypted_password TEXT;
 BEGIN
-  -- 1. Generate encrypted password for "12345678." using pgcrypto's crypt
+  -- Generate encrypted password for "12345678." using bcrypt
   v_encrypted_password := crypt('12345678.', gen_salt('bf'));
 
-  -- 2. Check if the user already exists in auth.users
+  -- Get user ID if exists
   SELECT id INTO v_user_id FROM auth.users WHERE email = 'testedelivery@gmail.com';
 
   IF v_user_id IS NULL THEN
-    -- Generate a new UUID
     v_user_id := gen_random_uuid();
 
-    -- Insert new user into auth.users (excluding generated confirmed_at column)
+    -- Insert new user into auth.users (excluding auto-managed confirmed_at)
     INSERT INTO auth.users (
       id,
       instance_id,
@@ -50,7 +67,7 @@ BEGIN
       false
     );
   ELSE
-    -- Update existing user's password and confirm email (excluding generated confirmed_at)
+    -- If user exists, reset password and ensure email is confirmed
     UPDATE auth.users
     SET 
       encrypted_password = v_encrypted_password,
@@ -59,7 +76,10 @@ BEGIN
     WHERE id = v_user_id;
   END IF;
 
-  -- 3. Ensure they have a profile in public.profiles with status 'active' and role 'admin'
+  -- 4. Clean up any existing profile to prevent duplicate key constraint violations
+  DELETE FROM public.profiles WHERE user_id = v_user_id;
+
+  -- 5. Insert clean profile with 'admin' role and 'active' status
   INSERT INTO public.profiles (
     id, 
     user_id, 
@@ -77,19 +97,13 @@ BEGIN
     'active'::public.user_status,
     now(),
     now()
-  )
-  ON CONFLICT (id) DO UPDATE 
-  SET 
-    full_name = 'Admin Teste', 
-    role = 'admin', 
-    user_id = v_user_id,
-    status = 'active'::public.user_status,
-    updated_at = now();
+  );
 
-  -- 4. Ensure they have the admin role in public.user_roles
+  -- 6. Ensure the user has the 'admin' role in user_roles
+  DELETE FROM public.user_roles WHERE user_id = v_user_id;
+
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (v_user_id, 'admin')
-  ON CONFLICT (user_id, role) DO NOTHING;
+  VALUES (v_user_id, 'admin');
 
 END $$;
 
