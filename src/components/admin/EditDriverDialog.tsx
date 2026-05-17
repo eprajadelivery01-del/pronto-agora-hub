@@ -19,9 +19,9 @@ export function EditDriverDialog({ driver, open, onOpenChange }: EditDriverDialo
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
-    fullName: driver?.profiles?.full_name || driver?.full_name || "",
-    phone: driver?.profiles?.phone || driver?.phone || "",
-    document: driver?.profiles?.document || driver?.document || "",
+    fullName: driver?.full_name || "",
+    phone: driver?.phone || "",
+    document: driver?.document || "",
     vehicleType: driver?.vehicle_type || "motorcycle",
     vehiclePlate: driver?.vehicle_plate || "",
     commission: driver?.commission_rate?.toString() || "10",

@@ -1,119 +1,153 @@
 import { useState } from "react";
-import { Search, ChevronDown, ChevronUp, Bike, Building2 } from "lucide-react";
+import { Search, Bike, MessageSquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useDrivers } from "@/services/drivers";
-import { useCompanies } from "@/services/companies";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function MotoboysSidebar() {
   const [search, setSearch] = useState("");
-  const [showOnline, setShowOnline] = useState(true);
-  const [showOffline, setShowOffline] = useState(true);
-  const [showLocais, setShowLocais] = useState(true);
-
-  const { data: drivers } = useDrivers();
-  const { data: companies } = useCompanies();
+  const [tab, setTab] = useState<"online" | "offline">("online");
+  const navigate = useNavigate();
+  const { data: drivers, isLoading } = useDrivers();
 
   const allDrivers = drivers ?? [];
   const online = allDrivers.filter((d) => d.is_online);
   const offline = allDrivers.filter((d) => !d.is_online);
-
-  const filterBySearch = (name: string) => !search || name.toLowerCase().includes(search.toLowerCase());
+  const list = (tab === "online" ? online : offline).filter((d) =>
+    !search || (d.full_name || "").toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6">
-      {/* CARD 1: MOTOBOYS */}
-      <div className="rounded-2xl bg-card shadow-card flex flex-col overflow-hidden border border-border">
-        <div className="p-4 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Bike className="h-5 w-5 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">Status dos Motoboys</h3>
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Bike className="h-4 w-4" />
           </div>
-        </div>
-
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent text-sm outline-none w-full placeholder:text-muted-foreground"
-              placeholder="Buscar motoboy..."
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto max-h-[400px]">
           <div>
-            <button onClick={() => setShowOnline(!showOnline)} className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hover:bg-muted/50">
-              Online ({online.length})
-              {showOnline ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
-            {showOnline && online.filter((d) => filterBySearch(d.profiles?.full_name || "")).map((driver) => (
-              <div key={driver.id} className="flex items-center justify-between px-4 py-2 hover:bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-success/10 flex items-center justify-center text-sm overflow-hidden">
-                    {driver.profiles?.avatar_url ? <img src={driver.profiles?.avatar_url} alt="" className="h-full w-full object-cover" /> : "🏍️"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{driver.profiles?.full_name || "—"}</p>
-                    <p className="text-[10px] text-muted-foreground">{driver.vehicle || "—"}</p>
-                  </div>
-                </div>
-                <span className="h-2 w-2 rounded-full bg-success shrink-0" />
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <button onClick={() => setShowOffline(!showOffline)} className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hover:bg-muted/50">
-              Offline ({offline.length})
-              {showOffline ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
-            {showOffline && offline.filter((d) => filterBySearch(d.profiles?.full_name || "")).map((driver) => (
-              <div key={driver.id} className="flex items-center justify-between px-4 py-2 hover:bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm overflow-hidden opacity-60">
-                    {driver.profiles?.avatar_url ? <img src={driver.profiles?.avatar_url} alt="" className="h-full w-full object-cover" /> : "🏍️"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground/70 truncate">{driver.profiles?.full_name || "—"}</p>
-                    <p className="text-[10px] text-muted-foreground/60">{driver.vehicle || "—"}</p>
-                  </div>
-                </div>
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" />
-              </div>
-            ))}
+            <h3 className="text-sm font-bold text-foreground leading-tight">Frota</h3>
+            <p className="text-[11px] text-muted-foreground">{online.length} online · {offline.length} offline</p>
           </div>
         </div>
       </div>
 
-      {/* CARD 2: LOCAIS ATIVOS */}
-      <div className="rounded-2xl bg-card shadow-card flex flex-col overflow-hidden border border-border">
-        <div className="p-4 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-accent" />
-            <h3 className="text-sm font-bold text-foreground">Locais Ativos</h3>
-          </div>
+      {/* Tabs */}
+      <div className="px-3 pt-3">
+        <div className="flex bg-muted/40 rounded-lg p-0.5 gap-0.5">
+          {(["online", "offline"] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-bold transition-all",
+                tab === t
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", t === "online" ? "bg-success" : "bg-muted-foreground/40")} />
+              {t === "online" ? "Online" : "Offline"}
+              <span className={cn(
+                "ml-1 px-1.5 rounded-full text-[9px] tabular-nums",
+                tab === t && t === "online" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+              )}>
+                {t === "online" ? online.length : offline.length}
+              </span>
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className="flex-1 overflow-y-auto max-h-[300px]">
-          {companies?.filter(c => c.is_active).length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-xs text-muted-foreground">Nenhum local ativo no momento</p>
-            </div>
-          ) : (
-            (companies ?? []).filter(c => c.is_active && filterBySearch(c.name)).map((company) => (
-              <div key={company.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 border-b border-border/50 last:border-0">
-                <div className="h-9 w-9 rounded-xl bg-accent/10 flex items-center justify-center text-lg">
-                  🏪
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{company.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{company.address || company.phone || "—"}</p>
+      {/* Search */}
+      <div className="px-3 pt-2 pb-2">
+        <div className="flex items-center gap-2 bg-muted/40 border border-border/30 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition-all">
+          <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-transparent text-xs outline-none w-full placeholder:text-muted-foreground/60"
+            placeholder="Buscar motoboy..."
+          />
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0 px-2 pb-2">
+        {isLoading ? (
+          <div className="p-2 space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-2.5 py-2">
+                <Skeleton className="w-9 h-9 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="w-28 h-3 rounded" />
+                  <Skeleton className="w-16 h-2.5 rounded" />
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : list.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[120px] text-center py-8">
+            <Bike className="h-6 w-6 text-muted-foreground/30 mb-2" />
+            <p className="text-xs font-medium text-muted-foreground">
+              {search ? "Nenhum resultado" : tab === "online" ? "Nenhum motoboy online" : "Todos estão online"}
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {list.map((driver) => {
+              const isOn = driver.is_online;
+              return (
+                <li key={driver.id}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate("/admin/drivers")}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/admin/drivers"); } }}
+                    className={cn(
+                      "group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 cursor-pointer transition-all border border-transparent",
+                      "hover:bg-primary/5 hover:border-primary/20 hover:shadow-sm",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center text-sm border overflow-hidden",
+                          isOn ? "bg-success/5 border-success/20" : "bg-muted border-border grayscale"
+                        )}>
+                          {driver.avatar_url ? (
+                            <img src={driver.avatar_url} alt="" className="h-full w-full object-cover" />
+                          ) : "🏍️"}
+                        </div>
+                        <span className={cn(
+                          "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card",
+                          isOn ? "bg-success" : "bg-muted-foreground/40"
+                        )} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                          {driver.full_name || "—"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">
+                          {driver.vehicle_type || "motorcycle"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/chat?userId=${driver.user_id}`); }}
+                      className="p-1.5 rounded-lg bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/20 active:scale-95"
+                      title="Chat"
+                    >
+                      <MessageSquare size={13} />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );

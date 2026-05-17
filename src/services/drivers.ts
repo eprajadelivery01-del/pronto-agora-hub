@@ -4,47 +4,66 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export type DriverWithProfile = {
   id: string;
   user_id: string;
-  vehicle?: string;
-  vehicle_type?: string;
-  vehicle_plate?: string;
-  online?: boolean;
-  is_online?: boolean;
+  full_name: string;
+  phone?: string | null;
+  vehicle_type?: string | null;
+  vehicle_plate?: string | null;
+  online?: boolean | null;
+  is_online?: boolean | null;
   rating: number;
   latitude: number | null;
   longitude: number | null;
-  current_latitude?: number | null;
-  current_longitude?: number | null;
-  license_plate?: string | null;
-  commission_rate?: number;
+  avatar_url?: string | null;
+  status?: string | null;
   created_at?: string;
-  profiles?: { full_name: string; phone: string | null; avatar_url: string | null } | null;
-  [key: string]: any;
 };
 
 export async function fetchDrivers() {
+  // 1. Fetch from delivery_drivers (main table)
   const { data: drivers, error: driversError } = await supabase
     .from("delivery_drivers")
     .select("*")
     .order("created_at", { ascending: false });
     
   if (driversError) throw driversError;
-  if (!drivers) return [];
 
-  const userIds = drivers.map(d => d.user_id);
-  const { data: profiles, error: profilesError } = await supabase
+  // 2. Fetch from motoboys (legacy/fallback table)
+  const { data: legacyDrivers } = await supabase
+    .from("motoboys")
+    .select("*");
+
+  const userIds = (drivers || []).map(d => d.user_id);
+  const { data: profiles } = await supabase
     .from("profiles")
-    .select("user_id, full_name, phone, avatar_url")
+    .select("user_id, full_name, phone, avatar_url, document")
     .in("user_id", userIds);
 
-  if (profilesError) {
-    console.error("Erro ao buscar perfis dos motoristas:", profilesError);
-    return drivers as unknown as DriverWithProfile[];
-  }
+  // Merge and Flatten delivery_drivers
+  const mainDrivers = (drivers || []).map(driver => {
+    const profile = profiles?.find(p => p.user_id === driver.user_id);
+    return {
+      ...driver,
+      full_name: profile?.full_name || driver.full_name || "—",
+      avatar_url: profile?.avatar_url || driver.avatar_url,
+      phone: profile?.phone || driver.phone,
+      document: profile?.document || driver.document,
+    };
+  });
 
-  return drivers.map(driver => ({
-    ...driver,
-    profiles: profiles?.find(p => p.user_id === driver.user_id) || null
-  })) as unknown as DriverWithProfile[];
+  // Convert legacy motoboys to the same format
+  const formattedLegacy = (legacyDrivers || []).map(m => ({
+    id: m.id,
+    user_id: m.id, // Fallback
+    full_name: m.name || "Entregador Legado",
+    is_online: m.is_online,
+    vehicle_type: "motorcycle", // Default for legacy
+    status: "active",
+    rating: 5.0,
+    created_at: m.created_at
+  }));
+
+  // Combine and deduplicate if necessary (though IDs should be unique)
+  return [...mainDrivers, ...formattedLegacy] as unknown as DriverWithProfile[];
 }
 
 export function useDrivers() {
@@ -67,9 +86,11 @@ export function useOnlineDrivers() {
       if (!drivers) return [];
 
       const userIds = drivers.map(d => d.user_id);
+      if (userIds.length === 0) return [];
+      
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("user_id, full_name, phone, avatar_url")
+        .select("user_id, full_name, phone, avatar_url, document")
         .in("user_id", userIds);
 
       if (profilesError) {
@@ -77,10 +98,16 @@ export function useOnlineDrivers() {
         return drivers as unknown as DriverWithProfile[];
       }
 
-      return drivers.map(driver => ({
-        ...driver,
-        profiles: profiles?.find(p => p.user_id === driver.user_id) || null
-      })) as unknown as DriverWithProfile[];
+      return (drivers || []).map(driver => {
+        const profile = profiles?.find(p => p.user_id === driver.user_id);
+        return {
+          ...driver,
+          full_name: profile?.full_name || driver.full_name || "—",
+          avatar_url: profile?.avatar_url || driver.avatar_url,
+          phone: profile?.phone || driver.phone,
+          document: profile?.document || driver.document,
+        };
+      }) as unknown as DriverWithProfile[];
     },
   });
 }
@@ -91,7 +118,7 @@ export function useToggleDriverOnline() {
     mutationFn: async ({ driverId, isOnline }: { driverId: string; isOnline: boolean }) => {
       const { error } = await supabase
         .from("delivery_drivers")
-        .update({ online: isOnline, is_online: isOnline } as any)
+        .update({ is_online: isOnline } as any)
         .eq("id", driverId);
       if (error) throw error;
     },
@@ -101,23 +128,16 @@ export function useToggleDriverOnline() {
   });
 }
 
-export function useAvailableDeliveries(regionId?: string) {
+export function useAvailableDeliveries() {
   return useQuery({
-    queryKey: ["deliveries", "available", regionId],
+    queryKey: ["deliveries", "available"],
     queryFn: async () => {
-      let query: any = supabase
+      const { data, error } = await supabase
         .from("deliveries")
         .select("*, companies(name)")
         .eq("status", "pending")
         .is("driver_id", null);
-      
-      // region_id doesn't exist on deliveries table. Use city_id if applicable.
-      if (regionId) {
-        // Fallback resilient query
-        query = query.or(`city_id.eq.${regionId}`);
-      }
 
-      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -132,8 +152,8 @@ export function useAcceptDelivery() {
         .from("deliveries")
         .update({ 
           driver_id: driverId, 
-          status: "accepted",
-          accepted_at: new Date().toISOString() as any
+          status: "accepted" as any,
+          accepted_at: new Date().toISOString()
         })
         .eq("id", deliveryId)
         .select()

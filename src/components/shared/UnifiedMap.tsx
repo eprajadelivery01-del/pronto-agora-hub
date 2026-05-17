@@ -1,30 +1,70 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useOnlineDrivers } from "@/services/drivers";
 import { useDeliveries } from "@/services/deliveries";
 import { useCity } from "@/contexts/CityContext";
 import type { RegionRow } from "@/services/regions";
+import { Search, Loader2, X, MapPin } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const escapeHtml = (s: unknown): string =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 interface UnifiedMapProps {
   regions: RegionRow[];
   centerCity?: { name: string; lat: number; lng: number } | null;
   interactive?: boolean;
-  darkTheme?: boolean;
 }
 
-export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = false, darkTheme = false }: UnifiedMapProps) {
+export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = false }: UnifiedMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const regionsRenderedRef = useRef<string[]>([]);
   const mapLoaded = useRef(false);
 
+  // Geocoding state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
   const { selectedCityCoords } = useCity();
   const centerCity = propCenterCity || selectedCityCoords;
 
   const { data: drivers } = useOnlineDrivers();
-  const { data: deliveriesData } = useDeliveries({ status: "in_route" });
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery || searchQuery.length < 3) return;
+    
+    setIsSearching(true);
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
+      const data = await resp.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error("Geocoding error:", err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const goToLocation = (lat: string, lon: string) => {
+    if (!map.current) return;
+    map.current.flyTo({
+      center: [parseFloat(lon), parseFloat(lat)],
+      zoom: 16,
+      duration: 2500
+    });
+    setSearchResults([]);
+    setSearchQuery("");
+  };
 
   const calculateCentroid = (regs: RegionRow[]) => {
     if (!regs.length) return null;
@@ -49,11 +89,12 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
+    // Use a Satellite/Hybrid style
+    // For "Real Colors" without Mapbox key, we use a custom Carto or Maptiler style that looks real,
+    // or we can use the default MapLibre style with a satellite raster source.
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: darkTheme 
-        ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-        : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
       center: centerCity ? [centerCity.lng, centerCity.lat] : [-56.0974, -15.5989],
       zoom: 12,
     });
@@ -62,18 +103,6 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
 
     map.current.on("load", () => {
       mapLoaded.current = true;
-      if (!centerCity && !regions.length && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            map.current?.flyTo({
-              center: [pos.coords.longitude, pos.coords.latitude],
-              zoom: 13,
-              duration: 2000
-            });
-          },
-          (err) => console.log("Geolocation error:", err)
-        );
-      }
     });
 
     return () => {
@@ -96,16 +125,15 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
     }
   }, [centerCity?.lat, centerCity?.lng, regions]);
 
-  // Render Regions and Labels
+  // Render Regions
   useEffect(() => {
     const currentMap = map.current;
     if (!currentMap || !regions) return;
 
-    const render = () => {
+    const renderRegions = () => {
       const m = map.current;
       if (!m) return;
 
-      // Clear old regions
       regionsRenderedRef.current.forEach((id) => {
         [`rfill-${id}`, `rline-${id}`, `rlabel-${id}`].forEach(l => {
           if (m.getLayer(l)) m.removeLayer(l);
@@ -127,7 +155,7 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
             type: "Feature",
             properties: { 
               name: region.name, 
-              price: `R$ ${Number((region as any).delivery_price ?? region.price ?? 0).toFixed(2)}` 
+              price: `R$ ${Number(region.price).toFixed(2)}` 
             },
             geometry: geojson,
           },
@@ -137,14 +165,14 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
           id: `rfill-${region.id}`,
           type: "fill",
           source: srcId,
-          paint: { "fill-color": (region as any).color || "#F59E0B", "fill-opacity": 0.25 },
+          paint: { "fill-color": (region as any).color || "#F59E0B", "fill-opacity": 0.35 },
         });
 
         m.addLayer({
           id: `rline-${region.id}`,
           type: "line",
           source: srcId,
-          paint: { "line-color": (region as any).color || "#F59E0B", "line-width": 2, "line-opacity": 0.8 },
+          paint: { "line-color": "#ffffff", "line-width": 2.5, "line-opacity": 0.9 },
         });
 
         m.addLayer({
@@ -154,37 +182,26 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
           layout: {
             "text-field": ["concat", ["get", "name"], "\n", ["get", "price"]],
             "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-            "text-size": 11,
+            "text-size": 12,
             "text-anchor": "center",
             "text-allow-overlap": false,
             "text-offset": [0, 0],
             "text-line-height": 1.2,
           },
           paint: {
-            "text-color": "#1a1a1a",
-            "text-halo-color": "#ffffff",
+            "text-color": "#ffffff",
+            "text-halo-color": "#000000",
             "text-halo-width": 2,
           }
         });
-
-        if (interactive) {
-          m.on("mouseenter", `rfill-${region.id}`, () => {
-            m.getCanvas().style.cursor = "pointer";
-            m.setPaintProperty(`rfill-${region.id}`, "fill-opacity", 0.3);
-          });
-          m.on("mouseleave", `rfill-${region.id}`, () => {
-            m.getCanvas().style.cursor = "";
-            m.setPaintProperty(`rfill-${region.id}`, "fill-opacity", 0.15);
-          });
-        }
 
         regionsRenderedRef.current.push(region.id);
       });
     };
 
-    if (currentMap.isStyleLoaded()) render();
-    else currentMap.once("load", render);
-  }, [regions, interactive]);
+    if (currentMap.isStyleLoaded()) renderRegions();
+    else currentMap.once("load", renderRegions);
+  }, [regions]);
 
   // Realtime Drivers
   useEffect(() => {
@@ -196,21 +213,6 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
 
     (drivers ?? []).forEach((driver) => {
       if (!driver.latitude || !driver.longitude) return;
-
-      const escapeHTML = (str: string) => {
-        if (!str) return "";
-        return str.replace(/[&<>"']/g, (m) => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        }[m] || m));
-      };
-
-      const fullName = escapeHTML(driver.profiles?.full_name || "Entregador");
-      const firstName = fullName.split(" ")[0];
-      const phoneNumber = escapeHTML(driver.profiles?.phone || "").replace(/\D/g, "");
 
       const el = document.createElement("div");
       el.className = "driver-marker-container";
@@ -280,7 +282,7 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
             white-space: nowrap;
             z-index: 3;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-          ">${firstName}</div>
+          ">${escapeHtml(driver.full_name?.split(" ")[0] || "Entregador")}</div>
         </div>
         
         <style>
@@ -304,7 +306,7 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
               <img src="/logo.png" style="width: 28px; height: 28px; object-fit: contain;" />
             </div>
             <div>
-              <div style="font-size: 15px; font-weight: 800; color: #111827;">${fullName}</div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827;">${escapeHtml(driver.full_name || "Entregador")}</div>
               <div style="font-size: 12px; color: #22c55e; font-weight: 600; display: flex; align-items: center; gap: 4px;">
                 <div style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></div>
                 Em Rota de Entrega
@@ -313,7 +315,7 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
           </div>
           
           <div style="display: grid; grid-template-cols: 1fr; gap: 8px;">
-            <a href="https://wa.me/${phoneNumber}" target="_blank" style="
+            <a href="https://wa.me/${encodeURIComponent(driver.phone?.replace(/\D/g, "") || "")}" target="_blank" style="
               text-decoration: none;
               background: #25D366;
               color: white;
@@ -347,5 +349,50 @@ export function UnifiedMap({ regions, centerCity: propCenterCity, interactive = 
     });
   }, [drivers]);
 
-  return <div ref={mapContainer} className="w-full h-full rounded-xl overflow-hidden shadow-inner bg-muted/20" />;
+  return (
+    <div className="relative w-full h-full rounded-2xl overflow-hidden bg-muted/20 border border-border shadow-2xl">
+      {/* Search Overlay */}
+      <div className="absolute top-4 left-4 z-10 w-full max-w-sm pointer-events-auto">
+        <form onSubmit={handleSearch} className="relative group">
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/10 group-focus-within:ring-primary/50 transition-all" />
+          <div className="relative flex items-center px-4 py-3 gap-3">
+             {isSearching ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <Search className="h-5 w-5 text-muted-foreground" />}
+             <input 
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               placeholder="Buscar endereço no mapa..."
+               className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-foreground placeholder:text-muted-foreground/60"
+             />
+             {searchQuery && (
+               <button onClick={() => setSearchQuery("")} type="button" className="p-1 hover:bg-muted rounded-full">
+                  <X className="h-4 w-4" />
+               </button>
+             )}
+          </div>
+        </form>
+
+        {/* Results Dropdown */}
+        {searchResults.length > 0 && (
+          <div className="mt-3 bg-background/90 backdrop-blur-2xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+             {searchResults.map((res, i) => (
+                <button 
+                  key={i}
+                  onClick={() => goToLocation(res.lat, res.lon)}
+                  className="w-full flex items-start gap-3 p-4 text-left hover:bg-primary/10 border-b border-border/50 last:border-none transition-colors"
+                >
+                   <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                   <div>
+                      <p className="text-sm font-black text-foreground line-clamp-1">{res.display_name.split(",")[0]}</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1">{res.display_name}</p>
+                   </div>
+                </button>
+             ))}
+          </div>
+        )}
+      </div>
+
+      <div ref={mapContainer} className="w-full h-full" />
+    </div>
+  );
 }
+
