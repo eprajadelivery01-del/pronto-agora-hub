@@ -6,12 +6,17 @@ const supabase = createClient(
 );
 
 async function check() {
-  const userId = 'd4a62249-6d21-4c1f-97ed-ee8a6c910423';
+  const userId = '1330384d-3241-4405-ab7d-acf1cca5717e';
   
-  const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
-  const { data: roles } = await supabase.from('user_roles').select('*').eq('user_id', userId);
+  const { data: profile, error: pErr } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
+  const { data: roles, error: rErr } = await supabase.from('user_roles').select('*').eq('user_id', userId);
   
-  console.log({ profile, roles });
+  console.log("For user ID:", userId);
+  console.log({ profile, roles, pErr, rErr });
+
+  console.log("\nRecent profiles:");
+  const { data: recentProfiles } = await supabase.from('profiles').select('*').limit(20);
+  console.log(recentProfiles);
 }
 
 check();
