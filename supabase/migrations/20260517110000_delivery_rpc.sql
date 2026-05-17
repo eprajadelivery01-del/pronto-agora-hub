@@ -43,8 +43,6 @@ BEGIN
     status = v_db_status,
     updated_at = v_now,
     driver_id = CASE WHEN p_driver_id IS NOT NULL THEN p_driver_id ELSE driver_id END,
-    -- Try setting both completed_at and delivered_at to be robust
-    completed_at = CASE WHEN v_db_status = 'completed' THEN v_now ELSE completed_at END,
     delivered_at = CASE WHEN v_db_status = 'completed' THEN v_now ELSE delivered_at END,
     accepted_at = CASE WHEN v_db_status = 'accepted' THEN v_now ELSE accepted_at END,
     collected_at = CASE WHEN v_db_status = 'collecting' THEN v_now ELSE collected_at END
