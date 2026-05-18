@@ -52,7 +52,7 @@ export default function ChatPage() {
 
       const { data: drivers } = await supabase
         .from("delivery_drivers")
-        .select("user_id, full_name, avatar_url")
+        .select("user_id")
         .in("user_id", participantIds);
 
       const map: Record<string, any> = {};
@@ -69,9 +69,10 @@ export default function ChatPage() {
       });
       drivers?.forEach(d => {
         if (d.user_id) {
+          const profile = data?.find(p => p.user_id === d.user_id);
           if (!map[d.user_id]) map[d.user_id] = { user_id: d.user_id };
-          map[d.user_id].full_name = d.full_name;
-          map[d.user_id].avatar_url = d.avatar_url;
+          map[d.user_id].full_name = profile?.full_name || map[d.user_id].full_name || "Entregador";
+          map[d.user_id].avatar_url = profile?.avatar_url || map[d.user_id].avatar_url || null;
           map[d.user_id].role = 'driver';
         }
       });
