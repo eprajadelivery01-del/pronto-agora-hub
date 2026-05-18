@@ -50,23 +50,33 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
 
       try {
         // 1. Search in 'customers' table
-        let customersQuery = supabase
-          .from("customers")
-          .select("id, name, phone, cpf")
-          .or(`name.ilike.%${cleanQuery}%,cpf.ilike.%${cleanQuery}%`);
-        
+        const orConditions: string[] = [];
+        orConditions.push(`name.ilike.%${cleanQuery}%`);
+        orConditions.push(`cpf.ilike.%${cleanQuery}%`);
         if (numericQuery) {
-          customersQuery = customersQuery.or(`cpf.ilike.%${numericQuery}%,phone.ilike.%${numericQuery}%`);
+          orConditions.push(`phone.ilike.%${numericQuery}%`);
+          orConditions.push(`cpf.ilike.%${numericQuery}%`);
         }
 
-        const { data: customersData } = await customersQuery.limit(10);
+        const { data: customersData } = await supabase
+          .from("customers")
+          .select("id, name, phone, cpf")
+          .or(orConditions.join(","))
+          .limit(10);
 
         // 2. Search in 'deliveries' table
+        const delOrConditions: string[] = [];
+        delOrConditions.push(`customer_name.ilike.%${cleanQuery}%`);
+        if (numericQuery) {
+          delOrConditions.push(`customer_phone.ilike.%${numericQuery}%`);
+          delOrConditions.push(`customer_cpf.ilike.%${numericQuery}%`);
+        }
+
         const { data: deliveriesData } = await supabase
           .from("deliveries")
           .select("id, customer_name, customer_phone, customer_cpf")
           .eq("company_id", companyId)
-          .or(`customer_name.ilike.%${cleanQuery}%` + (numericQuery ? `,customer_phone.ilike.%${numericQuery}%` : ''))
+          .or(delOrConditions.join(","))
           .limit(10);
 
         // Merge and deduplicate
@@ -74,15 +84,16 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
         const seenNames = new Set();
 
         const addResult = (item: any, source: "loja" | "marketplace") => {
-          if (!item || !item.name) return;
-          const name = item.name.toLowerCase();
+          if (!item || (!item.name && !item.customer_name)) return;
+          const finalName = item.name || item.customer_name;
+          const nameLower = finalName.toLowerCase();
           
-          if (seenNames.has(name)) return;
-          seenNames.add(name);
+          if (seenNames.has(nameLower)) return;
+          seenNames.add(nameLower);
 
           merged.push({
             id: item.id,
-            name: item.name,
+            name: finalName,
             phone: item.phone || item.customer_phone || null,
             cpf: item.cpf || item.customer_cpf || null,
             isMarketplace: source === "marketplace"
@@ -90,15 +101,15 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
         };
 
         // Add manual customers first
-        (customersData || []).forEach(c => addResult({ ...c }, "loja"));
+        (customersData || []).forEach(c => addResult(c, "loja"));
         
         // Add deliveries history customers
         (deliveriesData || []).forEach(d => {
           addResult({
             id: d.id,
             name: d.customer_name,
-            phone: d.customer_phone,
-            cpf: d.customer_cpf
+            customer_phone: d.customer_phone,
+            customer_cpf: d.customer_cpf
           }, "loja");
         });
 
@@ -166,7 +177,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
             onChange(e.target.value);
           }}
           onFocus={() => setShowResults(true)}
-          placeholder="Nome ou CPF do cliente"
+          placeholder="Buscar por Nome, CPF ou Telefone..."
           className="w-full pl-12 pr-4 py-4 rounded-2xl border border-border bg-background font-bold outline-none focus:border-primary transition-all text-base"
           required
         />
