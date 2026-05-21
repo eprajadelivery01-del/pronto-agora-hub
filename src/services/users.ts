@@ -85,14 +85,19 @@ export async function fetchInvitations() {
 }
 
 export async function validateInvitation(token: string) {
+  // Query by token only first — avoids compound-filter RLS issues
   const { data, error } = await supabase
     .from("invitations")
     .select("*")
     .eq("token", token)
-    .eq("status", "pending")
     .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("Convite inválido ou já utilizado");
+
+  if (error) {
+    console.error("[Invite] Supabase error:", error);
+    throw new Error(error.message || "Erro ao validar convite");
+  }
+  if (!data) throw new Error("Convite não encontrado");
+  if (data.status !== "pending") throw new Error("Convite inválido ou já utilizado");
   if (new Date(data.expires_at) < new Date()) throw new Error("Convite expirado");
   return data;
 }
