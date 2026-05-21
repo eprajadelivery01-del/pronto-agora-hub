@@ -258,8 +258,9 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
                  <p className="text-[9px] text-warning font-bold animate-pulse ml-2 mt-1">⚠️ Preenchimento Obrigatório</p>
                )}
              </div>
-             <div className="flex flex-col justify-end">
-               <button type="button" onClick={() => setIsPaid(!isPaid)} className={cn("w-full h-[68px] rounded-2xl border-2 flex items-center justify-between px-6 font-black uppercase text-[10px]", isPaid ? "bg-green-500 border-green-500 text-white" : "bg-muted/30 border-border text-muted-foreground")}>
+             <div className="space-y-1.5">
+               <label className="text-[10px] font-black uppercase tracking-widest text-transparent ml-2 select-none">Pagamento</label>
+               <button type="button" onClick={() => setIsPaid(!isPaid)} className={cn("w-full h-[76px] rounded-2xl border-2 flex items-center justify-between px-6 font-black uppercase text-[10px]", isPaid ? "bg-green-500 border-green-500 text-white" : "bg-muted/30 border-border text-muted-foreground")}>
                  <span>Já foi Pago?</span>
                  {isPaid ? <CheckCircle className="h-5 w-5" /> : <Wallet className="h-5 w-5 opacity-40" />}
                </button>
