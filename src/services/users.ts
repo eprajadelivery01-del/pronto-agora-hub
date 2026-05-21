@@ -105,17 +105,29 @@ export async function validateInvitation(token: string) {
 export async function acceptInvitation(token: string, userData: { email: string; password: string; fullName: string; phone: string; document: string; companyName?: string }) {
   const invitation = await validateInvitation(token);
 
-  // 1. Sign up user
+  // 1. Sign up user — passa company_name e phone nos metadados para que o trigger
+  //    handle_new_user crie a empresa com o nome correto da loja.
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: userData.email,
     password: userData.password,
-    options: { data: { full_name: userData.fullName } },
+    options: {
+      data: {
+        full_name: userData.fullName,
+        phone: userData.phone,
+        // CRÍTICO: o trigger handle_new_user usa 'company_name' para nomear a empresa
+        company_name: userData.companyName || userData.fullName,
+        invitation_id: invitation.id,
+      },
+    },
   });
   
   if (authError) throw authError;
   if (!authData.user) throw new Error("Erro ao criar conta");
 
-  // 2. Update profile
+  // 2. Aguardar brevemente para o trigger completar
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // 3. Atualizar perfil com documento e status ativo
   const { error: profileError } = await supabase
     .from("profiles")
     .update({
@@ -126,41 +138,62 @@ export async function acceptInvitation(token: string, userData: { email: string;
     })
     .eq("user_id", authData.user.id);
     
-  if (profileError) throw profileError;
+  if (profileError) console.warn("[Invite] Aviso ao atualizar perfil:", profileError.message);
 
-  // 3. Assign role
-  const { error: roleError } = await supabase.from("user_roles").insert({
+  // 4. Garantir role (o trigger pode já ter inserido, usar ON CONFLICT)
+  const { error: roleError } = await supabase.from("user_roles").upsert({
     user_id: authData.user.id,
     role: invitation.role,
-  });
+  }, { onConflict: "user_id,role", ignoreDuplicates: true });
 
-  if (roleError) throw roleError;
+  if (roleError) console.warn("[Invite] Aviso ao atribuir role:", roleError.message);
 
-  // 4. Create role-specific records
+  // 5. Garantir registro específico do role
   if (invitation.role === "driver") {
-    const { error: driverError } = await supabase.from("delivery_drivers").insert({
+    // Trigger pode ter criado; usar upsert seguro
+    const { error: driverError } = await supabase.from("delivery_drivers").upsert({
       user_id: authData.user.id,
-    });
-    if (driverError) throw driverError;
+      is_online: false,
+    }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (driverError) console.warn("[Invite] Aviso ao criar entregador:", driverError.message);
   }
 
   if (invitation.role === "company") {
-    const { error: companyError } = await supabase.from("companies").insert({
-      user_id: authData.user.id,
-      name: userData.companyName || userData.fullName,
-    });
-    if (companyError) throw companyError;
+    // O trigger pode já ter criado a empresa com o nome correto (via metadata company_name).
+    // Usar UPDATE para garantir o nome correto caso o trigger tenha usado fallback.
+    const correctName = userData.companyName || userData.fullName;
+
+    const { data: existingCompany } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("user_id", authData.user.id)
+      .maybeSingle();
+
+    if (existingCompany) {
+      // Empresa criada pelo trigger — garantir que o nome está correto
+      const { error: updateErr } = await supabase
+        .from("companies")
+        .update({ name: correctName, phone: userData.phone })
+        .eq("user_id", authData.user.id);
+      if (updateErr) console.warn("[Invite] Aviso ao atualizar empresa:", updateErr.message);
+    } else {
+      // Trigger não criou a empresa — inserir manualmente
+      const { error: companyError } = await supabase.from("companies").insert({
+        user_id: authData.user.id,
+        name: correctName,
+        phone: userData.phone,
+      });
+      if (companyError) throw new Error("Erro ao criar loja: " + companyError.message);
+    }
   }
 
-  // 5. Mark invitation as accepted and record the registering email
-  const { error: inviteUpdateError } = await supabase
+  // 6. Marcar convite como aceito
+  await supabase
     .from("invitations")
     .update({ status: "accepted" as any, email: userData.email })
     .eq("token", token);
-    
-  if (inviteUpdateError) throw inviteUpdateError;
 
-  // 6. Sign in the newly created user
+  // 7. Fazer login com o usuário recém-criado
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: userData.email,
     password: userData.password,
