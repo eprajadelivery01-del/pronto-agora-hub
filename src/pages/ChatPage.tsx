@@ -3,7 +3,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
-import { MessageSquare, User, Loader2, Send, Bike, HelpCircle } from "lucide-react";
+import { MessageSquare, User, Loader2, Send, Bike, HelpCircle, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useMessages, useSendMessage } from "@/services/chat";
@@ -216,48 +216,70 @@ export default function ChatPage() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed opacity-95">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#EFEAE2] dark:bg-[#0B141A] relative z-0">
+                <div className="absolute inset-0 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] opacity-[0.08] dark:opacity-[0.03] mix-blend-multiply dark:mix-blend-screen pointer-events-none z-0" />
+                
                 {loadingMessages ? (
-                  <div className="flex items-center justify-center h-full">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <div className="flex items-center justify-center h-full relative z-10">
+                    <div className="bg-white dark:bg-[#202C33] px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#008069] dark:text-[#00A884]" />
+                      <span className="text-[13px] text-muted-foreground">Carregando mensagens...</span>
+                    </div>
                   </div>
                 ) : messages?.map((msg) => {
                   const isMe = msg.sender_id === user?.id;
                   return (
-                    <div key={msg.id} className={cn("flex flex-col max-w-[75%]", isMe ? "ml-auto items-end" : "items-start")}>
-                      <div className={cn(
-                        "px-4 py-3 rounded-2xl text-sm font-medium shadow-sm leading-relaxed",
-                        isMe 
-                          ? "bg-primary text-primary-foreground rounded-tr-none" 
-                          : "bg-card text-foreground border border-border/60 rounded-tl-none"
-                      )}>
-                        {msg.content}
+                    <div key={msg.id} className={cn("flex flex-col w-full relative z-10", isMe ? "items-end" : "items-start")}>
+                      <div 
+                        className={cn(
+                          "relative max-w-[75%] px-2.5 py-1.5 rounded-[12px] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]",
+                          isMe 
+                            ? "bg-[#D9FDD3] dark:bg-[#005C4B] rounded-tr-[4px] text-[#111B21] dark:text-[#E9EDEF]" 
+                            : "bg-white dark:bg-[#202C33] rounded-tl-[4px] text-[#111B21] dark:text-[#E9EDEF]"
+                        )}
+                      >
+                        <div className="flex flex-col">
+                          <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap pl-1 pr-2 pt-1 pb-4">
+                            {msg.content}
+                          </p>
+                          <div className="flex items-center justify-end gap-1 absolute bottom-1 right-2">
+                            <span className={cn("text-[11px]", isMe ? "text-[#667781] dark:text-[#8696A0]" : "text-[#667781] dark:text-[#8696A0]")}>
+                              {format(new Date(msg.created_at), "HH:mm")}
+                            </span>
+                            {isMe && (
+                              <CheckCheck className="h-[14px] w-[14px] text-[#53BDEB]" />
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-[9px] font-black text-muted-foreground/60 mt-1 uppercase tracking-widest px-1">
-                        {format(new Date(msg.created_at), "HH:mm")}
-                      </span>
                     </div>
                   );
                 })}
               </div>
 
               {/* Input */}
-              <div className="p-4 border-t border-border bg-card/80 backdrop-blur-md">
-                <div className="flex gap-3 max-w-4xl mx-auto">
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                    placeholder="Digite sua resposta..."
-                    className="flex-1 bg-muted/50 border-border/40 rounded-2xl px-5 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all outline-none border shadow-inner"
-                  />
+              <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-border z-10">
+                <div className="flex items-center gap-2 max-w-4xl mx-auto">
+                  <div className="flex-1 bg-white dark:bg-[#2A3942] rounded-full flex items-center px-4 h-11 shadow-sm">
+                    <input
+                      type="text"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                      placeholder="Digite sua resposta..."
+                      className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#8696A0]"
+                    />
+                  </div>
                   <button
                     onClick={handleSend}
                     disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="w-12 h-12 rounded-2xl bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center active:scale-95"
+                    className="w-11 h-11 rounded-full bg-[#00A884] text-white disabled:opacity-50 hover:bg-[#008F6F] transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
                   >
-                    <Send className="h-5 w-5" />
+                    {sendMessageMutation.isPending ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    ) : (
+                      <Send className="h-5 w-5 text-white ml-1" />
+                    )}
                   </button>
                 </div>
               </div>
