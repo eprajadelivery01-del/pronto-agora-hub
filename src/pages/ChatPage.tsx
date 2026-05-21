@@ -23,7 +23,7 @@ export default function ChatPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("conversations")
-        .select("*")
+        .select("*, messages(content, created_at)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -102,9 +102,20 @@ export default function ChatPage() {
 
   const getConvTitle = (conv: any) => {
     if (conv.order_id) return `Pedido #${conv.order_id.slice(-6).toUpperCase()}`;
+    
+    // Tenta extrair o Assunto da primeira mensagem caso seja um chat de suporte
+    let extractedTopic = null;
+    if (conv.messages && conv.messages.length > 0) {
+      const firstMsg = [...conv.messages].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
+      if (firstMsg?.content?.startsWith('[Assunto:')) {
+        extractedTopic = firstMsg.content.replace('[Assunto:', '').replace(']', '').trim();
+      }
+    }
+
     const otherId = getOtherParticipantId(conv);
     const otherProfile = profilesMap?.[otherId];
-    return otherProfile?.full_name || conv.title || conv.topic || "Suporte Geral";
+    
+    return extractedTopic || otherProfile?.full_name || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Usuário Anônimo";
   };
 
   const getConvIcon = (conv: any) => {
@@ -136,7 +147,9 @@ export default function ChatPage() {
             ) : (
               conversations?.map((conv) => {
                 const Icon = getConvIcon(conv);
-                const lastMsg = conv.messages ? conv.messages.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] : null;
+                // Pega as mensagens ordenadas corretamente
+                const sortedMessages = conv.messages ? [...conv.messages].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) : [];
+                const lastMsg = sortedMessages[0];
                 
                 return (
                   <button
