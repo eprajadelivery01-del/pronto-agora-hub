@@ -96,7 +96,9 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) => {
       if (!user?.id) throw new Error("Usuário não autenticado");
-      return sendMessage(conversationId, user.id, content);
+      // Adiciona um zero-width space invisível no final da mensagem para identificar que foi enviada pelo admin
+      // Isso permite que o usuário teste com a MESMA CONTA no marketplace e no admin panel sem quebrar os lados dos balões.
+      return sendMessage(conversationId, user.id, content + '\u200B');
     },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["messages", variables.conversationId] });

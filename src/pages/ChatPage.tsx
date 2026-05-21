@@ -225,7 +225,14 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ) : messages?.map((msg) => {
-                  const isMe = msg.sender_id === user?.id;
+                  // Hack para permitir testes com a MESMA conta:
+                  // Mensagens enviadas por este painel admin recebem um zero-width space no final (\u200B).
+                  const isAdminMessage = msg.content.endsWith('\u200B');
+                  // Se os IDs são iguais (mesma conta), usamos o \u200B para saber quem enviou. 
+                  // Se os IDs são diferentes (produção normal), isAdminMessage e sender_id darão o resultado correto.
+                  const isMe = msg.sender_id === user?.id && isAdminMessage;
+                  const displayContent = msg.content.replace(/\u200B/g, '');
+
                   return (
                     <div key={msg.id} className={cn("flex flex-col w-full relative z-10", isMe ? "items-end" : "items-start")}>
                       <div 
@@ -238,7 +245,7 @@ export default function ChatPage() {
                       >
                         <div className="flex flex-col">
                           <p className="text-[15px] leading-[20px] whitespace-pre-wrap pr-10">
-                            {msg.content}
+                            {displayContent}
                           </p>
                           <div className="flex items-center justify-end gap-1 absolute bottom-1 right-2">
                             <span className={cn("text-[11px]", isMe ? "text-[#7aa4c7]" : "text-[#547c9e]")}>
