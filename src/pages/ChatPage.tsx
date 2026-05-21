@@ -216,14 +216,12 @@ export default function ChatPage() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#EFEAE2] dark:bg-[#0B141A] relative z-0">
-                <div className="absolute inset-0 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] opacity-[0.08] dark:opacity-[0.03] mix-blend-multiply dark:mix-blend-screen pointer-events-none z-0" />
-                
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#0e1621] relative z-0">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full relative z-10">
-                    <div className="bg-white dark:bg-[#202C33] px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-[#008069] dark:text-[#00A884]" />
-                      <span className="text-[13px] text-muted-foreground">Carregando mensagens...</span>
+                    <div className="bg-[#182533] px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#7aa4c7]" />
+                      <span className="text-[13px] text-[#7aa4c7]">Carregando mensagens...</span>
                     </div>
                   </div>
                 ) : messages?.map((msg) => {
@@ -232,18 +230,18 @@ export default function ChatPage() {
                     <div key={msg.id} className={cn("flex flex-col w-full relative z-10", isMe ? "items-end" : "items-start")}>
                       <div 
                         className={cn(
-                          "relative max-w-[75%] px-2.5 py-1.5 rounded-[12px] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]",
+                          "relative max-w-[75%] px-3 py-2 rounded-2xl shadow-sm",
                           isMe 
-                            ? "bg-[#D9FDD3] dark:bg-[#005C4B] rounded-tr-[4px] text-[#111B21] dark:text-[#E9EDEF]" 
-                            : "bg-white dark:bg-[#202C33] rounded-tl-[4px] text-[#111B21] dark:text-[#E9EDEF]"
+                            ? "bg-[#2b5278] rounded-br-[4px] text-[#ffffff]" 
+                            : "bg-[#182533] rounded-bl-[4px] text-[#ffffff]"
                         )}
                       >
                         <div className="flex flex-col">
-                          <p className="text-[14.2px] leading-[19px] whitespace-pre-wrap pl-1 pr-2 pt-1 pb-4">
+                          <p className="text-[15px] leading-[20px] whitespace-pre-wrap pr-10">
                             {msg.content}
                           </p>
                           <div className="flex items-center justify-end gap-1 absolute bottom-1 right-2">
-                            <span className={cn("text-[11px]", isMe ? "text-[#667781] dark:text-[#8696A0]" : "text-[#667781] dark:text-[#8696A0]")}>
+                            <span className={cn("text-[11px]", isMe ? "text-[#7aa4c7]" : "text-[#547c9e]")}>
                               {format(new Date(msg.created_at), "HH:mm")}
                             </span>
                             {isMe && (
@@ -258,22 +256,22 @@ export default function ChatPage() {
               </div>
 
               {/* Input */}
-              <div className="p-3 bg-[#F0F2F5] dark:bg-[#202C33] border-t border-border z-10">
+              <div className="p-3 bg-[#17212b] border-t border-[#0e1621] z-10">
                 <div className="flex items-center gap-2 max-w-4xl mx-auto">
-                  <div className="flex-1 bg-white dark:bg-[#2A3942] rounded-full flex items-center px-4 h-11 shadow-sm">
+                  <div className="flex-1 bg-[#242f3d] rounded-full flex items-center px-4 h-12 shadow-sm">
                     <input
                       type="text"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                      placeholder="Digite sua resposta..."
-                      className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-[#111B21] dark:text-[#E9EDEF] placeholder:text-[#8696A0]"
+                      placeholder="Write a message..."
+                      className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-[#ffffff] placeholder:text-[#547c9e]"
                     />
                   </div>
                   <button
                     onClick={handleSend}
                     disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="w-11 h-11 rounded-full bg-[#00A884] text-white disabled:opacity-50 hover:bg-[#008F6F] transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
+                    className="w-12 h-12 rounded-full bg-[#2b5278] text-white disabled:opacity-50 hover:bg-[#202b36] transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
                   >
                     {sendMessageMutation.isPending ? (
                       <Loader2 className="h-5 w-5 animate-spin text-white" />
@@ -285,12 +283,12 @@ export default function ChatPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-              <div className="w-20 h-20 rounded-[2rem] bg-muted flex items-center justify-center mb-6 animate-bounce duration-[3s]">
-                <MessageSquare className="h-10 w-10 text-muted-foreground/30" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-[#0e1621]">
+              <div className="w-20 h-20 rounded-[2rem] bg-[#182533] flex items-center justify-center mb-6 animate-bounce duration-[3s]">
+                <MessageSquare className="h-10 w-10 text-[#547c9e]" />
               </div>
-              <h3 className="text-xl font-black text-foreground mb-2">Central de Atendimento</h3>
-              <p className="text-sm text-muted-foreground max-w-xs font-medium">Selecione uma conversa ao lado para começar a responder seus clientes e futuros entregadores.</p>
+              <h3 className="text-xl font-black text-[#ffffff] mb-2">Central de Atendimento</h3>
+              <p className="text-sm text-[#7aa4c7] max-w-xs font-medium">Selecione uma conversa ao lado para começar a responder seus clientes e futuros entregadores.</p>
             </div>
           )}
         </div>
