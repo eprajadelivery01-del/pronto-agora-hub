@@ -238,6 +238,12 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     return existingDelivery;
   }
 
+  const rawPhone = customerData?.phone || (order as any).customer_phone || "";
+  let cleanPhone = rawPhone.replace(/\D/g, "");
+  if (cleanPhone.startsWith("55") && (cleanPhone.length === 12 || cleanPhone.length === 13)) {
+    cleanPhone = cleanPhone.substring(2);
+  }
+
   // 3. Cria a entrega vinculada
   const { data: delivery, error: deliveryError } = await supabase
     .from("deliveries")
@@ -245,6 +251,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       company_id: order.company_id,
       order_id: orderId,
       customer_name: customerData?.name || (order as any).customer_name || "Cliente Marketplace",
+      customer_phone: cleanPhone || null,
       address: dropoff,
       value: customValue || order.total || 0,
       status: "pending"
