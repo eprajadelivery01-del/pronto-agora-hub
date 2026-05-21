@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Menu,
   X,
   User,
@@ -229,6 +230,14 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             className="lg:hidden p-2 rounded-xl hover:bg-muted transition-colors"
           >
             <X className="h-5 w-5 text-muted-foreground" />
+          </button>
+
+          {/* Desktop Collapse Toggle */}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden lg:flex absolute -right-3 top-8 h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-md hover:bg-muted transition-colors z-50 text-muted-foreground"
+          >
+            {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </button>
         </div>
 
