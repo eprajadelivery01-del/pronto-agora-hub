@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { token, email, password, fullName, phone, document } = body;
+    const { token, email, password, fullName, phone, document, companyName } = body;
 
     // Validate required fields
     if (!token || !email || !password || !fullName) {
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     if (invitation.role === "company") {
       await supabase.from("companies").insert({
         user_id: userId,
-        name: fullName,
+        name: companyName || fullName,
       });
     }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { validateInvitation, acceptInvitation } from "@/services/users";
-import { Package, User, Phone, FileText, Lock, Eye, EyeOff, Loader2, Mail } from "lucide-react";
+import { Package, User, Phone, FileText, Lock, Eye, EyeOff, Loader2, Mail, Store } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { InvitationRow } from "@/services/users";
 
@@ -18,6 +18,7 @@ export default function InvitePage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [document, setDocument] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,6 +57,7 @@ export default function InvitePage() {
         fullName,
         phone,
         document,
+        companyName: invitation.role === "company" ? companyName : undefined,
       });
       toast({ title: "Conta criada!", description: "Bem-vindo ao É Pra Já!" });
       
@@ -95,6 +97,8 @@ export default function InvitePage() {
     );
   }
 
+  const isCompany = invitation.role === "company";
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -102,10 +106,9 @@ export default function InvitePage() {
           <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center mb-4">
             <Package className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Complete seu cadastro v2</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground">Complete seu cadastro</h1>
           <p className="text-sm text-muted-foreground mt-1 text-center">
             Você foi convidado para se tornar um <strong>{roleLabels[invitation.role] || invitation.role} Parceiro</strong>.
-            Sistema de Convites Ativo - Versão 14/05/2026.
           </p>
         </div>
 
@@ -126,7 +129,9 @@ export default function InvitePage() {
           </div>
 
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">Nome Completo</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">
+              {isCompany ? "Nome do Responsável" : "Nome Completo"}
+            </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -139,6 +144,23 @@ export default function InvitePage() {
               />
             </div>
           </div>
+
+          {isCompany && (
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block ml-1">Nome da Loja (como aparecerá no Marketplace)</label>
+              <div className="relative">
+                <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="Nome Fantasia da Loja"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-all font-bold"
+                  required
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

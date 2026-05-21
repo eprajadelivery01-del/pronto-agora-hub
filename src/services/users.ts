@@ -90,14 +90,14 @@ export async function validateInvitation(token: string) {
     .select("*")
     .eq("token", token)
     .eq("status", "pending")
-    .single();
+    .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("Convite não encontrado");
+  if (!data) throw new Error("Convite inválido ou já utilizado");
   if (new Date(data.expires_at) < new Date()) throw new Error("Convite expirado");
   return data;
 }
 
-export async function acceptInvitation(token: string, userData: { email: string; password: string; fullName: string; phone: string; document: string }) {
+export async function acceptInvitation(token: string, userData: { email: string; password: string; fullName: string; phone: string; document: string; companyName?: string }) {
   // Server-side invitation acceptance via edge function to prevent client-side role manipulation
   const res = await supabase.functions.invoke("accept-invitation", {
     body: {
@@ -107,6 +107,7 @@ export async function acceptInvitation(token: string, userData: { email: string;
       fullName: userData.fullName,
       phone: userData.phone,
       document: userData.document,
+      companyName: userData.companyName,
     },
   });
 
