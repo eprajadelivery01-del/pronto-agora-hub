@@ -98,24 +98,64 @@ export async function validateInvitation(token: string) {
 }
 
 export async function acceptInvitation(token: string, userData: { email: string; password: string; fullName: string; phone: string; document: string; companyName?: string }) {
-  // Server-side invitation acceptance via edge function to prevent client-side role manipulation
-  const res = await supabase.functions.invoke("accept-invitation", {
-    body: {
-      token,
-      email: userData.email,
-      password: userData.password,
-      fullName: userData.fullName,
+  const invitation = await validateInvitation(token);
+
+  // 1. Sign up user
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: userData.email,
+    password: userData.password,
+    options: { data: { full_name: userData.fullName } },
+  });
+  
+  if (authError) throw authError;
+  if (!authData.user) throw new Error("Erro ao criar conta");
+
+  // 2. Update profile
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({
+      full_name: userData.fullName,
       phone: userData.phone,
       document: userData.document,
-      companyName: userData.companyName,
-    },
+      status: "active" as any,
+    })
+    .eq("user_id", authData.user.id);
+    
+  if (profileError) throw profileError;
+
+  // 3. Assign role
+  const { error: roleError } = await supabase.from("user_roles").insert({
+    user_id: authData.user.id,
+    role: invitation.role,
   });
 
-  if (res.error) throw new Error(res.error.message);
-  const data = res.data as any;
-  if (data?.error) throw new Error(data.error);
+  if (roleError) throw roleError;
 
-  // Sign in the newly created user
+  // 4. Create role-specific records
+  if (invitation.role === "driver") {
+    const { error: driverError } = await supabase.from("delivery_drivers").insert({
+      user_id: authData.user.id,
+    });
+    if (driverError) throw driverError;
+  }
+
+  if (invitation.role === "company") {
+    const { error: companyError } = await supabase.from("companies").insert({
+      user_id: authData.user.id,
+      name: userData.companyName || userData.fullName,
+    });
+    if (companyError) throw companyError;
+  }
+
+  // 5. Mark invitation as accepted and record the registering email
+  const { error: inviteUpdateError } = await supabase
+    .from("invitations")
+    .update({ status: "accepted" as any, email: userData.email })
+    .eq("token", token);
+    
+  if (inviteUpdateError) throw inviteUpdateError;
+
+  // 6. Sign in the newly created user
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: userData.email,
     password: userData.password,
