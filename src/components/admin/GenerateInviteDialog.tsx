@@ -23,21 +23,28 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
     setLoading(true);
     try {
       const token = crypto.randomUUID();
+      // Convite válido por 30 dias
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      if (!user) throw new Error("Usuário não autenticado. Faça login e tente novamente.");
 
       const { error } = await (supabase as any).from("invitations").insert({
         token,
         role: fixedRole || role,
-        email: `pending_${token.slice(0, 8)}@nexus.pro`,
+        email: `convite_${token.slice(0, 8)}@eprajadelivery.com`,
         invited_by: user.id,
         expires_at: expiresAt.toISOString(),
+        status: 'pending',
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42501') {
+          throw new Error("Sem permissão para criar convites. Verifique se você é administrador.");
+        }
+        throw new Error(error.message || "Erro ao salvar convite no banco de dados");
+      }
 
       const currentRole = fixedRole || role;
       const baseUrl = currentRole === "driver" 
@@ -46,8 +53,9 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
         
       const link = `${baseUrl}/${token}`;
       setInviteLink(link);
-      toast.success("Link de convite gerado!");
+      toast.success("Link de convite gerado! Válido por 30 dias.");
     } catch (err: any) {
+      console.error('[GenerateInvite] Erro:', err);
       toast.error(err.message || "Erro ao gerar convite");
     } finally {
       setLoading(false);
@@ -79,7 +87,7 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl w-[95vw]">
         <DialogHeader>
-          <DialogTitle>Gerar Link de Convite (VERSÃO NOVA)</DialogTitle>
+          <DialogTitle>Gerar Link de Convite</DialogTitle>
         </DialogHeader>
 
         {!inviteLink ? (
@@ -102,7 +110,7 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              O link gerado será válido por 7 dias e permitirá que o parceiro realize o próprio cadastro no sistema.
+              O link gerado será válido por <strong>30 dias</strong> e permitirá que o parceiro realize o próprio cadastro no sistema.
             </p>
             <Button className="w-full" onClick={generateLink} disabled={loading}>
               {loading ? "Gerando..." : "Gerar Link de Convite"}
