@@ -126,13 +126,11 @@ export default function BusinessOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     if (!companyId) {
-      console.log("[Painel] fetchOrders abortado: companyId ausente.");
       setLoading(false);
       return;
     }
     
     try {
-      console.log(`[Painel] Iniciando busca de pedidos para Empresa: ${companyId}`);
       setLoading(true);
       
       // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
@@ -162,11 +160,9 @@ export default function BusinessOrdersPage() {
           return;
         }
         
-        console.log("[Painel] CHAVE MESTRA funcionou! Pedidos carregados via RPC.");
         data = rpcData;
       }
 
-      console.log(`[Painel] Pedidos recebidos: ${data?.length || 0}`);
 
       if (data && data.length > 0) {
         // 1. Extração IMEDIATA de todos os IDs necessários para busca paralela
@@ -178,7 +174,6 @@ export default function BusinessOrdersPage() {
         let customerMap: Record<string, any> = {};
         customerIds.forEach(id => { customerMap[id] = { id }; });
 
-        console.log(`[Painel] Iniciando buscas paralelas para ${data.length} pedidos...`);
 
         // 2. BUSCA PARALELA (Elimina o efeito cascata/waterfall)
         const [customersRes, deliveriesRes, addressesRes] = await Promise.all([
@@ -223,7 +218,6 @@ export default function BusinessOrdersPage() {
         // 6. Busca de Fallback em PROFILES (Apenas para quem ainda está sem nome)
         const missingFromCustomers = customerIds.filter(id => !customerMap[id] || !customerMap[id].name);
         if (missingFromCustomers.length > 0) {
-          console.log("[Painel] Buscando fallback em Profiles para IDs pendentes...");
           const { data: profilesData } = await supabase
             .from("profiles")
             .select("id, name, phone, user_id")
@@ -295,9 +289,6 @@ export default function BusinessOrdersPage() {
           in_route_total: inRouteOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         });
 
-        console.log("[Painel] --- DIAGNÓSTICO DE PEDIDOS ---");
-        console.log(`[Painel] Hoje: ${todayStr} | Total Recebidos: ${data.length}`);
-        console.log(`[Painel] Abertos: ${openOrders.length} | Em Rota: ${inRouteOrders.length} | Entregues Hoje: ${deliveredToday.length}`);
         if (openOrders.length > 0) {
           console.table(openOrders.map(o => ({ 
             ID: o.id.slice(-6).toUpperCase(), 
@@ -310,13 +301,11 @@ export default function BusinessOrdersPage() {
         setOrders([]);
         setStats({ pending: 0, preparing: 0, ready: 0, in_route: 0, revenue_today: 0, open_total: 0, in_route_total: 0 });
       }
-      console.log("[Painel] Estatísticas finais carregadas.");
     } catch (err: any) {
       console.error("[Painel] Falha catastrófica no fetchOrders:", err);
       toast.error("Ocorreu um erro ao processar os dados.");
     } finally {
       setLoading(false);
-      console.log("[Painel] Carga finalizada.");
     }
   }, [companyId]);
 
@@ -325,7 +314,6 @@ export default function BusinessOrdersPage() {
       if (!user?.id || companyId) return;
       
       try {
-        console.log("[Painel] Buscando empresa vinculada...");
         const { data: companies } = await supabase
           .from("companies")
           .select("id, name")
@@ -390,7 +378,6 @@ export default function BusinessOrdersPage() {
   }, [companyId, fetchOrders]);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    console.log(`[Painel] Atualizando pedido ${orderId} para status: ${newStatus}`);
 
     // Atualização otimista
     const previous = orders;
@@ -409,7 +396,6 @@ export default function BusinessOrdersPage() {
         return;
       }
 
-      console.log("[Painel] Update concluído com sucesso!");
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
     } catch (err: any) {
       console.error("[Painel] Falha catastrófica na atualização:", err);
@@ -421,7 +407,6 @@ export default function BusinessOrdersPage() {
   const handleDispatch = async (order: Order) => {
     // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
     if (order.delivery_id) {
-      console.log(`[Painel] Verificando integridade da entrega vinculada: ${order.delivery_id}`);
       
       const { data: delivery, error } = await supabase
         .from('deliveries')
@@ -431,7 +416,6 @@ export default function BusinessOrdersPage() {
 
       // Se a entrega não existe (órfã) ou já foi cancelada, limpamos o vínculo e permitimos novo despacho
       if (!delivery || delivery.status === 'cancelled') {
-        console.warn("[Painel] Vínculo de entrega inválido ou cancelado detectado. Liberando pedido para novo despacho.");
         
         // Limpamos no banco de dados para evitar recorrência
         await supabase
@@ -443,7 +427,6 @@ export default function BusinessOrdersPage() {
         order.delivery_id = null;
       } else {
         // Se já existe entrega ativa, apenas garantimos que o status do pedido seja atualizado para sair do Kanban
-        console.log("[Painel] Entrega ativa detectada. Atualizando status do pedido para 'in_route'.");
         await updateStatus(order.id, "in_route");
         toast.info("Este pedido já possui uma entrega ativa. Movendo para o painel de entregas...");
         return;
