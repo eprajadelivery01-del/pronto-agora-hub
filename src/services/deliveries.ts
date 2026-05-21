@@ -63,7 +63,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           region_id,
           notes,
           companies(name, phone),
-          delivery_drivers(id, user_id, vehicle, profiles(full_name, phone))
+          delivery_drivers(id, user_id, full_name, phone, vehicle_type, vehicle_plate)
         `, { count: "exact" })
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -85,7 +85,26 @@ export function useDeliveries(params?: UseDeliveriesParams) {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { data: (data ?? []) as unknown as DeliveryWithRelations[], count: count || 0 };
+
+      const mappedData = (data ?? []).map((delivery: any) => {
+        if (delivery.delivery_drivers) {
+          const dd = delivery.delivery_drivers;
+          return {
+            ...delivery,
+            delivery_drivers: {
+              ...dd,
+              vehicle: dd.vehicle_type || dd.vehicle_plate || "Veículo não inf.",
+              profiles: {
+                full_name: dd.full_name || "Entregador Atribuído",
+                phone: dd.phone || null
+              }
+            }
+          };
+        }
+        return delivery;
+      });
+
+      return { data: mappedData as unknown as DeliveryWithRelations[], count: count || 0 };
     },
   });
 }
