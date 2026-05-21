@@ -13,9 +13,17 @@ export type DriverWithProfile = {
   rating: number;
   latitude: number | null;
   longitude: number | null;
+  current_latitude?: number | null;
+  current_longitude?: number | null;
   avatar_url?: string | null;
   status?: string | null;
   created_at?: string;
+  profiles?: {
+    full_name?: string | null;
+    phone?: string | null;
+    avatar_url?: string | null;
+    document?: string | null;
+  } | null;
 };
 
 export async function fetchDrivers() {
