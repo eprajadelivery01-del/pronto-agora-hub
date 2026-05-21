@@ -573,20 +573,6 @@ export default function BusinessProfilePage() {
                           <div className="w-full h-full rounded-lg bg-muted overflow-hidden">
                              {logoUrl && <img src={logoUrl} className="w-full h-full object-cover" />}
                           </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega (R$)</label>
-                             <div className="relative">
-                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                                <input
-                                   value={deliveryFee}
-                                   onChange={(e) => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
-                                   className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-black text-primary text-lg"
-                                   placeholder="0,00"
-                                />
-                             </div>
-                          </div>
                        </div>
                     </div>
                     <div className="mt-5 px-4 space-y-4">

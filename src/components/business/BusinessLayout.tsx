@@ -316,7 +316,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-muted/20 overflow-hidden h-screen">
+      <div className="flex-1 flex flex-col min-w-0 bg-muted/20 min-h-0">
         {/* Header */}
         <header className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center justify-between gap-4 relative z-30">
           <div className="flex items-center gap-4">
@@ -445,7 +445,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8 flex flex-col">
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8">
           <div className="max-w-7xl mx-auto w-full space-y-6 pb-10 flex-1">
             {children}
           </div>
