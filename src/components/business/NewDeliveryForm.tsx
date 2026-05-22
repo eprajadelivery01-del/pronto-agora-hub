@@ -1,5 +1,5 @@
 import React, { useState, FormEvent, useEffect } from "react";
-import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw } from "lucide-react";
+import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw, Home, Briefcase, Heart } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
   const [customerPhone, setCustomerPhone] = useState(initialData?.customer_phone || "");
   const [customerCpf, setCustomerCpf] = useState(initialData?.customer_cpf || "");
   const [address, setAddress] = useState(initialData?.address || "");
+  const [addressType, setAddressType] = useState<string>("Casa");
   const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || currentCompany?.address || "");
   
   const [deliveryValue, setDeliveryValue] = useState(initialData?.value?.toFixed(2).replace('.', ',') || "0,00");
@@ -152,6 +153,11 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
       const parsedDeliveryValue = parseFloat(deliveryValue.replace(',', '.'));
       const parsedCollectValue = isPaid ? 0 : parseFloat(collectValue.replace(',', '.'));
       
+      let finalAddress = address;
+      if (addressType && addressType !== "Outro") {
+        finalAddress = `[${addressType}] ${address}`;
+      }
+
       let finalNotes = notes.trim();
       
       if (selectedProducts.length > 0) {
@@ -176,8 +182,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
         customer_name: customerName,
         customer_phone: customerPhone.replace(/\D/g, ""),
         customer_cpf: customerCpf.replace(/\D/g, ""),
-        address: address, 
-        dropoff_address: address,
+        address: finalAddress, 
+        dropoff_address: finalAddress,
         pickup_address: companyAddress || "Retirada na Loja",
         value: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue, 
         estimated_value: isNaN(parsedCollectValue) ? 0 : parsedCollectValue,
@@ -282,14 +288,41 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
           </div>
 
           <div className="space-y-4">
-             <div className="space-y-1.5">
-               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Endereço de Entrega</label>
-               <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro..." className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold text-lg" required />
-             </div>
-             <div className="space-y-1.5">
-               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Região <span className="text-destructive">*</span></label>
-               <RegionPickerGrid cityId={currentCompany?.city_id || selectedCity} onRegionSelect={handleRegionSelect} initialSelectedId={initialData?.region_id} />
-             </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Endereço de Entrega</label>
+              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro..." className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold text-lg" required />
+              
+              <div className="flex gap-2 mt-2">
+                {[
+                  { id: "Casa", label: "Casa", icon: Home },
+                  { id: "Trabalho", label: "Trabalho", icon: Briefcase },
+                  { id: "Casa da Mãe", label: "Casa da Mãe", icon: Heart },
+                  { id: "Outro", label: "Outro", icon: MapPin },
+                ].map((type) => {
+                  const isSelected = addressType === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => setAddressType(type.id)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                        isSelected
+                          ? "bg-primary/10 text-primary border-primary/20"
+                          : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <type.icon className="h-3 w-3" />
+                      {type.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Região <span className="text-destructive">*</span></label>
+              <RegionPickerGrid cityId={currentCompany?.city_id || selectedCity} onRegionSelect={handleRegionSelect} initialSelectedId={initialData?.region_id} />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
