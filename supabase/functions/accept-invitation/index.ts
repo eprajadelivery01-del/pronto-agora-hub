@@ -108,24 +108,30 @@ Deno.serve(async (req) => {
       status: "active",
     });
 
-    // 4. Assign role (server-side with service role key)
-    await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: invitation.role,
-    });
+    // 4. Assign role safely
+    const { data: existingRoles } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", invitation.role);
+    if (!existingRoles || existingRoles.length === 0) {
+      await supabase.from("user_roles").insert({ user_id: userId, role: invitation.role });
+    }
 
     // 5. Create role-specific records
     if (invitation.role === "driver") {
-      await supabase.from("delivery_drivers").insert({
-        user_id: userId,
-      });
+      const { data: existingDriver } = await supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle();
+      if (!existingDriver) {
+         await supabase.from("delivery_drivers").insert({ user_id: userId, full_name: fullName, phone: phone || null });
+      } else {
+         await supabase.from("delivery_drivers").update({ full_name: fullName, phone: phone || null }).eq("user_id", userId);
+      }
     }
 
     if (invitation.role === "company") {
-      await supabase.from("companies").insert({
-        user_id: userId,
-        name: companyName || fullName,
-      });
+      const correctName = companyName || fullName;
+      const { data: existingCompany } = await supabase.from("companies").select("id").eq("user_id", userId).maybeSingle();
+      if (!existingCompany) {
+        await supabase.from("companies").insert({ user_id: userId, name: correctName, email: email, phone: phone || null });
+      } else {
+        await supabase.from("companies").update({ name: correctName, email: email, phone: phone || null }).eq("user_id", userId);
+      }
     }
 
     // 6. Mark invitation as accepted

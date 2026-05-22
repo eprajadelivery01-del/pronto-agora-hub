@@ -76,6 +76,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
         .update({
           name: form.name,
           phone: form.phone,
+          email: form.email,
           address: form.address,
           latitude: form.latitude ? parseFloat(form.latitude) : null,
           longitude: form.longitude ? parseFloat(form.longitude) : null,
@@ -132,6 +133,10 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
           <div>
             <Label>Nome da Empresa *</Label>
             <Input value={form.name} onChange={e => set("name", e.target.value)} className="mt-1.5" />
+          </div>
+          <div>
+            <Label>Email</Label>
+            <Input type="email" value={form.email} onChange={e => set("email", e.target.value)} className="mt-1.5" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

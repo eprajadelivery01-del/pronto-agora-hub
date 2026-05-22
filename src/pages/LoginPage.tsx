@@ -18,16 +18,15 @@ export default function LoginPage() {
     if (!user || authLoading) return;
 
     // Aguarda as roles serem carregadas antes de decidir o redirecionamento.
-    // Sem isso, o toast destrutivo dispara durante o intervalo entre o login
-    // e o fetch assíncrono dos perfis/roles, causando o falso "Identificação Necessária".
     if (roles.length === 0) {
-      // Fallback: se após 4s ainda não houver roles, aí sim mostramos o aviso.
+      // Fallback: se após 4s ainda não houver roles, aí sim mostramos o aviso e deslogamos.
       const fallback = setTimeout(() => {
         toast({
-          title: "Identificação Necessária",
-          description: "Este portal é exclusivo para Lojistas parceiros.",
+          title: "Acesso Negado",
+          description: "Sua conta não possui permissões no sistema. Contate o administrador.",
           variant: "destructive",
         });
+        supabase.auth.signOut();
       }, 4000);
       return () => clearTimeout(fallback);
     }
@@ -40,10 +39,11 @@ export default function LoginPage() {
       navigate("/admin", { replace: true });
     } else {
       toast({
-        title: "Identificação Necessária",
-        description: "Este portal é exclusivo para Lojistas parceiros.",
+        title: "Acesso Restrito",
+        description: "Este portal é exclusivo para determinados parceiros.",
         variant: "destructive",
       });
+      supabase.auth.signOut();
     }
   }, [user, authLoading, roles, userStatus, hasRole, navigate, toast]);
 
