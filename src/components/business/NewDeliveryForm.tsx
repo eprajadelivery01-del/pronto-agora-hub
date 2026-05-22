@@ -315,25 +315,59 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
 
           {/* Products Section */}
           {storeProducts && storeProducts.length > 0 && (
-            <div className="space-y-4 p-6 bg-muted/10 border border-border rounded-3xl animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Produtos do Pedido (Opcional)</label>
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                ITENS DO PEDIDO
+              </label>
               
               <div className="space-y-3">
-                <input 
-                  value={productSearch} 
-                  onChange={e => setProductSearch(e.target.value)} 
-                  placeholder="Buscar produto no cardápio..." 
-                  className="w-full px-5 py-3 rounded-2xl border border-border bg-background outline-none font-medium text-sm" 
-                />
+                <div className="flex gap-2 p-1 bg-muted/30 rounded-2xl border border-border">
+                  <button type="button" className="flex-1 py-2 text-xs font-bold bg-white dark:bg-black text-primary rounded-xl shadow-sm border border-primary/20">
+                    📋 DO CATÁLOGO
+                  </button>
+                  <button type="button" className="flex-1 py-2 text-xs font-bold text-muted-foreground opacity-50 cursor-not-allowed">
+                    ✏️ DIGITAR ITEM
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  <input 
+                    value={productSearch} 
+                    onChange={e => setProductSearch(e.target.value)} 
+                    placeholder="Buscar produto do catálogo..." 
+                    className="w-full pl-10 pr-5 py-3 rounded-2xl border border-border bg-background outline-none font-medium text-sm" 
+                  />
+                </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex flex-col gap-2 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
                   {storeProducts.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).map((product: any) => {
                     const selected = selectedProducts.find(sp => sp.product.id === product.id);
+                    let imageUrl = null;
+                    if (product.image_url) {
+                      try {
+                        const parsed = JSON.parse(product.image_url);
+                        imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : product.image_url;
+                      } catch {
+                        imageUrl = product.image_url;
+                      }
+                    }
+
                     return (
                       <div key={product.id} className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:border-primary/30 transition-colors">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <p className="font-bold text-sm truncate">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">{(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={product.name} className="w-10 h-10 rounded-xl object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                              <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm truncate">{product.name}</p>
+                            <p className="text-[11px] text-primary font-bold">{(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                          </div>
                         </div>
                         {selected ? (
                           <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-1 border border-primary/20">
@@ -342,7 +376,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
                             <button type="button" onClick={() => addProduct(product)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">+</button>
                           </div>
                         ) : (
-                          <button type="button" onClick={() => addProduct(product)} className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors">
+                          <button type="button" onClick={() => addProduct(product)} className="w-8 h-8 rounded-xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors">
                             <Plus className="h-4 w-4" />
                           </button>
                         )}
