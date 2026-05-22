@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  rolesLoaded: boolean;
   roles: AppRole[];
   userStatus: UserStatus | null;
   profile: { full_name: string; avatar_url: string | null; phone: string | null } | null;
@@ -26,6 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rolesLoaded, _setRolesLoaded] = useState(false);
+  const rolesLoadedRef = useRef(false);
+  const setRolesLoaded = (val: boolean) => {
+    rolesLoadedRef.current = val;
+    _setRolesLoaded(val);
+  };
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
@@ -37,10 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Only set rolesLoaded to false if we haven't loaded them yet
     // This prevents the "Verificando permissões..." flicker on session refresh
-    const currentlyLoaded = roles.length > 0;
-    if (!currentlyLoaded) {
-      // We don't have a specific state for rolesLoaded in this file's state definition, 
-      // but we can ensure we don't trigger unnecessary loading states.
+    if (!rolesLoadedRef.current) {
+      setRolesLoaded(false);
     }
 
     try {
@@ -88,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (import.meta.env.DEV) console.error("[Auth] ERRO NO METADATA (Bypassed):", error.message);
     } finally {
       fetchingRef.current = null;
-      // IMPORTANTE: setLoading(false) já deve ter sido chamado antes para emergência
+      setRolesLoaded(true);
       setLoading(false);
     }
   };
@@ -108,14 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (currentUser) {
           const email = currentUser.email?.toLowerCase();
           
-          // Re-enable loading once metadata is fetched or just allow it to proceed
-          setLoading(false);
-          
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
         } else {
+          setRolesLoaded(true);
           setLoading(false);
         }
       } catch (error) {
+        setRolesLoaded(true);
         setLoading(false);
       }
     };
@@ -132,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === "SIGNED_OUT") {
           setRoles([]);
+          setRolesLoaded(true);
           setProfile(null);
           setUserStatus(null);
           setLoading(false);
@@ -140,9 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         } else if (currentUser) {
           const email = currentUser.email?.toLowerCase();
-          setLoading(false);
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
         } else {
+          setRolesLoaded(true);
           setLoading(false);
         }
       }
@@ -204,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ 
-      user, session, loading, roles, userStatus, profile, hasRole, signIn, signUp, signOut, deleteAccount 
+      user, session, loading, rolesLoaded, roles, userStatus, profile, hasRole, signIn, signUp, signOut, deleteAccount 
     }}>
       {children}
     </AuthContext.Provider>

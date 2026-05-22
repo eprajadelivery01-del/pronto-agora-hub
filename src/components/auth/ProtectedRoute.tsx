@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading, hasRole, roles, userStatus } = useAuth();
+  const { user, loading, rolesLoaded, hasRole, roles, userStatus } = useAuth();
 
   if (loading) {
     return (
@@ -22,9 +22,8 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (!user) return <Navigate to="/login" replace />;
 
-  // Se o usuário está logado mas as roles ainda não foram carregadas (V14 background fetch)
-  // Nós esperamos um pouco em vez de expulsar o usuário imediatamente
-  if (roles.length === 0) {
+  // Wait for roles to finish loading before checking permissions
+  if (!rolesLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
