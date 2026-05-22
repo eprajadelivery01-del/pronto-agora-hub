@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCity } from "@/contexts/CityContext";
 import { RegionPickerGrid } from "@/components/business/RegionPickerGrid";
 import { CustomerSelector } from "@/components/business/CustomerSelector";
+import { useProductsManager } from "@/services/stores-products";
 import { cn } from "@/lib/utils";
 
 interface NewDeliveryFormProps {
@@ -23,6 +24,12 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
   // Admin state
   const [selectedCompanyId, setSelectedCompanyId] = useState(propCompanyId || initialData?.company_id || "");
   const [companies, setCompanies] = useState<any[]>([]);
+
+  // Products state
+  const { data: storeProducts } = useProductsManager(isAdmin ? selectedCompanyId : propCompanyId);
+  const [selectedProducts, setSelectedProducts] = useState<{ product: any; quantity: number }[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+
 
   useEffect(() => {
     if (isAdmin) {
@@ -95,6 +102,33 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
     toast.success(`Região selecionada: ${name}`);
   }, []);
 
+  const addProduct = (product: any) => {
+    setSelectedProducts(prev => {
+      const existing = prev.find(p => p.product.id === product.id);
+      if (existing) {
+        return prev.map(p => p.product.id === product.id ? { ...p, quantity: p.quantity + 1 } : p);
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
+
+  const removeProduct = (productId: string) => {
+    setSelectedProducts(prev => {
+      const existing = prev.find(p => p.product.id === productId);
+      if (existing && existing.quantity > 1) {
+        return prev.map(p => p.product.id === productId ? { ...p, quantity: p.quantity - 1 } : p);
+      }
+      return prev.filter(p => p.product.id !== productId);
+    });
+  };
+
+  useEffect(() => {
+    if (selectedProducts.length > 0 && !isPaid) {
+      const total = selectedProducts.reduce((acc, curr) => acc + (curr.product.price || 0) * curr.quantity, 0);
+      setCollectValue(total.toFixed(2).replace('.', ','));
+    }
+  }, [selectedProducts, isPaid]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedRegionId) {
@@ -119,6 +153,18 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
       const parsedCollectValue = isPaid ? 0 : parseFloat(collectValue.replace(',', '.'));
       
       let finalNotes = notes.trim();
+      
+      if (selectedProducts.length > 0) {
+        const productsText = selectedProducts.map(p => {
+          const formattedPrice = (p.product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          return `${p.quantity}x ${p.product.name} (${formattedPrice})`;
+        }).join("\n");
+        const totalProducts = selectedProducts.reduce((acc, curr) => acc + (curr.product.price || 0) * curr.quantity, 0);
+        const formattedTotal = totalProducts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        finalNotes = `[PRODUTOS]\n${productsText}\nTotal Produtos: ${formattedTotal}\n\n${finalNotes}`.trim();
+      }
+
       if (isPaid) {
         finalNotes = `[PAGO] ${finalNotes}`.trim();
       } else {
@@ -266,6 +312,47 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
                </button>
              </div>
           </div>
+
+          {/* Products Section */}
+          {storeProducts && storeProducts.length > 0 && (
+            <div className="space-y-4 p-6 bg-muted/10 border border-border rounded-3xl animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Produtos do Pedido (Opcional)</label>
+              
+              <div className="space-y-3">
+                <input 
+                  value={productSearch} 
+                  onChange={e => setProductSearch(e.target.value)} 
+                  placeholder="Buscar produto no cardápio..." 
+                  className="w-full px-5 py-3 rounded-2xl border border-border bg-background outline-none font-medium text-sm" 
+                />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                  {storeProducts.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).map((product: any) => {
+                    const selected = selectedProducts.find(sp => sp.product.id === product.id);
+                    return (
+                      <div key={product.id} className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:border-primary/30 transition-colors">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="font-bold text-sm truncate">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">{(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        </div>
+                        {selected ? (
+                          <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-1 border border-primary/20">
+                            <button type="button" onClick={() => removeProduct(product.id)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">-</button>
+                            <span className="text-sm font-bold text-primary min-w-[1.5rem] text-center">{selected.quantity}</span>
+                            <button type="button" onClick={() => addProduct(product)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">+</button>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => addProduct(product)} className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-colors">
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {!isPaid && (
              <div className="space-y-2 p-6 bg-muted/30 border border-border rounded-3xl animate-in fade-in slide-in-from-top-2 duration-300">
