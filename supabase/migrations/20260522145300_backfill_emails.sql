@@ -18,7 +18,7 @@ BEGIN
     VALUES (
       NEW.id, 
       COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-      COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+      COALESCE(NEW.raw_user_meta_data->>'phone', ''), COALESCE(NEW.raw_user_meta_data->>'vehicle', 'motorcycle')::public.vehicle_type, COALESCE(NEW.raw_user_meta_data->>'license_plate', ''),
       COALESCE(NEW.raw_user_meta_data->>'document', '')
     )
     ON CONFLICT (user_id) DO UPDATE SET
@@ -50,12 +50,12 @@ BEGIN
         -- Criar registro específico (Entregador ou Empresa)
         IF v_role = 'driver' THEN
           BEGIN
-            INSERT INTO public.delivery_drivers (user_id, is_online, full_name, phone)
+            INSERT INTO public.delivery_drivers (user_id, is_online, full_name, phone, vehicle_type, vehicle_plate)
             VALUES (
               NEW.id, 
               false,
               COALESCE(NEW.raw_user_meta_data->>'full_name', 'Entregador'),
-              COALESCE(NEW.raw_user_meta_data->>'phone', '')
+              COALESCE(NEW.raw_user_meta_data->>'phone', ''), COALESCE(NEW.raw_user_meta_data->>'vehicle', 'motorcycle')::public.vehicle_type, COALESCE(NEW.raw_user_meta_data->>'license_plate', '')
             )
             ON CONFLICT (user_id) DO UPDATE SET
               full_name = EXCLUDED.full_name,
@@ -73,7 +73,7 @@ BEGIN
             VALUES (
               NEW.id,
               COALESCE(NEW.raw_user_meta_data->>'company_name', v_invitation_record.email),
-              COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+              COALESCE(NEW.raw_user_meta_data->>'phone', ''), COALESCE(NEW.raw_user_meta_data->>'vehicle', 'motorcycle')::public.vehicle_type, COALESCE(NEW.raw_user_meta_data->>'license_plate', ''),
               NEW.email,
               COALESCE(NEW.raw_user_meta_data->>'address', '')
             );
