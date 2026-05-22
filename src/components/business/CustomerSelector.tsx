@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface Customer {
   id: string;
+  user_id?: string | null;
   name: string;
   phone: string | null;
   cpf: string | null;
@@ -60,7 +61,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
 
         const { data: customersData } = await supabase
           .from("customers")
-          .select("id, name, phone, cpf")
+          .select("id, user_id, name, phone, cpf")
           .or(orConditions.join(","))
           .limit(10);
 
@@ -93,6 +94,7 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
 
           merged.push({
             id: item.id,
+            user_id: item.user_id || null,
             name: finalName,
             phone: item.phone || item.customer_phone || null,
             cpf: item.cpf || item.customer_cpf || null,
@@ -129,12 +131,13 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
     setQuery(customer.name);
     setShowResults(false);
     
+    // Attempt to fetch most recent address from 'addresses' table if it's a marketplace customer
     let fullAddress = "";
-    if (customer.id) {
+    if ((customer as any).user_id) {
         const { data: addresses } = await supabase
         .from("addresses")
         .select("street, number, neighborhood, complement")
-        .eq("customer_id", customer.id)
+        .eq("user_id", (customer as any).user_id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
