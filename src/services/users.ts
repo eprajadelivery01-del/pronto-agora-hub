@@ -124,8 +124,20 @@ export async function acceptInvitation(token: string, userData: { email: string;
   if (authError) throw authError;
   if (!authData.user) throw new Error("Erro ao criar conta");
 
-  // 2. Aguardar brevemente para o trigger completar
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // 2. Fazer login imediato para obter sessão ANTES de atualizar os dados (evita bloqueio do RLS)
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email: userData.email,
+    password: userData.password,
+  });
+
+  if (signInError) {
+    if (signInError.message.toLowerCase().includes("email")) {
+      throw new Error("Cadastro concluído, mas é necessário confirmar seu e-mail antes de acessar.");
+    }
+    throw new Error("Erro ao fazer login automático: " + signInError.message);
+  }
+
+  const userId = signInData.user.id;
 
   // 3. Atualizar perfil com documento e status ativo
   const { error: profileError } = await supabase
@@ -136,13 +148,13 @@ export async function acceptInvitation(token: string, userData: { email: string;
       document: userData.document,
       status: "active" as any,
     })
-    .eq("user_id", authData.user.id);
+    .eq("user_id", userId);
     
   if (profileError) console.warn("[Invite] Aviso ao atualizar perfil:", profileError.message);
 
   // 4. Garantir role (o trigger pode já ter inserido, usar ON CONFLICT)
   const { error: roleError } = await supabase.from("user_roles").upsert({
-    user_id: authData.user.id,
+    user_id: userId,
     role: invitation.role,
   }, { onConflict: "user_id,role", ignoreDuplicates: true });
 
@@ -150,38 +162,34 @@ export async function acceptInvitation(token: string, userData: { email: string;
 
   // 5. Garantir registro específico do role
   if (invitation.role === "driver") {
-    // Trigger pode ter criado; usar upsert seguro
     const { error: driverError } = await supabase.from("delivery_drivers").upsert({
-      user_id: authData.user.id,
+      user_id: userId,
       is_online: false,
     }, { onConflict: "user_id", ignoreDuplicates: true });
     if (driverError) console.warn("[Invite] Aviso ao criar entregador:", driverError.message);
   }
 
   if (invitation.role === "company") {
-    // O trigger pode já ter criado a empresa com o nome correto (via metadata company_name).
-    // Usar UPDATE para garantir o nome correto caso o trigger tenha usado fallback.
     const correctName = userData.companyName || userData.fullName;
 
     const { data: existingCompany } = await supabase
       .from("companies")
       .select("id")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (existingCompany) {
-      // Empresa criada pelo trigger — garantir que o nome está correto
       const { error: updateErr } = await supabase
         .from("companies")
-        .update({ name: correctName, phone: userData.phone })
-        .eq("user_id", authData.user.id);
+        .update({ name: correctName, phone: userData.phone, email: userData.email })
+        .eq("user_id", userId);
       if (updateErr) console.warn("[Invite] Aviso ao atualizar empresa:", updateErr.message);
     } else {
-      // Trigger não criou a empresa — inserir manualmente
       const { error: companyError } = await supabase.from("companies").insert({
-        user_id: authData.user.id,
+        user_id: userId,
         name: correctName,
         phone: userData.phone,
+        email: userData.email,
       });
       if (companyError) throw new Error("Erro ao criar loja: " + companyError.message);
     }
@@ -192,13 +200,6 @@ export async function acceptInvitation(token: string, userData: { email: string;
     .from("invitations")
     .update({ status: "accepted" as any, email: userData.email })
     .eq("token", token);
-
-  // 7. Fazer login com o usuário recém-criado
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-    email: userData.email,
-    password: userData.password,
-  });
-  if (signInError) throw signInError;
 
   return signInData;
 }
