@@ -85,12 +85,8 @@ export async function fetchInvitations() {
 }
 
 export async function validateInvitation(token: string) {
-  // Query by token only first — avoids compound-filter RLS issues
-  const { data, error } = await supabase
-    .from("invitations")
-    .select("*")
-    .eq("token", token)
-    .maybeSingle();
+  // Use secure RPC to fetch invitation by token (bypasses direct SELECT RLS restrict)
+  const { data, error } = await supabase.rpc("get_invitation_by_token", { _token: token } as any);
 
   if (error) {
     console.error("[Invite] Supabase error:", error);
