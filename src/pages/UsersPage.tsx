@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { BikeIcon } from "@/components/icons/BikeIcon";
 import { useDrivers } from "@/services/drivers";
 import { useCompanies } from "@/services/companies";
 import { useInvitations, useCreateInvitation, usePendingProfiles, useApproveUser, useRejectUser } from "@/services/users";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Building2, Activity, Plus, Star, Mail, Copy, Loader2, Check, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Users, Building2, Plus, Star, Mail, Copy, Loader2, Check, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -32,7 +33,7 @@ export default function UsersPage() {
         <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit flex-wrap">
           {([
             { key: "pending" as const, icon: Clock, label: "Solicitações", badge: pendingCount },
-            { key: "drivers" as const, icon: (props: any) => <Activity {...props} />, label: "Entregadores" },
+            { key: "drivers" as const, icon: (props: any) => <BikeIcon {...props} />, label: "Entregadores" },
             { key: "companies" as const, icon: Building2, label: "Empresas" },
             { key: "invitations" as const, icon: Mail, label: "Convites" },
           ]).map((t) => (

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
+import { BikeIcon } from "@/components/icons/BikeIcon";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -311,7 +312,7 @@ export default function BusinessFinancePage() {
               <div className="bg-card border border-border/60 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center">
-                    <Activity className="h-4.5 w-4.5 text-destructive" />
+                    <BikeIcon className="h-4.5 w-4.5 text-destructive" />
                   </div>
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Gasto Logística</span>
                 </div>
