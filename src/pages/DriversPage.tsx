@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useDrivers, useToggleDriverOnline } from "@/services/drivers";
 import { useRegions } from "@/services/regions";
-import { Star, Phone, Bike, Loader2, MoreHorizontal, Plus, Camera, Power } from "lucide-react";
+import { Star, Phone, Activity, Loader2, MoreHorizontal, Plus, Camera, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useQueryClient } from "@tanstack/react-query";
@@ -93,7 +93,7 @@ export default function DriversPage() {
                       {driver.profiles?.avatar_url ? (
                         <img src={driver.profiles.avatar_url} className="w-full h-full object-cover" />
                       ) : (
-                        <Bike className="h-5 w-5 text-primary" />
+                        <Activity className="h-5 w-5 text-primary" />
                       )}
                     </div>
                     <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-card ${driver.is_online ? "bg-success" : "bg-muted-foreground"}`} />
@@ -148,7 +148,7 @@ export default function DriversPage() {
           ))}
           {(drivers ?? []).length === 0 && (
             <div className="col-span-full p-12 text-center">
-              <Bike className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <Activity className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">Nenhum entregador cadastrado</p>
             </div>
           )}

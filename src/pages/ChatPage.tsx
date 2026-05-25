@@ -3,7 +3,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
-import { MessageSquare, User, Loader2, Send, Bike, HelpCircle, CheckCheck } from "lucide-react";
+import { MessageSquare, User, Loader2, Send, Activity, HelpCircle, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useMessages, useSendMessage, getAdminId, getDirectConversation } from "@/services/chat";
@@ -138,7 +138,7 @@ export default function ChatPage() {
   };
 
   const renderConvIcon = (conv: any) => {
-    if (conv.topic === 'driver_application') return <Bike className="h-5 w-5" />;
+    if (conv.topic === 'driver_application') return <Activity className="h-5 w-5" />;
     return conv.order_id ? <MessageSquare className="h-5 w-5" /> : <HelpCircle className="h-5 w-5" />;
   };
 

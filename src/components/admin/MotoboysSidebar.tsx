@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Bike, MessageSquare } from "lucide-react";
+import { Search, Activity, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDrivers } from "@/services/drivers";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ export function MotoboysSidebar() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <Bike className="h-4 w-4" />
+            <Activity className="h-4 w-4" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground leading-tight">Frota</h3>
@@ -89,7 +89,7 @@ export function MotoboysSidebar() {
           </div>
         ) : list.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[120px] text-center py-8">
-            <Bike className="h-6 w-6 text-muted-foreground/30 mb-2" />
+            <Activity className="h-6 w-6 text-muted-foreground/30 mb-2" />
             <p className="text-xs font-medium text-muted-foreground">
               {search ? "Nenhum resultado" : tab === "online" ? "Nenhum motoboy online" : "Todos estão online"}
             </p>

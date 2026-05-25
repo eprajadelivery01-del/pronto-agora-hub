@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Truck, Map, Building2, Bike, ShoppingBag,
+  LayoutDashboard, Truck, Map, Building2, Activity, ShoppingBag,
   MapPin, DollarSign, AlertTriangle, Settings, Menu, X, LogOut, User, MessageSquare, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ const navItems = [
   { label: "Chat", icon: MessageSquare, href: "/admin/chat" },
   { label: "Mapa", icon: Map, href: "/admin/map" },
   { label: "Empresas", icon: Building2, href: "/admin/companies" },
-  { label: "Entregadores", icon: (props: any) => <Bike {...props} />, href: "/admin/drivers" },
+  { label: "Entregadores", icon: (props: any) => <Activity {...props} />, href: "/admin/drivers" },
   { label: "Clientes", icon: ShoppingBag, href: "/admin/customers" },
   { label: "Regiões", icon: MapPin, href: "/admin/regions" },
   { label: "Financeiro", icon: DollarSign, href: "/admin/reports" },
