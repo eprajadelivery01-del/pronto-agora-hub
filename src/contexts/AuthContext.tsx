@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (rolesRes?.data && rolesRes.data.length > 0) {
         // Happy path: user_roles retornou corretamente
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
-        console.log("[Auth] Roles carregadas de user_roles:", finalRoles);
+        
       } else {
         // Fallback robusto: detectar role pelas tabelas de dados
         // (companies e delivery_drivers têm RLS permissivo — nunca retornam 403)
@@ -91,16 +91,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Re-tentar user_roles direto (segunda chance)
         if (adminRolesRes?.data && adminRolesRes.data.length > 0) {
           finalRoles = adminRolesRes.data.map((r: any) => r.role as AppRole);
-          console.log("[Auth] Roles na 2ª tentativa:", finalRoles);
+          
         } else {
           // Detectar por tabelas relacionadas
           if (companiesRes?.data) {
             finalRoles.push("company");
-            console.log("[Auth] Role detectada via companies:", companiesRes.data);
+            
           }
           if (driversRes?.data) {
             finalRoles.push("driver");
-            console.log("[Auth] Role detectada via delivery_drivers:", driversRes.data);
+            
           }
 
           // Reparar user_roles silenciosamente em background
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 _user_id: userId,
                 _role: role
               }).then(() => {
-                console.log("[Auth] Role reparada em background:", role);
+                
               }).catch(() => {});
             });
           } else {
