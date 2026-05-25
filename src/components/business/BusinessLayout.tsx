@@ -45,7 +45,7 @@ const tabs = [
   { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
   { label: "Editar Perfil", icon: User, href: "/business/profile", category: "Marketplace" },
   { label: "Suporte", icon: MessageCircle, href: "/business/chat", category: "Operacional" },
-  { label: "Marketplace", icon: Store, href: "https://eprajadelivery.com/marketplace", category: "Marketplace", external: true },
+  { label: "Marketplace", icon: Store, href: "DYNAMIC_MARKETPLACE", category: "Marketplace", external: true },
   { label: "Cardápio/Produtos", icon: Tag, href: "/business/products", category: "Marketplace" },
   { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
   { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
@@ -277,7 +277,13 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                     ) : (
                       <a
                         key={tab.label}
-                        href={tab.href}
+                        href={
+                          tab.href === "DYNAMIC_MARKETPLACE"
+                            ? companyData?.id
+                              ? `https://eprajadelivery.com/marketplace/store/${companyData.id}`
+                              : "https://eprajadelivery.com/marketplace"
+                            : tab.href
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className={cn(
