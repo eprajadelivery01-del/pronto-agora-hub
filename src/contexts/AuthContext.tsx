@@ -72,11 +72,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // --- ROLE HANDLING ---
       let finalRoles: AppRole[] = [];
-      if (rolesRes?.data && rolesRes.data.length > 0) {
+
+      if (rolesRes?.error) {
+        // Erro na query (403, RLS, etc.) — usar metadata do JWT como fallback
+        console.warn("[Auth] Erro ao buscar roles:", rolesRes.error.message, "| Usando JWT metadata como fallback");
+        const jwtRole = currentUser?.user_metadata?.role || currentUser?.app_metadata?.role;
+        if (jwtRole) {
+          finalRoles = [jwtRole as AppRole];
+          console.log("[Auth] Role do JWT:", finalRoles);
+        } else {
+          // Fallback extra: verificar tabelas relacionadas via RPC
+          try {
+            const { data: repairData } = await supabase.rpc("fix_user_permissions" as any);
+            if (repairData?.success) {
+              const { data: retryData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+              if (retryData && retryData.length > 0) {
+                finalRoles = retryData.map((r: any) => r.role as AppRole);
+                console.log("[Auth] Roles após reparo (erro):", finalRoles);
+              }
+            }
+          } catch { /* silencioso */ }
+        }
+      } else if (rolesRes?.data && rolesRes.data.length > 0) {
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
         console.log("[Auth] Roles carregadas:", finalRoles);
       } else {
-        // AUTO-REPARO: roles vazias — tenta consertar via RPC
+        // Query OK mas sem dados — auto-reparo
         console.warn("[Auth] Roles vazias para", userId, "— tentando auto-reparo...");
         try {
           const { data: repairData, error: repairError } = await supabase.rpc("fix_user_permissions" as any);
@@ -98,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setRoles(finalRoles);
+
 
       // --- PROFILE HANDLING ---
       if (profileRes?.data) {
