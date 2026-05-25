@@ -24,3 +24,4 @@ sonnerToast.error = function (message: any, options: any) {
 };
 
 createRoot(document.getElementById("root")!).render(<App />);
+console.log('Cache Buster V2');
