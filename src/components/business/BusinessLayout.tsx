@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
+import { useAudioAlert } from "@/hooks/useAudioAlert";
 import { toast } from "sonner";
 import {
   Popover,
@@ -64,6 +65,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const { data: companyData } = useCompany(user?.id);
+  const { playAlert } = useAudioAlert();
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
@@ -116,11 +118,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       }, () => {
         fetchPendingOrders(companyData.id);
         // Tocar som de novo pedido
-        try {
-          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-          audio.volume = 1.0;
-          audio.play().catch(e => console.warn("Erro ao reproduzir som:", e));
-        } catch (err) {}
+        playAlert();
         toast.success("NOVO PEDIDO RECEBIDO!", {
           description: "Um novo pedido chegou no marketplace.",
           duration: 10000,

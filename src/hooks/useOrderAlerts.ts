@@ -1,30 +1,15 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-
-const ALERT_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+import { useAudioAlert } from "@/hooks/useAudioAlert";
 
 export function useOrderAlerts() {
   const { user, hasRole } = useAuth();
   const qc = useQueryClient();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    audioRef.current = new Audio(ALERT_SOUND);
-    audioRef.current.load();
-  }, []);
-
-  const playAlert = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => {
-        console.warn("[OrderAlerts] Audio blocked. User needs to interact.", e);
-      });
-    }
-  };
+  const { playAlert } = useAudioAlert();
 
   useEffect(() => {
     if (!user) return;

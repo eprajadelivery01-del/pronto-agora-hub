@@ -3,8 +3,11 @@ import React, { useState, useEffect } from "react";
 import { Volume2, BellRing, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { useAudioAlert } from "@/hooks/useAudioAlert";
+
 export function SoundEnabler() {
   const [isVisible, setIsVisible] = useState(false);
+  const { unlockAudio } = useAudioAlert();
 
   useEffect(() => {
     // Check if we already have interaction in this session
@@ -17,16 +20,9 @@ export function SoundEnabler() {
   }, []);
 
   const enableSound = () => {
-    // Play a silent sound to "unlock" audio context
-    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-    audio.volume = 0;
-    audio.play().then(() => {
-      sessionStorage.setItem("epj_sound_enabled", "true");
-      setIsVisible(false);
-      console.log("[SoundEnabler] Áudio liberado pelo usuário.");
-    }).catch(e => {
-      console.error("[SoundEnabler] Erro ao liberar áudio:", e);
-    });
+    unlockAudio();
+    sessionStorage.setItem("epj_sound_enabled", "true");
+    setIsVisible(false);
   };
 
   if (!isVisible) return null;
