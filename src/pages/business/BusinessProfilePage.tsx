@@ -147,7 +147,7 @@ export default function BusinessProfilePage() {
       }
 
       toast.success("Foto enviada com sucesso!", {
-        description: "Não esqueça de clicar em 'Publicar Perfil' para salvar permanentemente."
+        description: "Não esqueça de clicar em 'Salvar Perfil' para salvar permanentemente."
       });
     } catch (error: any) {
       console.error('Erro no upload:', error);
@@ -341,7 +341,7 @@ export default function BusinessProfilePage() {
                         onClick={() => handleSave()}
                         className="px-8 py-3 rounded-2xl bg-foreground text-background font-black text-sm uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10"
                      >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Publicar Perfil"}
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar Perfil"}
                      </button>
                   </div>
                </div>
@@ -451,7 +451,7 @@ export default function BusinessProfilePage() {
                                </button>
                             </div>
                             <p className="text-[9px] text-muted-foreground font-medium px-1">
-                               ⚠️ Por padrão, lojas novas ficam ocultas até você ativar manualmente. Não esqueça de clicar em <strong>Publicar Perfil</strong> após alterar.
+                               ⚠️ Por padrão, lojas novas ficam ocultas até você ativar manualmente. Não esqueça de clicar em <strong>Salvar Perfil</strong> após alterar.
                             </p>
 
                            <div className="space-y-3">
