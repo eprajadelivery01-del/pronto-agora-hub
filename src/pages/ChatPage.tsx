@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { MessageSquare, User, Loader2, Send, Bike, HelpCircle, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useMessages, useSendMessage } from "@/services/chat";
+import { useMessages, useSendMessage, getAdminId, getDirectConversation } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ChatPage() {
@@ -16,6 +16,25 @@ export default function ChatPage() {
   
   const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
+  const qc = useQueryClient();
+  
+  // Fetch Admin ID
+  const { data: adminId } = useQuery({
+    queryKey: ["admin-id"],
+    queryFn: getAdminId,
+    enabled: isLojista
+  });
+
+  const handleStartAdminChat = async () => {
+    if (!user?.id || !adminId) return;
+    try {
+      const conv = await getDirectConversation(user.id, adminId);
+      qc.invalidateQueries({ queryKey: ["conversations", user.id] });
+      setSelectedConv(conv);
+    } catch (err) {
+      console.error("Erro ao iniciar chat com admin:", err);
+    }
+  };
   
   const { data: conversations, isLoading: loadingConvs, isError } = useQuery({
     queryKey: ["conversations", user?.id],
@@ -128,8 +147,16 @@ export default function ChatPage() {
       <div className="flex h-[calc(100vh-180px)] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar */}
         <div className="w-80 border-r border-border flex flex-col bg-muted/30">
-          <div className="p-4 border-b border-border bg-card/50">
+          <div className="p-4 border-b border-border bg-card/50 flex items-center justify-between">
             <h3 className="font-bold text-foreground text-sm uppercase tracking-widest opacity-60">Conversas Ativas</h3>
+            {isLojista && (
+              <button 
+                onClick={handleStartAdminChat}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
+              >
+                Falar com Suporte
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loadingConvs ? (

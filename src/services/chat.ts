@@ -17,6 +17,43 @@ export async function getConversation(orderId: string) {
   return data;
 }
 
+export async function getDirectConversation(userId: string, targetUserId: string) {
+  // First try to find existing direct conversation
+  const { data: existing, error: findError } = await supabase
+    .from("conversations")
+    .select("*")
+    .is("order_id", null)
+    .contains("participants", [userId, targetUserId])
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  // If not found, create one
+  const { data, error } = await supabase
+    .from("conversations")
+    .insert({
+      participants: [userId, targetUserId],
+      order_id: null
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getAdminId() {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+  
+  if (error) throw error;
+  return data?.user_id;
+}
+
 export async function getMessages(conversationId: string) {
   const { data, error } = await supabase
     .from("messages")
