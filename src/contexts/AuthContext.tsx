@@ -43,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchingRef.current = userId;
     
     // Only set rolesLoaded to false if we haven't loaded them yet
-    // This prevents the "Verificando permissões..." flicker on session refresh
     if (!rolesLoadedRef.current) {
       setRolesLoaded(false);
     }
@@ -56,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => reject(new Error("Timeout")), 10000)
       );
 
-      // Fetch roles e profile simultaneamente - Seleção mínima absoluta para evitar erro de schema
+      // Fetch roles e profile simultaneamente
       const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
       const profileFetch = supabase
         .from("profiles")
@@ -73,8 +72,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // --- ROLE HANDLING ---
       let finalRoles: AppRole[] = [];
-      if (rolesRes?.data) {
+      if (rolesRes?.data && rolesRes.data.length > 0) {
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
+        console.log("[Auth] Roles carregadas:", finalRoles);
+      } else {
+        // AUTO-REPARO: roles vazias — tenta consertar via RPC
+        console.warn("[Auth] Roles vazias para", userId, "— tentando auto-reparo...");
+        try {
+          const { data: repairData, error: repairError } = await supabase.rpc("fix_user_permissions" as any);
+          if (repairData?.success) {
+            console.log("[Auth] Auto-reparo OK. Buscando roles novamente...");
+            const { data: retryData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+            if (retryData && retryData.length > 0) {
+              finalRoles = retryData.map((r: any) => r.role as AppRole);
+              console.log("[Auth] Roles após reparo:", finalRoles);
+            } else {
+              console.error("[Auth] Auto-reparo não atribuiu roles. user_id:", userId);
+            }
+          } else {
+            console.warn("[Auth] Auto-reparo falhou:", repairError?.message || repairData);
+          }
+        } catch (repairErr: any) {
+          console.error("[Auth] Erro no auto-reparo:", repairErr?.message);
+        }
       }
 
       setRoles(finalRoles);
@@ -90,13 +110,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
     } catch (error: any) {
-      if (import.meta.env.DEV) console.error("[Auth] ERRO NO METADATA (Bypassed):", error.message);
+      console.error("[Auth] ERRO NO FETCH:", error.message);
     } finally {
       fetchingRef.current = null;
       setRolesLoaded(true);
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     let mounted = true;
