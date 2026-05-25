@@ -14,7 +14,7 @@ const navItems = [
   { label: "Chat", icon: MessageSquare, href: "/admin/chat" },
   { label: "Mapa", icon: Map, href: "/admin/map" },
   { label: "Empresas", icon: Building2, href: "/admin/companies" },
-  { label: "Entregadores", icon: Bike, href: "/admin/drivers" },
+  { label: "Entregadores", icon: (props: any) => <Bike {...props} />, href: "/admin/drivers" },
   { label: "Clientes", icon: ShoppingBag, href: "/admin/customers" },
   { label: "Regiões", icon: MapPin, href: "/admin/regions" },
   { label: "Financeiro", icon: DollarSign, href: "/admin/reports" },

@@ -32,7 +32,7 @@ export default function UsersPage() {
         <div className="flex items-center gap-1 bg-muted rounded-xl p-1 w-fit flex-wrap">
           {([
             { key: "pending" as const, icon: Clock, label: "Solicitações", badge: pendingCount },
-            { key: "drivers" as const, icon: Bike, label: "Entregadores" },
+            { key: "drivers" as const, icon: (props: any) => <Bike {...props} />, label: "Entregadores" },
             { key: "companies" as const, icon: Building2, label: "Empresas" },
             { key: "invitations" as const, icon: Mail, label: "Convites" },
           ]).map((t) => (

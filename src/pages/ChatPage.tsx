@@ -137,9 +137,9 @@ export default function ChatPage() {
     return extractedTopic || otherProfile?.full_name || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Usuário Anônimo";
   };
 
-  const getConvIcon = (conv: any) => {
-    if (conv.topic === 'driver_application') return Bike;
-    return conv.order_id ? MessageSquare : HelpCircle;
+  const renderConvIcon = (conv: any) => {
+    if (conv.topic === 'driver_application') return <Bike className="h-5 w-5" />;
+    return conv.order_id ? <MessageSquare className="h-5 w-5" /> : <HelpCircle className="h-5 w-5" />;
   };
 
   return (
@@ -173,7 +173,6 @@ export default function ChatPage() {
               </div>
             ) : (
               conversations?.map((conv) => {
-                const Icon = getConvIcon(conv);
                 // Pega as mensagens ordenadas corretamente
                 const sortedMessages = conv.messages ? [...conv.messages].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) : [];
                 const lastMsg = sortedMessages[0];
@@ -192,7 +191,7 @@ export default function ChatPage() {
                         "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
                         conv.topic === 'driver_application' ? "bg-orange-500/10 text-orange-500" : "bg-primary/10 text-primary"
                       )}>
-                        <Icon className="h-5 w-5" />
+                        {renderConvIcon(conv)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
