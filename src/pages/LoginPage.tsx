@@ -12,23 +12,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading, hasRole, roles, userStatus } = useAuth();
+  const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus } = useAuth();
 
   useEffect(() => {
-    if (!user || authLoading) return;
+    // Aguarda autenticação E carregamento de roles terminarem
+    if (!user || authLoading || !rolesLoaded) return;
 
-    // Aguarda as roles serem carregadas antes de decidir o redirecionamento.
+    // Só chega aqui quando roles já foram carregadas do banco
     if (roles.length === 0) {
-      // Fallback: se após 4s ainda não houver roles, aí sim mostramos o aviso e deslogamos.
-      const fallback = setTimeout(() => {
-        toast({
-          title: "Acesso Negado",
-          description: "Sua conta não possui permissões no sistema. Contate o administrador.",
-          variant: "destructive",
-        });
-        supabase.auth.signOut();
-      }, 4000);
-      return () => clearTimeout(fallback);
+      toast({
+        title: "Acesso Negado",
+        description: "Sua conta não possui permissões no sistema. Contate o administrador.",
+        variant: "destructive",
+      });
+      supabase.auth.signOut();
+      return;
     }
 
     if (userStatus === "pending") {
@@ -45,7 +43,7 @@ export default function LoginPage() {
       });
       supabase.auth.signOut();
     }
-  }, [user, authLoading, roles, userStatus, hasRole, navigate, toast]);
+  }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
