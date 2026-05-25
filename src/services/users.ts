@@ -148,11 +148,11 @@ export async function acceptInvitation(token: string, userData: { email: string;
     
   if (profileError) console.warn("[Invite] Aviso ao atualizar perfil:", profileError.message);
 
-  // 4. Garantir role (o trigger pode já ter inserido, usar ON CONFLICT)
-  const { error: roleError } = await supabase.from("user_roles").upsert({
-    user_id: userId,
-    role: invitation.role,
-  }, { onConflict: "user_id,role", ignoreDuplicates: true });
+  // 4. Garantir role via RPC SECURITY DEFINER (evita 403 por ausência de INSERT policy no user_roles)
+  const { error: roleError } = await supabase.rpc("assign_invitation_role", {
+    _user_id: userId,
+    _role: invitation.role,
+  } as any);
 
   if (roleError) console.warn("[Invite] Aviso ao atribuir role:", roleError.message);
 
