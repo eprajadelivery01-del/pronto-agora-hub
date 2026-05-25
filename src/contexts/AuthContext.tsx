@@ -73,52 +73,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // --- ROLE HANDLING ---
       let finalRoles: AppRole[] = [];
 
-      if (rolesRes?.error) {
-        // Erro na query (403, RLS, etc.) — usar metadata do JWT como fallback
-        console.warn("[Auth] Erro ao buscar roles:", rolesRes.error.message, "| Usando JWT metadata como fallback");
-        const jwtRole = currentUser?.user_metadata?.role || currentUser?.app_metadata?.role;
-        if (jwtRole) {
-          finalRoles = [jwtRole as AppRole];
-          console.log("[Auth] Role do JWT:", finalRoles);
-        } else {
-          // Fallback extra: verificar tabelas relacionadas via RPC
-          try {
-            const { data: repairData } = await supabase.rpc("fix_user_permissions" as any);
-            if (repairData?.success) {
-              const { data: retryData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-              if (retryData && retryData.length > 0) {
-                finalRoles = retryData.map((r: any) => r.role as AppRole);
-                console.log("[Auth] Roles após reparo (erro):", finalRoles);
-              }
-            }
-          } catch { /* silencioso */ }
-        }
-      } else if (rolesRes?.data && rolesRes.data.length > 0) {
+      if (rolesRes?.data && rolesRes.data.length > 0) {
+        // Happy path: user_roles retornou corretamente
         finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
-        console.log("[Auth] Roles carregadas:", finalRoles);
+        console.log("[Auth] Roles carregadas de user_roles:", finalRoles);
       } else {
-        // Query OK mas sem dados — auto-reparo
-        console.warn("[Auth] Roles vazias para", userId, "— tentando auto-reparo...");
-        try {
-          const { data: repairData, error: repairError } = await supabase.rpc("fix_user_permissions" as any);
-          if (repairData?.success) {
-            console.log("[Auth] Auto-reparo OK. Buscando roles novamente...");
-            const { data: retryData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-            if (retryData && retryData.length > 0) {
-              finalRoles = retryData.map((r: any) => r.role as AppRole);
-              console.log("[Auth] Roles após reparo:", finalRoles);
-            } else {
-              console.error("[Auth] Auto-reparo não atribuiu roles. user_id:", userId);
-            }
-          } else {
-            console.warn("[Auth] Auto-reparo falhou:", repairError?.message || repairData);
+        // Fallback robusto: detectar role pelas tabelas de dados
+        // (companies e delivery_drivers têm RLS permissivo — nunca retornam 403)
+        console.warn("[Auth] user_roles vazio/erro para", userId, "— usando fallback por tabelas...");
+
+        const [companiesRes, driversRes, adminRolesRes] = await Promise.all([
+          supabase.from("companies").select("id").eq("user_id", userId).maybeSingle(),
+          supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle(),
+          supabase.from("user_roles").select("role").eq("user_id", userId),
+        ]);
+
+        // Re-tentar user_roles direto (segunda chance)
+        if (adminRolesRes?.data && adminRolesRes.data.length > 0) {
+          finalRoles = adminRolesRes.data.map((r: any) => r.role as AppRole);
+          console.log("[Auth] Roles na 2ª tentativa:", finalRoles);
+        } else {
+          // Detectar por tabelas relacionadas
+          if (companiesRes?.data) {
+            finalRoles.push("company");
+            console.log("[Auth] Role detectada via companies:", companiesRes.data);
           }
-        } catch (repairErr: any) {
-          console.error("[Auth] Erro no auto-reparo:", repairErr?.message);
+          if (driversRes?.data) {
+            finalRoles.push("driver");
+            console.log("[Auth] Role detectada via delivery_drivers:", driversRes.data);
+          }
+
+          // Reparar user_roles silenciosamente em background
+          if (finalRoles.length > 0) {
+            finalRoles.forEach(role => {
+              supabase.rpc("assign_invitation_role" as any, {
+                _user_id: userId,
+                _role: role
+              }).then(() => {
+                console.log("[Auth] Role reparada em background:", role);
+              }).catch(() => {});
+            });
+          } else {
+            console.error("[Auth] Nenhuma role encontrada para", userId);
+          }
         }
       }
 
       setRoles(finalRoles);
+
 
 
       // --- PROFILE HANDLING ---
