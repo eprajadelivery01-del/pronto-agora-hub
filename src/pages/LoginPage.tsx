@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { resetLocalAuthSession, supabase } from "@/lib/supabaseClient";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus } = useAuth();
+  const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus, signIn } = useAuth();
 
   useEffect(() => {
     // Aguarda autenticação E carregamento de roles terminarem
@@ -52,12 +52,9 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-      if (error) {
+      try {
+        await signIn(normalizedEmail, password);
+      } catch (error: any) {
         const masked = normalizedEmail.replace(/(.{2}).+(@.+)/, "$1***$2");
         console.warn("[Login] Falha", {
           status: (error as any).status,
@@ -148,9 +145,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={async () => {
-              await supabase.auth.signOut();
-              localStorage.clear();
-              sessionStorage.clear();
+              await resetLocalAuthSession();
               window.location.reload();
             }}
             className="w-full py-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest font-bold"
