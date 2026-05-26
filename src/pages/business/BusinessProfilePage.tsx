@@ -203,17 +203,27 @@ export default function BusinessProfilePage() {
     setGallery(prev => prev.filter(item => item !== url));
   };
 
-  const toggleOpenStatus = async () => {
+  const toggleStoreActive = async () => {
     if (!companyId) return;
-    const newStatus = !isOpen;
-    setIsOpen(newStatus);
+    // Both fields toggle together: open = visible in marketplace
+    const newActive = !isOpen;
+    setIsOpen(newActive);
+    setShowInMarketplace(newActive);
     try {
-      const { error } = await supabase.from("companies").update({ is_open: newStatus }).eq("id", companyId);
+      const { error } = await supabase
+        .from("companies")
+        .update({ is_open: newActive, show_in_marketplace: newActive })
+        .eq("id", companyId);
       if (error) throw error;
-      toast.success(newStatus ? "Loja aberta para pedidos!" : "Loja fechada temporariamente.");
+      toast.success(
+        newActive
+          ? "✅ Loja ativa! Visível no marketplace e aceitando pedidos."
+          : "⏸️ Loja pausada. Oculta no marketplace e sem receber pedidos."
+      );
     } catch {
-      setIsOpen(!newStatus);
-      toast.error("Erro ao atualizar status");
+      setIsOpen(!newActive);
+      setShowInMarketplace(!newActive);
+      toast.error("Erro ao atualizar status da loja");
     }
   };
 
@@ -390,69 +400,43 @@ export default function BusinessProfilePage() {
                         </div>
                         
                         <div className="pt-4 border-t border-border/40 mt-6 space-y-3">
-                            {/* Toggle: Status do Delivery */}
-                            <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border/40">
-                               <div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Status do Delivery</p>
-                                  <p className="text-[10px] text-muted-foreground font-medium">Ative para começar a receber pedidos</p>
-                               </div>
-                               <button
-                                  type="button"
-                                  onClick={toggleOpenStatus}
-                                  className={cn(
-                                     "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                                     isOpen ? "bg-primary" : "bg-muted-foreground/30"
-                                  )}
-                               >
-                                  <span className={cn(
+                             {/* Toggle Unificado: Loja Ativa */}
+                             <button
+                                type="button"
+                                onClick={toggleStoreActive}
+                                className={cn(
+                                  "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
+                                  isOpen
+                                    ? "bg-emerald-50 border-emerald-400 shadow-md shadow-emerald-100"
+                                    : "bg-muted/40 border-border/60 hover:border-border"
+                                )}
+                             >
+                                <div className="text-left">
+                                   <p className={cn(
+                                     "text-[11px] font-black uppercase tracking-widest",
+                                     isOpen ? "text-emerald-700" : "text-muted-foreground"
+                                   )}>
+                                     {isOpen ? "✅ Loja Ativa" : "⏸️ Loja Pausada"}
+                                   </p>
+                                   <p className={cn(
+                                     "text-[10px] font-medium mt-0.5",
+                                     isOpen ? "text-emerald-600" : "text-muted-foreground"
+                                   )}>
+                                     {isOpen
+                                       ? "Visível no marketplace · Aceitando pedidos"
+                                       : "Oculta no marketplace · Sem receber pedidos"}
+                                   </p>
+                                </div>
+                                <div className={cn(
+                                  "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
+                                  isOpen ? "bg-emerald-500" : "bg-muted-foreground/30"
+                                )}>
+                                   <span className={cn(
                                      "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
                                      isOpen ? "translate-x-6" : "translate-x-1"
-                                  )} />
-                               </button>
-                            </div>
-
-                            {/* Toggle: Exibir no Marketplace */}
-                            <div className={cn(
-                               "flex items-center justify-between p-4 rounded-2xl border transition-all",
-                               showInMarketplace
-                                 ? "bg-emerald-50 border-emerald-200"
-                                 : "bg-amber-50 border-amber-200"
-                            )}>
-                               <div className="flex-1 pr-3">
-                                  <p className={cn(
-                                     "text-[10px] font-black uppercase tracking-widest",
-                                     showInMarketplace ? "text-emerald-700" : "text-amber-700"
-                                  )}>
-                                     {showInMarketplace ? "✅ Visível no Marketplace" : "🔒 Oculto no Marketplace"}
-                                  </p>
-                                  <p className={cn(
-                                     "text-[10px] font-medium mt-0.5",
-                                     showInMarketplace ? "text-emerald-600" : "text-amber-600"
-                                  )}>
-                                     {showInMarketplace
-                                       ? "Sua loja está listada e visível para os clientes"
-                                       : "Sua loja não aparece para clientes. Ative para ser encontrado"}
-                                  </p>
-                               </div>
-                               <button
-                                  type="button"
-                                  onClick={() => setShowInMarketplace(prev => !prev)}
-                                  className={cn(
-                                     "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                                     showInMarketplace
-                                       ? "bg-emerald-500 focus-visible:ring-emerald-500"
-                                       : "bg-amber-400 focus-visible:ring-amber-400"
-                                  )}
-                               >
-                                  <span className={cn(
-                                     "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
-                                     showInMarketplace ? "translate-x-6" : "translate-x-1"
-                                  )} />
-                               </button>
-                            </div>
-                            <p className="text-[9px] text-muted-foreground font-medium px-1">
-                               ⚠️ Por padrão, lojas novas ficam ocultas até você ativar manualmente. Não esqueça de clicar em <strong>Salvar Perfil</strong> após alterar.
-                            </p>
+                                   )} />
+                                </div>
+                             </button>
 
                            <div className="space-y-3">
                               <div className="flex items-center justify-between">
