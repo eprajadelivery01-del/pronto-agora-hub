@@ -28,22 +28,28 @@ export default function BusinessLoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const logFailedLogin = (loginEmail: string) => {
+      Promise.resolve(
+        supabase.rpc("log_failed_login" as never, { p_email: loginEmail, p_app_name: "Painel Lojista" } as never)
+      ).catch(() => undefined);
+    };
     
     try {
       const normalizedEmail = email.trim().toLowerCase();
       try {
         await signIn(normalizedEmail, password);
         toast.success("Bem-vindo ao Portal Lojista!");
-      } catch (error: any) {
-        const description = /invalid login credentials/i.test(error.message)
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Erro inesperado";
+        const description = /invalid login credentials/i.test(message)
           ? "E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador."
-          : error.message;
+          : message;
         toast.error("Erro ao entrar: " + description);
-        try { await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any); } catch {}
+        logFailedLogin(normalizedEmail);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Ocorreu um erro inesperado.");
-      try { await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any); } catch {}
+      logFailedLogin(email.trim().toLowerCase());
     } finally {
       setLoading(false);
     }
