@@ -21,6 +21,9 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type UserRoleRow = { role: AppRole };
+type UserProfileRow = { full_name: string | null; avatar_url: string | null; status: UserStatus | null; phone: string | null };
+type FetchUserDataResult = [{ data: UserRoleRow[] | null }, { data: UserProfileRow | null }];
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -63,10 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", userId)
         .maybeSingle();
 
-      const results = await Promise.race([
+      const results = (await Promise.race([
         Promise.all([rolesFetch, profileFetch]),
         timeout
-      ]) as any;
+      ])) as FetchUserDataResult;
 
       const [rolesRes, profileRes] = results;
 
@@ -75,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (rolesRes?.data && rolesRes.data.length > 0) {
         // Happy path: user_roles retornou corretamente
-        finalRoles = rolesRes.data.map((r: any) => r.role as AppRole);
+        finalRoles = rolesRes.data.map((r) => r.role);
         
       } else {
         // Fallback robusto: detectar role pelas tabelas de dados
@@ -90,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Re-tentar user_roles direto (segunda chance)
         if (adminRolesRes?.data && adminRolesRes.data.length > 0) {
-          finalRoles = adminRolesRes.data.map((r: any) => r.role as AppRole);
+          finalRoles = adminRolesRes.data.map((r: UserRoleRow) => r.role);
           
         } else {
           // Detectar por tabelas relacionadas
@@ -107,10 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (finalRoles.length > 0) {
             finalRoles.forEach(role => {
               Promise.resolve(
-                supabase.rpc("assign_invitation_role" as any, {
+                supabase.rpc("assign_invitation_role" as never, {
                   _user_id: userId,
                   _role: role,
-                })
+                } as never)
               ).catch(() => {});
             });
           } else {
@@ -133,8 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserStatus(profileRes.data.status);
       }
 
-    } catch (error: any) {
-      console.error("[Auth] ERRO NO FETCH:", error.message);
+    } catch (error: unknown) {
+      console.error("[Auth] ERRO NO FETCH:", error instanceof Error ? error.message : error);
     } finally {
       fetchingRef.current = null;
       setRolesLoaded(true);
