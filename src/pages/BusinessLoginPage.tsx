@@ -39,7 +39,7 @@ export default function BusinessLoginPage() {
       }
     } catch (err: any) {
       toast.error("Ocorreu um erro inesperado.");
-      await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any).catch(() => {});
+      try { await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any); } catch {}
     } finally {
       setLoading(false);
     }
