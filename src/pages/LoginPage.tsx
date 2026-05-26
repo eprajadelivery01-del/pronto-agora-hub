@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { AuthError } from "@supabase/supabase-js";
+import { resetLocalAuthSession, supabase } from "@/lib/supabaseClient";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus } = useAuth();
+  const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus, signIn } = useAuth();
 
   useEffect(() => {
     // Aguarda autenticação E carregamento de roles terminarem
@@ -52,34 +53,33 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-      if (error) {
+      try {
+        await signIn(normalizedEmail, password);
+      } catch (error: unknown) {
+        const authError = error instanceof AuthError ? error : null;
+        const message = error instanceof Error ? error.message : "Erro inesperado";
         const masked = normalizedEmail.replace(/(.{2}).+(@.+)/, "$1***$2");
         console.warn("[Login] Falha", {
-          status: (error as any).status,
-          code: (error as any).code,
-          msg: error.message,
+          status: authError?.status,
+          code: authError?.code,
+          msg: message,
           email: masked,
         });
 
-        let description = error.message;
-        if (/invalid login credentials/i.test(error.message)) {
+        let description = message;
+        if (/invalid login credentials/i.test(message)) {
           description =
             "E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador.";
-        } else if (/email not confirmed/i.test(error.message)) {
+        } else if (/email not confirmed/i.test(message)) {
           description = "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
         }
 
         toast({ title: "Erro ao entrar", description, variant: "destructive" });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Erro ao entrar",
-        description: err?.message ?? "Erro inesperado",
+        description: err instanceof Error ? err.message : "Erro inesperado",
         variant: "destructive",
       });
     } finally {
@@ -148,9 +148,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={async () => {
-              await supabase.auth.signOut();
-              localStorage.clear();
-              sessionStorage.clear();
+              await resetLocalAuthSession();
               window.location.reload();
             }}
             className="w-full py-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest font-bold"
