@@ -19,31 +19,14 @@ export default function LoginPage() {
     // Aguarda autenticação E carregamento de roles terminarem
     if (!user || authLoading || !rolesLoaded) return;
 
-    // Só chega aqui quando roles já foram carregadas do banco
-    if (roles.length === 0) {
-      toast({
-        title: "Acesso Negado",
-        description: "Sua conta não possui permissões no sistema. Contate o administrador.",
-        variant: "destructive",
-      });
-      supabase.auth.signOut();
-      return;
-    }
-
     if (userStatus === "pending") {
       navigate("/pending-approval", { replace: true });
     } else if (hasRole("company")) {
       navigate("/business", { replace: true });
     } else if (hasRole("admin")) {
       navigate("/admin", { replace: true });
-    } else {
-      toast({
-        title: "Acesso Restrito",
-        description: "Este portal é exclusivo para determinados parceiros.",
-        variant: "destructive",
-      });
-      supabase.auth.signOut();
     }
+    // Se roles vazias, apenas aguarda — não deslogar o usuário aqui
   }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
