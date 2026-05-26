@@ -17,10 +17,10 @@ export function useAudioAlert() {
       globalAudio.volume = 0; // Silent playback to unlock context
       globalAudio.play()
         .then(() => {
-          console.log("[AudioAlert] Áudio destravado com sucesso!");
+          // audio unlocked silently
         })
         .catch((e) => {
-          console.warn("[AudioAlert] Falha ao destravar áudio:", e);
+          if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao destravar áudio:", e);
         });
     }
   }, []);
