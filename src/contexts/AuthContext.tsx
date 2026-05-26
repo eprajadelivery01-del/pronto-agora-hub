@@ -106,12 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Reparar user_roles silenciosamente em background
           if (finalRoles.length > 0) {
             finalRoles.forEach(role => {
-              supabase.rpc("assign_invitation_role" as any, {
-                _user_id: userId,
-                _role: role
-              }).then(() => {
-                
-              }).catch(() => {});
+              Promise.resolve(
+                supabase.rpc("assign_invitation_role" as any, {
+                  _user_id: userId,
+                  _role: role,
+                })
+              ).catch(() => {});
             });
           } else {
             console.error("[Auth] Nenhuma role encontrada para", userId);
