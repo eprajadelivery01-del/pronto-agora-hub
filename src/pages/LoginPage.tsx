@@ -48,14 +48,40 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
       if (error) {
-        toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
+        const masked = normalizedEmail.replace(/(.{2}).+(@.+)/, "$1***$2");
+        console.warn("[Login] Falha", {
+          status: (error as any).status,
+          code: (error as any).code,
+          msg: error.message,
+          email: masked,
+        });
+
+        let description = error.message;
+        if (/invalid login credentials/i.test(error.message)) {
+          description =
+            "E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador.";
+        } else if (/email not confirmed/i.test(error.message)) {
+          description = "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
+        }
+
+        toast({ title: "Erro ao entrar", description, variant: "destructive" });
       }
     } catch (err: any) {
+      toast({
+        title: "Erro ao entrar",
+        description: err?.message ?? "Erro inesperado",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

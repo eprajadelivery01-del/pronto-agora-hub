@@ -1,39 +1,22 @@
+## Plano
 
-## Objetivo
+1. **Confirmar que o app está usando o projeto externo correto**
+   - O código já importa `@/lib/supabaseClient`, que aponta para o Supabase externo compartilhado (`nptkxlrhrlssdsevpgqe`).
+   - Não vou trocar para Lovable Cloud nem mexer nos arquivos auto-gerados.
 
-Substituir o componente de mapa (`RegionPickerMap`) no formulário de nova solicitação por uma grade de cards/caixas selecionáveis, conforme os prints de referência. Cada card mostra um indicador colorido, o nome da região e o valor da entrega. O lojista apenas seleciona a região — não pode editar os valores.
+2. **Melhorar o fluxo de login no frontend**
+   - Centralizar o login usando o `signIn` do `AuthContext`, evitando lógica duplicada em `LoginPage`.
+   - Normalizar o e-mail com `trim().toLowerCase()` antes de autenticar, para evitar erro por espaço invisível ou caixa alta.
+   - Mostrar uma mensagem mais útil quando vier `Invalid login credentials`, explicando que pode ser senha incorreta, e-mail não confirmado, usuário bloqueado/deletado ou credencial criada em outro projeto.
 
-## Alterações
+3. **Adicionar diagnóstico seguro no console**
+   - Registrar apenas informações não sensíveis: código/status do erro, mensagem e e-mail normalizado mascarado/parcial, sem senha.
+   - Isso ajuda a diferenciar erro real de credencial de erro posterior de permissão/roles.
 
-### 1. Criar componente `RegionPickerGrid`
+4. **Não tratar como RLS no login**
+   - RLS só entra depois que o login emite sessão/token.
+   - Se a resposta é `Invalid login credentials`, a falha está antes das consultas em `user_roles`, `profiles` ou permissões do painel.
 
-Novo arquivo: `src/components/business/RegionPickerGrid.tsx`
-
-- Busca as regiões do Supabase (filtrando por `city_id` se fornecido), igual ao `RegionPickerMap`
-- Renderiza um grid responsivo (3 colunas em desktop, 2 em mobile) de cards
-- Cada card exibe:
-  - Bolinha colorida (cor da região)
-  - Nome da região em negrito
-  - Valor (`R$ X,XX`) abaixo do nome
-- Ao clicar, o card fica selecionado (borda azul/primária, fundo levemente colorido, ícone de check)
-- Dispara `onRegionSelect(fee, regionId)` ao selecionar
-- Valores são somente leitura — o lojista não pode editá-los
-
-### 2. Atualizar `NewDeliveryForm.tsx`
-
-- Substituir o import e uso de `RegionPickerMap` por `RegionPickerGrid`
-- Remover o wrapper `rounded-[2rem] overflow-hidden border` do mapa
-- Adicionar label "Região de Entrega" acima do grid
-- Quando uma região é selecionada, o campo "Taxa de Entrega" é preenchido automaticamente e fica readonly (não editável manualmente), mostrando um badge com o nome da região selecionada
-- Manter toda a lógica de submit inalterada
-
-### 3. Opcionalmente manter `RegionPickerMap`
-
-O arquivo `RegionPickerMap.tsx` não será deletado (pode ser usado em outros contextos), apenas deixará de ser importado no formulário.
-
-## Detalhes técnicos
-
-- O grid usa classes Tailwind existentes (`grid grid-cols-2 md:grid-cols-3 gap-3`)
-- Estado `selectedRegionId` controlado no grid para highlight visual
-- O campo de taxa de entrega no form passa a ser `readOnly` quando uma região está selecionada, com um badge mostrando o nome da região
-- A busca de regiões reutiliza o mesmo padrão do `RegionPickerMap` (query direta ao Supabase na tabela `regions`)
+5. **Validação final**
+   - Conferir se os imports e o fluxo compilam corretamente.
+   - Manter o comportamento de redirecionamento por role depois do login bem-sucedido.
