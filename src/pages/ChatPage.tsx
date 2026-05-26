@@ -243,12 +243,12 @@ export default function ChatPage() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#0e1621] relative z-0">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-muted/20 relative z-0">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full relative z-10">
-                    <div className="bg-[#182533] px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-[#7aa4c7]" />
-                      <span className="text-[13px] text-[#7aa4c7]">Carregando mensagens...</span>
+                    <div className="bg-card border border-border px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-[13px] text-muted-foreground font-medium">Carregando mensagens...</span>
                     </div>
                   </div>
                 ) : messages?.map((msg) => {
@@ -291,39 +291,39 @@ export default function ChatPage() {
               </div>
 
               {/* Input */}
-              <div className="p-3 bg-[#17212b] border-t border-[#0e1621] z-10">
+              <div className="p-3 bg-card border-t border-border z-10">
                 <div className="flex items-center gap-2 max-w-4xl mx-auto">
-                  <div className="flex-1 bg-[#242f3d] rounded-full flex items-center px-4 h-12 shadow-sm">
+                  <div className="flex-1 bg-muted/50 border border-border rounded-full flex items-center px-4 h-12 shadow-sm">
                     <input
                       type="text"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                      placeholder="Write a message..."
-                      className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-[#ffffff] placeholder:text-[#547c9e]"
+                      placeholder="Digite uma mensagem..."
+                      className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
                   <button
                     onClick={handleSend}
                     disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="w-12 h-12 rounded-full bg-[#2b5278] text-white disabled:opacity-50 hover:bg-[#202b36] transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
+                    className="w-12 h-12 rounded-full bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
                   >
                     {sendMessageMutation.isPending ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                      <Loader2 className="h-5 w-5 animate-spin text-primary-foreground" />
                     ) : (
-                      <Send className="h-5 w-5 text-white ml-1" />
+                      <Send className="h-5 w-5 text-primary-foreground ml-1" />
                     )}
                   </button>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-[#0e1621]">
-              <div className="w-20 h-20 rounded-[2rem] bg-[#182533] flex items-center justify-center mb-6 animate-bounce duration-[3s]">
-                <MessageSquare className="h-10 w-10 text-[#547c9e]" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-muted/20">
+              <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center mb-6 animate-bounce duration-[3s]">
+                <MessageSquare className="h-10 w-10 text-primary" />
               </div>
-              <h3 className="text-xl font-black text-[#ffffff] mb-2">Central de Atendimento</h3>
-              <p className="text-sm text-[#7aa4c7] max-w-xs font-medium">Selecione uma conversa ao lado para começar a responder seus clientes e futuros entregadores.</p>
+              <h3 className="text-xl font-black text-foreground mb-2">Central de Atendimento</h3>
+              <p className="text-sm text-muted-foreground max-w-xs font-medium">Selecione uma conversa ao lado para começar a responder seus clientes e futuros entregadores.</p>
             </div>
           )}
         </div>
