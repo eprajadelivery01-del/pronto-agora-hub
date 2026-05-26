@@ -163,8 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRolesLoaded(true);
           setLoading(false);
         }
-      } catch (error: any) {
-        if (/invalid refresh token/i.test(error?.message ?? "")) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "";
+        if (/invalid refresh token/i.test(message)) {
           await resetLocalAuthSession();
         }
         setRolesLoaded(true);
