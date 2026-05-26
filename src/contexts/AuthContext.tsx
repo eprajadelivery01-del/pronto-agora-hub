@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { clearSupabaseAuthStorage, resetLocalAuthSession, supabase } from "@/lib/supabaseClient";
 
 type AppRole = "admin" | "company" | "driver" | "customer";
 type UserStatus = "pending" | "active" | "rejected";
@@ -163,7 +163,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRolesLoaded(true);
           setLoading(false);
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (/invalid refresh token/i.test(error?.message ?? "")) {
+          await resetLocalAuthSession();
+        }
         setRolesLoaded(true);
         setLoading(false);
       }
@@ -211,7 +214,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    await resetLocalAuthSession();
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error) throw error;
   };
 
@@ -226,11 +230,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => { 
     try {
-      await supabase.auth.signOut(); 
-      localStorage.clear();
-      sessionStorage.clear();
+      await supabase.auth.signOut();
+      clearSupabaseAuthStorage();
       window.location.href = "/login";
     } catch (error) {
+      clearSupabaseAuthStorage();
       if (import.meta.env.DEV) console.error("Erro ao sair:", error);
       window.location.href = "/login";
     }
