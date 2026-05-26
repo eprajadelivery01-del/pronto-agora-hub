@@ -93,7 +93,7 @@ export default function ProfilePage() {
             >
               {uploading ? <Loader2 className="h-4 w-4 text-primary-foreground animate-spin" /> : <Camera className="h-4 w-4 text-primary-foreground" />}
             </button>
-            <input ref={fileInputRef} type="file" capture="environment" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+            <input ref={fileInputRef} type="file"  accept="image/*" className="hidden" onChange={handleAvatarUpload} />
           </div>
           <p className="text-sm text-muted-foreground mt-3">{user?.email}</p>
         </div>

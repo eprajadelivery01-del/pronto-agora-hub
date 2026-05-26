@@ -553,7 +553,7 @@ export default function BusinessProfilePage() {
                             </div>
                             <label className="cursor-pointer px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
                                Adicionar
-                               <input type="file" multiple accept="image/*" capture="environment" className="hidden" onChange={handleGalleryUpload} />
+                               <input type="file" multiple accept="image/*"  className="hidden" onChange={handleGalleryUpload} />
                             </label>
                          </div>
                          
@@ -657,7 +657,7 @@ export default function BusinessProfilePage() {
                         id="file-upload" 
                         className="hidden" 
                         accept="image/*"
-                        capture="environment"
+                        
                         onChange={(e) => handleFileUpload(e, isEditingLogo ? 'logo' : 'cover')}
                         disabled={isUploading}
                       />

@@ -248,7 +248,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
               <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-dashed border-border group-hover:border-primary transition-colors">
                 {avatarPreview ? <img src={avatarPreview} className="w-full h-full object-cover" /> : <Camera className="h-6 w-6 text-muted-foreground" />}
               </div>
-              <input type="file" capture="environment" accept="image/*" onChange={handleAvatar} className="hidden" />
+              <input type="file"  accept="image/*" onChange={handleAvatar} className="hidden" />
             </label>
           </div>
           <FieldInput label="Nome completo *" value={form.fullName} onChange={(v) => set("fullName", v)} placeholder="João da Silva" />

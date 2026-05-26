@@ -475,7 +475,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                <div className="space-y-4">
                   <div className="relative">
                      <input 
-                        type="file" capture="environment" 
+                        type="file"
                         id="prod-upload" 
                         className="hidden" 
                         accept="image/*"
