@@ -11,7 +11,7 @@ export default function BusinessLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { user, userStatus, hasRole } = useAuth();
+  const { user, userStatus, hasRole, signIn } = useAuth();
 
   useEffect(() => {
     if (user) {
@@ -30,12 +30,16 @@ export default function BusinessLoginPage() {
     setLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        toast.error("Erro ao entrar: " + error.message);
-        try { await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any); } catch {}
-      } else {
+      const normalizedEmail = email.trim().toLowerCase();
+      try {
+        await signIn(normalizedEmail, password);
         toast.success("Bem-vindo ao Portal Lojista!");
+      } catch (error: any) {
+        const description = /invalid login credentials/i.test(error.message)
+          ? "E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador."
+          : error.message;
+        toast.error("Erro ao entrar: " + description);
+        try { await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any); } catch {}
       }
     } catch (err: any) {
       toast.error("Ocorreu um erro inesperado.");
