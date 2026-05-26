@@ -52,7 +52,6 @@ const tabs = [
   { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
   { label: "Financeiro", icon: DollarSign, href: "/business/finance", category: "Gestão" },
   { label: "Histórico", icon: History, href: "/business/history", category: "Gestão" },
-  { label: "Configurações", icon: Settings, href: "/business/profile", category: "Configurações" },
 ];
 
 export function BusinessLayout({ children, title }: BusinessLayoutProps) {
