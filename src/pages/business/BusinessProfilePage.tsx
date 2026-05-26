@@ -304,15 +304,24 @@ export default function BusinessProfilePage() {
                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center justify-center">
                   <button 
                     onClick={() => { setIsEditingCover(true); setTempUrl(coverUrl); }}
-                    className="px-6 py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-white/30 transition-all shadow-2xl"
+                    className="px-6 py-2.5 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-white/30 transition-all shadow-2xl cursor-pointer"
                   >
                     <Pencil className="h-4 w-4" /> Alterar Banner
                   </button>
                </div>
 
+               {/* Always-visible Floating Action Button for banner change */}
+               <button
+                 onClick={() => { setIsEditingCover(true); setTempUrl(coverUrl); }}
+                 className="absolute top-4 right-4 z-10 p-3 bg-white/80 dark:bg-card/80 backdrop-blur-md border border-border/50 text-foreground hover:text-primary rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center cursor-pointer"
+                 title="Alterar Banner"
+               >
+                 <Camera className="h-4 w-4" />
+               </button>
+
                {/* Overlapping Avatar (Logo) */}
                <div className="absolute -bottom-16 left-8 group/avatar">
-                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-white p-2 shadow-2xl border-4 border-card relative">
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-white dark:bg-card p-2 shadow-2xl border-4 border-card relative">
                      <div className="w-full h-full rounded-[2rem] bg-muted overflow-hidden flex items-center justify-center relative">
                         {logoUrl ? (
                           <img src={logoUrl} className="w-full h-full object-cover" alt="Logo" />
@@ -326,6 +335,14 @@ export default function BusinessProfilePage() {
                            <Camera className="h-8 w-8 text-white" />
                         </div>
                      </div>
+                     {/* Always-visible Floating Action Button for logo change */}
+                     <button
+                       onClick={() => { setIsEditingLogo(true); setTempUrl(logoUrl); }}
+                       className="absolute bottom-0 right-0 z-10 p-3 bg-primary hover:bg-primary/95 text-white rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center justify-center border-4 border-card cursor-pointer"
+                       title="Alterar Logo"
+                     >
+                       <Camera className="h-4 w-4" />
+                     </button>
                   </div>
                </div>
             </div>
@@ -629,8 +646,8 @@ export default function BusinessProfilePage() {
 
       {/* URL EDIT MODALS/OVERLAYS */}
       {(isEditingLogo || isEditingCover) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="w-full max-w-lg bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+           <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card border border-border rounded-[2.5rem] p-6 md:p-8 shadow-2xl space-y-5 animate-in zoom-in-95 scrollbar-thin">
               <div className="flex items-center justify-between">
                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -640,31 +657,30 @@ export default function BusinessProfilePage() {
                        {isEditingLogo ? "Alterar Logo" : "Alterar Banner"}
                     </h3>
                  </div>
-                 <button onClick={() => { setIsEditingLogo(false); setIsEditingCover(false); }} className="p-2 rounded-xl hover:bg-muted transition-colors">
+                 <button onClick={() => { setIsEditingLogo(false); setIsEditingCover(false); }} className="p-2 rounded-xl hover:bg-muted transition-colors cursor-pointer">
                     <X className="h-6 w-6" />
                  </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="flex flex-col gap-3">
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
                    <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                       Sua imagem será armazenada com segurança. O tamanho ideal é 1200x400 para banners e 400x400 para logos.
                    </p>
                    
-                   <div className="relative group/file">
+                   <div className="relative group/file mt-1">
                       <input 
                         type="file" 
                         id="file-upload" 
                         className="hidden" 
                         accept="image/*"
-                        
                         onChange={(e) => handleFileUpload(e, isEditingLogo ? 'logo' : 'cover')}
                         disabled={isUploading}
                       />
                       <label 
                         htmlFor="file-upload"
                         className={cn(
-                          "w-full py-12 rounded-[2rem] border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-primary/10 transition-all",
+                          "w-full py-8 rounded-[2rem] border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-primary/10 transition-all",
                           isUploading && "opacity-50 cursor-not-allowed"
                         )}
                       >
@@ -674,8 +690,8 @@ export default function BusinessProfilePage() {
                            <ImagePlus className="h-10 w-10 text-primary" />
                          )}
                          <div className="text-center">
-                            <span className="text-sm font-black uppercase tracking-widest text-primary block">Tirar Foto / Galeria</span>
-                            <span className="text-[10px] text-muted-foreground font-bold mt-1 block">PNG, JPG ou WEBP até 5MB</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-primary block">Tirar Foto / Galeria</span>
+                            <span className="text-[9px] text-muted-foreground font-bold mt-1 block">PNG, JPG ou WEBP até 5MB</span>
                          </div>
                       </label>
                    </div>
@@ -689,7 +705,7 @@ export default function BusinessProfilePage() {
                    toast.success("Foto processada! Publique seu perfil para confirmar.");
                 }}
                 disabled={isUploading || (!logoUrl && isEditingLogo) || (!coverUrl && isEditingCover)}
-                className="w-full py-5 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.01] active:scale-95 transition-all"
+                className="w-full py-4.5 rounded-2xl gradient-primary text-primary-foreground font-black uppercase tracking-widest italic shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
               >
                 {isUploading ? "Enviando arquivo..." : "Fechar e Salvar"}
               </button>
