@@ -41,18 +41,29 @@ export default function LoginPage() {
       } catch (error: unknown) {
         const authError = error instanceof AuthError ? error : null;
         const message = error instanceof Error ? error.message : "Erro inesperado";
+        const emailLength = normalizedEmail.length;
+        const passLength = password.length;
+        const hasLeadingSpace = /^\s/.test(password);
+        const hasTrailingSpace = /\s$/.test(password);
+
         const masked = normalizedEmail.replace(/(.{2}).+(@.+)/, "$1***$2");
         console.warn("[Login] Falha", {
           status: authError?.status,
           code: authError?.code,
           msg: message,
           email: masked,
+          debug: {
+            emailLength,
+            passLength,
+            hasLeadingSpace,
+            hasTrailingSpace,
+          }
         });
 
-        let description = message;
+        let description = `${message} (Senha enviada: ${passLength} caracteres${hasTrailingSpace ? " com espaço no final" : ""}${hasLeadingSpace ? " com espaço no início" : ""})`;
         if (/invalid login credentials/i.test(message)) {
           description =
-            "E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador.";
+            `E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador. (Senha digitada: ${passLength} caracteres)`;
         } else if (/email not confirmed/i.test(message)) {
           description = "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
         }
