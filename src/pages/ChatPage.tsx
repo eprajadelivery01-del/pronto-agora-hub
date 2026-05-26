@@ -135,7 +135,15 @@ export default function ChatPage() {
     const otherId = getOtherParticipantId(conv);
     const otherProfile = profilesMap?.[otherId];
     
-    return extractedTopic || otherProfile?.full_name || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Usuário Anônimo";
+    if (otherProfile?.full_name) {
+      return extractedTopic ? `${otherProfile.full_name} (${extractedTopic})` : otherProfile.full_name;
+    }
+
+    if (otherId) {
+      return extractedTopic || `Usuário #${otherId.slice(0, 6).toUpperCase()}`;
+    }
+
+    return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Usuário Anônimo";
   };
 
   const renderConvIcon = (conv: any) => {
