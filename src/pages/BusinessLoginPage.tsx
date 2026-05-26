@@ -33,7 +33,7 @@ export default function BusinessLoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast.error("Erro ao entrar: " + error.message);
-        await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any).catch(() => {});
+        try { await supabase.rpc("log_failed_login", { p_email: email, p_app_name: "Painel Lojista" } as any); } catch {}
       } else {
         toast.success("Bem-vindo ao Portal Lojista!");
       }
