@@ -786,9 +786,16 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
         <div className="space-y-1.5 mb-4">
           {order.items && order.items.length > 0 ? (
             order.items.slice(0, 3).map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-xs">
-                <span className="font-black text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-md leading-none">{item.quantity}x</span>
-                <span className="font-bold text-foreground/80 truncate leading-none">{item.product_name || item.products?.name}</span>
+              <div key={idx} className="flex flex-col text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-md leading-none">{item.quantity}x</span>
+                  <span className="font-bold text-foreground/80 truncate leading-none">{item.product_name || item.products?.name}</span>
+                </div>
+                {item.notes && (
+                  <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 px-1.5 py-0.5 rounded mt-0.5 ml-8 self-start font-medium border border-amber-200/50 dark:border-amber-900/30">
+                    Obs: {item.notes}
+                  </span>
+                )}
               </div>
             ))
           ) : (

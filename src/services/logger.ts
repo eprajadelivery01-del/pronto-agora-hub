@@ -70,4 +70,29 @@ export function initializeGlobalErrorHandlers(appName: string) {
       }
     }, appName);
   };
+
+  // Intercept programmatic console.error calls (including accessibility radix-ui warnings)
+  const originalConsoleError = console.error;
+  console.error = function (...args) {
+    // Invoke original console logger
+    originalConsoleError.apply(console, args);
+
+    // Format error message cleanly
+    const msg = args.map(a => {
+      if (a instanceof Error) return a.message + "\n" + a.stack;
+      return typeof a === "object" ? JSON.stringify(a) : String(a);
+    }).join(" ");
+
+    // Skip nested reporting to prevent loops
+    if (isReporting) return;
+
+    reportErrorToTelegram({
+      error_message: `[Console Error] ${msg.slice(0, 1000)}`,
+      stack_trace: new Error().stack || "Logged via console.error",
+      url: window.location.href,
+      additional_info: {
+        isConsoleError: true
+      }
+    }, appName).catch(() => {});
+  };
 }
