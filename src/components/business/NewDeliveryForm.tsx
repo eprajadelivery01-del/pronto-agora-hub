@@ -132,15 +132,37 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // 0. Validar sessão + empresa
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.user) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return;
+    }
+    const cId = isAdmin ? selectedCompanyId : propCompanyId;
+    if (!cId) {
+      toast.error("Empresa não identificada. Sua conta não está vinculada a uma empresa — contate o suporte.");
+      console.error("[NewDeliveryForm] companyId ausente", { isAdmin, propCompanyId, selectedCompanyId, propCompanyData });
+      return;
+    }
+
     if (!selectedRegionId) {
       toast.error("Selecione uma região de entrega.");
+      return;
+    }
+    if (!customerName.trim()) {
+      toast.error("Informe o nome do cliente.");
+      return;
+    }
+    if (!address.trim()) {
+      toast.error("Informe o endereço de entrega.");
       return;
     }
 
     if (!isPaid) {
       const val = parseFloat(collectValue.replace(',', '.'));
       if (isNaN(val) || val <= 0) {
-        toast.error("Atenção: Você precisa preencher o valor a ser cobrado do cliente ou marcar que o pedido já foi pago!");
+        toast.error("Preencha o valor a ser cobrado ou marque como já pago.");
         return;
       }
     }
@@ -148,18 +170,16 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
     setSubmitting(true);
 
     try {
-      const cId = isAdmin ? selectedCompanyId : propCompanyId;
-      if (!cId) throw new Error("Empresa não identificada.");
       const parsedDeliveryValue = parseFloat(deliveryValue.replace(',', '.'));
       const parsedCollectValue = isPaid ? 0 : parseFloat(collectValue.replace(',', '.'));
-      
+
       let finalAddress = address;
       if (addressType && addressType !== "Outro") {
         finalAddress = `[${addressType}] ${address}`;
       }
 
       let finalNotes = notes.trim();
-      
+
       if (selectedProducts.length > 0) {
         const productsText = selectedProducts.map(p => {
           const formattedPrice = (p.product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -167,7 +187,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
         }).join("\n");
         const totalProducts = selectedProducts.reduce((acc, curr) => acc + (curr.product.price || 0) * curr.quantity, 0);
         const formattedTotal = totalProducts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        
+
         finalNotes = `[PRODUTOS]\n${productsText}\nTotal Produtos: ${formattedTotal}\n\n${finalNotes}`.trim();
       }
 
@@ -182,35 +202,45 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
         customer_name: customerName,
         customer_phone: customerPhone.replace(/\D/g, ""),
         customer_cpf: customerCpf.replace(/\D/g, ""),
-        address: finalAddress, 
+        address: finalAddress,
         dropoff_address: finalAddress,
         pickup_address: companyAddress || "Retirada na Loja",
-        value: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue, 
+        value: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue,
         estimated_value: isNaN(parsedCollectValue) ? 0 : parsedCollectValue,
         notes: finalNotes || null,
         status: initialData ? initialData.status : "pending",
         region_id: selectedRegionId,
       };
 
-      const { error } = initialData 
+      console.log("[NewDeliveryForm] enviando payload", payload);
+
+      const { error } = initialData
         ? await supabase.from("deliveries").update(payload).eq("id", initialData.id)
         : await supabase.from("deliveries").insert([payload]);
 
-      if (error) throw error;
+      if (error) {
+        console.error("[NewDeliveryForm] erro Supabase", error);
+        if (error.code === "42501" || /row-level security/i.test(error.message)) {
+          throw new Error("Sem permissão para criar entrega para esta empresa. Verifique se sua conta está vinculada à empresa correta.");
+        }
+        throw new Error(`${error.message}${error.details ? ` — ${error.details}` : ""}`);
+      }
 
       if (saveCustomer && !initialData) {
         const phoneClean = customerPhone.replace(/\D/g, "");
-        const { data: existing } = await supabase.from("customers").select("id").eq("phone", phoneClean).maybeSingle();
-        const custData = { name: customerName, phone: phoneClean, cpf: customerCpf.replace(/\D/g, "") };
-        if (existing) await supabase.from("customers").update(custData).eq("id", existing.id);
-        else await supabase.from("customers").insert([custData]);
+        if (phoneClean) {
+          const { data: existing } = await supabase.from("customers").select("id").eq("phone", phoneClean).maybeSingle();
+          const custData = { name: customerName, phone: phoneClean, cpf: customerCpf.replace(/\D/g, "") };
+          if (existing) await supabase.from("customers").update(custData).eq("id", existing.id);
+          else await supabase.from("customers").insert([custData]);
+        }
       }
 
       toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       setSubmitted(true);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err?.message || "Erro ao salvar entrega");
     } finally {
       setSubmitting(false);
     }
