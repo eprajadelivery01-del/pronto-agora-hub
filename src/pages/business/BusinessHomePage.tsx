@@ -184,9 +184,10 @@ export default function BusinessHomePage() {
       porEmpresa: openStoreDeliveries?.length ?? 0,
       porNome: openStoreDeliveriesByName?.length ?? 0,
       fallback: visibleDeliveriesFallback?.length ?? 0,
+      recemCriadasNaTela: optimisticManualDeliveries.length,
       ativas: activeDeliveries.length,
     });
-  }, [activeDeliveries.length, companyId, deliveriesData?.data?.length, openStoreDeliveries?.length, openStoreDeliveriesByName?.length, visibleDeliveriesFallback?.length]);
+  }, [activeDeliveries.length, companyId, deliveriesData?.data?.length, openStoreDeliveries?.length, openStoreDeliveriesByName?.length, optimisticManualDeliveries.length, visibleDeliveriesFallback?.length]);
 
   // Separate Manual vs Marketplace
   const marketplaceDeliveries = activeDeliveries.filter(d => !!d.order_id || (marketplaceOrders || []).some(o => o.delivery_id === d.id));
