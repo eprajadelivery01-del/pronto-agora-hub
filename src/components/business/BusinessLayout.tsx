@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
+import { toast } from "sonner";
 import {
   Popover,
   PopoverContent,
