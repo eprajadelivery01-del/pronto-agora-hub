@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDeliveries, useDeliveryStats } from "@/services/deliveries";
+import { useDeliveries, useDeliveryStats, type DeliveryWithRelations } from "@/services/deliveries";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus, Delivery } from "@/types/models";
@@ -47,7 +47,7 @@ export default function BusinessHomePage() {
         .not("status", "in", '("delivered","cancelled")');
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyId
   });
@@ -83,8 +83,8 @@ export default function BusinessHomePage() {
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
 
   const combinedDeliveries = useMemo(() => {
-    const byId = new Map<string, any>();
-    [...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery: any) => {
+    const byId = new Map<string, DeliveryWithRelations>();
+    [...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
       if (delivery?.id) byId.set(delivery.id, delivery);
     });
     return Array.from(byId.values());
@@ -286,7 +286,7 @@ export default function BusinessHomePage() {
                 <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{manualDeliveries.length}</span>
               </div>
 
-              {isLoadingDeliveries ? (
+              {isLoadingDeliveries || isLoadingOpenStoreDeliveries ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : manualDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
