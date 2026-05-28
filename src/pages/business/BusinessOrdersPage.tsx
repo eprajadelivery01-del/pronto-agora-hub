@@ -493,7 +493,16 @@ export default function BusinessOrdersPage() {
     return orders.filter(o => o.status === status);
   };
 
-  if (loading) {
+  if (!companyLoading && !isLinked) {
+    return (
+      <BusinessLayout title="Gestão de Pedidos">
+        <CompanyNotLinkedState userId={userId} />
+      </BusinessLayout>
+    );
+  }
+
+  if (loading || companyLoading) {
+
     return (
       <BusinessLayout title="Gestão de Pedidos">
         <div className="flex items-center justify-center py-40">
