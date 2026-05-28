@@ -90,6 +90,14 @@ export default function BusinessProductsPage() {
     }
   };
 
+  if (!companyLoading && !isLinked) {
+    return (
+      <BusinessLayout title="Gestão de Cardápio">
+        <CompanyNotLinkedState userId={userId} />
+      </BusinessLayout>
+    );
+  }
+
   if (showForm || editingProduct) {
     return (
       <BusinessLayout title={editingProduct ? "Editar Produto" : "Novo Produto"}>
