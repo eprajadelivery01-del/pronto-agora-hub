@@ -29,8 +29,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
-import { useCurrentCompany } from "@/hooks/useCurrentCompany";
-import { CompanyNotLinkedState } from "./CompanyNotLinkedState";
 import { useAudioAlert } from "@/hooks/useAudioAlert";
 import { toast } from "sonner";
 import {
@@ -66,7 +64,6 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const { data: companyData } = useCompany(user?.id);
-  const { isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
   const { playAlert } = useAudioAlert();
 
   const isActive = (href: string) => {

@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
-import { CompanyNotLinkedState } from "@/components/business/CompanyNotLinkedState";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart
@@ -29,7 +28,7 @@ interface Product {
 export default function BusinessProductsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const { companyId: linkedCompanyId, isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
+  const { companyId: linkedCompanyId, isLoading: companyLoading } = useCurrentCompany();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const companyId = linkedCompanyId;
@@ -89,14 +88,6 @@ export default function BusinessProductsPage() {
       fetchCompanyAndProducts();
     }
   };
-
-  if (!companyLoading && !isLinked) {
-    return (
-      <BusinessLayout title="Gestão de Cardápio">
-        <CompanyNotLinkedState userId={userId} />
-      </BusinessLayout>
-    );
-  }
 
   if (showForm || editingProduct) {
     return (
