@@ -241,7 +241,6 @@ export default function BusinessCustomersPage() {
       setSaving(false);
     }
   };
-  };
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
