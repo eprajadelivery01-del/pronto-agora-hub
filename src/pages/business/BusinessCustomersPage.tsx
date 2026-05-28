@@ -353,7 +353,7 @@ export default function BusinessCustomersPage() {
           onClick={() => !saving && setShowNewModal(false)}
         >
           <div
-            className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-md p-6 animate-in zoom-in-95 duration-200"
+            className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-md p-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-6">
