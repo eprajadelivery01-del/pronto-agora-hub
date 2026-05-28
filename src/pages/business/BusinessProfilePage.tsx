@@ -10,6 +10,60 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const DEFAULT_WORKING_DAYS = [
+  { day: 'Seg', active: true, start: '08:00', end: '18:00' },
+  { day: 'Ter', active: true, start: '08:00', end: '18:00' },
+  { day: 'Qua', active: true, start: '08:00', end: '18:00' },
+  { day: 'Qui', active: true, start: '08:00', end: '18:00' },
+  { day: 'Sex', active: true, start: '08:00', end: '18:00' },
+  { day: 'Sab', active: true, start: '08:00', end: '12:00' },
+  { day: 'Dom', active: false, start: '00:00', end: '00:00' },
+];
+
+const normalizeGallery = (value: any): string[] => {
+  if (Array.isArray(value)) return value.filter((url) => typeof url === "string" && url.trim());
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter((url) => typeof url === "string" && url.trim());
+    } catch {}
+    return value.split(",").map((url) => url.trim()).filter(Boolean);
+  }
+  if (value && typeof value === "object") return Object.values(value).filter((url) => typeof url === "string" && url.trim()) as string[];
+  return [];
+};
+
+const normalizeWorkingDays = (value: any) => {
+  let parsed = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  const rawDays = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.days)
+      ? parsed.days
+      : Array.isArray(parsed?.workingDays)
+        ? parsed.workingDays
+        : null;
+
+  if (!rawDays) return DEFAULT_WORKING_DAYS.map((day) => ({ ...day }));
+
+  return DEFAULT_WORKING_DAYS.map((defaultDay, index) => {
+    const day = rawDays[index] || {};
+    return {
+      day: String(day.day || defaultDay.day),
+      active: typeof day.active === "boolean" ? day.active : defaultDay.active,
+      start: typeof day.start === "string" ? day.start : defaultDay.start,
+      end: typeof day.end === "string" ? day.end : defaultDay.end,
+    };
+  });
+};
+
 export default function BusinessProfilePage() {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -29,15 +83,7 @@ export default function BusinessProfilePage() {
   const [showInMarketplace, setShowInMarketplace] = useState(false);
   const [businessHours, setBusinessHours] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
-  const [workingDays, setWorkingDays] = useState([
-    { day: 'Seg', active: true, start: '08:00', end: '18:00' },
-    { day: 'Ter', active: true, start: '08:00', end: '18:00' },
-    { day: 'Qua', active: true, start: '08:00', end: '18:00' },
-    { day: 'Qui', active: true, start: '08:00', end: '18:00' },
-    { day: 'Sex', active: true, start: '08:00', end: '18:00' },
-    { day: 'Sab', active: true, start: '08:00', end: '12:00' },
-    { day: 'Dom', active: false, start: '00:00', end: '00:00' },
-  ]);
+  const [workingDays, setWorkingDays] = useState(() => DEFAULT_WORKING_DAYS.map((day) => ({ ...day })));
 
   // Edit states for overlays
   const [isEditingLogo, setIsEditingLogo] = useState(false);
@@ -46,6 +92,11 @@ export default function BusinessProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     fetchCompanyData();
 
     // Subscribe to realtime changes for store status synchronization
@@ -55,7 +106,7 @@ export default function BusinessProfilePage() {
         event: 'UPDATE',
         schema: 'public',
         table: 'companies',
-        filter: `user_id=eq.${user?.id}`
+        filter: `user_id=eq.${user.id}`
       }, (payload) => {
         if (payload.new.is_open !== undefined) {
           setIsOpen(payload.new.is_open);
