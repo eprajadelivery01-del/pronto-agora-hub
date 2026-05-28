@@ -29,6 +29,16 @@ export default function BusinessCustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", cpf: "" });
+  const [addressEntries, setAddressEntries] = useState<{ label: string; address: string; reference: string }[]>([
+    { label: "Casa", address: "", reference: "" },
+  ]);
+
+  const ADDRESS_LABELS = [
+    { id: "Casa", icon: Home },
+    { id: "Trabalho", icon: Briefcase },
+    { id: "Casa da Mãe", icon: Heart },
+    { id: "Outro", icon: MapPin },
+  ];
 
   useEffect(() => {
     const init = async () => {
