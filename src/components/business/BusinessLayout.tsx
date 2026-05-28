@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
 import { useAudioAlert } from "@/hooks/useAudioAlert";
@@ -76,10 +77,11 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     if (!user?.id) return;
 
     const fetchStatus = async () => {
+      if (!companyData?.id) return;
       const { data } = await supabase
         .from('companies')
         .select('is_open')
-        .eq('user_id', user?.id)
+        .eq('id', companyData.id)
         .maybeSingle();
       
       if (data) setIsOpen(data.is_open);
@@ -362,6 +364,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             </div>
 
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               {/* Notifications */}
               <Popover>
                 <PopoverTrigger asChild>

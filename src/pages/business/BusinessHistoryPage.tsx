@@ -42,7 +42,31 @@ export default function BusinessHistoryPage() {
   useEffect(() => {
     const init = async () => {
       if (!user) return;
-      const { data: company } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
+      let { data: company } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      // Fallback para administradores
+      if (!company) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profile?.role === "admin") {
+          const { data: fallbackCompany } = await supabase
+            .from("companies")
+            .select("id")
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          company = fallbackCompany;
+        }
+      }
+
       if (company) setCompanyId(company.id);
     };
     init();

@@ -39,7 +39,7 @@ export default function SettingsPage() {
       const { error } = await supabase
         .from("profiles")
         .update({ full_name: fullName, phone } as any)
-        .eq("id", user.id);
+        .eq("user_id", user.id);
       if (error) throw error;
       toast({ title: "Configurações salvas!" });
       setSaved(true);

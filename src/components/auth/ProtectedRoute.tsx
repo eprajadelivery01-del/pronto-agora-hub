@@ -64,7 +64,8 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (requiredRole && !hasRole(requiredRole) && !hasRole("admin")) {
-    return <Navigate to="/login" replace />;
+    const redirectPath = requiredRole === "company" ? "/login/business" : "/login";
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

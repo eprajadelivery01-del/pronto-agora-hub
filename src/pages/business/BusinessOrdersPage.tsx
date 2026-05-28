@@ -289,14 +289,7 @@ export default function BusinessOrdersPage() {
           in_route_total: inRouteOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
         });
 
-        if (openOrders.length > 0) {
-          console.table(openOrders.map(o => ({ 
-            ID: o.id.slice(-6).toUpperCase(), 
-            Status: o.status, 
-            Valor: formatCurrency(Number(o.total || 0)),
-            Cliente: o.customer?.name 
-          })));
-        }
+        // Remover log com dados sensíveis do console.
       } else {
         setOrders([]);
         setStats({ pending: 0, preparing: 0, ready: 0, in_route: 0, revenue_today: 0, open_total: 0, in_route_total: 0 });
@@ -314,11 +307,28 @@ export default function BusinessOrdersPage() {
       if (!user?.id || companyId) return;
       
       try {
-        const { data: companies } = await supabase
+        let { data: companies } = await supabase
           .from("companies")
           .select("id, name")
           .eq("user_id", user.id);
         
+        // Fallback para administradores
+        if (!companies || companies.length === 0) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (profile?.role === "admin") {
+            const { data: fallbackCompanies } = await supabase
+              .from("companies")
+              .select("id, name")
+              .order("created_at", { ascending: true });
+            companies = fallbackCompanies;
+          }
+        }
+
         if (companies && companies.length > 0) {
           const bestCompany = companies.find(c => !c.name.toLowerCase().includes("teste")) || companies[0];
           setCompanyId(bestCompany.id);

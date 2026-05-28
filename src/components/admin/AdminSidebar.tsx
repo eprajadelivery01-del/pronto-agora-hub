@@ -82,15 +82,7 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
             <X className="h-5 w-5" />
           </button>
           
-          <button 
-            onClick={toggleSidebar}
-            className={cn(
-              "hidden lg:flex absolute -right-4 top-10 w-8 h-8 rounded-full bg-primary border-2 border-white ring-1 ring-black items-center justify-center text-primary-foreground shadow-xl transform transition-all duration-300 hover:scale-110 z-[70]",
-              collapsed && "rotate-180"
-            )}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+
         </div>
 
         {/* Navigation */}
@@ -165,6 +157,16 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
 
         </div>
       </aside>
+
+      {/* Toggle button — rendered OUTSIDE aside so it's never clipped by overflow */}
+      <button
+        onClick={toggleSidebar}
+        style={{ left: collapsed ? '52px' : '248px' }}
+        className="hidden lg:flex fixed top-[72px] w-8 h-8 rounded-full bg-primary border-2 border-primary items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 hover:scale-110 transition-all duration-300 z-[9999]"
+        title={collapsed ? "Expandir Menu" : "Recolher Menu"}
+      >
+        <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", collapsed ? "rotate-0" : "rotate-180")} />
+      </button>
     </>
   );
 }

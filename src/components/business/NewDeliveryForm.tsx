@@ -29,6 +29,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
   const { data: storeProducts } = useProductsManager(isAdmin ? selectedCompanyId : propCompanyId);
   const [selectedProducts, setSelectedProducts] = useState<{ product: any; quantity: number }[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  const [productInputMode, setProductInputMode] = useState<"catalog" | "manual">("catalog");
+  const [manualProducts, setManualProducts] = useState("");
 
 
   useEffect(() => {
@@ -160,7 +162,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
 
       let finalNotes = notes.trim();
       
-      if (selectedProducts.length > 0) {
+      if (productInputMode === 'catalog' && selectedProducts.length > 0) {
         const productsText = selectedProducts.map(p => {
           const formattedPrice = (p.product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return `${p.quantity}x ${p.product.name} (${formattedPrice})`;
@@ -169,6 +171,8 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
         const formattedTotal = totalProducts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         
         finalNotes = `[PRODUTOS]\n${productsText}\nTotal Produtos: ${formattedTotal}\n\n${finalNotes}`.trim();
+      } else if (productInputMode === 'manual' && manualProducts.trim()) {
+        finalNotes = `[ITENS: DIGITADOS]\n${manualProducts.trim()}\n\n${finalNotes}`.trim();
       }
 
       if (isPaid) {
@@ -356,67 +360,81 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
               
               <div className="space-y-3">
                 <div className="flex gap-2 p-1 bg-muted/30 rounded-2xl border border-border">
-                  <button type="button" className="flex-1 py-2 text-xs font-bold bg-white dark:bg-black text-primary rounded-xl shadow-sm border border-primary/20">
+                  <button type="button" onClick={() => setProductInputMode('catalog')} className={cn("flex-1 py-2 text-xs font-bold rounded-xl shadow-sm border transition-colors", productInputMode === 'catalog' ? "bg-white dark:bg-black text-primary border-primary/20" : "text-muted-foreground border-transparent hover:bg-white/50")}>
                     📋 DO CATÁLOGO
                   </button>
-                  <button type="button" className="flex-1 py-2 text-xs font-bold text-muted-foreground opacity-50 cursor-not-allowed">
+                  <button type="button" onClick={() => setProductInputMode('manual')} className={cn("flex-1 py-2 text-xs font-bold rounded-xl shadow-sm border transition-colors", productInputMode === 'manual' ? "bg-white dark:bg-black text-primary border-primary/20" : "text-muted-foreground border-transparent hover:bg-white/50")}>
                     ✏️ DIGITAR ITEM
                   </button>
                 </div>
 
-                <div className="relative">
-                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                  <input 
-                    value={productSearch} 
-                    onChange={e => setProductSearch(e.target.value)} 
-                    placeholder="Buscar produto do catálogo..." 
-                    className="w-full pl-10 pr-5 py-3 rounded-2xl border border-border bg-background outline-none font-medium text-sm" 
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-2 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
-                  {storeProducts.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).map((product: any) => {
-                    const selected = selectedProducts.find(sp => sp.product.id === product.id);
-                    let imageUrl = null;
-                    if (product.image_url) {
-                      try {
-                        const parsed = JSON.parse(product.image_url);
-                        imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : product.image_url;
-                      } catch {
-                        imageUrl = product.image_url;
-                      }
-                    }
+                {productInputMode === 'catalog' ? (
+                  <>
+                    <div className="relative">
+                      <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                      <input 
+                        value={productSearch} 
+                        onChange={e => setProductSearch(e.target.value)} 
+                        placeholder="Buscar produto do catálogo..." 
+                        className="w-full pl-10 pr-5 py-3 rounded-2xl border border-border bg-background outline-none font-medium text-sm" 
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
+                      {storeProducts.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase())).map((product: any) => {
+                        const selected = selectedProducts.find(sp => sp.product.id === product.id);
+                        let imageUrl = null;
+                        if (product.image_url) {
+                          try {
+                            const parsed = JSON.parse(product.image_url);
+                            imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : product.image_url;
+                          } catch {
+                            imageUrl = product.image_url;
+                          }
+                        }
 
-                    return (
-                      <div key={product.id} className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:border-primary/30 transition-colors">
-                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                          {imageUrl ? (
-                            <img src={imageUrl} alt={product.name} className="w-10 h-10 rounded-xl object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                              <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        return (
+                          <div key={product.id} className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:border-primary/30 transition-colors">
+                            <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                              {imageUrl ? (
+                                <img src={imageUrl} alt={product.name} className="w-10 h-10 rounded-xl object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm truncate">{product.name}</p>
+                                <p className="text-[11px] text-primary font-bold">{(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                              </div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm truncate">{product.name}</p>
-                            <p className="text-[11px] text-primary font-bold">{(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            {selected ? (
+                              <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-1 border border-primary/20">
+                                <button type="button" onClick={() => removeProduct(product.id)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">-</button>
+                                <span className="text-sm font-bold text-primary min-w-[1.5rem] text-center">{selected.quantity}</span>
+                                <button type="button" onClick={() => addProduct(product)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">+</button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => addProduct(product)} className="w-8 h-8 rounded-xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors">
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
-                        </div>
-                        {selected ? (
-                          <div className="flex items-center gap-2 bg-primary/10 rounded-lg p-1 border border-primary/20">
-                            <button type="button" onClick={() => removeProduct(product.id)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">-</button>
-                            <span className="text-sm font-bold text-primary min-w-[1.5rem] text-center">{selected.quantity}</span>
-                            <button type="button" onClick={() => addProduct(product)} className="w-6 h-6 rounded flex items-center justify-center text-primary font-bold hover:bg-primary/20">+</button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => addProduct(product)} className="w-8 h-8 rounded-xl bg-muted/50 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors">
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Descreva os itens do pedido</label>
+                    <textarea 
+                      value={manualProducts} 
+                      onChange={e => setManualProducts(e.target.value)} 
+                      placeholder="Ex: 1x X-Tudo, 1x Coca-Cola 2L..." 
+                      className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-medium min-h-[120px] resize-none"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

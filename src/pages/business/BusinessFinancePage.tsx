@@ -69,7 +69,27 @@ export default function BusinessFinancePage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
+      let { data } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
+      
+      // Fallback para administradores
+      if (!data) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profile?.role === "admin") {
+          const { data: fallbackCompany } = await supabase
+            .from("companies")
+            .select("id")
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          data = fallbackCompany;
+        }
+      }
+
       if (data) setCompanyId(data.id);
     })();
   }, [user]);

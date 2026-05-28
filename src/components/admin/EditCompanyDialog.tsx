@@ -71,6 +71,17 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
 
     setLoading(true);
     try {
+      if (company.user_id) {
+        const { error: pError } = await supabase
+          .from("profiles")
+          .update({
+            document: form.document,
+          })
+          .eq("id", company.user_id);
+
+        if (pError) throw pError;
+      }
+
       const { error } = await supabase
         .from("companies")
         .update({
@@ -145,7 +156,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
             </div>
             <div>
               <Label>CNPJ/CPF</Label>
-              <Input value={form.document} onChange={e => set("document", e.target.value)} className="mt-1.5" disabled />
+              <Input value={form.document} onChange={e => set("document", e.target.value)} className="mt-1.5" />
             </div>
           </div>
           <div>
