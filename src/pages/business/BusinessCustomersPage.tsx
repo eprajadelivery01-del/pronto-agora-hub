@@ -419,6 +419,89 @@ export default function BusinessCustomersPage() {
                 />
               </div>
 
+              {/* Endereços */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Endereços ({addressEntries.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAddressEntries((prev) => [...prev, { label: "Outro", address: "", reference: "" }])
+                    }
+                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Adicionar
+                  </button>
+                </div>
+
+                {addressEntries.map((entry, idx) => (
+                  <div key={idx} className="p-3 rounded-2xl border border-border bg-muted/20 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {ADDRESS_LABELS.map((t) => {
+                          const Icon = t.icon;
+                          const selected = entry.label === t.id;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() =>
+                                setAddressEntries((prev) =>
+                                  prev.map((a, i) => (i === idx ? { ...a, label: t.id } : a))
+                                )
+                              }
+                              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                                selected
+                                  ? "bg-primary/10 text-primary border-primary/20"
+                                  : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                              }`}
+                            >
+                              <Icon className="h-2.5 w-2.5" />
+                              {t.id}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {addressEntries.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setAddressEntries((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-destructive/70 hover:text-destructive p-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={entry.address}
+                      onChange={(e) =>
+                        setAddressEntries((prev) =>
+                          prev.map((a, i) => (i === idx ? { ...a, address: e.target.value } : a))
+                        )
+                      }
+                      placeholder="Rua, número, bairro..."
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:border-primary outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={entry.reference}
+                      onChange={(e) =>
+                        setAddressEntries((prev) =>
+                          prev.map((a, i) => (i === idx ? { ...a, reference: e.target.value } : a))
+                        )
+                      }
+                      placeholder="Ponto de referência (opcional)"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:border-primary outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
