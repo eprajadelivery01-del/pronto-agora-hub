@@ -16,6 +16,20 @@ import { format } from "date-fns";
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
 
+type MarketplaceOrder = {
+  id: string;
+  status: string;
+  total?: number | null;
+  created_at?: string;
+  customer_id?: string | null;
+  delivery_id?: string | null;
+  delivery_address?: string | null;
+  payment_method?: string | null;
+  customers?: { name?: string | null } | { name?: string | null }[] | null;
+  order_items?: unknown[];
+  deliveryInfo?: DeliveryWithRelations;
+};
+
 export default function BusinessHomePage() {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
@@ -47,7 +61,7 @@ export default function BusinessHomePage() {
         .not("status", "in", '("delivered","cancelled")');
       
       if (error) throw error;
-      return (data || []) as DeliveryWithRelations[];
+      return (data || []) as MarketplaceOrder[];
     },
     enabled: !!companyId
   });
@@ -74,7 +88,7 @@ export default function BusinessHomePage() {
         .limit(100);
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyId,
     refetchInterval: 5000,
@@ -102,7 +116,7 @@ export default function BusinessHomePage() {
   const marketplaceDeliveries = activeDeliveries.filter(d => !!d.order_id || (marketplaceOrders || []).some(o => o.delivery_id === d.id));
   const manualDeliveries = activeDeliveries.filter(d => !d.order_id && !(marketplaceOrders || []).some(o => o.delivery_id === d.id));
 
-  const marketplaceDeliveriesWithOrders = marketplaceDeliveries.map(delivery => {
+  const marketplaceDeliveriesWithOrders: MarketplaceOrder[] = marketplaceDeliveries.map(delivery => {
     const order = (marketplaceOrders || []).find(o => o.delivery_id === delivery.id || o.id === delivery.order_id);
     return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || delivery.value || 0, deliveryInfo: delivery };
   });
