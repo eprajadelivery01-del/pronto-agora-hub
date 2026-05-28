@@ -24,7 +24,7 @@ export default function BusinessHomePage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const qc = useQueryClient();
   
-  const { data: companyData } = useCompany(user?.id);
+  const { data: companyData } = useCompany(user?.id, user?.email);
   const companyId = companyData?.id;
 
   // 1. Fetch Marketplace Orders with active deliveries

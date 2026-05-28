@@ -19,14 +19,16 @@ export interface CurrentCompanyResult {
 export function useCurrentCompany(): CurrentCompanyResult {
   const { user } = useAuth();
   const userId = user?.id;
+  const email = user?.email;
 
   const query = useQuery({
-    queryKey: ["current-company", userId],
+    queryKey: ["current-company", userId, email],
     queryFn: async () => {
       if (!userId) return null;
-      const company = await fetchCompanyByUserId(userId);
+      const company = await fetchCompanyByUserId(userId, email);
       console.info("[Lojista] companyId resolvido:", {
         userId,
+        email,
         companyId: company?.id ?? null,
         companyName: company?.name ?? null,
       });

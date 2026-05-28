@@ -1,13 +1,11 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
-import { CompanyNotLinkedState } from "@/components/business/CompanyNotLinkedState";
 
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
@@ -85,8 +83,7 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
 ];
 
 export default function BusinessOrdersPage() {
-  const { user } = useAuth();
-  const { companyId, isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
+  const { companyId, isLoading: companyLoading } = useCurrentCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -492,14 +489,6 @@ export default function BusinessOrdersPage() {
     }
     return orders.filter(o => o.status === status);
   };
-
-  if (!companyLoading && !isLinked) {
-    return (
-      <BusinessLayout title="Gestão de Pedidos">
-        <CompanyNotLinkedState userId={userId} />
-      </BusinessLayout>
-    );
-  }
 
   if (loading || companyLoading) {
 

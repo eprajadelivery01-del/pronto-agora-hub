@@ -27,7 +27,10 @@ export async function fetchCompanies() {
   }));
 }
 
-export async function fetchCompanyByUserId(userId: string) {
+const pickBestCompany = (companies: any[]) =>
+  companies.find(c => !c.name?.toLowerCase().includes("teste")) || companies[0];
+
+export async function fetchCompanyByUserId(userId: string, email?: string) {
   const { data, error } = await supabase
     .from("companies")
     .select("*")
@@ -35,6 +38,23 @@ export async function fetchCompanyByUserId(userId: string) {
   
   if (error) throw error;
   
+  if (data && data.length > 0) {
+    return pickBestCompany(data);
+  }
+
+  const resolvedEmail = email || (await supabase.auth.getUser()).data.user?.email;
+  if (resolvedEmail) {
+    const { data: companiesByEmail, error: emailError } = await supabase
+      .from("companies")
+      .select("*")
+      .ilike("email", resolvedEmail.trim());
+
+    if (emailError) throw emailError;
+    if (companiesByEmail && companiesByEmail.length > 0) {
+      return pickBestCompany(companiesByEmail);
+    }
+  }
+
   if (!data || data.length === 0) {
     // Fallback para Administradores: se o usuário for admin, retorna a primeira empresa
     const { data: profile } = await supabase
@@ -55,15 +75,12 @@ export async function fetchCompanyByUserId(userId: string) {
     }
     return null;
   }
-  
-  // Return the best company (not a test one, or the first one)
-  return data.find(c => !c.name.toLowerCase().includes("teste")) || data[0];
 }
 
-export function useCompany(userId?: string) {
+export function useCompany(userId?: string, email?: string) {
   return useQuery({
-    queryKey: ["company", userId],
-    queryFn: () => (userId ? fetchCompanyByUserId(userId) : null),
+    queryKey: ["company", userId, email],
+    queryFn: () => (userId ? fetchCompanyByUserId(userId, email) : null),
     enabled: !!userId,
   });
 }
