@@ -7,7 +7,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDeliveries, useDeliveryStats } from "@/services/deliveries";
-import { useCompany } from "@/services/companies";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
@@ -24,8 +24,7 @@ export default function BusinessHomePage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const qc = useQueryClient();
   
-  const { data: companyData } = useCompany(user?.id, user?.email);
-  const companyId = companyData?.id;
+  const { companyId, company: companyData } = useCurrentCompany();
 
   // 1. Fetch Marketplace Orders with active deliveries
   const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
@@ -59,7 +58,7 @@ export default function BusinessHomePage() {
     pageSize: 100
   });
 
-  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId });
+  const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
 
   // Filter deliveries to only show active ones
   const activeDeliveries = (deliveriesData?.data || []).filter(d => {
