@@ -63,7 +63,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
-  const { data: companyData } = useCompany(user?.id);
+  const { data: companyData } = useCompany(user?.id, user?.email);
   const { playAlert } = useAudioAlert();
 
   const isActive = (href: string) => {
@@ -156,7 +156,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   }, [user?.id, companyData?.id]);
 
   const toggleStoreStatus = async () => {
-    if (!user?.id || updatingStatus) return;
+    if (!companyData?.id || updatingStatus) return;
     
     const previousStatus = isOpen;
     const newStatus = !isOpen;
@@ -169,7 +169,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       const { error } = await supabase
         .from('companies')
         .update({ is_open: newStatus, show_in_marketplace: newStatus })
-        .eq('user_id', user?.id);
+        .eq('id', companyData.id);
       
       if (error) throw error;
       
