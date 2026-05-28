@@ -6,6 +6,9 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
+import { CompanyNotLinkedState } from "@/components/business/CompanyNotLinkedState";
+
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
   Truck, Bell, RefreshCw, Timer, Phone, MapPin, User, Package,
@@ -83,9 +86,10 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
 
 export default function BusinessOrdersPage() {
   const { user } = useAuth();
+  const { companyId, isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+
   const [stats, setStats] = useState({ 
     pending: 0, 
     preparing: 0, 
@@ -303,48 +307,15 @@ export default function BusinessOrdersPage() {
   }, [companyId]);
 
   useEffect(() => {
-    const init = async () => {
-      if (!user?.id || companyId) return;
-      
-      try {
-        let { data: companies } = await supabase
-          .from("companies")
-          .select("id, name")
-          .eq("user_id", user.id);
-        
-        // Fallback para administradores
-        if (!companies || companies.length === 0) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          if (profile?.role === "admin") {
-            const { data: fallbackCompanies } = await supabase
-              .from("companies")
-              .select("id, name")
-              .order("created_at", { ascending: true });
-            companies = fallbackCompanies;
-          }
-        }
-
-        if (companies && companies.length > 0) {
-          const bestCompany = companies.find(c => !c.name.toLowerCase().includes("teste")) || companies[0];
-          setCompanyId(bestCompany.id);
-        }
-      } catch (err) {
-        console.error("[Painel] Erro na inicialização:", err);
-      }
-    };
-    init();
-  }, [user?.id, companyId]);
-
-  useEffect(() => {
     if (companyId) {
       fetchOrders();
+    } else if (!companyLoading) {
+      // Sem empresa vinculada — encerra o skeleton imediatamente
+      setLoading(false);
     }
-  }, [companyId, fetchOrders]);
+  }, [companyId, companyLoading, fetchOrders]);
+
+
 
   // Configuração do Áudio de Alerta
   useEffect(() => {
@@ -522,7 +493,16 @@ export default function BusinessOrdersPage() {
     return orders.filter(o => o.status === status);
   };
 
-  if (loading) {
+  if (!companyLoading && !isLinked) {
+    return (
+      <BusinessLayout title="Gestão de Pedidos">
+        <CompanyNotLinkedState userId={userId} />
+      </BusinessLayout>
+    );
+  }
+
+  if (loading || companyLoading) {
+
     return (
       <BusinessLayout title="Gestão de Pedidos">
         <div className="flex items-center justify-center py-40">

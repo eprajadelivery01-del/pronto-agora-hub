@@ -5,11 +5,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
+import { CompanyNotLinkedState } from "@/components/business/CompanyNotLinkedState";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 interface Product {
   id: string;
@@ -26,60 +29,42 @@ interface Product {
 export default function BusinessProductsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { companyId: linkedCompanyId, isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const companyId = linkedCompanyId;
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   useEffect(() => {
-    fetchCompanyAndProducts();
-  }, [user]);
+    if (companyId) {
+      fetchProducts(companyId);
+    } else if (!companyLoading) {
+      setLoading(false);
+    }
+  }, [companyId, companyLoading]);
 
-  const fetchCompanyAndProducts = async () => {
-    if (!user) return;
+  const fetchProducts = async (cId: string) => {
     setLoading(true);
     try {
-      let { data: company } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      // Fallback para administradores
-      if (!company) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (profile?.role === "admin") {
-          const { data: fallbackCompany } = await supabase
-            .from("companies")
-            .select("id")
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-          company = fallbackCompany;
-        }
-      }
-
-      if (company) {
-        setCompanyId(company.id);
-        const { data: prods } = await supabase
-          .from("products")
-          .select("*")
-          .eq("company_id", company.id)
-          .order("created_at", { ascending: false });
-        setProducts(prods || []);
-      }
+      const { data: prods } = await supabase
+        .from("products")
+        .select("*")
+        .eq("company_id", cId)
+        .order("created_at", { ascending: false });
+      setProducts(prods || []);
     } catch (err) {
       console.error("Erro ao carregar produtos:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchCompanyAndProducts = () => {
+    if (companyId) fetchProducts(companyId);
+  };
+
+
 
   const toggleActive = async (product: Product) => {
     const { error } = await (supabase as any)
@@ -104,6 +89,14 @@ export default function BusinessProductsPage() {
       fetchCompanyAndProducts();
     }
   };
+
+  if (!companyLoading && !isLinked) {
+    return (
+      <BusinessLayout title="Gestão de Cardápio">
+        <CompanyNotLinkedState userId={userId} />
+      </BusinessLayout>
+    );
+  }
 
   if (showForm || editingProduct) {
     return (
