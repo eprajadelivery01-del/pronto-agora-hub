@@ -302,11 +302,13 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
                <CustomerSelector 
                   companyId={isAdmin ? selectedCompanyId : (propCompanyId || "")} 
                   value={customerName} 
-                  onChange={(name, addr, ph, cp) => {
+                  onChange={(name, addr, ph, cp, lbl) => {
                     setCustomerName(name);
                     if (addr) setAddress(addr);
                     if (ph) setCustomerPhone(maskPhone(ph));
                     if (cp) setCustomerCpf(maskCPF(cp));
+                    if (lbl && ["Casa", "Trabalho", "Casa da Mãe", "Outro"].includes(lbl)) setAddressType(lbl);
+                    else if (lbl) setAddressType("Outro");
                   }} 
                />
              </div>
