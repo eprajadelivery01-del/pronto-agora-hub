@@ -226,11 +226,12 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
 
       console.log("[NewDeliveryForm] enviando payload", payload);
 
-      const { error } = initialData
-        ? await supabase.from("deliveries").update(payload).eq("id", initialData.id)
-        : await supabase.from("deliveries").insert([payload]);
+      const deliveryWrite = initialData
+        ? await supabase.from("deliveries").update(payload).eq("id", initialData.id).select("*").single()
+        : await supabase.from("deliveries").insert([payload]).select("*").single();
 
-      if (error) {
+      if (deliveryWrite.error) {
+        const error = deliveryWrite.error;
         console.error("[NewDeliveryForm] erro Supabase", error);
         if (error.code === "42501" || /row-level security/i.test(error.message)) {
           throw new Error("Sem permissão para criar entrega para esta empresa. Verifique se sua conta está vinculada à empresa correta.");
@@ -238,23 +239,29 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
         throw new Error(`${error.message}${error.details ? ` — ${error.details}` : ""}`);
       }
 
-      if (saveCustomer && !initialData) {
-        const phoneClean = customerPhone.replace(/\D/g, "");
-        if (phoneClean) {
-          const { data: existing } = await supabase.from("customers").select("id").eq("phone", phoneClean).maybeSingle();
-          const custData = { name: customerName, phone: phoneClean, cpf: customerCpf.replace(/\D/g, "") };
-          if (existing) await supabase.from("customers").update(custData).eq("id", existing.id);
-          else await supabase.from("customers").insert([custData]);
-        }
-      }
-
-      toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
-      onSaved?.(initialData ? { ...initialData, ...payload } : payload);
+      const savedDelivery = deliveryWrite.data || (initialData ? { ...initialData, ...payload } : payload);
+      onSaved?.(savedDelivery);
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       qc.invalidateQueries({ queryKey: ["delivery-stats"] });
       qc.invalidateQueries({ queryKey: ["business-open-store-deliveries"] });
       qc.invalidateQueries({ queryKey: ["business-open-store-deliveries-by-name"] });
       qc.invalidateQueries({ queryKey: ["business-visible-deliveries-fallback"] });
+
+      if (saveCustomer && !initialData) {
+        try {
+          const phoneClean = customerPhone.replace(/\D/g, "");
+          if (phoneClean) {
+            const { data: existing } = await supabase.from("customers").select("id").eq("phone", phoneClean).maybeSingle();
+            const custData = { name: customerName, phone: phoneClean, cpf: customerCpf.replace(/\D/g, "") };
+            if (existing) await supabase.from("customers").update(custData).eq("id", existing.id);
+            else await supabase.from("customers").insert([custData]);
+          }
+        } catch (customerError) {
+          console.warn("[NewDeliveryForm] entrega criada, mas não foi possível salvar o cliente", customerError);
+        }
+      }
+
+      toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
       setSubmitted(true);
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar entrega");
