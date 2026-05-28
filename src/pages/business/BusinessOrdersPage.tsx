@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
@@ -84,7 +83,6 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
 ];
 
 export default function BusinessOrdersPage() {
-  const { user } = useAuth();
   const { companyId, isLoading: companyLoading } = useCurrentCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);

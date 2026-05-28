@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,7 +25,6 @@ interface Product {
 }
 
 export default function BusinessProductsPage() {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const { companyId: linkedCompanyId, isLoading: companyLoading } = useCurrentCompany();
   const [products, setProducts] = useState<Product[]>([]);
