@@ -320,7 +320,7 @@ export default function BusinessHomePage() {
                 <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{manualDeliveries.length}</span>
               </div>
 
-              {isLoadingDeliveries || isLoadingOpenStoreDeliveries ? (
+              {isLoadingDeliveries || isLoadingOpenStoreDeliveries || isLoadingOpenStoreDeliveriesByName ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : manualDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
