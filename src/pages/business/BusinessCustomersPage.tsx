@@ -32,96 +32,140 @@ export default function BusinessCustomersPage() {
 
   useEffect(() => {
     const init = async () => {
-      if (!user) return;
-      let { data: company } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
-      
-      // Fallback para administradores
-      if (!company) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (profile?.role === "admin") {
-          const { data: fallbackCompany } = await supabase
-            .from("companies")
-            .select("id")
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-          company = fallbackCompany;
-        }
+      if (!user) {
+        setLoading(false);
+        return;
       }
 
-      if (company) setCompanyId(company.id);
+      try {
+        setLoading(true);
+        let { data: company } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
+        
+        // Fallback para administradores
+        if (!company) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (profile?.role === "admin") {
+            const { data: fallbackCompany } = await supabase
+              .from("companies")
+              .select("id")
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle();
+            company = fallbackCompany;
+          }
+        }
+
+        if (company) setCompanyId(company.id);
+        else setLoading(false);
+      } catch (err) {
+        console.error("Erro ao identificar empresa:", err);
+        toast.error("Erro ao carregar empresa do lojista");
+        setLoading(false);
+      }
     };
     init();
   }, [user]);
 
   const fetchCustomers = async () => {
-    if (!companyId) return;
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     
     const customerMap = new Map<string, CustomerRecord>();
 
-    // 1. Fetch all customers belonging DIRECTLY to this store
-    const { data: directCustomers } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("company_id", companyId)
-      .order("name");
+    const upsertCustomer = (source: any) => {
+      const name = (source.name || source.customer_name || "").trim();
+      const phone = source.phone || source.customer_phone || null;
+      const cpf = source.cpf || source.customer_cpf || null;
+      if (!name && !phone) return;
 
-    (directCustomers || []).forEach(c => {
-      customerMap.set(c.id, {
-        id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
-        total_orders: 0, last_order_at: null,
-        addresses: [], phones: c.phone ? [c.phone] : []
+      const stableKey = source.customer_id || source.id || phone || name.toLowerCase();
+      const id = String(stableKey);
+      const existing = customerMap.get(id);
+      const record = existing || {
+        id,
+        name: name || "Cliente",
+        phone,
+        cpf,
+        total_orders: 0,
+        last_order_at: null,
+        addresses: [],
+        phones: phone ? [phone] : []
+      };
+
+      record.total_orders += 1;
+      if (name && record.name === "Cliente") record.name = name;
+      if (phone && !record.phones.includes(phone)) record.phones.push(phone);
+      if (!record.phone && phone) record.phone = phone;
+      if (!record.cpf && cpf) record.cpf = cpf;
+      if (source.address && !record.addresses.includes(source.address)) record.addresses.push(source.address);
+      if (source.created_at && (!record.last_order_at || new Date(source.created_at) > new Date(record.last_order_at))) {
+        record.last_order_at = source.created_at;
+      }
+
+      customerMap.set(id, record);
+    };
+
+    try {
+      // A tabela customers NÃO possui company_id. A relação correta do lojista é via orders/deliveries.company_id.
+      const [{ data: orderData, error: orderError }, { data: deliveryData, error: deliveryError }] = await Promise.all([
+        supabase
+          .from("orders")
+          .select(`
+            id,
+            customer_id,
+            created_at,
+            delivery_address,
+            customers (id, name, phone, cpf)
+          `)
+          .eq("company_id", companyId),
+        supabase
+          .from("deliveries")
+          .select("id, order_id, customer_name, customer_phone, customer_cpf, address, created_at")
+          .eq("company_id", companyId)
+      ]);
+
+      if (orderError) throw orderError;
+      if (deliveryError) throw deliveryError;
+
+      (orderData || []).forEach((o: any) => {
+        const c = Array.isArray(o.customers) ? o.customers[0] : o.customers;
+        upsertCustomer({
+          id: c?.id || o.customer_id || o.id,
+          customer_id: o.customer_id,
+          name: c?.name,
+          phone: c?.phone,
+          cpf: c?.cpf,
+          address: o.delivery_address,
+          created_at: o.created_at
+        });
       });
-    });
 
-    // 2. Fetch all orders (Marketplace + Manual) to get history and find Marketplace customers
-    const { data: orderData } = await supabase
-      .from("orders")
-      .select(`
-        customer_id, 
-        created_at, 
-        delivery_address,
-        customers (id, name, phone, cpf)
-      `)
-      .eq("company_id", companyId);
+      (deliveryData || []).filter((d: any) => !d.order_id).forEach((d: any) => {
+        upsertCustomer({
+          id: d.customer_phone || `${d.customer_name || "cliente"}-${d.id}`,
+          name: d.customer_name,
+          phone: d.customer_phone,
+          cpf: d.customer_cpf,
+          address: d.address,
+          created_at: d.created_at
+        });
+      });
 
-    (orderData || []).forEach((o: any) => {
-      if (!o.customer_id) return;
-      
-      let r = customerMap.get(o.customer_id);
-      
-      // If customer is not in map (Marketplace customer who hasn't been linked yet)
-      if (!r && o.customers) {
-        const c = o.customers;
-        r = {
-          id: c.id, name: c.name, phone: c.phone, cpf: c.cpf,
-          total_orders: 0, last_order_at: null,
-          addresses: [], phones: c.phone ? [c.phone] : []
-        };
-        customerMap.set(c.id, r);
-      }
-      
-      if (!r) return;
-      
-      r.total_orders += 1;
-      
-      if (o.delivery_address && !r.addresses.includes(o.delivery_address)) {
-        r.addresses.push(o.delivery_address);
-      }
-      
-      if (!r.last_order_at || new Date(o.created_at) > new Date(r.last_order_at)) {
-        r.last_order_at = o.created_at;
-      }
-    });
-
-    setCustomers(Array.from(customerMap.values()));
-    setLoading(false);
+      setCustomers(Array.from(customerMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (err: any) {
+      console.error("Erro ao carregar clientes:", err);
+      toast.error(err?.message || "Erro ao carregar clientes");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -146,7 +190,6 @@ export default function BusinessCustomersPage() {
           name: form.name.trim(),
           phone: form.phone.trim() || null,
           cpf: form.cpf.trim() || null,
-          company_id: companyId // CRITICAL: Link to store
         })
         .select()
         .single();
@@ -154,9 +197,18 @@ export default function BusinessCustomersPage() {
       if (error) throw error;
 
       toast.success("Cliente cadastrado com sucesso!");
+      setCustomers(prev => [{
+        id: data?.id || crypto.randomUUID(),
+        name: form.name.trim(),
+        phone: form.phone.trim() || null,
+        cpf: form.cpf.trim() || null,
+        total_orders: 0,
+        last_order_at: null,
+        addresses: [],
+        phones: form.phone.trim() ? [form.phone.trim()] : []
+      }, ...prev]);
       setForm({ name: "", phone: "", cpf: "" });
       setShowNewModal(false);
-      fetchCustomers(); // Refresh list
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || "Erro ao cadastrar cliente");
