@@ -182,19 +182,9 @@ export default function BusinessCustomersPage() {
     if (companyId) fetchCustomers();
   }, [companyId]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error("Informe o nome do cliente");
-      return;
-    }
-    if (!companyId) {
-      toast.error("Erro: Empresa não identificada.");
-      return;
-    }
     setSaving(true);
     try {
-      const { data, error } = await supabase
+      const { data: customer, error } = await supabase
         .from("customers")
         .insert({
           name: form.name.trim(),
@@ -206,18 +196,43 @@ export default function BusinessCustomersPage() {
 
       if (error) throw error;
 
+      const validAddresses = addressEntries.filter((a) => a.address.trim());
+      const savedAddressStrings: string[] = [];
+
+      if (validAddresses.length && customer?.id) {
+        // Try to persist addresses linked to the customer id.
+        // If RLS / FK blocks it, we fall back silently — the addresses still appear
+        // from delivery history once the lojista creates a delivery.
+        const rows = validAddresses.map((a) => ({
+          user_id: customer.id,
+          label: a.label,
+          street: a.address.trim(),
+          reference: a.reference.trim() || null,
+        }));
+        const { error: addrError } = await supabase.from("addresses").insert(rows);
+        if (addrError) {
+          console.warn("Não foi possível salvar endereços vinculados:", addrError.message);
+          toast.warning("Cliente criado, mas os endereços só serão lembrados após o primeiro pedido.");
+        }
+        validAddresses.forEach((a) => savedAddressStrings.push(`[${a.label}] ${a.address.trim()}`));
+      }
+
       toast.success("Cliente cadastrado com sucesso!");
-      setCustomers(prev => [{
-        id: data?.id || crypto.randomUUID(),
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        cpf: form.cpf.trim() || null,
-        total_orders: 0,
-        last_order_at: null,
-        addresses: [],
-        phones: form.phone.trim() ? [form.phone.trim()] : []
-      }, ...prev]);
+      setCustomers((prev) => [
+        {
+          id: customer?.id || crypto.randomUUID(),
+          name: form.name.trim(),
+          phone: form.phone.trim() || null,
+          cpf: form.cpf.trim() || null,
+          total_orders: 0,
+          last_order_at: null,
+          addresses: savedAddressStrings,
+          phones: form.phone.trim() ? [form.phone.trim()] : [],
+        },
+        ...prev,
+      ]);
       setForm({ name: "", phone: "", cpf: "" });
+      setAddressEntries([{ label: "Casa", address: "", reference: "" }]);
       setShowNewModal(false);
     } catch (err: any) {
       console.error(err);
@@ -225,6 +240,7 @@ export default function BusinessCustomersPage() {
     } finally {
       setSaving(false);
     }
+  };
   };
 
   const filteredCustomers = customers.filter(c =>
