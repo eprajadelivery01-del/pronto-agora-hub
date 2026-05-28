@@ -38,6 +38,7 @@ export default function BusinessCustomersPage() {
       }
 
       try {
+        setLoading(true);
         let { data: company } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
         
         // Fallback para administradores
@@ -127,7 +128,7 @@ export default function BusinessCustomersPage() {
           .eq("company_id", companyId),
         supabase
           .from("deliveries")
-          .select("id, customer_name, customer_phone, customer_cpf, address, created_at")
+          .select("id, order_id, customer_name, customer_phone, customer_cpf, address, created_at")
           .eq("company_id", companyId)
       ]);
 
@@ -147,7 +148,7 @@ export default function BusinessCustomersPage() {
         });
       });
 
-      (deliveryData || []).forEach((d: any) => {
+      (deliveryData || []).filter((d: any) => !d.order_id).forEach((d: any) => {
         upsertCustomer({
           id: d.customer_phone || `${d.customer_name || "cliente"}-${d.id}`,
           name: d.customer_name,
