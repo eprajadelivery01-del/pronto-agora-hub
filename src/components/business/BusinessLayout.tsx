@@ -29,7 +29,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
-import { useAudioAlert } from "@/hooks/useAudioAlert";
 import { toast } from "sonner";
 import {
   Popover,
@@ -64,7 +63,6 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const { data: companyData } = useCompany(user?.id, user?.email);
-  const { playAlert } = useAudioAlert();
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
@@ -108,50 +106,13 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
 
     if (!companyData?.id) return;
 
-    const channel = supabase
-      .channel(`business-global-${companyData.id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'orders',
-        filter: `company_id=eq.${companyData.id}`
-      }, () => {
-        fetchPendingOrders(companyData.id);
-        // Tocar som de novo pedido
-        playAlert();
-        toast.success("NOVO PEDIDO RECEBIDO!", {
-          description: "Um novo pedido chegou no marketplace.",
-          duration: 10000,
-        });
-      })
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'orders',
-        filter: `company_id=eq.${companyData.id}`
-      }, () => {
-        fetchPendingOrders(companyData.id);
-      })
-      .on('postgres_changes', { 
-        event: 'DELETE', 
-        schema: 'public', 
-        table: 'orders',
-        filter: `company_id=eq.${companyData.id}`
-      }, () => {
-        fetchPendingOrders(companyData.id);
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'companies',
-        filter: `id=eq.${companyData.id}`
-      }, (payload) => {
-        setIsOpen(payload.new.is_open);
-      })
-      .subscribe();
+    const interval = window.setInterval(() => {
+      fetchStatus();
+      fetchPendingOrders(companyData.id);
+    }, 5000);
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearInterval(interval);
     };
   }, [user?.id, companyData?.id]);
 

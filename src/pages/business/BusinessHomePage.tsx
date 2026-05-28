@@ -196,7 +196,7 @@ export default function BusinessHomePage() {
     return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || delivery.value || 0, deliveryInfo: delivery };
   });
 
-  // Realtime subscription
+  // Atualização por HTTP: evita depender de WebSocket/realtime, que está instável no domínio publicado.
   useEffect(() => {
     if (!companyId) return;
     const invalidateDeliveryQueries = () => {
@@ -207,19 +207,10 @@ export default function BusinessHomePage() {
       qc.invalidateQueries({ queryKey: ["business-open-store-deliveries-by-name"] });
       qc.invalidateQueries({ queryKey: ["business-visible-deliveries-fallback"] });
     };
-    const channel = supabase
-      .channel("business-home-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` }, () => {
-        invalidateDeliveryQueries();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => {
-        invalidateDeliveryQueries();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    invalidateDeliveryQueries();
+    const interval = window.setInterval(invalidateDeliveryQueries, 5000);
+    return () => window.clearInterval(interval);
   }, [companyId, qc]);
 
   const stats = useMemo(() => ({
