@@ -5,11 +5,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
+import { CompanyNotLinkedState } from "@/components/business/CompanyNotLinkedState";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 interface Product {
   id: string;
