@@ -39,6 +39,7 @@ export default function BusinessHomePage() {
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [optimisticManualDeliveries, setOptimisticManualDeliveries] = useState<DeliveryWithRelations[]>([]);
   const qc = useQueryClient();
   
   const { companyId, company: companyData } = useCurrentCompany();
@@ -157,11 +158,11 @@ export default function BusinessHomePage() {
 
   const combinedDeliveries = useMemo(() => {
     const byId = new Map<string, DeliveryWithRelations>();
-    [...(visibleDeliveriesFallback || []), ...(openStoreDeliveriesByName || []), ...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
+    [...optimisticManualDeliveries, ...(visibleDeliveriesFallback || []), ...(openStoreDeliveriesByName || []), ...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
       if (delivery?.id) byId.set(delivery.id, delivery);
     });
     return Array.from(byId.values());
-  }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName, visibleDeliveriesFallback]);
+  }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName, optimisticManualDeliveries, visibleDeliveriesFallback]);
 
   // Filter deliveries to only show active ones
   const activeDeliveries = combinedDeliveries.filter(d => {
@@ -236,6 +237,18 @@ export default function BusinessHomePage() {
     setShowNewDelivery(true);
   };
 
+  const handleDeliverySaved = (delivery: DeliveryWithRelations) => {
+    setOptimisticManualDeliveries((current) => {
+      const withoutSaved = current.filter((item) => item.id !== delivery.id);
+      return [delivery, ...withoutSaved];
+    });
+    qc.setQueriesData({ queryKey: ["deliveries"] }, (old: any) => {
+      if (!old?.data) return old;
+      const existing = old.data.filter((item: DeliveryWithRelations) => item.id !== delivery.id);
+      return { ...old, data: [delivery, ...existing], count: Math.max(old.count ?? 0, existing.length + 1) };
+    });
+  };
+
   const handleComplete = async (delivery: any) => {
     if (!confirm("Finalizar esta entrega?")) return;
     try {
@@ -264,6 +277,7 @@ export default function BusinessHomePage() {
         {showNewDelivery ? (
           <NewDeliveryForm 
             onClose={() => { setShowNewDelivery(false); setEditingDelivery(null); }} 
+            onSaved={handleDeliverySaved}
             initialData={editingDelivery}
             companyId={companyId}
             companyData={companyData}
