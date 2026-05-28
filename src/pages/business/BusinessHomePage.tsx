@@ -58,10 +58,40 @@ export default function BusinessHomePage() {
     pageSize: 100
   });
 
+  // Consulta direta e simples, igual ao que o painel do entregador precisa enxergar.
+  // Evita a tela ficar zerada se algum relacionamento da consulta completa falhar.
+  const { data: openStoreDeliveries, isLoading: isLoadingOpenStoreDeliveries } = useQuery({
+    queryKey: ["business-open-store-deliveries", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+
+      const { data, error } = await supabase
+        .from("deliveries")
+        .select("*")
+        .eq("company_id", companyId)
+        .in("status", ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"])
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId,
+    refetchInterval: 5000,
+  });
+
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
 
+  const combinedDeliveries = useMemo(() => {
+    const byId = new Map<string, any>();
+    [...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery: any) => {
+      if (delivery?.id) byId.set(delivery.id, delivery);
+    });
+    return Array.from(byId.values());
+  }, [deliveriesData?.data, openStoreDeliveries]);
+
   // Filter deliveries to only show active ones
-  const activeDeliveries = (deliveriesData?.data || []).filter(d => {
+  const activeDeliveries = combinedDeliveries.filter(d => {
     if (["completed", "delivered", "cancelled"].includes(d.status)) return false;
     const linkedOrder = marketplaceOrders?.find(o => o.delivery_id === d.id || o.id === d.order_id);
     if (d.order_id && linkedOrder && ["completed", "delivered", "cancelled"].includes(linkedOrder.status)) return false;
@@ -95,10 +125,10 @@ export default function BusinessHomePage() {
   }, [companyId, qc]);
 
   const stats = useMemo(() => ({
-    pending: deliveryStats?.pending ?? 0,
-    inRoute: deliveryStats?.inTransit ?? 0,
-    manualRevenue: deliveryStats?.todayCollection ?? 0
-  }), [deliveryStats]);
+    pending: Math.max(deliveryStats?.pending ?? 0, activeDeliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length),
+    inRoute: Math.max(deliveryStats?.inTransit ?? 0, activeDeliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length),
+    manualRevenue: Math.max(deliveryStats?.todayCollection ?? 0, activeDeliveries.reduce((sum, d) => sum + Number(d.value ?? 0), 0))
+  }), [deliveryStats, activeDeliveries]);
 
   const handleCancel = async (id: string) => {
     if (!confirm("Tem certeza que deseja cancelar esta entrega?")) return;
