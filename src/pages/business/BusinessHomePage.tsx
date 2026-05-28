@@ -16,6 +16,9 @@ import { format } from "date-fns";
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
 
+const CLOSED_DELIVERY_STATUSES = ["completed", "delivered", "cancelled"];
+const MOVING_DELIVERY_STATUSES = ["accepted", "collecting", "in_route", "in_transit"];
+
 type MarketplaceOrder = {
   id: string;
   status: string;
@@ -118,28 +121,71 @@ export default function BusinessHomePage() {
     refetchInterval: 5000,
   });
 
+  // Último fallback: busca tudo que o usuário autenticado consegue enxergar e filtra no cliente.
+  // Isso cobre casos em que a entrega existe para o entregador, mas foi gravada com vínculo divergente.
+  const { data: visibleDeliveriesFallback, isLoading: isLoadingVisibleDeliveriesFallback } = useQuery({
+    queryKey: ["business-visible-deliveries-fallback", companyId, companyData?.name, companyData?.email, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deliveries")
+        .select("*, companies(name, email, user_id)")
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (error) {
+        console.warn("[Lojista] Falha no fallback geral de entregas:", error);
+        return [];
+      }
+
+      const companyName = companyData?.name?.trim().toLowerCase();
+      const companyEmail = companyData?.email?.trim().toLowerCase();
+      return ((data || []) as DeliveryWithRelations[]).filter((delivery) => {
+        const deliveryCompany = delivery.companies as any;
+        return (
+          (!!companyId && delivery.company_id === companyId) ||
+          (!!companyName && deliveryCompany?.name?.trim().toLowerCase() === companyName) ||
+          (!!companyEmail && deliveryCompany?.email?.trim().toLowerCase() === companyEmail) ||
+          (!!user?.id && deliveryCompany?.user_id === user.id)
+        );
+      });
+    },
+    enabled: !!companyId || !!companyData?.name || !!companyData?.email || !!user?.id,
+    refetchInterval: 5000,
+  });
+
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
 
   const combinedDeliveries = useMemo(() => {
     const byId = new Map<string, DeliveryWithRelations>();
-    [...(openStoreDeliveriesByName || []), ...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
+    [...(visibleDeliveriesFallback || []), ...(openStoreDeliveriesByName || []), ...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
       if (delivery?.id) byId.set(delivery.id, delivery);
     });
     return Array.from(byId.values());
-  }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName]);
+  }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName, visibleDeliveriesFallback]);
 
   // Filter deliveries to only show active ones
   const activeDeliveries = combinedDeliveries.filter(d => {
-    if (["completed", "delivered", "cancelled"].includes(d.status)) return false;
+    if (CLOSED_DELIVERY_STATUSES.includes(d.status)) return false;
     if (companyId && d.company_id && d.company_id !== companyId) {
-      const deliveryCompanyName = d.companies?.name?.trim().toLowerCase();
+      const deliveryCompanyName = (d.companies as any)?.name?.trim().toLowerCase();
       const currentCompanyName = companyData?.name?.trim().toLowerCase();
       if (!deliveryCompanyName || deliveryCompanyName !== currentCompanyName) return false;
     }
     const linkedOrder = marketplaceOrders?.find(o => o.delivery_id === d.id || o.id === d.order_id);
-    if (d.order_id && linkedOrder && ["completed", "delivered", "cancelled"].includes(linkedOrder.status)) return false;
+    if (d.order_id && linkedOrder && CLOSED_DELIVERY_STATUSES.includes(linkedOrder.status)) return false;
     return true;
   });
+
+  useEffect(() => {
+    console.info("[Lojista] entregas carregadas", {
+      companyId,
+      principal: deliveriesData?.data?.length ?? 0,
+      porEmpresa: openStoreDeliveries?.length ?? 0,
+      porNome: openStoreDeliveriesByName?.length ?? 0,
+      fallback: visibleDeliveriesFallback?.length ?? 0,
+      ativas: activeDeliveries.length,
+    });
+  }, [activeDeliveries.length, companyId, deliveriesData?.data?.length, openStoreDeliveries?.length, openStoreDeliveriesByName?.length, visibleDeliveriesFallback?.length]);
 
   // Separate Manual vs Marketplace
   const marketplaceDeliveries = activeDeliveries.filter(d => !!d.order_id || (marketplaceOrders || []).some(o => o.delivery_id === d.id));
@@ -153,12 +199,21 @@ export default function BusinessHomePage() {
   // Realtime subscription
   useEffect(() => {
     if (!companyId) return;
+    const invalidateDeliveryQueries = () => {
+      qc.invalidateQueries({ queryKey: ["deliveries"] });
+      qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+      qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
+      qc.invalidateQueries({ queryKey: ["business-open-store-deliveries"] });
+      qc.invalidateQueries({ queryKey: ["business-open-store-deliveries-by-name"] });
+      qc.invalidateQueries({ queryKey: ["business-visible-deliveries-fallback"] });
+    };
     const channel = supabase
       .channel("business-home-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries", filter: `company_id=eq.${companyId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["deliveries"] });
-        qc.invalidateQueries({ queryKey: ["delivery-stats"] });
-        qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
+        invalidateDeliveryQueries();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => {
+        invalidateDeliveryQueries();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` }, () => {
         qc.invalidateQueries({ queryKey: ["marketplace-deliveries-active"] });
@@ -169,7 +224,7 @@ export default function BusinessHomePage() {
 
   const stats = useMemo(() => ({
     pending: Math.max(deliveryStats?.pending ?? 0, activeDeliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length),
-    inRoute: Math.max(deliveryStats?.inTransit ?? 0, activeDeliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length),
+    inRoute: Math.max(deliveryStats?.inTransit ?? 0, activeDeliveries.filter(d => MOVING_DELIVERY_STATUSES.includes(d.status)).length),
     manualRevenue: Math.max(deliveryStats?.todayCollection ?? 0, activeDeliveries.reduce((sum, d) => sum + Number(d.value ?? 0), 0))
   }), [deliveryStats, activeDeliveries]);
 
@@ -329,7 +384,7 @@ export default function BusinessHomePage() {
                 <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{manualDeliveries.length}</span>
               </div>
 
-              {isLoadingDeliveries || isLoadingOpenStoreDeliveries || isLoadingOpenStoreDeliveriesByName ? (
+              {isLoadingDeliveries || isLoadingOpenStoreDeliveries || isLoadingOpenStoreDeliveriesByName || isLoadingVisibleDeliveriesFallback ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : manualDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
