@@ -142,15 +142,8 @@ export default function BusinessProfilePage() {
         setShowInMarketplace(company.show_in_marketplace ?? false);
         setDeliveryFee(company.delivery_fee?.toString() || "0.00");
         setBusinessHours(company.business_hours || "");
-        setGallery(company.gallery || []);
-
-        if (company.business_hours && company.business_hours.includes("{")) {
-          try {
-            setWorkingDays(JSON.parse(company.business_hours));
-          } catch (e) {
-            console.error("Erro ao parsear horários estruturados");
-          }
-        }
+        setGallery(normalizeGallery(company.gallery));
+        setWorkingDays(normalizeWorkingDays(company.business_hours));
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
