@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDeliveries, useDeliveryStats } from "@/services/deliveries";
+import { useDeliveries, useDeliveryStats, type DeliveryWithRelations } from "@/services/deliveries";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus, Delivery } from "@/types/models";
@@ -15,6 +15,20 @@ import { format } from "date-fns";
 
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
+
+type MarketplaceOrder = {
+  id: string;
+  status: string;
+  total?: number | null;
+  created_at?: string;
+  customer_id?: string | null;
+  delivery_id?: string | null;
+  delivery_address?: string | null;
+  payment_method?: string | null;
+  customers?: { name?: string | null } | { name?: string | null }[] | null;
+  order_items?: unknown[];
+  deliveryInfo?: DeliveryWithRelations;
+};
 
 export default function BusinessHomePage() {
   const { profile, user } = useAuth();
@@ -47,7 +61,7 @@ export default function BusinessHomePage() {
         .not("status", "in", '("delivered","cancelled")');
       
       if (error) throw error;
-      return data || [];
+      return (data || []) as MarketplaceOrder[];
     },
     enabled: !!companyId
   });
@@ -58,10 +72,60 @@ export default function BusinessHomePage() {
     pageSize: 100
   });
 
+  // Consulta direta e simples, igual ao que o painel do entregador precisa enxergar.
+  // Evita a tela ficar zerada se algum relacionamento da consulta completa falhar.
+  const { data: openStoreDeliveries, isLoading: isLoadingOpenStoreDeliveries } = useQuery({
+    queryKey: ["business-open-store-deliveries", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+
+      const { data, error } = await supabase
+        .from("deliveries")
+        .select("*")
+        .eq("company_id", companyId)
+        .in("status", ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"])
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return (data || []) as DeliveryWithRelations[];
+    },
+    enabled: !!companyId,
+    refetchInterval: 5000,
+  });
+
+  const { data: openStoreDeliveriesByName, isLoading: isLoadingOpenStoreDeliveriesByName } = useQuery({
+    queryKey: ["business-open-store-deliveries-by-name", companyData?.name],
+    queryFn: async () => {
+      if (!companyData?.name) return [];
+
+      const { data, error } = await supabase
+        .from("deliveries")
+        .select("*, companies!inner(name)")
+        .eq("companies.name", companyData.name)
+        .in("status", ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"])
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return (data || []) as DeliveryWithRelations[];
+    },
+    enabled: !!companyData?.name,
+    refetchInterval: 5000,
+  });
+
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
 
+  const combinedDeliveries = useMemo(() => {
+    const byId = new Map<string, DeliveryWithRelations>();
+    [...(openStoreDeliveriesByName || []), ...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
+      if (delivery?.id) byId.set(delivery.id, delivery);
+    });
+    return Array.from(byId.values());
+  }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName]);
+
   // Filter deliveries to only show active ones
-  const activeDeliveries = (deliveriesData?.data || []).filter(d => {
+  const activeDeliveries = combinedDeliveries.filter(d => {
     if (["completed", "delivered", "cancelled"].includes(d.status)) return false;
     const linkedOrder = marketplaceOrders?.find(o => o.delivery_id === d.id || o.id === d.order_id);
     if (d.order_id && linkedOrder && ["completed", "delivered", "cancelled"].includes(linkedOrder.status)) return false;
@@ -72,7 +136,7 @@ export default function BusinessHomePage() {
   const marketplaceDeliveries = activeDeliveries.filter(d => !!d.order_id || (marketplaceOrders || []).some(o => o.delivery_id === d.id));
   const manualDeliveries = activeDeliveries.filter(d => !d.order_id && !(marketplaceOrders || []).some(o => o.delivery_id === d.id));
 
-  const marketplaceDeliveriesWithOrders = marketplaceDeliveries.map(delivery => {
+  const marketplaceDeliveriesWithOrders: MarketplaceOrder[] = marketplaceDeliveries.map(delivery => {
     const order = (marketplaceOrders || []).find(o => o.delivery_id === delivery.id || o.id === delivery.order_id);
     return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || delivery.value || 0, deliveryInfo: delivery };
   });
@@ -95,10 +159,10 @@ export default function BusinessHomePage() {
   }, [companyId, qc]);
 
   const stats = useMemo(() => ({
-    pending: deliveryStats?.pending ?? 0,
-    inRoute: deliveryStats?.inTransit ?? 0,
-    manualRevenue: deliveryStats?.todayCollection ?? 0
-  }), [deliveryStats]);
+    pending: Math.max(deliveryStats?.pending ?? 0, activeDeliveries.filter(d => ["pending", "broadcasted"].includes(d.status)).length),
+    inRoute: Math.max(deliveryStats?.inTransit ?? 0, activeDeliveries.filter(d => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length),
+    manualRevenue: Math.max(deliveryStats?.todayCollection ?? 0, activeDeliveries.reduce((sum, d) => sum + Number(d.value ?? 0), 0))
+  }), [deliveryStats, activeDeliveries]);
 
   const handleCancel = async (id: string) => {
     if (!confirm("Tem certeza que deseja cancelar esta entrega?")) return;
@@ -256,7 +320,7 @@ export default function BusinessHomePage() {
                 <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{manualDeliveries.length}</span>
               </div>
 
-              {isLoadingDeliveries ? (
+              {isLoadingDeliveries || isLoadingOpenStoreDeliveries || isLoadingOpenStoreDeliveriesByName ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : manualDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
