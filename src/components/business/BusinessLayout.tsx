@@ -29,6 +29,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
+import { useCurrentCompany } from "@/hooks/useCurrentCompany";
+import { CompanyNotLinkedState } from "./CompanyNotLinkedState";
 import { useAudioAlert } from "@/hooks/useAudioAlert";
 import { toast } from "sonner";
 import {
