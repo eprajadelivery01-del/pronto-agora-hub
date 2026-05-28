@@ -94,15 +94,35 @@ export default function BusinessHomePage() {
     refetchInterval: 5000,
   });
 
+  const { data: openStoreDeliveriesByName, isLoading: isLoadingOpenStoreDeliveriesByName } = useQuery({
+    queryKey: ["business-open-store-deliveries-by-name", companyData?.name],
+    queryFn: async () => {
+      if (!companyData?.name) return [];
+
+      const { data, error } = await supabase
+        .from("deliveries")
+        .select("*, companies!inner(name)")
+        .eq("companies.name", companyData.name)
+        .in("status", ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"])
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      return (data || []) as DeliveryWithRelations[];
+    },
+    enabled: !!companyData?.name,
+    refetchInterval: 5000,
+  });
+
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
 
   const combinedDeliveries = useMemo(() => {
     const byId = new Map<string, DeliveryWithRelations>();
-    [...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
+    [...(openStoreDeliveriesByName || []), ...(openStoreDeliveries || []), ...(deliveriesData?.data || [])].forEach((delivery) => {
       if (delivery?.id) byId.set(delivery.id, delivery);
     });
     return Array.from(byId.values());
-  }, [deliveriesData?.data, openStoreDeliveries]);
+  }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName]);
 
   // Filter deliveries to only show active ones
   const activeDeliveries = combinedDeliveries.filter(d => {
