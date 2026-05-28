@@ -307,48 +307,15 @@ export default function BusinessOrdersPage() {
   }, [companyId]);
 
   useEffect(() => {
-    const init = async () => {
-      if (!user?.id || companyId) return;
-      
-      try {
-        let { data: companies } = await supabase
-          .from("companies")
-          .select("id, name")
-          .eq("user_id", user.id);
-        
-        // Fallback para administradores
-        if (!companies || companies.length === 0) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          if (profile?.role === "admin") {
-            const { data: fallbackCompanies } = await supabase
-              .from("companies")
-              .select("id, name")
-              .order("created_at", { ascending: true });
-            companies = fallbackCompanies;
-          }
-        }
-
-        if (companies && companies.length > 0) {
-          const bestCompany = companies.find(c => !c.name.toLowerCase().includes("teste")) || companies[0];
-          setCompanyId(bestCompany.id);
-        }
-      } catch (err) {
-        console.error("[Painel] Erro na inicialização:", err);
-      }
-    };
-    init();
-  }, [user?.id, companyId]);
-
-  useEffect(() => {
     if (companyId) {
       fetchOrders();
+    } else if (!companyLoading) {
+      // Sem empresa vinculada — encerra o skeleton imediatamente
+      setLoading(false);
     }
-  }, [companyId, fetchOrders]);
+  }, [companyId, companyLoading, fetchOrders]);
+
+
 
   // Configuração do Áudio de Alerta
   useEffect(() => {
