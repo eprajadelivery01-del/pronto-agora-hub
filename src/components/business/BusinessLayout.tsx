@@ -66,6 +66,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const { data: companyData } = useCompany(user?.id);
+  const { isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
   const { playAlert } = useAudioAlert();
 
   const isActive = (href: string) => {
