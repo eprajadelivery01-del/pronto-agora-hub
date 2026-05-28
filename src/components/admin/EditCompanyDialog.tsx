@@ -55,7 +55,14 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
           .eq("user_id", company.user_id)
           .single()
           .then(({ data }) => {
-            if (data) setOwnerProfile(data);
+            if (data) {
+              setOwnerProfile(data);
+              setForm(p => ({
+                ...p,
+                document: p.document || data.document || "",
+                phone: p.phone || data.phone || "",
+              }));
+            }
           });
       }
     }
@@ -76,6 +83,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
           .from("profiles")
           .update({
             document: form.document,
+            phone: form.phone,
           })
           .eq("id", company.user_id);
 
