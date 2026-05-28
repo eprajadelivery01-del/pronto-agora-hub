@@ -83,11 +83,13 @@ export default function BusinessHomePage() {
         .from("deliveries")
         .select("*")
         .eq("company_id", companyId)
-        .in("status", ["pending", "broadcasted", "accepted", "collecting"])
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        console.warn("[Lojista] Falha ao buscar entregas abertas por company_id:", error);
+        return [];
+      }
       return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyId,
@@ -103,11 +105,13 @@ export default function BusinessHomePage() {
         .from("deliveries")
         .select("*, companies!inner(name)")
         .eq("companies.name", companyData.name)
-        .in("status", ["pending", "broadcasted", "accepted", "collecting"])
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        console.warn("[Lojista] Falha ao buscar entregas abertas por nome da empresa:", error);
+        return [];
+      }
       return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyData?.name,
@@ -127,6 +131,11 @@ export default function BusinessHomePage() {
   // Filter deliveries to only show active ones
   const activeDeliveries = combinedDeliveries.filter(d => {
     if (["completed", "delivered", "cancelled"].includes(d.status)) return false;
+    if (companyId && d.company_id && d.company_id !== companyId) {
+      const deliveryCompanyName = d.companies?.name?.trim().toLowerCase();
+      const currentCompanyName = companyData?.name?.trim().toLowerCase();
+      if (!deliveryCompanyName || deliveryCompanyName !== currentCompanyName) return false;
+    }
     const linkedOrder = marketplaceOrders?.find(o => o.delivery_id === d.id || o.id === d.order_id);
     if (d.order_id && linkedOrder && ["completed", "delivered", "cancelled"].includes(linkedOrder.status)) return false;
     return true;
