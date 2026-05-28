@@ -1,5 +1,5 @@
 import React, { useState, FormEvent, useEffect } from "react";
-import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw, Home, Briefcase, Heart } from "lucide-react";
+import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw, Home, Briefcase, Heart, Handshake } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -62,6 +62,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
     if (initialData?.notes?.includes("[RECEBER: Pix]")) return "Pix";
     if (initialData?.notes?.includes("[RECEBER: Dinheiro]")) return "Dinheiro";
     if (initialData?.notes?.includes("[RECEBER: Máquina Móvel]")) return "Máquina Móvel";
+    if (initialData?.notes?.includes("[RECEBER: Convênio]")) return "Convênio";
     return "Pix";
   });
 
@@ -71,6 +72,7 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
     rawNotes = rawNotes.replace("[RECEBER: Pix]", "");
     rawNotes = rawNotes.replace("[RECEBER: Dinheiro]", "");
     rawNotes = rawNotes.replace("[RECEBER: Máquina Móvel]", "");
+    rawNotes = rawNotes.replace("[RECEBER: Convênio]", "");
     return rawNotes.trim();
   });
 
@@ -473,11 +475,12 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
           {!isPaid && (
              <div className="space-y-2 p-6 bg-muted/30 border border-border rounded-3xl animate-in fade-in slide-in-from-top-2 duration-300">
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Forma de Recebimento pelo Entregador</label>
-               <div className="grid grid-cols-3 gap-3">
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                  {[
                    { id: "Pix", label: "Pix", icon: Wallet },
                    { id: "Dinheiro", label: "Dinheiro", icon: DollarSign },
                    { id: "Máquina Móvel", label: "Máquina Móvel", icon: Plus },
+                   { id: "Convênio", label: "Convênio", icon: Handshake },
                  ].map((method) => {
                    const isSelected = paymentMethod === method.id;
                    return (
