@@ -29,8 +29,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
 import { useCompany } from "@/services/companies";
-import { useAudioAlert } from "@/hooks/useAudioAlert";
-import { toast } from "sonner";
 import {
   Popover,
   PopoverContent,
@@ -64,7 +62,6 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const { data: companyData } = useCompany(user?.id, user?.email);
-  const { playAlert } = useAudioAlert();
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
