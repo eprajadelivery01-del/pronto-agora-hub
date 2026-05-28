@@ -83,7 +83,7 @@ export default function BusinessHomePage() {
         .from("deliveries")
         .select("*")
         .eq("company_id", companyId)
-        .in("status", ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"])
+        .in("status", ["pending", "broadcasted", "accepted", "collecting"])
         .order("created_at", { ascending: false })
         .limit(100);
 
@@ -103,7 +103,7 @@ export default function BusinessHomePage() {
         .from("deliveries")
         .select("*, companies!inner(name)")
         .eq("companies.name", companyData.name)
-        .in("status", ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"])
+        .in("status", ["pending", "broadcasted", "accepted", "collecting"])
         .order("created_at", { ascending: false })
         .limit(100);
 
