@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { Users, Search, RefreshCw, User, Phone, ShoppingBag, Plus, X, Loader2, MapPin, Calendar, CreditCard, ChevronRight } from "lucide-react";
+import { Users, Search, RefreshCw, User, Phone, ShoppingBag, Plus, X, Loader2, MapPin, Calendar, CreditCard, ChevronRight, Home, Briefcase, Heart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface CustomerRecord {
@@ -29,6 +29,16 @@ export default function BusinessCustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", cpf: "" });
+  const [addressEntries, setAddressEntries] = useState<{ label: string; address: string; reference: string }[]>([
+    { label: "Casa", address: "", reference: "" },
+  ]);
+
+  const ADDRESS_LABELS = [
+    { id: "Casa", icon: Home },
+    { id: "Trabalho", icon: Briefcase },
+    { id: "Casa da Mãe", icon: Heart },
+    { id: "Outro", icon: MapPin },
+  ];
 
   useEffect(() => {
     const init = async () => {
@@ -184,7 +194,7 @@ export default function BusinessCustomersPage() {
     }
     setSaving(true);
     try {
-      const { data, error } = await supabase
+      const { data: customer, error } = await supabase
         .from("customers")
         .insert({
           name: form.name.trim(),
@@ -196,18 +206,43 @@ export default function BusinessCustomersPage() {
 
       if (error) throw error;
 
+      const validAddresses = addressEntries.filter((a) => a.address.trim());
+      const savedAddressStrings: string[] = [];
+
+      if (validAddresses.length && customer?.id) {
+        // Try to persist addresses linked to the customer id.
+        // If RLS / FK blocks it, we fall back silently — the addresses still appear
+        // from delivery history once the lojista creates a delivery.
+        const rows = validAddresses.map((a) => ({
+          user_id: customer.id,
+          label: a.label,
+          street: a.address.trim(),
+          reference: a.reference.trim() || null,
+        }));
+        const { error: addrError } = await supabase.from("addresses").insert(rows);
+        if (addrError) {
+          console.warn("Não foi possível salvar endereços vinculados:", addrError.message);
+          toast.warning("Cliente criado, mas os endereços só serão lembrados após o primeiro pedido.");
+        }
+        validAddresses.forEach((a) => savedAddressStrings.push(`[${a.label}] ${a.address.trim()}`));
+      }
+
       toast.success("Cliente cadastrado com sucesso!");
-      setCustomers(prev => [{
-        id: data?.id || crypto.randomUUID(),
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        cpf: form.cpf.trim() || null,
-        total_orders: 0,
-        last_order_at: null,
-        addresses: [],
-        phones: form.phone.trim() ? [form.phone.trim()] : []
-      }, ...prev]);
+      setCustomers((prev) => [
+        {
+          id: customer?.id || crypto.randomUUID(),
+          name: form.name.trim(),
+          phone: form.phone.trim() || null,
+          cpf: form.cpf.trim() || null,
+          total_orders: 0,
+          last_order_at: null,
+          addresses: savedAddressStrings,
+          phones: form.phone.trim() ? [form.phone.trim()] : [],
+        },
+        ...prev,
+      ]);
       setForm({ name: "", phone: "", cpf: "" });
+      setAddressEntries([{ label: "Casa", address: "", reference: "" }]);
       setShowNewModal(false);
     } catch (err: any) {
       console.error(err);
@@ -328,7 +363,7 @@ export default function BusinessCustomersPage() {
           onClick={() => !saving && setShowNewModal(false)}
         >
           <div
-            className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-md p-6 animate-in zoom-in-95 duration-200"
+            className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-md p-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-6">
@@ -382,6 +417,87 @@ export default function BusinessCustomersPage() {
                   className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
                   maxLength={14}
                 />
+              </div>
+
+              {/* Endereços */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                    Endereços ({addressEntries.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAddressEntries((prev) => [...prev, { label: "Outro", address: "", reference: "" }])
+                    }
+                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Adicionar
+                  </button>
+                </div>
+
+                {addressEntries.map((entry, idx) => (
+                  <div key={idx} className="p-3 rounded-2xl border border-border bg-muted/20 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {ADDRESS_LABELS.map((t) => {
+                          const Icon = t.icon;
+                          const selected = entry.label === t.id;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() =>
+                                setAddressEntries((prev) =>
+                                  prev.map((a, i) => (i === idx ? { ...a, label: t.id } : a))
+                                )
+                              }
+                              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                                selected
+                                  ? "bg-primary/10 text-primary border-primary/20"
+                                  : "bg-background text-muted-foreground border-border hover:bg-muted/50"
+                              }`}
+                            >
+                              <Icon className="h-2.5 w-2.5" />
+                              {t.id}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {addressEntries.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setAddressEntries((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-destructive/70 hover:text-destructive p-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={entry.address}
+                      onChange={(e) =>
+                        setAddressEntries((prev) =>
+                          prev.map((a, i) => (i === idx ? { ...a, address: e.target.value } : a))
+                        )
+                      }
+                      placeholder="Rua, número, bairro..."
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:border-primary outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={entry.reference}
+                      onChange={(e) =>
+                        setAddressEntries((prev) =>
+                          prev.map((a, i) => (i === idx ? { ...a, reference: e.target.value } : a))
+                        )
+                      }
+                      placeholder="Ponto de referência (opcional)"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:border-primary outline-none"
+                    />
+                  </div>
+                ))}
               </div>
 
               <div className="flex gap-3 pt-2">
