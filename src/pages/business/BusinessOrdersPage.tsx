@@ -86,9 +86,10 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
 
 export default function BusinessOrdersPage() {
   const { user } = useAuth();
+  const { companyId, isLoading: companyLoading, isLinked, userId } = useCurrentCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+
   const [stats, setStats] = useState({ 
     pending: 0, 
     preparing: 0, 
