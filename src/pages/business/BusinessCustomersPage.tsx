@@ -182,6 +182,16 @@ export default function BusinessCustomersPage() {
     if (companyId) fetchCustomers();
   }, [companyId]);
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error("Informe o nome do cliente");
+      return;
+    }
+    if (!companyId) {
+      toast.error("Erro: Empresa não identificada.");
+      return;
+    }
     setSaving(true);
     try {
       const { data: customer, error } = await supabase
