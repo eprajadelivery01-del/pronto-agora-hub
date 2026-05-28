@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: fullName },
+      user_metadata: { full_name: fullName, role: invitation.role },
     });
 
     if (authError) {
@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
       phone: phone || null,
       document: document || null,
       status: "active",
+      role: invitation.role,
     });
 
     // 4. Assign role safely
