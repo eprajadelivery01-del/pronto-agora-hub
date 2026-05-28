@@ -11,13 +11,14 @@ import { cn } from "@/lib/utils";
 
 interface NewDeliveryFormProps {
   onClose: () => void;
+  onSaved?: (delivery: any) => void;
   initialData?: any;
   companyId?: string;
   companyData?: any;
   isAdmin?: boolean;
 }
 
-export default function NewDeliveryForm({ onClose, initialData, companyId: propCompanyId, companyData: propCompanyData, isAdmin }: NewDeliveryFormProps) {
+export default function NewDeliveryForm({ onClose, onSaved, initialData, companyId: propCompanyId, companyData: propCompanyData, isAdmin }: NewDeliveryFormProps) {
   const { selectedCity } = useCity();
   const qc = useQueryClient();
   
@@ -202,7 +203,10 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
         finalNotes = `[RECEBER: ${paymentMethod}] ${finalNotes}`.trim();
       }
 
+      const now = new Date().toISOString();
+      const deliveryId = initialData?.id || crypto.randomUUID();
       const payload: any = {
+        id: deliveryId,
         company_id: cId,
         customer_name: customerName,
         customer_phone: customerPhone.replace(/\D/g, ""),
@@ -215,7 +219,10 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
         notes: finalNotes || null,
         status: initialData ? initialData.status : "pending",
         region_id: selectedRegionId,
+        updated_at: now,
       };
+
+      if (!initialData) payload.created_at = now;
 
       console.log("[NewDeliveryForm] enviando payload", payload);
 
@@ -242,7 +249,12 @@ export default function NewDeliveryForm({ onClose, initialData, companyId: propC
       }
 
       toast.success(initialData ? "Entrega atualizada!" : "Entrega solicitada!");
+      onSaved?.(initialData ? { ...initialData, ...payload } : payload);
       qc.invalidateQueries({ queryKey: ["deliveries"] });
+      qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+      qc.invalidateQueries({ queryKey: ["business-open-store-deliveries"] });
+      qc.invalidateQueries({ queryKey: ["business-open-store-deliveries-by-name"] });
+      qc.invalidateQueries({ queryKey: ["business-visible-deliveries-fallback"] });
       setSubmitted(true);
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar entrega");
