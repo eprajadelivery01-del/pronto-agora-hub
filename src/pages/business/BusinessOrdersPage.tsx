@@ -76,7 +76,7 @@ const getNextActions = (status: OrderStatus) => {
 
 const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] = [
   { key: "pending", label: "Novos", icon: Bell, color: "warning" },
-  { key: "preparing", label: "Na Cozinha", icon: ChefHat, color: "blue" },
+  { key: "preparing", label: "Em Preparo", icon: Package, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
   { key: "in_route", label: "Em Rota", icon: Truck, color: "purple" },
   { key: "delivered", label: "Concluídos", icon: CheckCircle, color: "success" },
@@ -543,11 +543,11 @@ export default function BusinessOrdersPage() {
            </div>
            <div className="bg-card border border-border rounded-2xl p-5 shadow-card hover:border-primary/20 transition-all flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                 <ChefHat className="h-6 w-6 text-blue-500" />
+                 <Package className="h-6 w-6 text-blue-500" />
               </div>
               <div>
                  <p className="text-2xl font-black text-foreground tracking-tight">{stats.preparing}</p>
-                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Na Cozinha</p>
+                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Em Preparo</p>
               </div>
            </div>
            <div className="bg-card border border-border rounded-2xl p-5 shadow-card hover:border-primary/20 transition-all flex items-center gap-4">
