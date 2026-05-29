@@ -379,7 +379,6 @@ export default function BusinessFinancePage() {
                 </p>
               </div>
             </div>
-          </>
 
             {/* Tabs */}
             <Tabs value={tab} onValueChange={setTab}>
