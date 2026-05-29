@@ -328,8 +328,15 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
                     if (addr) setAddress(addr);
                     if (ph) setCustomerPhone(maskPhone(ph));
                     if (cp) setCustomerCpf(maskCPF(cp));
-                    if (lbl && ["Casa", "Trabalho", "Casa da Mãe", "Outro"].includes(lbl)) setAddressType(lbl);
-                    else if (lbl) setAddressType("Outro");
+                    if (lbl) {
+                      if (lbl === "Família") {
+                        setAddressType("Casa da Mãe");
+                      } else if (["Casa", "Trabalho", "Casa da Mãe", "Outro"].includes(lbl)) {
+                        setAddressType(lbl);
+                      } else {
+                        setAddressType("Outro");
+                      }
+                    }
                   }} 
                />
              </div>
