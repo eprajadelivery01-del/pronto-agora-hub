@@ -507,7 +507,7 @@ export default function BusinessProfilePage() {
                                   onClick={() => {
                                     const firstActive = workingDays.find(d => d.active);
                                     if (firstActive) {
-                                      const newDays = workingDays.map(d => ({ ...d, start: firstActive.start, end: firstActive.end }));
+                                      const newDays = (Array.isArray(workingDays) ? workingDays : []).map(d => ({ ...d, start: firstActive.start, end: firstActive.end }));
                                       setWorkingDays(newDays);
                                       toast.success("Horários aplicados a todos os dias!");
                                     }
@@ -518,7 +518,7 @@ export default function BusinessProfilePage() {
                                 </button>
                               </div>
                               <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
-                                {workingDays.map((wd, idx) => (
+                                {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => (
                                   <div key={wd.day} className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0">
                                     <div className="flex items-center gap-3">
                                       <input 
@@ -619,7 +619,7 @@ export default function BusinessProfilePage() {
                          </div>
                          
                          <div className="grid grid-cols-3 gap-3">
-                            {gallery.map((url, idx) => (
+                            {(Array.isArray(gallery) ? gallery : []).map((url, idx) => (
                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group/item border border-border/50">
                                   <img src={url} className="w-full h-full object-cover" />
                                   <button 
