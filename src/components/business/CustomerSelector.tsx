@@ -145,13 +145,12 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
     };
 
     try {
-      // 1. From "addresses" table — by marketplace auth user_id OR by customer.id (manual stub)
-      const userIds = [customer.user_id, customer.id].filter(Boolean) as string[];
-      if (userIds.length) {
+      // 1. From "addresses" table — query by customer_id (customer.id)
+      if (customer.id) {
         const { data } = await supabase
           .from("addresses")
-          .select("id, user_id, label, street, number, neighborhood, complement, city, reference")
-          .in("user_id", userIds)
+          .select("id, customer_id, label, street, number, neighborhood, complement, city")
+          .eq("customer_id", customer.id)
           .order("created_at", { ascending: false });
         (data || []).forEach((a: any) => {
           const parts = [
@@ -160,7 +159,6 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
             a.neighborhood,
             a.city,
             a.complement ? `(${a.complement})` : null,
-            a.reference ? `Ref: ${a.reference}` : null,
           ].filter(Boolean);
           add(a.label || "Endereço", parts.join(", "), "marketplace", a.id);
         });
