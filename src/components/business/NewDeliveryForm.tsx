@@ -49,8 +49,31 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
   const [customerName, setCustomerName] = useState(initialData?.customer_name || "");
   const [customerPhone, setCustomerPhone] = useState(initialData?.customer_phone || "");
   const [customerCpf, setCustomerCpf] = useState(initialData?.customer_cpf || "");
-  const [address, setAddress] = useState(initialData?.address || "");
-  const [addressType, setAddressType] = useState<string>("Casa");
+  const [address, setAddress] = useState(() => {
+    if (!initialData?.address) return "";
+    const fullStr = initialData.address;
+    if (fullStr.startsWith("[")) {
+      const idx = fullStr.indexOf("]");
+      if (idx !== -1) {
+        return fullStr.slice(idx + 1).trim();
+      }
+    }
+    return fullStr;
+  });
+  const [addressType, setAddressType] = useState<string>(() => {
+    if (!initialData?.address) return "Casa";
+    const fullStr = initialData.address;
+    if (fullStr.startsWith("[")) {
+      const idx = fullStr.indexOf("]");
+      if (idx !== -1) {
+        const lbl = fullStr.slice(1, idx);
+        if (lbl === "Família") return "Casa da Mãe";
+        if (["Casa", "Trabalho", "Casa da Mãe", "Outro"].includes(lbl)) return lbl;
+        return "Outro";
+      }
+    }
+    return "Casa";
+  });
   const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || currentCompany?.address || "");
   
   const [deliveryValue, setDeliveryValue] = useState(initialData?.value?.toFixed(2).replace('.', ',') || "0,00");
