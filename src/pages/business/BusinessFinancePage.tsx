@@ -53,6 +53,7 @@ export default function BusinessFinancePage() {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [commissionPercentage, setCommissionPercentage] = useState<number>(10.00);
   const [activePeriod, setActivePeriod] = useState("30d");
   const [customRange, setCustomRange] = useState<DateRange>({
     from: subDays(new Date(), 30),
@@ -69,7 +70,7 @@ export default function BusinessFinancePage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      let { data } = await supabase.from("companies").select("id").eq("user_id", user.id).maybeSingle();
+      let { data } = await supabase.from("companies").select("id, commission_percentage").eq("user_id", user.id).maybeSingle();
       
       // Fallback para administradores
       if (!data) {
@@ -82,7 +83,7 @@ export default function BusinessFinancePage() {
         if (profile?.role === "admin") {
           const { data: fallbackCompany } = await supabase
             .from("companies")
-            .select("id")
+            .select("id, commission_percentage")
             .order("created_at", { ascending: true })
             .limit(1)
             .maybeSingle();
@@ -90,7 +91,10 @@ export default function BusinessFinancePage() {
         }
       }
 
-      if (data) setCompanyId(data.id);
+      if (data) {
+        setCompanyId(data.id);
+        setCommissionPercentage(data.commission_percentage !== null && data.commission_percentage !== undefined ? Number(data.commission_percentage) : 10.00);
+      }
     })();
   }, [user]);
 
@@ -138,6 +142,7 @@ export default function BusinessFinancePage() {
     // Manual Delivery Spending (only non-cancelled deliveries)
     const activeDeliveries = deliveries.filter(d => d.status !== "cancelled");
     const manualDeliverySpending = activeDeliveries.reduce((s, d) => s + (Number(d.value) || 0), 0);
+    const platformFee = marketplaceRevenue * (commissionPercentage / 100);
 
     const avgTicket = completedOrders.length > 0 ? marketplaceRevenue / completedOrders.length : 0;
 
@@ -154,7 +159,8 @@ export default function BusinessFinancePage() {
     return {
       marketplaceRevenue,
       manualDeliverySpending,
-      netBalance: marketplaceRevenue - manualDeliverySpending,
+      platformFee,
+      netBalance: marketplaceRevenue - manualDeliverySpending - platformFee,
       avgTicket,
       todayRevenue,
       revenueChange,
@@ -165,7 +171,7 @@ export default function BusinessFinancePage() {
       conversionRate: orders.length > 0 ? (completedOrders.length / orders.length) * 100 : 0,
       totalDeliveryVolume: deliveries.length,
     };
-  }, [orders, deliveries]);
+  }, [orders, deliveries, commissionPercentage]);
 
   // Chart data: daily revenue
   const dailyChartData = useMemo(() => {
@@ -289,7 +295,7 @@ export default function BusinessFinancePage() {
         ) : (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {/* Marketplace Revenue */}
               <div className="relative bg-gradient-to-br from-primary/10 via-card to-card border border-primary/20 rounded-2xl p-5 overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8" />
@@ -313,7 +319,7 @@ export default function BusinessFinancePage() {
                   </div>
                 </div>
               </div>
-
+ 
               {/* Today Revenue */}
               <div className="bg-card border border-border/60 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
@@ -327,7 +333,7 @@ export default function BusinessFinancePage() {
                   {metrics.completedCount} pedidos entregues
                 </p>
               </div>
-
+ 
               {/* Logistics Spending */}
               <div className="bg-card border border-border/60 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
@@ -342,6 +348,23 @@ export default function BusinessFinancePage() {
                 </p>
               </div>
 
+              {/* Platform Commission */}
+              <div className="bg-card border border-primary/20 bg-primary/[0.01] rounded-2xl p-5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-8 translate-x-8" />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm">🪙</span>
+                    </div>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Comissão Plataforma ({commissionPercentage.toFixed(1)}%)</span>
+                  </div>
+                  <p className="text-2xl font-black text-primary tracking-tight">{fmt(metrics.platformFee)}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium mt-2">
+                    Comissão devida no período
+                  </p>
+                </div>
+              </div>
+ 
               {/* Net Balance */}
               <div className="bg-card border border-primary/10 bg-primary/[0.02] rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
@@ -352,10 +375,11 @@ export default function BusinessFinancePage() {
                 </div>
                 <p className="text-2xl font-black text-foreground tracking-tight">{fmt(metrics.netBalance)}</p>
                 <p className="text-[11px] text-muted-foreground font-medium mt-2">
-                  Faturamento - Logística
+                  Faturamento - Logística - Comissão
                 </p>
               </div>
             </div>
+          </>
 
             {/* Tabs */}
             <Tabs value={tab} onValueChange={setTab}>
