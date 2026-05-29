@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Plus, Truck, Clock, CheckCircle, Loader2, Package, Trash2, Pencil, MapPin, ShoppingBag, Zap, Wallet } from "lucide-react";
+import { MessageSquare, Plus, Truck, Clock, CheckCircle, Loader2, Package, Trash2, Pencil, MapPin, ShoppingBag, Zap, Wallet, Printer, Eye, User } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
@@ -38,6 +39,7 @@ export default function BusinessHomePage() {
   const navigate = useNavigate();
   const [showNewDelivery, setShowNewDelivery] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<any>(null);
+  const [detailDelivery, setDetailDelivery] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [optimisticManualDeliveries, setOptimisticManualDeliveries] = useState<DeliveryWithRelations[]>([]);
   const qc = useQueryClient();
@@ -265,6 +267,43 @@ export default function BusinessHomePage() {
     }
   };
 
+  const handlePrint = (delivery: any) => {
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) return;
+    w.document.write(`
+      <html><head><title>OS #${delivery.id.slice(0, 8)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        .label { color: #666; font-size: 11px; text-transform: uppercase; margin-top: 12px; }
+        .value { font-weight: bold; margin-bottom: 8px; }
+        hr { border: none; border-top: 1px dashed #ccc; margin: 16px 0; }
+        .footer { margin-top: 24px; text-align: center; font-size: 11px; color: #999; }
+      </style></head><body>
+        <h1>É Pra Já Delivery</h1>
+        <p style="color:#666;margin-top:0">Ordem de Serviço (Loja)</p>
+        <hr/>
+        <div class="label">OS</div>
+        <div class="value">#${delivery.id.slice(0, 8).toUpperCase()}</div>
+        <div class="label">Cliente</div>
+        <div class="value">${delivery.customer_name || "—"}</div>
+        <div class="label">Endereço</div>
+        <div class="value">${delivery.dropoff_address || delivery.address || "—"}</div>
+        <div class="label">Status</div>
+        <div class="value">${delivery.status}</div>
+        <div class="label">Valor a Cobrar</div>
+        <div class="value">R$ ${Number(delivery.value ?? 0).toFixed(2).replace('.', ',')}</div>
+        <div class="label">Data/Hora</div>
+        <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
+        ${delivery.notes ? `<div class="label">Observações</div><div class="value">${delivery.notes}</div>` : ""}
+        <hr/>
+        <div class="footer">Impresso em ${format(new Date(), "dd/MM/yyyy HH:mm")}</div>
+      </body></html>
+    `);
+    w.document.close();
+    w.print();
+  };
+
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return "Bom dia";
@@ -421,7 +460,9 @@ export default function BusinessHomePage() {
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Início</span>
                              <span className="text-sm font-black text-foreground">{format(new Date(delivery.created_at), "HH:mm")}</span>
                            </div>
-                           <div className="flex items-center gap-2">
+                           <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 w-full mt-2 sm:mt-0 sm:w-auto">
+                              <button onClick={() => setDetailDelivery(delivery)} className="p-2.5 rounded-xl bg-info/10 hover:bg-info/20 text-info transition-all shadow-sm" title="Ver Detalhes"><Eye className="h-4 w-4" /></button>
+                              <button onClick={() => handlePrint(delivery)} className="p-2.5 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground transition-all shadow-sm" title="Imprimir O.S"><Printer className="h-4 w-4" /></button>
                               <button onClick={() => handleEdit(delivery)} className="p-2.5 rounded-xl hover:bg-muted text-muted-foreground transition-all"><Pencil className="h-4 w-4" /></button>
                               <button onClick={() => handleCancel(delivery.id)} className="p-2.5 rounded-xl hover:bg-destructive/10 text-destructive transition-all"><Trash2 className="h-4 w-4" /></button>
                            </div>
@@ -447,6 +488,88 @@ export default function BusinessHomePage() {
         <React.Suspense fallback={null}>
           <OrderDetailModal order={selectedOrder} isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} />
         </React.Suspense>
+
+        {/* Dialog Detalhes de OS Manual */}
+        <Dialog open={!!detailDelivery} onOpenChange={(open) => !open && setDetailDelivery(null)}>
+          <DialogContent className="max-w-md p-6 rounded-[2.5rem]">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="flex items-center gap-3 text-2xl font-black">
+                <div className="w-12 h-12 rounded-2xl bg-warning/10 flex items-center justify-center border border-warning/10">
+                  <Truck className="h-6 w-6 text-warning" />
+                </div>
+                Detalhes da OS
+              </DialogTitle>
+            </DialogHeader>
+            
+            {detailDelivery && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-muted-foreground">Status</span>
+                  <DeliveryStatusBadge status={detailDelivery.status} />
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 bg-muted/30 p-4 rounded-2xl">
+                    <User className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Cliente</p>
+                      <p className="text-sm font-black text-foreground">{detailDelivery.customer_name || "—"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3 bg-muted/30 p-4 rounded-2xl">
+                    <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Endereço de Entrega</p>
+                      <p className="text-sm font-bold text-foreground">{detailDelivery.dropoff_address || detailDelivery.address || "—"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 bg-muted/30 p-4 rounded-2xl">
+                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Solicitado Em</p>
+                      <p className="text-sm font-bold text-foreground">{format(new Date(detailDelivery.created_at), "dd/MM/yyyy 'às' HH:mm")}</p>
+                    </div>
+                  </div>
+                  
+                  {detailDelivery.notes && (
+                    <div className="flex items-start gap-3 bg-warning/10 p-4 rounded-2xl">
+                      <MessageSquare className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-black text-warning uppercase tracking-widest">Observações</p>
+                        <p className="text-sm font-bold text-warning-foreground">{detailDelivery.notes}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-border flex flex-col gap-2">
+                  <div className="flex justify-between items-center mb-4">
+                     <span className="text-sm font-black text-muted-foreground uppercase tracking-widest">A Cobrar</span>
+                     <span className="text-2xl font-black text-warning">R$ {(detailDelivery.value || 0).toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => { handlePrint(detailDelivery); setDetailDelivery(null); }}
+                      className="flex-1 py-3 bg-muted hover:bg-muted/80 text-foreground font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <Printer className="h-4 w-4" /> Imprimir
+                    </button>
+                    {!["completed", "delivered", "cancelled"].includes(detailDelivery.status) && (
+                      <button 
+                        onClick={() => { handleComplete(detailDelivery); setDetailDelivery(null); }}
+                        className="flex-1 py-3 bg-warning hover:bg-warning/90 text-warning-foreground font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-warning/20"
+                      >
+                        <CheckCircle className="h-4 w-4" /> Finalizar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </React.Suspense>
     </BusinessLayout>
   );
