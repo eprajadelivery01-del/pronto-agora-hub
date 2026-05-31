@@ -40,5 +40,23 @@ export function useAudioAlert() {
     }
   }, []);
 
-  return { unlockAudio, playAlert };
+  const startLoop = useCallback(() => {
+    if (globalAudio) {
+      globalAudio.loop = true;
+      globalAudio.volume = 1.0;
+      globalAudio.play().catch(e => {
+        console.warn("[AudioAlert] Falha ao tocar alerta sonoro.", e);
+      });
+    }
+  }, []);
+
+  const stopLoop = useCallback(() => {
+    if (globalAudio) {
+      globalAudio.pause();
+      globalAudio.currentTime = 0;
+      globalAudio.loop = false;
+    }
+  }, []);
+
+  return { unlockAudio, playAlert, startLoop, stopLoop };
 }

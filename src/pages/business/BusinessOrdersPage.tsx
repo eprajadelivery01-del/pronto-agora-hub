@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
+import { useAudioAlert } from "@/hooks/useAudioAlert";
 
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
@@ -96,8 +97,7 @@ export default function BusinessOrdersPage() {
     open_total: 0,
     in_route_total: 0
   });
-  const [isRinging, setIsRinging] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { stopLoop } = useAudioAlert();
   const createDeliveryMut = useCreateDeliveryRequest();
   
   // Estados para o Modal de Despacho
@@ -314,31 +314,8 @@ export default function BusinessOrdersPage() {
 
 
 
-  // Configuração do Áudio de Alerta
-  useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audioRef.current.loop = true;
-    }
-    
-    const hasNewOrders = orders.some(o => o.status === "pending");
-    
-    if (hasNewOrders && !isRinging) {
-      audioRef.current.play()
-        .then(() => setIsRinging(true))
-        .catch(e => console.warn("[OrdersPage] Audio blocked by browser:", e));
-    } else if (!hasNewOrders && isRinging) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsRinging(false);
-    }
-  }, [orders, isRinging]);
-
   const handleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsRinging(false);
-    }
+    stopLoop();
   };
 
   // Realtime subscription with visual Ping
