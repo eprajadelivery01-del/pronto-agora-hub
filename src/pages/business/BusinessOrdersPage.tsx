@@ -491,7 +491,7 @@ export default function BusinessOrdersPage() {
             <p className="text-muted-foreground font-medium">Acompanhe e gerencie as vendas do seu marketplace.</p>
           </div>
           
-          {isRinging && (
+          {orders.some(o => o.status === "pending") && (
             <div className="flex items-center gap-2 animate-in zoom-in duration-300">
               <div className="flex h-12 items-center gap-3 px-6 rounded-2xl bg-destructive text-destructive-foreground font-black text-xs uppercase tracking-widest animate-pulse shadow-xl shadow-destructive/20 border-2 border-white/20">
                 <Bell className="h-5 w-5 animate-bounce" />
