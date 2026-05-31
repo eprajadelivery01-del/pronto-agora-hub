@@ -145,12 +145,12 @@ export function CustomerSelector({ companyId, value, onChange }: CustomerSelecto
     };
 
     try {
-      // 1. From "addresses" table — query by customer_id (customer.id)
+      // 1. From "addresses" table — query by user_id
       if (customer.id) {
         const { data } = await supabase
           .from("addresses")
-          .select("id, customer_id, label, street, number, neighborhood, complement, city")
-          .eq("customer_id", customer.id)
+          .select("id, user_id, label, street, number, neighborhood, complement, city")
+          .eq("user_id", customer.id)
           .order("created_at", { ascending: false });
         (data || []).forEach((a: any) => {
           const parts = [

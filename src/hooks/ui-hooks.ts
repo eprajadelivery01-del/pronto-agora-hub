@@ -70,7 +70,7 @@ export function useAddresses() {
   const query = useQuery({
     queryKey: ["addresses", user?.id],
     queryFn: async () => {
-       const { data, error } = await supabase.from("addresses").select("*").eq("customer_id", user?.id);
+       const { data, error } = await supabase.from("addresses").select("*").eq("user_id", user?.id);
        if (error) throw error;
        return data;
     },
@@ -79,7 +79,7 @@ export function useAddresses() {
 
   const createAddress = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from("addresses").insert({ ...data, customer_id: user?.id });
+      const { error } = await supabase.from("addresses").insert({ ...data, user_id: user?.id });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["addresses"] }),
