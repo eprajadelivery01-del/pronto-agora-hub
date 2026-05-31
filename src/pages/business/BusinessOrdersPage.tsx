@@ -262,6 +262,16 @@ export default function BusinessOrdersPage() {
           const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
 
           const deliveryStatus = o.delivery_id ? deliveryStatusMap[o.delivery_id] : null;
+          
+          // 🔥 RESILIÊNCIA: Se a entrega já foi concluída, o pedido TEM que constar como concluído
+          // Isso evita que pedidos fiquem "presos" em Prontos se houver falha de sincronia com o banco.
+          if (deliveryStatus === "completed" || deliveryStatus === "delivered") {
+            o.status = "delivered";
+          } else if (deliveryStatus === "cancelled") {
+            // Se a entrega foi cancelada, não forçamos cancelado no pedido (pode pedir outro motoboy),
+            // mas desvinculamos o status de 'in_route'
+          }
+
           const activeDeliveryStatuses = ["pending", "accepted", "collecting", "in_route", "in_transit"];
           const computedStatus = (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") ? "in_route" : o.status;
 
