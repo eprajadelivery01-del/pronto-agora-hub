@@ -117,7 +117,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ).catch(() => {});
             });
           } else {
-            console.error("[Auth] Nenhuma role encontrada para", userId);
+            console.warn("[Auth] Nenhuma role encontrada para", userId, "- Aguardando processamento de convite...");
+            // Retentativa para o caso do role ser atribuído logo após o sign-in no fluxo de convite
+            setTimeout(async () => {
+              const { data: retryRoles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+              if (retryRoles && retryRoles.length > 0) {
+                setRoles(retryRoles.map((r: any) => r.role));
+              }
+            }, 2000);
           }
         }
       }
