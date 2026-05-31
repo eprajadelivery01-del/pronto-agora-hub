@@ -179,7 +179,7 @@ export default function BusinessOrdersPage() {
         // 2. BUSCA PARALELA (Elimina o efeito cascata/waterfall)
         const [customersRes, deliveriesRes, addressesRes] = await Promise.all([
           customerIds.length > 0 ? supabase.from("customers").select("id, name, phone").in("id", customerIds) : Promise.resolve({ data: [] }),
-          deliveryIds.length > 0 ? supabase.from("deliveries").select("id, address, customer_name, customer_phone").in("id", deliveryIds) : Promise.resolve({ data: [] }),
+          deliveryIds.length > 0 ? supabase.from("deliveries").select("id, address, customer_name, customer_phone, status").in("id", deliveryIds) : Promise.resolve({ data: [] }),
           addressIds.length > 0 ? supabase.from("addresses").select("*").in("id", addressIds) : Promise.resolve({ data: [] })
         ]);
 
@@ -191,9 +191,11 @@ export default function BusinessOrdersPage() {
           });
         }
 
-        // 4. Processamento de Entregas (Fallback de Endereço e Nome)
+        // 4. Processamento de Entregas (Fallback de Endereço, Nome e Mapeamento de Status)
+        let deliveryStatusMap: Record<string, string> = {};
         if (deliveriesRes.data) {
           deliveriesRes.data.forEach(d => {
+            deliveryStatusMap[d.id] = d.status;
             const order = data.find((o: any) => o.delivery_id === d.id);
             if (order && customerMap[order.customer_id]) {
               customerMap[order.customer_id].address = d.address;
@@ -259,8 +261,13 @@ export default function BusinessOrdersPage() {
           const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || cleanVal(o.customer_name, "Cliente Marketplace") || cleanVal(o.customers?.name, "Cliente Marketplace") || "Cliente Marketplace";
           const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
 
+          const deliveryStatus = o.delivery_id ? deliveryStatusMap[o.delivery_id] : null;
+          const activeDeliveryStatuses = ["pending", "accepted", "collecting", "in_route", "in_transit"];
+          const computedStatus = (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") ? "in_route" : o.status;
+
           return {
             ...o,
+            status: computedStatus,
             customer: {
               name: finalName,
               phone: finalPhone,
