@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -689,7 +690,7 @@ export default function BusinessProfilePage() {
         </div>
 
       {/* URL EDIT MODALS/OVERLAYS */}
-      {(isEditingLogo || isEditingCover) && (
+      {(isEditingLogo || isEditingCover) && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card border border-border rounded-[2.5rem] p-6 md:p-8 shadow-2xl space-y-5 animate-in zoom-in-95 scrollbar-thin">
               <div className="flex items-center justify-between">
@@ -754,7 +755,8 @@ export default function BusinessProfilePage() {
                 {isUploading ? "Enviando arquivo..." : "Fechar e Salvar"}
               </button>
            </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </BusinessLayout>

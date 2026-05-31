@@ -215,7 +215,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     const { data: address } = await supabase
       .from("addresses")
       .select("*")
-      .eq("customer_id", order.customer_id)
+      .eq("user_id", order.customer_id)
       .maybeSingle();
 
     if (address) {
@@ -234,7 +234,20 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     .maybeSingle();
 
   if (existingDelivery) {
-    console.log(`[Deliveries] Entrega já existe para o pedido ${orderId}. Retornando existente.`);
+    console.log(`[Deliveries] Entrega já existe para o pedido ${orderId}. Atualizando para pending e retornando existente.`);
+    
+    // Atualizar o status para pending (caso estivesse como draft/hidden) e atualizar o valor
+    await supabase.from("deliveries").update({ 
+      status: "pending", 
+      value: customValue || existingDelivery.value 
+    }).eq("id", existingDelivery.id);
+
+    // Assegurar que o pedido aponta para a entrega corretamente
+    await supabase
+      .from("orders")
+      .update({ delivery_id: existingDelivery.id, status: "in_route" } as any)
+      .eq("id", orderId);
+
     return existingDelivery;
   }
 
