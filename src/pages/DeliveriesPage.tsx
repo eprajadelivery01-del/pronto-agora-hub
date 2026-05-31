@@ -167,9 +167,9 @@ export default function DeliveriesPage() {
         <div class="label">Valor do Produto</div>
         <div class="value">R$ ${Number((delivery as any).estimated_value || 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Taxa de Entrega</div>
-        <div class="value">R$ ${Number(delivery.value || 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number(delivery.value ?? (delivery as any).price ?? 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Valor Total a Cobrar</div>
-        <div class="value">R$ ${Number(((delivery as any).estimated_value || 0) + (delivery.value || 0)).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number(((delivery as any).estimated_value || 0) + (delivery.value ?? (delivery as any).price ?? 0)).toFixed(2).replace('.', ',')}</div>
         ${delivery.region_name ? `<div class="label">Região</div><div class="value">${esc(delivery.region_name)}</div>` : ""}
         <div class="label">Data/Hora da Solicitação</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
