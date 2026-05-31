@@ -154,7 +154,7 @@ export default function DeliveriesPage() {
         <div class="label">OS</div>
         <div class="value">#${delivery.id.slice(0, 8).toUpperCase()}</div>
         <div class="label">Cliente</div>
-        <div class="value">${esc(delivery.customer_name)} ${delivery.customer_phone ? `(${esc(delivery.customer_phone)})` : ""}</div>
+        <div class="value">${esc(delivery.customer_name)} ${(delivery as any).customer_phone ? `(${esc((delivery as any).customer_phone)})` : ""}</div>
         <div class="label">Endereço</div>
         <div class="value">${esc(delivery.dropoff_address || delivery.address || "—")}</div>
         <div class="label">Empresa</div>
@@ -162,14 +162,14 @@ export default function DeliveriesPage() {
         <div class="label">Status</div>
         <div class="value">${esc(delivery.status)}</div>
         <div class="label">Forma de Pagamento</div>
-        <div class="value">${esc(delivery.payment_method || "Não informada")}</div>
+        <div class="value">${esc((delivery as any).payment_method || "Não informada")}</div>
         <hr/>
         <div class="label">Valor do Produto</div>
-        <div class="value">R$ ${Number((delivery.value || 0) - (delivery.price || 0)).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number((delivery as any).estimated_value || 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Taxa de Entrega</div>
-        <div class="value">R$ ${Number(delivery.price || 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number(delivery.value || 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Valor Total a Cobrar</div>
-        <div class="value">R$ ${Number(delivery.value ?? 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number(((delivery as any).estimated_value || 0) + (delivery.value || 0)).toFixed(2).replace('.', ',')}</div>
         ${delivery.region_name ? `<div class="label">Região</div><div class="value">${esc(delivery.region_name)}</div>` : ""}
         <div class="label">Data/Hora da Solicitação</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>

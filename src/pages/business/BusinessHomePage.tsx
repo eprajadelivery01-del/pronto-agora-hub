@@ -286,22 +286,22 @@ export default function BusinessHomePage() {
         <div class="label">OS</div>
         <div class="value">#${delivery.id.slice(0, 8).toUpperCase()}</div>
         <div class="label">Cliente</div>
-        <div class="value">${delivery.customer_name || "—"}</div>
-        <div class="label">Telefone</div>
-        <div class="value">${delivery.customer_phone || "—"}</div>
+        <div class="value">${delivery.customer_name} ${(delivery as any).customer_phone ? `(${(delivery as any).customer_phone})` : ""}</div>
         <div class="label">Endereço</div>
         <div class="value">${delivery.dropoff_address || delivery.address || "—"}</div>
+        <div class="label">Empresa</div>
+        <div class="value">${(delivery as any).companies?.name || "—"}</div>
         <div class="label">Status</div>
         <div class="value">${delivery.status}</div>
         <div class="label">Forma de Pagamento</div>
-        <div class="value">${delivery.payment_method || "Não informada"}</div>
+        <div class="value">${(delivery as any).payment_method || "Não informada"}</div>
         <hr/>
         <div class="label">Valor do Produto</div>
-        <div class="value">R$ ${Number((delivery.value || 0) - (delivery.price || 0)).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number((delivery as any).estimated_value || 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Taxa de Entrega</div>
-        <div class="value">R$ ${Number(delivery.price || 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number(delivery.value || 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Valor Total a Cobrar</div>
-        <div class="value">R$ ${Number(delivery.value ?? 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number(((delivery as any).estimated_value || 0) + (delivery.value || 0)).toFixed(2).replace('.', ',')}</div>
         <div class="label">Data/Hora da Solicitação</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
         ${delivery.notes ? `<div class="label">Observações</div><div class="value">${delivery.notes}</div>` : ""}
