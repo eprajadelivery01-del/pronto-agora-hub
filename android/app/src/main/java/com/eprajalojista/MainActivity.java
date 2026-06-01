@@ -1,0 +1,5 @@
+package com.eprajalojista;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {}

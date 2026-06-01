@@ -80,7 +80,6 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
   { key: "preparing", label: "Em Preparo", icon: Package, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
   { key: "in_route", label: "Em Rota", icon: Truck, color: "purple" },
-  { key: "delivered", label: "Concluídos", icon: CheckCircle, color: "success" },
 ];
 
 export default function BusinessOrdersPage() {
