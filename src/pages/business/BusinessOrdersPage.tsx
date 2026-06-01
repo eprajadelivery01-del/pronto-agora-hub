@@ -80,6 +80,7 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
   { key: "preparing", label: "Em Preparo", icon: Package, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
   { key: "in_route", label: "Em Rota", icon: Truck, color: "purple" },
+  { key: "delivered", label: "Concluídos", icon: CheckCircle, color: "success" },
 ];
 
 export default function BusinessOrdersPage() {
@@ -237,17 +238,15 @@ export default function BusinessOrdersPage() {
           }
         }
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const isToday = (dateString: string | null) => {
+          if (!dateString) return false;
+          const d = new Date(dateString);
+          const today = new Date();
+          return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        };
         
-        const filteredData = data.filter((o: any) => {
-          if (o.status === "cancelled") return false;
-          if (["completed", "delivered"].includes(o.status)) {
-            return o.created_at.startsWith(todayStr);
-          }
-          return true;
-        });
-
-        const mapped = filteredData.map((o: any) => {
+        // 1. First map all data to compute real statuses (including resilience checks)
+        const mappedRaw = data.map((o: any) => {
           const customerDataFromMap = customerMap[o.customer_id] || {};
           
           const cleanVal = (val: string | null | undefined, placeholder: string) => {
@@ -285,6 +284,15 @@ export default function BusinessOrdersPage() {
             items: o.order_items || []
           };
         });
+
+        // 2. Now filter based on the COMPUTED status
+        const mapped = mappedRaw.filter((o: any) => {
+          if (o.status === "cancelled") return false;
+          if (["completed", "delivered"].includes(o.status)) {
+            return isToday(o.created_at) || isToday(o.updated_at);
+          }
+          return true;
+        });
         
         setOrders(mapped);
         
@@ -293,7 +301,7 @@ export default function BusinessOrdersPage() {
         // Receita de hoje: pedidos concluídos/entregues cuja atualização final (ou criação) foi hoje
         const deliveredToday = data.filter(o => 
           ["completed", "delivered"].includes(o.status) && 
-          (o.created_at.startsWith(todayStr) || (o.updated_at && o.updated_at.startsWith(todayStr)))
+          (isToday(o.created_at) || isToday(o.updated_at))
         );
 
         setStats({
