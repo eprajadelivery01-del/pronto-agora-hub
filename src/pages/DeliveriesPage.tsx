@@ -46,10 +46,13 @@ export default function DeliveriesPage() {
   useDeliveriesRealtime();
   const { toast } = useToast();
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
   const [activeFilter, setActiveFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
   const [driverFilter, setDriverFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState(todayStr);
+  const [dateTo, setDateTo] = useState(todayStr);
   const [page, setPage] = useState(0);
   const pageSize = 20;
 
@@ -64,6 +67,8 @@ export default function DeliveriesPage() {
     search: search || undefined,
     companyId: companyFilter || undefined,
     driverId: driverFilter || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
     page,
     pageSize,
   });
@@ -223,13 +228,30 @@ export default function DeliveriesPage() {
           <select
             value={driverFilter}
             onChange={(e) => { setDriverFilter(e.target.value); setPage(0); }}
-            className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none"
+            className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none shrink-0"
           >
             <option value="">Todos entregadores</option>
             {(drivers ?? []).map((d) => (
               <option key={d.id} value={d.id}>{d.profiles?.full_name || "—"}</option>
             ))}
           </select>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+              className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none"
+              title="Data Inicial"
+            />
+            <span className="text-muted-foreground text-sm">até</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+              className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none"
+              title="Data Final"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
