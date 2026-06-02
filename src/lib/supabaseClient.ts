@@ -32,8 +32,21 @@ export const supabase = createClient(EXTERNAL_URL, EXTERNAL_ANON_KEY, {
     storage: localStorage,
     storageKey: AUTH_STORAGE_KEY,
     persistSession: true,
-    autoRefreshToken: true,
+    autoRefreshToken: false,
   },
+});
+
+// Handle token refresh errors globally – log out and clean storage
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'TOKEN_REFRESH_ERROR' || event === 'SIGNED_OUT') {
+    supabase.auth.signOut().then(() => {
+      clearSupabaseAuthStorage();
+      // Redirect to login page – adjust path if needed
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    });
+  }
 });
 
 export const resetLocalAuthSession = async () => {
