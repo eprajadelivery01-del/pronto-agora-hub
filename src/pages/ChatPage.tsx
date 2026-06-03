@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { useMessages, useSendMessage, getAdminId, getDirectConversation } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -27,13 +28,21 @@ export default function ChatPage() {
   });
 
   const handleStartAdminChat = async () => {
-    if (!user?.id || !adminId) return;
+    if (!user?.id) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+    if (!adminId) {
+      toast.error("Nenhum administrador encontrado no sistema no momento.");
+      return;
+    }
     try {
       const conv = await getDirectConversation(user.id, adminId);
       qc.invalidateQueries({ queryKey: ["conversations", user.id] });
       setSelectedConv(conv);
     } catch (err) {
       console.error("Erro ao iniciar chat com admin:", err);
+      toast.error("Erro ao iniciar a conversa");
     }
   };
   
@@ -163,7 +172,7 @@ export default function ChatPage() {
                 onClick={handleStartAdminChat}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
               >
-                Falar com Suporte
+                Falar com o Admin
               </button>
             )}
           </div>
