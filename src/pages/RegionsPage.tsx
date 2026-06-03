@@ -171,14 +171,14 @@ export default function RegionsPage() {
         <style>@keyframes pinPulse { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; } }</style>
       `;
 
-      const popupContent = \`
+      const popupContent = `
         <div style="padding: 16px; font-family: 'Inter', sans-serif; min-width: 200px; background: #ffffff; border-radius: 20px;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: #f0fdf4; display: flex; align-items: center; justify-content: center;">
               <img src="/logo.png" style="width: 28px; height: 28px; object-fit: contain;" />
             </div>
             <div>
-              <div style="font-size: 15px; font-weight: 800; color: #111827;">\${escapeHtml(driver.full_name || "Entregador")}</div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827;">${escapeHtml(driver.full_name || "Entregador")}</div>
               <div style="font-size: 12px; color: #22c55e; font-weight: 600; display: flex; align-items: center; gap: 4px;">
                 <div style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></div>
                 Em Rota
@@ -186,7 +186,7 @@ export default function RegionsPage() {
             </div>
           </div>
         </div>
-      \`;
+      `;
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([lng, lat])
