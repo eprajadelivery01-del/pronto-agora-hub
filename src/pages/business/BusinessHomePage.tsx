@@ -46,6 +46,15 @@ export default function BusinessHomePage() {
   
   const { companyId, company: companyData } = useCurrentCompany();
 
+  const getDeliveryPaymentMethod = (delivery: any) => {
+    if (delivery.payment_method) return delivery.payment_method;
+    if (!delivery.notes) return "Não informado";
+    if (delivery.notes.includes("[PAGO]")) return "Já pago";
+    const match = delivery.notes.match(/\[RECEBER: (.*?)\]/);
+    if (match) return match[1];
+    return "Não informado";
+  };
+
   // 1. Fetch Marketplace Orders with active deliveries
   const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
     queryKey: ["marketplace-deliveries-active", companyId],
@@ -479,7 +488,7 @@ export default function BusinessHomePage() {
                         <div className="flex flex-col gap-1 mt-1 bg-muted/20 p-2 rounded-xl">
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-muted-foreground">Pagamento:</span>
-                            <span className="font-bold text-foreground capitalize truncate max-w-[120px]">{delivery.payment_method || "Não informado"}</span>
+                            <span className="font-bold text-foreground capitalize truncate max-w-[120px]">{getDeliveryPaymentMethod(delivery)}</span>
                           </div>
                           {delivery.driver_id && (
                             <div className="flex justify-between items-center text-xs">

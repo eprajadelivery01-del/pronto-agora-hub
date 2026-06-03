@@ -458,6 +458,7 @@ export default function BusinessProfilePage() {
                               <option value="bebidas">Adega / Bebidas</option>
                               <option value="doces">Doceria / Sobremesas</option>
                               <option value="pet">Pet Shop / Agro</option>
+                              <option value="shopping">Shopping / Variedades</option>
                            </select>
                         </div>
                         
