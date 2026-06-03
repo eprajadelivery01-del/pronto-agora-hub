@@ -22,8 +22,8 @@ type DrawMode = "none" | "points" | "freehand";
 export default function RegionsPage() {
   const { data: regions, isLoading } = useRegions();
   const { data: allDrivers } = useDrivers();
-  // Filter only active drivers to show on the map
-  const drivers = allDrivers?.filter(d => d.status === "active" || d.status === "approved") || [];
+  // Show all online drivers with a known location on the map
+  const drivers = allDrivers?.filter(d => d.is_online === true && d.latitude != null && d.longitude != null) || [];
   const createRegion = useCreateRegion();
   const updateRegion = useUpdateRegion();
   const deleteRegion = useDeleteRegion();
@@ -58,14 +58,41 @@ export default function RegionsPage() {
     if (!mapContainerRef.current || mapRef.current) return;
     const m = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
       center: [-56.0974, -15.5989],
-      zoom: 12,
+      zoom: 11,
     });
     m.addControl(new maplibregl.NavigationControl(), "bottom-right");
     mapRef.current = m;
     return () => { m.remove(); mapRef.current = null; };
   }, []);
+
+  // Auto-center map on regions when they first load
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !regions || regions.length === 0) return;
+    const allCoords: [number, number][] = [];
+    regions.forEach((region) => {
+      if (!region.geometry) return;
+      const geom = region.geometry as any;
+      if (geom.type === "Polygon") {
+        geom.coordinates[0]?.forEach((c: [number, number]) => allCoords.push(c));
+      } else if (geom.type === "MultiPolygon") {
+        geom.coordinates.forEach((poly: any) => poly[0]?.forEach((c: [number, number]) => allCoords.push(c)));
+      }
+    });
+    if (allCoords.length === 0) return;
+    const lngs = allCoords.map(c => c[0]);
+    const lats = allCoords.map(c => c[1]);
+    const bounds = new maplibregl.LngLatBounds(
+      [Math.min(...lngs), Math.min(...lats)],
+      [Math.max(...lngs), Math.max(...lats)]
+    );
+    const fitMap = () => m.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 1000 });
+    if (m.isStyleLoaded()) fitMap();
+    else m.on("load", fitMap);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regions?.length === 0 ? undefined : regions?.[0]?.id]);
 
   // Render regions on map
   useEffect(() => {
