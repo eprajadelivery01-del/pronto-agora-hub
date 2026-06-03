@@ -7,11 +7,21 @@ import { useToast } from "@/hooks/use-toast";
 import { CityServiceList } from "@/components/admin/CityServiceList";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useOnlineDrivers } from "@/services/drivers";
+
+const escapeHtml = (s: unknown): string =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 type DrawMode = "none" | "points" | "freehand";
 
 export default function RegionsPage() {
   const { data: regions, isLoading } = useRegions();
+  const { data: drivers } = useOnlineDrivers();
   const createRegion = useCreateRegion();
   const updateRegion = useUpdateRegion();
   const deleteRegion = useDeleteRegion();
@@ -40,6 +50,7 @@ export default function RegionsPage() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const renderedRegionIdsRef = useRef<string[]>([]);
+  const driverMarkersRef = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -92,25 +103,17 @@ export default function RegionsPage() {
           paint: { "line-color": region.color, "line-width": 2.5 },
         });
 
-        // Hover highlight
-        m.on("mouseenter", `region-fill-${region.id}`, (e) => {
+        // Click selection only (no hover popup)
+        m.on("mouseenter", `region-fill-${region.id}`, () => {
           if (drawMode !== "none") return;
           m.getCanvas().style.cursor = "pointer";
           m.setPaintProperty(`region-fill-${region.id}`, "fill-opacity", 0.45);
-          // Show popup
-          if (popupRef.current) popupRef.current.remove();
-          const popup = new maplibregl.Popup({ closeButton: false, offset: 10 })
-            .setLngLat(e.lngLat)
-            .setHTML(`<div style="font-family:sans-serif;padding:4px 0"><strong>${region.name}</strong><br/><span style="color:#888">R$ ${Number(region.price).toFixed(2)}</span></div>`)
-            .addTo(m);
-          popupRef.current = popup;
         });
 
         m.on("mouseleave", `region-fill-${region.id}`, () => {
           if (drawMode !== "none") return;
           m.getCanvas().style.cursor = "";
           m.setPaintProperty(`region-fill-${region.id}`, "fill-opacity", 0.25);
-          if (popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
         });
 
         m.on("click", `region-fill-${region.id}`, () => {
@@ -133,6 +136,66 @@ export default function RegionsPage() {
     if (m.isStyleLoaded()) handleLoad();
     else m.on("load", handleLoad);
   }, [regions, drawMode]);
+
+  // Render driver markers
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+
+    driverMarkersRef.current.forEach((mk) => mk.remove());
+    driverMarkersRef.current = [];
+
+    (drivers ?? []).forEach((driver) => {
+      const lat = driver.latitude;
+      const lng = driver.longitude;
+      if (!lat || !lng) return;
+
+      const el = document.createElement("div");
+      el.className = "driver-marker-container";
+      
+      el.innerHTML = `
+        <div class="pin-wrapper" style="
+          position: relative; cursor: pointer; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+          transition: transform 0.2s;
+        " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; background: #22c55e; border-radius: 50%; opacity: 0.6; animation: pinPulse 2s ease-out infinite;"></div>
+          <div style="width: 44px; height: 44px; border-radius: 50%; background: #22c55e; border: 3px solid white; display: flex; align-items: center; justify-content: center; position: relative; z-index: 2;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+              <img src="/logo.png" style="width: 22px; height: 22px; object-fit: contain;" alt="M" />
+            </div>
+          </div>
+          <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; white-space: nowrap; z-index: 3; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+            ${escapeHtml(driver.full_name?.split(" ")[0] || "Entregador")}
+          </div>
+        </div>
+        <style>@keyframes pinPulse { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; } }</style>
+      `;
+
+      const popupContent = \`
+        <div style="padding: 16px; font-family: 'Inter', sans-serif; min-width: 200px; background: #ffffff; border-radius: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: #f0fdf4; display: flex; align-items: center; justify-content: center;">
+              <img src="/logo.png" style="width: 28px; height: 28px; object-fit: contain;" />
+            </div>
+            <div>
+              <div style="font-size: 15px; font-weight: 800; color: #111827;">\${escapeHtml(driver.full_name || "Entregador")}</div>
+              <div style="font-size: 12px; color: #22c55e; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                <div style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></div>
+                Em Rota
+              </div>
+            </div>
+          </div>
+        </div>
+      \`;
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(new maplibregl.Popup({ offset: 25, closeButton: false }).setHTML(popupContent))
+        .addTo(m);
+
+      driverMarkersRef.current.push(marker);
+    });
+  }, [drivers]);
 
   // Points drawing mode - click to add vertices
   useEffect(() => {
@@ -284,7 +347,8 @@ export default function RegionsPage() {
 
   const selectCity = (item: any) => {
     const m = mapRef.current;
-    if (m) m.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 13, duration: 1500 });
+    // zoom 11 = city level instead of neighborhood
+    if (m) m.flyTo({ center: [parseFloat(item.lon), parseFloat(item.lat)], zoom: 11, duration: 1500 });
     setCitySearch(item.display_name.split(",")[0]);
     setEditCity(item.display_name.split(",")[0]);
     setCitySuggestions([]);
@@ -566,7 +630,7 @@ export default function RegionsPage() {
           <div className="p-4 space-y-6">
             <CityServiceList 
               onSelect={(cityName, coords) => {
-                mapRef.current?.flyTo({ center: coords, zoom: 12, duration: 1500 });
+                mapRef.current?.flyTo({ center: coords, zoom: 11, duration: 1500 });
               }}
             />
 
