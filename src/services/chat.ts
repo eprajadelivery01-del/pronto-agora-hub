@@ -43,15 +43,34 @@ export async function getDirectConversation(userId: string, targetUserId: string
 }
 
 export async function getAdminId() {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("user_roles")
     .select("user_id")
     .eq("role", "admin")
     .limit(1)
     .maybeSingle();
   
-  if (error) throw error;
-  return data?.user_id;
+  if (data?.user_id) return data.user_id;
+
+  // Fallback 1: Buscar em profiles
+  const { data: profileData } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+    
+  if (profileData?.user_id) return profileData.user_id;
+
+  // Fallback 2: Pegar o primeiro perfil do sistema
+  const { data: fallbackData } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+    
+  return fallbackData?.user_id || null;
 }
 
 export async function getMessages(conversationId: string) {
