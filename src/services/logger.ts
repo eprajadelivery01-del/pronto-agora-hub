@@ -65,6 +65,7 @@ export function initializeGlobalErrorHandlers(appName: string) {
     const reasonMsg = reason?.message || String(reason);
     
     if (reasonMsg.includes("Failed to fetch") || reasonMsg.includes("refreshAccessToken") || reasonMsg.includes("AuthSessionMissingError")) {
+      event.preventDefault();
       return;
     }
 
@@ -81,9 +82,6 @@ export function initializeGlobalErrorHandlers(appName: string) {
   // Intercept programmatic console.error calls (including accessibility radix-ui warnings)
   const originalConsoleError = console.error;
   console.error = function (...args) {
-    // Invoke original console logger
-    originalConsoleError.apply(console, args);
-
     // Format error message cleanly
     const msg = args.map(a => {
       if (a instanceof Error) return a.message + "\n" + a.stack;
@@ -97,6 +95,9 @@ export function initializeGlobalErrorHandlers(appName: string) {
     if (msg.includes("Failed to fetch") || msg.includes("refreshAccessToken") || msg.includes("AuthSessionMissingError")) {
       return;
     }
+
+    // Invoke original console logger
+    originalConsoleError.apply(console, args);
 
     reportErrorToTelegram({
       error_message: `[Console Error] ${msg.slice(0, 1000)}`,

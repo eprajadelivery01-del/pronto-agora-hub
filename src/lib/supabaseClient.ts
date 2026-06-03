@@ -36,15 +36,12 @@ export const supabase = createClient(EXTERNAL_URL, EXTERNAL_ANON_KEY, {
   },
 });
 
-// Handle token refresh errors globally – log out and clean storage
+// Handle token refresh errors gracefully by NOT logging the user out immediately.
+// The user should remain logged in until an explicit API call fails with 401 Unauthorized,
+// or until they manually click 'sair'.
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'TOKEN_REFRESH_ERROR') {
-    supabase.auth.signOut().then(() => {
-      clearSupabaseAuthStorage();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    });
+  if (import.meta.env.DEV) {
+    console.log(`[Supabase Auth Event] ${event}`);
   }
 });
 
