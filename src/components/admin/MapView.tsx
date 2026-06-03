@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useOnlineDrivers } from "@/services/drivers";
+import { useDrivers } from "@/services/drivers";
 import { useRegions, useUpdateRegion } from "@/services/regions";
 import { useDeliveries } from "@/services/deliveries";
 import { useCompanies } from "@/services/companies";
@@ -29,7 +29,8 @@ export function MapView({ centerCity, darkTheme = false }: MapViewProps) {
   const { toast } = useToast();
   const updateRegion = useUpdateRegion();
 
-  const { data: drivers } = useOnlineDrivers();
+  const { data: allDrivers } = useDrivers();
+  const drivers = allDrivers?.filter(d => d.status === "active" || d.status === "approved") || [];
   const { data: regions } = useRegions();
   const { data: deliveriesData } = useDeliveries({ status: "in_transit" });
   const { data: companies } = useCompanies();

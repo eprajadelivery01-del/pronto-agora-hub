@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CityServiceList } from "@/components/admin/CityServiceList";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useOnlineDrivers } from "@/services/drivers";
+import { useDrivers } from "@/services/drivers";
 
 const escapeHtml = (s: unknown): string =>
   String(s ?? "")
@@ -21,7 +21,9 @@ type DrawMode = "none" | "points" | "freehand";
 
 export default function RegionsPage() {
   const { data: regions, isLoading } = useRegions();
-  const { data: drivers } = useOnlineDrivers();
+  const { data: allDrivers } = useDrivers();
+  // Filter only active drivers to show on the map
+  const drivers = allDrivers?.filter(d => d.status === "active" || d.status === "approved") || [];
   const createRegion = useCreateRegion();
   const updateRegion = useUpdateRegion();
   const deleteRegion = useDeleteRegion();
