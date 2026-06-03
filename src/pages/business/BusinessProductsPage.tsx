@@ -392,10 +392,14 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                       required
                     >
                       <option value="">Selecione uma categoria</option>
-                      <option value="Lanches">🍔 Lanches & Sanduíches</option>
-                      <option value="Pizza">🍕 Pizzas</option>
-                      <option value="Doces">🍫 Doces & Sobremesas</option>
-                      <option value="Bebidas">🥤 Bebidas & Sucos</option>
+                      <option value="Pizza">🍕 Pizza</option>
+                      <option value="Lanches">🍔 Lanches</option>
+                      <option value="Mercado">🛒 Mercado</option>
+                      <option value="Farmácia">💊 Farmácia</option>
+                      <option value="Bebidas">🥤 Bebidas</option>
+                      <option value="Doces">🍫 Doces</option>
+                      <option value="Pet Shop">🐾 Pet Shop</option>
+                      <option value="Shopping">🛍️ Shopping</option>
                       <option value="Outros">🍽️ Categoria Geral (Outros)</option>
                     </select>
                   </div>

@@ -87,7 +87,7 @@ export default function BusinessHomePage() {
 
       const { data, error } = await supabase
         .from("deliveries")
-        .select("*")
+        .select("*, delivery_drivers(full_name)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -109,7 +109,7 @@ export default function BusinessHomePage() {
 
       const { data, error } = await supabase
         .from("deliveries")
-        .select("*, companies!inner(name)")
+        .select("*, companies!inner(name), delivery_drivers(full_name)")
         .eq("companies.name", companyData.name)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -131,7 +131,7 @@ export default function BusinessHomePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deliveries")
-        .select("*, companies(name, email, user_id)")
+        .select("*, companies(name, email, user_id), delivery_drivers(full_name)")
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -408,7 +408,21 @@ export default function BusinessHomePage() {
                           <MapPin className="h-4 w-4 text-primary shrink-0" />
                           <span className="truncate">{order.delivery_address}</span>
                         </div>
-                        <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                        <div className="flex flex-col gap-1 mt-1 bg-muted/20 p-2 rounded-xl">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground">Pagamento:</span>
+                            <span className="font-bold text-foreground capitalize truncate max-w-[120px]">{order.payment_method || (order.deliveryInfo as any)?.payment_method || "Não informado"}</span>
+                          </div>
+                          {order.deliveryInfo?.driver_id && (
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-muted-foreground">Entregador:</span>
+                              <span className="font-bold text-primary truncate max-w-[120px]">
+                                {(order.deliveryInfo?.delivery_drivers as any)?.full_name || "Atribuído"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
                            <div className="flex flex-col">
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Pedido</span>
                              <span className="text-sm font-black text-foreground">#{order.id?.slice(-6).toUpperCase()}</span>
@@ -462,7 +476,21 @@ export default function BusinessHomePage() {
                           <MapPin className="h-4 w-4 text-warning shrink-0" />
                           <span className="truncate">{delivery.address}</span>
                         </div>
-                        <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                        <div className="flex flex-col gap-1 mt-1 bg-muted/20 p-2 rounded-xl">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground">Pagamento:</span>
+                            <span className="font-bold text-foreground capitalize truncate max-w-[120px]">{delivery.payment_method || "Não informado"}</span>
+                          </div>
+                          {delivery.driver_id && (
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-muted-foreground">Entregador:</span>
+                              <span className="font-bold text-warning truncate max-w-[120px]">
+                                {(delivery.delivery_drivers as any)?.full_name || "Atribuído"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
                            <div className="flex flex-col">
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Início</span>
                              <span className="text-sm font-black text-foreground">{format(new Date(delivery.created_at), "HH:mm")}</span>
