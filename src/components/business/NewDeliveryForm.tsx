@@ -187,13 +187,6 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
       return;
     }
 
-    if (!isPaid) {
-      const val = parseFloat(collectValue.replace(',', '.'));
-      if (isNaN(val) || val <= 0) {
-        toast.error("Preencha o valor a ser cobrado ou marque como já pago.");
-        return;
-      }
-    }
 
     setSubmitting(true);
 
@@ -419,9 +412,6 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
              <div className={cn("space-y-1.5", isPaid && "opacity-40 grayscale pointer-events-none")}>
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Valor a Cobrar (R$)</label>
                <input value={isPaid ? "0,00" : collectValue} onChange={e => setCollectValue(e.target.value)} className="w-full px-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none" />
-               {!isPaid && (parseFloat(collectValue.replace(',', '.')) <= 0 || !collectValue) && (
-                 <p className="text-[9px] text-warning font-bold animate-pulse ml-2 mt-1">⚠️ Preenchimento Obrigatório</p>
-               )}
              </div>
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-transparent ml-2 select-none">Pagamento</label>
