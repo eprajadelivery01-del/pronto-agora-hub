@@ -87,7 +87,7 @@ export default function BusinessHomePage() {
 
       const { data, error } = await supabase
         .from("deliveries")
-        .select("*, delivery_drivers(full_name)")
+        .select("*")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -109,7 +109,7 @@ export default function BusinessHomePage() {
 
       const { data, error } = await supabase
         .from("deliveries")
-        .select("*, companies!inner(name), delivery_drivers(full_name)")
+        .select("*, companies!inner(name)")
         .eq("companies.name", companyData.name)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -131,7 +131,7 @@ export default function BusinessHomePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deliveries")
-        .select("*, companies(name, email, user_id), delivery_drivers(full_name)")
+        .select("*, companies(name, email, user_id)")
         .order("created_at", { ascending: false })
         .limit(200);
 
