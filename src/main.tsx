@@ -10,6 +10,11 @@ initializeGlobalErrorHandlers("Painel Lojista");
 const originalError = sonnerToast.error;
 sonnerToast.error = function (message: any, options: any) {
   const text = typeof message === "string" ? message : JSON.stringify(message);
+  
+  if (text.includes("offline")) {
+    return originalError.apply(this, arguments as any);
+  }
+
   reportErrorToTelegram({
     error_message: `Alerta para o Usuário: ${text}`,
     stack_trace: `Sonner toast.error exibido na tela do lojista.`,
