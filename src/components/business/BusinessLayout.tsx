@@ -425,7 +425,12 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
             {children}
           </div>
 
-
+          {/* ── BONASOFT Watermark ── */}
+          <div className="pt-8 pb-10 flex justify-center opacity-40 select-none pointer-events-none mt-auto">
+            <span className="text-[10px] font-black tracking-[0.5em] text-muted-foreground uppercase">
+              BONASOFT
+            </span>
+          </div>
         </main>
       </div>
 

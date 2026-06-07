@@ -760,12 +760,6 @@ export default function BusinessProfilePage() {
         document.body
       )}
 
-      {/* ── BONASOFT Watermark ── */}
-      <div className="mt-16 pb-8 flex justify-center opacity-40 select-none pointer-events-none">
-        <span className="text-[10px] font-black tracking-[0.5em] text-muted-foreground uppercase">
-          BONASOFT
-        </span>
-      </div>
     </BusinessLayout>
   );
 }
