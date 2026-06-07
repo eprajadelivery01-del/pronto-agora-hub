@@ -153,6 +153,10 @@ export default function CompaniesPage() {
           onOpenChange={setEditOpen}
         />
       )}
+      {/* ── BONASOFT Watermark ── */}
+      <div className="mt-16 pb-8 text-center opacity-40 select-none pointer-events-none">
+        <p className="text-[11px] font-black uppercase tracking-[0.6em] text-muted-foreground ml-2">BONASOFT</p>
+      </div>
     </AdminLayout>
   );
 }
