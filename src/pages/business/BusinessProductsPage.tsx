@@ -49,6 +49,7 @@ export default function BusinessProductsPage() {
         .from("products")
         .select("*")
         .eq("company_id", cId)
+        .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });
       setProducts(prods || []);
     } catch (err) {
