@@ -260,20 +260,40 @@ export default function BusinessProductsPage() {
 }
 
 // â”€â”€â”€ Product Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function ProductCard({ product, onEdit, onDelete, onToggle }: {
+function ProductCard({ product, onEdit, onDelete, onToggle, isDragging, isOver, onDragStart, onDragEnter, onDragEnd, onDrop }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  isDragging?: boolean;
+  isOver?: boolean;
+  onDragStart?: () => void;
+  onDragEnter?: () => void;
+  onDragEnd?: () => void;
+  onDrop?: () => void;
 }) {
   const images = parseImages(product.image_url);
   const mainImage = images[0];
 
   return (
-    <div className={cn(
-      "bg-card border border-border/50 rounded-[2.5rem] overflow-hidden shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group",
-      !product.is_active && "opacity-60 grayscale-[0.5]"
-    )}>
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart?.(); }}
+      onDragEnter={onDragEnter}
+      onDragOver={(e) => e.preventDefault()}
+      onDragEnd={onDragEnd}
+      onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
+      className={cn(
+        "relative bg-card border border-border/50 rounded-[2.5rem] overflow-hidden shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group cursor-grab active:cursor-grabbing",
+        !product.is_active && "opacity-60 grayscale-[0.5]",
+        isDragging && "opacity-40 scale-95",
+        isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+      )}
+    >
+      {/* Drag Handle */}
+      <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur-md text-white p-1.5 rounded-lg shadow-lg opacity-70 group-hover:opacity-100 transition-opacity" title="Arraste para reordenar">
+        <GripVertical className="h-4 w-4" />
+      </div>
       {/* Image Container */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {mainImage ? (
