@@ -79,7 +79,7 @@ export default function BusinessCouponsPage() {
       if (company) setCompanyId((company as any).id);
     };
     init();
-  }, [user]);
+  }, [user?.id]);
 
   const resetForm = () => {
     setCode("");

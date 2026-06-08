@@ -79,7 +79,7 @@ export default function BusinessCustomersPage() {
       }
     };
     init();
-  }, [user]);
+  }, [user?.id]);
 
   const fetchCustomers = async () => {
     if (!companyId) {

@@ -70,7 +70,7 @@ export default function BusinessHistoryPage() {
       if (company) setCompanyId(company.id);
     };
     init();
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!companyId) return;

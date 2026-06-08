@@ -122,7 +122,7 @@ export default function BusinessProfilePage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const fetchCompanyData = async () => {
     if (!user) return;

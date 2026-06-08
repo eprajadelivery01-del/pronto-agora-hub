@@ -96,7 +96,7 @@ export default function BusinessFinancePage() {
         setCommissionPercentage(data.commission_percentage !== null && data.commission_percentage !== undefined ? Number(data.commission_percentage) : 10.00);
       }
     })();
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!companyId) return;
