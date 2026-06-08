@@ -224,12 +224,25 @@ export default function BusinessProductsPage() {
                     <div className="w-2 h-6 bg-primary rounded-full shadow-lg shadow-primary/20" />
                     <h3 className="text-xl font-black text-foreground tracking-tight">{formatCategoryName(category)}</h3>
                     <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{categoryProducts.length}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wide flex items-center gap-1">
+                      <GripVertical className="h-3 w-3" /> Arraste para ordenar
+                    </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {categoryProducts.map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
+                        isDragging={dragId === product.id}
+                        isOver={overId === product.id && dragId !== product.id}
+                        onDragStart={() => setDragId(product.id)}
+                        onDragEnter={() => setOverId(product.id)}
+                        onDragEnd={() => { setDragId(null); setOverId(null); }}
+                        onDrop={() => {
+                          if (dragId) reorderWithinCategory(category, dragId, product.id);
+                          setDragId(null);
+                          setOverId(null);
+                        }}
                         onEdit={() => setEditingProduct(product)}
                         onDelete={() => deleteProduct(product.id)}
                         onToggle={() => toggleActive(product)}
