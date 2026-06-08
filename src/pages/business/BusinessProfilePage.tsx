@@ -773,9 +773,9 @@ export default function BusinessProfilePage() {
                     </div>
                   </div>
                </div>
-            </div>
           </div>
         </div>
+      </div>
 
       {/* URL EDIT MODALS/OVERLAYS */}
       {(isEditingLogo || isEditingCover) && createPortal(
