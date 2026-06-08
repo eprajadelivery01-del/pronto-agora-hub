@@ -86,6 +86,10 @@ export default function BusinessProfilePage() {
   const [gallery, setGallery] = useState<string[]>([]);
   const [workingDays, setWorkingDays] = useState(() => DEFAULT_WORKING_DAYS.map((day) => ({ ...day })));
 
+  // Delivery Regions
+  const [allRegions, setAllRegions] = useState<any[]>([]);
+  const [deliveryRegionsPricing, setDeliveryRegionsPricing] = useState<any[]>([]);
+
   // Edit states for overlays
   const [isEditingLogo, setIsEditingLogo] = useState(false);
   const [isEditingCover, setIsEditingCover] = useState(false);
@@ -145,6 +149,22 @@ export default function BusinessProfilePage() {
         setBusinessHours(company.business_hours || "");
         setGallery(normalizeGallery(company.gallery));
         setWorkingDays(normalizeWorkingDays(company.business_hours));
+        
+        let pricing = [];
+        try {
+          if (typeof company.delivery_regions_pricing === 'string') {
+            pricing = JSON.parse(company.delivery_regions_pricing);
+          } else if (Array.isArray(company.delivery_regions_pricing)) {
+            pricing = company.delivery_regions_pricing;
+          }
+        } catch(e) {}
+        setDeliveryRegionsPricing(pricing || []);
+      }
+
+      // Fetch regions
+      const { data: regions } = await supabase.from('regions').select('*').eq('active', true).order('name');
+      if (regions) {
+        setAllRegions(regions);
       }
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
@@ -300,6 +320,7 @@ export default function BusinessProfilePage() {
           show_in_marketplace: showInMarketplace,
           business_hours: hoursJson,
           gallery: gallery,
+          delivery_regions_pricing: deliveryRegionsPricing,
         })
         .eq("id", companyId);
 
@@ -603,19 +624,55 @@ export default function BusinessProfilePage() {
                             </div>
                          </div>
 
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega Padrão (R$)</label>
-                            <div className="relative">
-                               <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                               <input
-                                  value={deliveryFee}
-                                  onChange={(e) => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
-                                  className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-black text-primary text-lg"
-                                  placeholder="0,00"
-                               />
-                            </div>
                          </div>
                       </div>
+
+                      {/* DELIVERY REGIONS PRICING */}
+                      <div className="pt-6 space-y-4">
+                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                            <MapPin className="h-3 w-3" /> Taxas de Entrega por Região
+                         </div>
+                         <p className="text-xs text-muted-foreground ml-2">
+                           Defina quanto você vai cobrar do cliente para entregar em cada região. O "Valor Admin" é a base cobrada pela plataforma/entregador.
+                         </p>
+
+                         <div className="space-y-3">
+                           {allRegions.map((region) => {
+                             const pricing = deliveryRegionsPricing.find(p => p.region_id === region.id);
+                             const customerPrice = pricing ? pricing.customer_price : "";
+
+                             return (
+                               <div key={region.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-card">
+                                 <div className="flex flex-col">
+                                   <span className="font-bold text-sm" style={{ color: region.color || 'inherit' }}>{region.name}</span>
+                                   <span className="text-xs text-muted-foreground">Valor Admin: <strong className="text-foreground">R$ {Number(region.price || 0).toFixed(2).replace('.', ',')}</strong></span>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-xs font-bold text-muted-foreground">Cobrar do Cliente:</span>
+                                   <div className="relative w-32">
+                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary" />
+                                     <input
+                                       type="text"
+                                       value={customerPrice}
+                                       onChange={(e) => {
+                                         const val = e.target.value.replace(/[^0-9.,]/g, "");
+                                         setDeliveryRegionsPricing(prev => {
+                                           const exists = prev.find(p => p.region_id === region.id);
+                                           if (exists) {
+                                             return prev.map(p => p.region_id === region.id ? { ...p, customer_price: val } : p);
+                                           }
+                                           return [...prev, { region_id: region.id, customer_price: val }];
+                                         });
+                                       }}
+                                       placeholder="Ex: 8,50"
+                                       className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-background outline-none font-bold text-primary focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                     />
+                                   </div>
+                                 </div>
+                               </div>
+                             );
+                           })}
+                         </div>
 
                       {/* GALLERY SECTION */}
                       <div className="pt-8 space-y-4">
