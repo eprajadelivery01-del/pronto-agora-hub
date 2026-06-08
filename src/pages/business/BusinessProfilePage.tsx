@@ -692,6 +692,8 @@ export default function BusinessProfilePage() {
                               })}
                             </div>
                          </div>
+                      </div>
+                   </div>
 
                       {/* GALLERY SECTION */}
                       <div className="pt-8 space-y-4">
