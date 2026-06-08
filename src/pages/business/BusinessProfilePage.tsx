@@ -318,6 +318,7 @@ export default function BusinessProfilePage() {
           cover_url: coverUrl,
           category: category,
           delivery_fee: parseFloat(deliveryFee.replace(',', '.')),
+          prep_time: parseInt(prepTime, 10) || 0,
           is_open: isOpen,
           show_in_marketplace: showInMarketplace,
           business_hours: hoursJson,
