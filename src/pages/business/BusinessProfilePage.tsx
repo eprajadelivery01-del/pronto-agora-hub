@@ -731,7 +731,7 @@ export default function BusinessProfilePage() {
                </div>
             </div>
           </div>
-        </div>
+
 
         {/* Right Column: Marketplace Preview Side (Simplified) */}
         <div className="xl:col-span-4 hidden xl:block">
