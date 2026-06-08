@@ -80,6 +80,7 @@ export default function BusinessProfilePage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("restaurante");
   const [deliveryFee, setDeliveryFee] = useState("0.00");
+  const [prepTime, setPrepTime] = useState("30");
   const [isOpen, setIsOpen] = useState(true);
   const [showInMarketplace, setShowInMarketplace] = useState(false);
   const [businessHours, setBusinessHours] = useState("");
