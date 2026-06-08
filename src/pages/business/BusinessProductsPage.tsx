@@ -87,6 +87,32 @@ export default function BusinessProductsPage() {
     }
   };
 
+  const categories = [...new Set(products.map((product) => product.category || 'Outros'))];
+
+  const categoryDisplayNames: Record<string, string> = {
+    'sorvetes': 'Sorvetes e Picolés',
+    'alcoolicas': 'Bebidas Alcoólicas',
+    'porcoes': 'Porções',
+    'perfumaria': 'Perfumaria',
+    'padaria': 'Padaria',
+    'Hamburguer': 'Hambúrguer Artesanal',
+    'hamburguer_artesanal': 'Hambúrguer Artesanal',
+    'Assados': 'Assados',
+    'Acompanhamentos': 'Acompanhamentos',
+    'Marmita': 'Marmita',
+    'Mercado': 'Mercado',
+    'Farmácia': 'Farmácia',
+    'Bebidas': 'Bebidas',
+    'Doces': 'Doces',
+    'Pet Shop': 'Pet Shop',
+    'Shopping': 'Shopping',
+    'Outros': 'Outros',
+    'Pizza': 'Pizza',
+    'Lanches': 'Lanches'
+  };
+
+  const formatCategoryName = (cat: string) => categoryDisplayNames[cat] || cat;
+
   if (showForm || editingProduct) {
     return (
       <BusinessLayout title={editingProduct ? "Editar Produto" : "Novo Produto"}>
@@ -145,16 +171,32 @@ export default function BusinessProductsPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onEdit={() => setEditingProduct(product)}
-                onDelete={() => deleteProduct(product.id)}
-                onToggle={() => toggleActive(product)}
-              />
-            ))}
+          <div className="space-y-12">
+            {categories.map((category) => {
+              const categoryProducts = products.filter((p) => (p.category || 'Outros') === category);
+              if (categoryProducts.length === 0) return null;
+
+              return (
+                <div key={category} className="space-y-4">
+                  <div className="flex items-center gap-3 px-2">
+                    <div className="w-2 h-6 bg-primary rounded-full shadow-lg shadow-primary/20" />
+                    <h3 className="text-xl font-black text-foreground tracking-tight">{formatCategoryName(category)}</h3>
+                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{categoryProducts.length}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {categoryProducts.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onEdit={() => setEditingProduct(product)}
+                        onDelete={() => deleteProduct(product.id)}
+                        onToggle={() => toggleActive(product)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
