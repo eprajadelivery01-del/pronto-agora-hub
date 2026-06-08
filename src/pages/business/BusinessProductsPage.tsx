@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
-  DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart
+  DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart, GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ interface Product {
   is_active: boolean;
   company_id: string;
   created_at: string;
+  sort_order?: number;
 }
 
 export default function BusinessProductsPage() {
