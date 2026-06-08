@@ -7,9 +7,10 @@ interface AdminLayoutProps {
   children: ReactNode;
   title: string;
   subtitle?: string;
+  fullHeight?: boolean;
 }
 
-export function AdminLayout({ children, title, subtitle }: AdminLayoutProps) {
+export function AdminLayout({ children, title, subtitle, fullHeight }: AdminLayoutProps) {
   // Activate global realtime listeners (Deliveries and Drivers)
   useAdminRealtime();
 
