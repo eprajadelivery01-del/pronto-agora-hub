@@ -458,6 +458,9 @@ export default function BusinessProfilePage() {
                               <option value="bebidas">Adega / Bebidas</option>
                               <option value="padaria">Padaria / Confeitaria</option>
                               <option value="hamburguer_artesanal">Hambúrguer Artesanal</option>
+                              <option value="assados">Assados</option>
+                              <option value="acompanhamentos">Acompanhamentos</option>
+                              <option value="marmita">Marmita</option>
                               <option value="perfumaria">Perfumaria</option>
                               <option value="doces">Doceria / Sobremesas</option>
                               <option value="pet">Pet Shop / Agro</option>
