@@ -461,6 +461,8 @@ export default function BusinessProfilePage() {
                               <option value="assados">Assados</option>
                               <option value="acompanhamentos">Acompanhamentos</option>
                               <option value="marmita">Marmita</option>
+                              <option value="sorvetes">Sorvetes e Picolés</option>
+                              <option value="alcoolicas">Bebidas Alcoólicas</option>
                               <option value="perfumaria">Perfumaria</option>
                               <option value="doces">Doceria / Sobremesas</option>
                               <option value="pet">Pet Shop / Agro</option>
