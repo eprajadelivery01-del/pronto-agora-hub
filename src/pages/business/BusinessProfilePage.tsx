@@ -162,7 +162,7 @@ export default function BusinessProfilePage() {
       }
 
       // Fetch regions
-      const { data: regions } = await supabase.from('regions').select('*').eq('active', true).order('name');
+      const { data: regions } = await supabase.from('regions').select('*').order('name');
       if (regions) {
         setAllRegions(regions);
       }
