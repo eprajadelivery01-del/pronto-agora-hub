@@ -457,7 +457,7 @@ export default function BusinessProfilePage() {
                               <option value="pizza">Pizzaria</option>
                               <option value="bebidas">Adega / Bebidas</option>
                               <option value="padaria">Padaria / Confeitaria</option>
-                              <option value="hamburguer_artesanal">Hambúrguer Artesanal</option>
+                              <option value="hamburguer">Hambúrguer Artesanal</option>
                               <option value="assados">Assados</option>
                               <option value="acompanhamentos">Acompanhamentos</option>
                               <option value="marmita">Marmita</option>

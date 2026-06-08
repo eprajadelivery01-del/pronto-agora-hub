@@ -394,7 +394,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                       <option value="">Selecione uma categoria</option>
                       <option value="Pizza">🍕 Pizza</option>
                       <option value="Lanches">🍔 Lanches</option>
-                      <option value="Hambúrguer Artesanal">🔥 Hambúrguer Artesanal</option>
+                      <option value="Hamburguer">🔥 Hambúrguer Artesanal</option>
                       <option value="Padaria">🥐 Padaria</option>
                       <option value="Assados">🍗 Assados</option>
                       <option value="Acompanhamentos">🥗 Acompanhamentos</option>
