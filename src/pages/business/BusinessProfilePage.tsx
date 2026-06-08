@@ -463,6 +463,7 @@ export default function BusinessProfilePage() {
                               <option value="marmita">Marmita</option>
                               <option value="sorvetes">Sorvetes e Picolés</option>
                               <option value="alcoolicas">Bebidas Alcoólicas</option>
+                              <option value="porcoes">Porções</option>
                               <option value="perfumaria">Perfumaria</option>
                               <option value="doces">Doceria / Sobremesas</option>
                               <option value="pet">Pet Shop / Agro</option>

@@ -401,6 +401,7 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
                       <option value="Marmita">🍱 Marmita</option>
                       <option value="sorvetes">🍦 Sorvetes e Picolés</option>
                       <option value="alcoolicas">🍷 Bebidas Alcoólicas</option>
+                      <option value="porcoes">🍟 Porções</option>
                       <option value="Mercado">🛒 Mercado</option>
                       <option value="Farmácia">💊 Farmácia</option>
                       <option value="Perfumaria">✨ Perfumaria</option>
