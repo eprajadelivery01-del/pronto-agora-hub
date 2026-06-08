@@ -627,6 +627,28 @@ export default function BusinessProfilePage() {
                             </div>
                          </div>
 
+                         {/* PREP TIME */}
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Tempo de Preparo dos Pedidos</label>
+                            <div className="relative">
+                               <Clock3 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                               <input
+                                  type="number"
+                                  min={0}
+                                  value={prepTime}
+                                  onChange={(e) => setPrepTime(e.target.value)}
+                                  className="w-full pl-11 pr-16 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
+                                  placeholder="30"
+                               />
+                               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">min</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-1">
+                              Tempo médio estimado para preparar os pedidos. Exibido aos clientes no marketplace.
+                            </p>
+                         </div>
+
+
+
                          {/* DELIVERY REGIONS PRICING */}
                          <div className="pt-6 space-y-4">
                             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
