@@ -624,54 +624,73 @@ export default function BusinessProfilePage() {
                             </div>
                          </div>
 
-                         </div>
-                      </div>
+                         {/* DELIVERY REGIONS PRICING */}
+                         <div className="pt-6 space-y-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                               <MapPin className="h-3 w-3" /> Taxas de Entrega por Região
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-1">
+                              Defina o valor que o cliente vai pagar pela entrega em cada região.
+                            </p>
 
-                      {/* DELIVERY REGIONS PRICING */}
-                      <div className="pt-6 space-y-4">
-                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                            <MapPin className="h-3 w-3" /> Taxas de Entrega por Região
-                         </div>
-                         <p className="text-xs text-muted-foreground ml-2">
-                           Defina quanto você vai cobrar do cliente para entregar em cada região. O "Valor Admin" é a base cobrada pela plataforma/entregador.
-                         </p>
+                            {allRegions.length === 0 && (
+                              <div className="py-8 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground/40 gap-2">
+                                <MapPin className="h-6 w-6" />
+                                <p className="text-xs font-bold uppercase tracking-widest">Nenhuma região cadastrada</p>
+                                <p className="text-[10px]">O Admin deve criar as regiões primeiro.</p>
+                              </div>
+                            )}
 
-                         <div className="space-y-3">
-                           {allRegions.map((region) => {
-                             const pricing = deliveryRegionsPricing.find(p => p.region_id === region.id);
-                             const customerPrice = pricing ? pricing.customer_price : "";
+                            <div className="divide-y divide-border rounded-2xl border border-border overflow-hidden">
+                              {allRegions.map((region) => {
+                                const pricing = deliveryRegionsPricing.find(p => p.region_id === region.id);
+                                const customerPrice = pricing ? pricing.customer_price : "";
 
-                             return (
-                               <div key={region.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-card">
-                                 <div className="flex flex-col">
-                                   <span className="font-bold text-sm" style={{ color: region.color || 'inherit' }}>{region.name}</span>
-                                   <span className="text-xs text-muted-foreground">Valor Admin: <strong className="text-foreground">R$ {Number(region.price || 0).toFixed(2).replace('.', ',')}</strong></span>
-                                 </div>
-                                 <div className="flex items-center gap-2">
-                                   <span className="text-xs font-bold text-muted-foreground">Cobrar do Cliente:</span>
-                                   <div className="relative w-32">
-                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary" />
-                                     <input
-                                       type="text"
-                                       value={customerPrice}
-                                       onChange={(e) => {
-                                         const val = e.target.value.replace(/[^0-9.,]/g, "");
-                                         setDeliveryRegionsPricing(prev => {
-                                           const exists = prev.find(p => p.region_id === region.id);
-                                           if (exists) {
-                                             return prev.map(p => p.region_id === region.id ? { ...p, customer_price: val } : p);
-                                           }
-                                           return [...prev, { region_id: region.id, customer_price: val }];
-                                         });
-                                       }}
-                                       placeholder="Ex: 8,50"
-                                       className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-background outline-none font-bold text-primary focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                                     />
-                                   </div>
-                                 </div>
-                               </div>
-                             );
-                           })}
+                                return (
+                                  <div key={region.id} className="flex items-center gap-0 bg-card hover:bg-muted/30 transition-colors">
+                                    {/* Color stripe */}
+                                    <div
+                                      className="w-1 self-stretch shrink-0 rounded-l-none"
+                                      style={{ backgroundColor: region.color || '#6366f1' }}
+                                    />
+
+                                    {/* Region info */}
+                                    <div className="flex-1 min-w-0 px-4 py-3">
+                                      <p className="font-black text-sm leading-tight" style={{ color: region.color || 'inherit' }}>
+                                        {region.name}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                                        Base Admin: <span className="font-bold text-foreground">R$ {Number(region.price || 0).toFixed(2).replace('.', ',')}</span>
+                                      </p>
+                                    </div>
+
+                                    {/* Price input */}
+                                    <div className="shrink-0 px-4 py-3">
+                                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground mb-1.5 text-right">Cobrar do cliente</p>
+                                      <div className="relative w-28">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">R$</span>
+                                        <input
+                                          type="text"
+                                          value={customerPrice}
+                                          onChange={(e) => {
+                                            const val = e.target.value.replace(/[^0-9.,]/g, "");
+                                            setDeliveryRegionsPricing(prev => {
+                                              const exists = prev.find(p => p.region_id === region.id);
+                                              if (exists) {
+                                                return prev.map(p => p.region_id === region.id ? { ...p, customer_price: val } : p);
+                                              }
+                                              return [...prev, { region_id: region.id, customer_price: val }];
+                                            });
+                                          }}
+                                          placeholder="0,00"
+                                          className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-background outline-none font-black text-primary text-right focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                          </div>
 
                       {/* GALLERY SECTION */}
