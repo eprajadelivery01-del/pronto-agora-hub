@@ -80,6 +80,7 @@ export default function BusinessProfilePage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("restaurante");
   const [deliveryFee, setDeliveryFee] = useState("0.00");
+  const [prepTime, setPrepTime] = useState("30");
   const [isOpen, setIsOpen] = useState(true);
   const [showInMarketplace, setShowInMarketplace] = useState(false);
   const [businessHours, setBusinessHours] = useState("");
@@ -146,6 +147,7 @@ export default function BusinessProfilePage() {
         setIsOpen(company.is_open ?? true);
         setShowInMarketplace(company.show_in_marketplace ?? false);
         setDeliveryFee(company.delivery_fee?.toString() || "0.00");
+        setPrepTime(company.prep_time?.toString() || "30");
         setBusinessHours(company.business_hours || "");
         setGallery(normalizeGallery(company.gallery));
         setWorkingDays(normalizeWorkingDays(company.business_hours));
@@ -316,6 +318,7 @@ export default function BusinessProfilePage() {
           cover_url: coverUrl,
           category: category,
           delivery_fee: parseFloat(deliveryFee.replace(',', '.')),
+          prep_time: parseInt(prepTime, 10) || 0,
           is_open: isOpen,
           show_in_marketplace: showInMarketplace,
           business_hours: hoursJson,
@@ -623,6 +626,28 @@ export default function BusinessProfilePage() {
                                />
                             </div>
                          </div>
+
+                         {/* PREP TIME */}
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Tempo de Preparo dos Pedidos</label>
+                            <div className="relative">
+                               <Clock3 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                               <input
+                                  type="number"
+                                  min={0}
+                                  value={prepTime}
+                                  onChange={(e) => setPrepTime(e.target.value)}
+                                  className="w-full pl-11 pr-16 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
+                                  placeholder="30"
+                               />
+                               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">min</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-1">
+                              Tempo médio estimado para preparar os pedidos. Exibido aos clientes no marketplace.
+                            </p>
+                         </div>
+
+
 
                          {/* DELIVERY REGIONS PRICING */}
                          <div className="pt-6 space-y-4">

@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
-  DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart
+  DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart, GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ interface Product {
   is_active: boolean;
   company_id: string;
   created_at: string;
+  sort_order?: number;
 }
 
 export default function BusinessProductsPage() {
@@ -48,6 +49,7 @@ export default function BusinessProductsPage() {
         .from("products")
         .select("*")
         .eq("company_id", cId)
+        .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });
       setProducts(prods || []);
     } catch (err) {
@@ -84,6 +86,46 @@ export default function BusinessProductsPage() {
     } else {
       toast.success("Produto removido");
       fetchCompanyAndProducts();
+    }
+  };
+
+  // â”€â”€ Drag & drop manual ordering (per category) â”€â”€
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const reorderWithinCategory = async (category: string, fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const catProducts = products.filter((p) => (p.category || "Outros") === category);
+    const fromIdx = catProducts.findIndex((p) => p.id === fromId);
+    const toIdx = catProducts.findIndex((p) => p.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const reordered = [...catProducts];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    // Apply new sort_order locally
+    const orderMap = new Map(reordered.map((p, i) => [p.id, i]));
+    setProducts((prev) =>
+      prev.map((p) =>
+        orderMap.has(p.id) ? { ...p, sort_order: orderMap.get(p.id)! } : p
+      )
+    );
+
+    setSavingOrder(true);
+    try {
+      await Promise.all(
+        reordered.map((p, i) =>
+          supabase.from("products").update({ sort_order: i }).eq("id", p.id)
+        )
+      );
+      toast.success("Ordem atualizada no marketplace");
+    } catch (err) {
+      toast.error("Erro ao salvar ordem");
+      if (companyId) fetchProducts(companyId);
+    } finally {
+      setSavingOrder(false);
     }
   };
 
@@ -182,12 +224,25 @@ export default function BusinessProductsPage() {
                     <div className="w-2 h-6 bg-primary rounded-full shadow-lg shadow-primary/20" />
                     <h3 className="text-xl font-black text-foreground tracking-tight">{formatCategoryName(category)}</h3>
                     <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{categoryProducts.length}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wide flex items-center gap-1">
+                      <GripVertical className="h-3 w-3" /> Arraste para ordenar
+                    </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {categoryProducts.map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
+                        isDragging={dragId === product.id}
+                        isOver={overId === product.id && dragId !== product.id}
+                        onDragStart={() => setDragId(product.id)}
+                        onDragEnter={() => setOverId(product.id)}
+                        onDragEnd={() => { setDragId(null); setOverId(null); }}
+                        onDrop={() => {
+                          if (dragId) reorderWithinCategory(category, dragId, product.id);
+                          setDragId(null);
+                          setOverId(null);
+                        }}
                         onEdit={() => setEditingProduct(product)}
                         onDelete={() => deleteProduct(product.id)}
                         onToggle={() => toggleActive(product)}
@@ -205,20 +260,40 @@ export default function BusinessProductsPage() {
 }
 
 // â”€â”€â”€ Product Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function ProductCard({ product, onEdit, onDelete, onToggle }: {
+function ProductCard({ product, onEdit, onDelete, onToggle, isDragging, isOver, onDragStart, onDragEnter, onDragEnd, onDrop }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  isDragging?: boolean;
+  isOver?: boolean;
+  onDragStart?: () => void;
+  onDragEnter?: () => void;
+  onDragEnd?: () => void;
+  onDrop?: () => void;
 }) {
   const images = parseImages(product.image_url);
   const mainImage = images[0];
 
   return (
-    <div className={cn(
-      "bg-card border border-border/50 rounded-[2.5rem] overflow-hidden shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group",
-      !product.is_active && "opacity-60 grayscale-[0.5]"
-    )}>
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart?.(); }}
+      onDragEnter={onDragEnter}
+      onDragOver={(e) => e.preventDefault()}
+      onDragEnd={onDragEnd}
+      onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
+      className={cn(
+        "relative bg-card border border-border/50 rounded-[2.5rem] overflow-hidden shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group cursor-grab active:cursor-grabbing",
+        !product.is_active && "opacity-60 grayscale-[0.5]",
+        isDragging && "opacity-40 scale-95",
+        isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+      )}
+    >
+      {/* Drag Handle */}
+      <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur-md text-white p-1.5 rounded-lg shadow-lg opacity-70 group-hover:opacity-100 transition-opacity" title="Arraste para reordenar">
+        <GripVertical className="h-4 w-4" />
+      </div>
       {/* Image Container */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {mainImage ? (
