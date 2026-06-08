@@ -89,6 +89,46 @@ export default function BusinessProductsPage() {
     }
   };
 
+  // â”€â”€ Drag & drop manual ordering (per category) â”€â”€
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const reorderWithinCategory = async (category: string, fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const catProducts = products.filter((p) => (p.category || "Outros") === category);
+    const fromIdx = catProducts.findIndex((p) => p.id === fromId);
+    const toIdx = catProducts.findIndex((p) => p.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const reordered = [...catProducts];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    // Apply new sort_order locally
+    const orderMap = new Map(reordered.map((p, i) => [p.id, i]));
+    setProducts((prev) =>
+      prev.map((p) =>
+        orderMap.has(p.id) ? { ...p, sort_order: orderMap.get(p.id)! } : p
+      )
+    );
+
+    setSavingOrder(true);
+    try {
+      await Promise.all(
+        reordered.map((p, i) =>
+          supabase.from("products").update({ sort_order: i }).eq("id", p.id)
+        )
+      );
+      toast.success("Ordem atualizada no marketplace");
+    } catch (err) {
+      toast.error("Erro ao salvar ordem");
+      if (companyId) fetchProducts(companyId);
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
   const categories = [...new Set(products.map((product) => product.category || 'Outros'))];
 
   const categoryDisplayNames: Record<string, string> = {
