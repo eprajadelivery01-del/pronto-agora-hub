@@ -147,6 +147,7 @@ export default function BusinessProfilePage() {
         setIsOpen(company.is_open ?? true);
         setShowInMarketplace(company.show_in_marketplace ?? false);
         setDeliveryFee(company.delivery_fee?.toString() || "0.00");
+        setPrepTime(company.prep_time?.toString() || "30");
         setBusinessHours(company.business_hours || "");
         setGallery(normalizeGallery(company.gallery));
         setWorkingDays(normalizeWorkingDays(company.business_hours));
