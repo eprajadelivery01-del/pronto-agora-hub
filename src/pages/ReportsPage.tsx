@@ -13,6 +13,73 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, Legend 
 } from "recharts";
 
+const STATUS_COLORS = {
+  pending: "hsl(var(--warning))",
+  broadcasted: "hsl(var(--info))",
+  accepted: "hsl(var(--info))",
+  collecting: "hsl(var(--accent))",
+  in_transit: "hsl(var(--primary))",
+  delivered: "#22c55e",
+  completed: "#22c55e",
+  cancelled: "#ef4444",
+  returned: "#6b7280",
+};
+
+const STATUS_LABELS = {
+  pending: "Pendente",
+  broadcasted: "Enviada",
+  accepted: "Aceita",
+  collecting: "Coletando",
+  in_transit: "Em Trânsito",
+  delivered: "Finalizada",
+  completed: "Finalizada",
+  cancelled: "Cancelada",
+  returned: "Devolvida",
+};
+
+function SummaryCard({ label, value, icon, subValue, trend }: { 
+  label: string; 
+  value: string | number; 
+  icon: React.ReactNode;
+  subValue?: string;
+  trend?: string;
+}) {
+  return (
+    <div className="bg-card/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/10 hover:border-primary/20 transition-all group overflow-hidden relative">
+      <div className="absolute -right-2 -top-2 w-24 h-24 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all pointer-events-none" />
+      <div className="flex items-start justify-between mb-4">
+        {icon}
+        {trend && (
+          <div className="px-2.5 py-1 rounded-full bg-success/10 text-[9px] font-black text-success uppercase tracking-wider">
+            {trend}
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1.5">{label}</p>
+        <p className="text-2xl font-black text-foreground tracking-tight">{value}</p>
+        {subValue && <p className="text-xs font-medium text-muted-foreground/60 mt-1">{subValue}</p>}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const color = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "hsl(var(--muted))";
+  const label = STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status;
+  
+  return (
+    <span 
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-current shadow-sm"
+      style={{ color, backgroundColor: `${color}15` }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
+
+
 export default function ReportsPage() {
   const { toast } = useToast();
   const [dateFrom, setDateFrom] = useState("");
@@ -569,71 +636,5 @@ export default function ReportsPage() {
         )}
       </div>
     </AdminLayout>
-  );
-}
-
-const STATUS_COLORS = {
-  pending: "hsl(var(--warning))",
-  broadcasted: "hsl(var(--info))",
-  accepted: "hsl(var(--info))",
-  collecting: "hsl(var(--accent))",
-  in_transit: "hsl(var(--primary))",
-  delivered: "#22c55e",
-  completed: "#22c55e",
-  cancelled: "#ef4444",
-  returned: "#6b7280",
-};
-
-const STATUS_LABELS = {
-  pending: "Pendente",
-  broadcasted: "Enviada",
-  accepted: "Aceita",
-  collecting: "Coletando",
-  in_transit: "Em Trânsito",
-  delivered: "Finalizada",
-  completed: "Finalizada",
-  cancelled: "Cancelada",
-  returned: "Devolvida",
-};
-
-function SummaryCard({ label, value, icon, subValue, trend }: { 
-  label: string; 
-  value: string | number; 
-  icon: React.ReactNode;
-  subValue?: string;
-  trend?: string;
-}) {
-  return (
-    <div className="bg-card/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/10 hover:border-primary/20 transition-all group overflow-hidden relative">
-      <div className="absolute -right-2 -top-2 w-24 h-24 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all pointer-events-none" />
-      <div className="flex items-start justify-between mb-4">
-        {icon}
-        {trend && (
-          <div className="px-2.5 py-1 rounded-full bg-success/10 text-[9px] font-black text-success uppercase tracking-wider">
-            {trend}
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1.5">{label}</p>
-        <p className="text-2xl font-black text-foreground tracking-tight">{value}</p>
-        {subValue && <p className="text-xs font-medium text-muted-foreground/60 mt-1">{subValue}</p>}
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "hsl(var(--muted))";
-  const label = STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status;
-  
-  return (
-    <span 
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-current shadow-sm"
-      style={{ color, backgroundColor: `${color}15` }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
-      {label}
-    </span>
   );
 }
