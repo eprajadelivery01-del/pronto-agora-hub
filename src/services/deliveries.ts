@@ -203,13 +203,30 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       .select("id, name, phone")
       .eq("id", order.customer_id)
       .maybeSingle();
-    customerData = customer;
+    if (customer) customerData = customer;
   }
-
+  
+  if (!customerData && (order as any).user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, full_name, phone")
+      .eq("id", (order as any).user_id)
+      .maybeSingle();
+    if (profile) customerData = { id: profile.id, name: profile.full_name, phone: profile.phone };
+  }
 
   // Utilizamos preferencialmente o delivery_address que veio do Checkout.
   // Caso não exista, tentamos puxar o endereço padrão do customer, mas no nosso fluxo o Cliente já salva na Order.
   let dropoff = (order as any).delivery_address;
+  
+  if (!dropoff && (order as any).address_id) {
+    const { data: address } = await supabase
+      .from("addresses")
+      .select("*")
+      .eq("id", (order as any).address_id)
+      .maybeSingle();
+    if (address) dropoff = `${address.street}, ${address.number}${address.complement ? ' - ' + address.complement : ''} - ${address.neighborhood}`;
+  }
   
   if (!dropoff && order.customer_id) {
     const { data: address } = await supabase
@@ -219,7 +236,19 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       .maybeSingle();
 
     if (address) {
-       dropoff = `${address.street}, ${address.number} - ${address.neighborhood}`;
+       dropoff = `${address.street}, ${address.number}${address.complement ? ' - ' + address.complement : ''} - ${address.neighborhood}`;
+    }
+  }
+  
+  if (!dropoff && (order as any).user_id) {
+    const { data: address } = await supabase
+      .from("addresses")
+      .select("*")
+      .eq("user_id", (order as any).user_id)
+      .maybeSingle();
+
+    if (address) {
+       dropoff = `${address.street}, ${address.number}${address.complement ? ' - ' + address.complement : ''} - ${address.neighborhood}`;
     }
   }
   
