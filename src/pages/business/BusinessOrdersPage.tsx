@@ -710,7 +710,7 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
   return (
     <>
       <div className={cn(
-        "bg-white border border-border/60 rounded-[1.5rem] p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30 group animate-in zoom-in-95 duration-300 relative overflow-hidden cursor-pointer",
+        "bg-card border border-border/60 rounded-[1.5rem] p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30 group animate-in zoom-in-95 duration-300 relative overflow-hidden cursor-pointer",
         isPending && "border-warning/40 bg-warning/[0.02]"
       )}
       onClick={() => setIsModalOpen(true)}
