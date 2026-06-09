@@ -44,6 +44,8 @@ const CATEGORY_OPTIONS = [
   { value: "Doces",         label: "🍫 Doces" },
   { value: "Pet Shop",      label: "🐾 Pet Shop" },
   { value: "Shopping",      label: "🛍️ Shopping" },
+  { value: "tecidos",       label: "✂️ Tecidos e Costura" },
+  { value: "barbantes",     label: "📏 Barbantes e Aviamentos" },
   { value: "Outros",        label: "🍽️ Categoria Geral (Outros)" },
 ];
 
