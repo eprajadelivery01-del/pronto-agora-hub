@@ -492,8 +492,7 @@ export default function BusinessProfilePage() {
                               <option value="doces">Doceria / Sobremesas</option>
                               <option value="pet">Pet Shop / Agro</option>
                               <option value="shopping">Shopping / Variedades</option>
-                              <option value="tecidos">Tecidos e Costura</option>
-                              <option value="barbantes">Barbantes e Aviamentos</option>
+                              <option value="barbantes_tecidos">Barbantes e Tecidos</option>
                            </select>
                         </div>
                         
