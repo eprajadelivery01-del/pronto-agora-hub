@@ -42,6 +42,7 @@ import CompaniesPage from "./pages/CompaniesPage";
 import DriversPage from "./pages/DriversPage";
 import RegionsPage from "./pages/RegionsPage";
 import ReportsPage from "./pages/ReportsPage";
+import StoreSalesPage from "./pages/StoreSalesPage";
 import UsersPage from "./pages/UsersPage";
 import ReviewsPage from "./pages/ReviewsPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -95,6 +96,7 @@ const App = () => (
                   <Route path="/admin/corridas" element={<Navigate to="/admin/deliveries" replace />} />
                   <Route path="/admin/companies" element={<PageTransition><ProtectedRoute requiredRole="admin"><CompaniesPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/admin/drivers" element={<PageTransition><ProtectedRoute requiredRole="admin"><DriversPage /></ProtectedRoute></PageTransition>} />
+                  <Route path="/admin/sales" element={<PageTransition><ProtectedRoute requiredRole="admin"><StoreSalesPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/admin/regions" element={<PageTransition><ProtectedRoute requiredRole="admin"><RegionsPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/admin/reports" element={<PageTransition><ProtectedRoute requiredRole="admin"><ReportsPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/admin/users" element={<PageTransition><ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute></PageTransition>} />
