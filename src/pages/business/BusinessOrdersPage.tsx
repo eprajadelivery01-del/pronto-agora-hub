@@ -138,7 +138,7 @@ export default function BusinessOrdersPage() {
       let { data, error } = await supabase
         .from("orders")
         .select(`
-          id, status, total, created_at, customer_id, delivery_id,
+          id, status, total, delivery_fee, created_at, customer_id, delivery_id,
           delivery_address, payment_method, notes,
           order_items (
             id, quantity, price, notes,
@@ -413,12 +413,15 @@ export default function BusinessOrdersPage() {
     }
 
     setSelectedOrderForDispatch(order);
-    setDeliveryFee("0,00");
+    
+    // Puxa o valor da taxa de entrega que o cliente já pagou no pedido
+    const preCalculatedFee = (order as any).delivery_fee || 0;
+    setDeliveryFee(formatCurrency(preCalculatedFee));
     setDetectedRegion(null);
     setIsDispatchModalOpen(true);
 
-    // Tenta calcular frete automático com base no endereço do pedido
-    if (order.delivery_address) {
+    // Só tenta calcular frete automático se o pedido não tiver taxa cobrada
+    if (preCalculatedFee === 0 && order.delivery_address) {
       setLoadingFee(true);
       try {
         // Buscar coordenadas do pedido pela tabela deliveries ou orders
@@ -436,7 +439,7 @@ export default function BusinessOrdersPage() {
           if (result.fee !== null && !result.isOutOfRange) {
             setDeliveryFee(formatCurrency(result.fee));
             setDetectedRegion(result.regionName);
-            toast.info(`📍 Frete calculado: R$ ${formatCurrency(result.fee)} (${result.regionName})`);
+            toast.info(`📍 Frete sugerido pela região: R$ ${formatCurrency(result.fee)}`);
           } else if (result.isOutOfRange) {
             setDetectedRegion('Fora da área de cobertura');
           }
