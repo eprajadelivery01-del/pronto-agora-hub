@@ -86,7 +86,9 @@ export function useDeliveries(params?: UseDeliveriesParams) {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      const mappedData = (data ?? []).map((delivery: any) => {
+      const filteredData = (data ?? []).filter((d: any) => d.notes !== "Cancelamento automático de entrega prematura");
+
+      const mappedData = filteredData.map((delivery: any) => {
         if (delivery.delivery_drivers) {
           const dd = delivery.delivery_drivers;
           return {
