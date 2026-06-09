@@ -59,17 +59,21 @@ export interface FreightResult {
 
 /**
  * Calcula o frete para um par de coordenadas consultando as regiões ativas no banco.
- * Se o ponto estiver dentro de uma região, retorna o preço configurado.
- * Se estiver fora de todas as regiões, retorna isOutOfRange: true.
+ *
+ * Regra: o frete exibido é SEMPRE o customer_price que o lojista configurou
+ * no painel (Taxas de Entrega por Região). Se o lojista não configurou preço
+ * para a região do cliente, considera-se que ele não entrega nessa região.
  *
  * @param lat Latitude do endereço de entrega
  * @param lng Longitude do endereço de entrega
  * @param supabase Instância do cliente Supabase
+ * @param companyDeliveryRegionsPricing Array de { region_id, customer_price } do lojista
  */
 export async function calculateDeliveryFee(
   lat: number,
   lng: number,
-  supabase: any
+  supabase: any,
+  companyDeliveryRegionsPricing?: Array<{ region_id: string; customer_price: string | number }> | null
 ): Promise<FreightResult> {
   if (!lat || !lng) {
     return { fee: null, regionId: null, regionName: null, isOutOfRange: false };
@@ -78,7 +82,7 @@ export async function calculateDeliveryFee(
   try {
     const { data: regions, error } = await supabase
       .from('regions')
-      .select('id, name, geometry, price, delivery_fee')
+      .select('id, name, geometry')
       .or('is_active.is.null,is_active.eq.true');
 
     if (error || !regions || regions.length === 0) {
@@ -86,22 +90,38 @@ export async function calculateDeliveryFee(
       return { fee: null, regionId: null, regionName: null, isOutOfRange: false };
     }
 
+    // Normaliza o pricing do lojista para lookup rápido por region_id
+    const merchantPricing: Record<string, number> = {};
+    if (Array.isArray(companyDeliveryRegionsPricing)) {
+      for (const entry of companyDeliveryRegionsPricing) {
+        const price = Number(String(entry.customer_price).replace(',', '.'));
+        if (entry.region_id && !isNaN(price) && price >= 0) {
+          merchantPricing[entry.region_id] = price;
+        }
+      }
+    }
+
     for (const region of regions) {
       const coords = extractCoordinates(region.geometry);
       if (!coords) continue;
 
       if (pointInPolygon(lat, lng, coords)) {
-        const fee = Number(region.price ?? region.delivery_fee ?? 0);
-        console.log(`[freight] ✅ Região encontrada: ${region.name} — R$ ${fee.toFixed(2)}`);
-        return {
-          fee,
-          regionId: region.id,
-          regionName: region.name,
-          isOutOfRange: false,
-        };
+        // Lojista configurou preço para essa região → usa esse preço
+        if (merchantPricing[region.id] !== undefined) {
+          return {
+            fee: merchantPricing[region.id],
+            regionId: region.id,
+            regionName: region.name,
+            isOutOfRange: false,
+          };
+        }
+        // Lojista NÃO configurou preço para essa região → não entrega aqui
+        console.warn(`[freight] Lojista sem preço configurado para a região: ${region.name}`);
+        return { fee: null, regionId: region.id, regionName: region.name, isOutOfRange: true };
       }
     }
 
+    // Endereço fora de todas as regiões do mapa
     console.warn('[freight] ⚠️ Endereço fora de todas as regiões mapeadas.');
     return { fee: null, regionId: null, regionName: null, isOutOfRange: true };
   } catch (err: any) {
@@ -109,6 +129,7 @@ export async function calculateDeliveryFee(
     return { fee: null, regionId: null, regionName: null, isOutOfRange: false };
   }
 }
+
 
 /**
  * Geocodifica um endereço textual para coordenadas lat/lng

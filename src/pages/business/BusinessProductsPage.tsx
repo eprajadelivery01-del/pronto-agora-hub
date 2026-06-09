@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -7,10 +7,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
-  DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, Info, ShoppingCart, GripVertical
+  DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, ShoppingCart,
+  GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 
 interface Product {
   id: string;
@@ -22,7 +22,40 @@ interface Product {
   is_active: boolean;
   company_id: string;
   created_at: string;
-  sort_order?: number;
+  sort_order: number;
+}
+
+const CATEGORY_OPTIONS = [
+  { value: "Pizza",         label: "🍕 Pizza" },
+  { value: "Lanches",       label: "🍔 Lanches" },
+  { value: "Hamburguer",    label: "🔥 Hambúrguer Artesanal" },
+  { value: "padaria",       label: "🥐 Padaria" },
+  { value: "Assados",       label: "🍗 Assados" },
+  { value: "Acompanhamentos", label: "🥗 Acompanhamentos" },
+  { value: "Marmita",       label: "🍱 Marmita" },
+  { value: "sorvetes",      label: "🍦 Sorvetes e Picolés" },
+  { value: "alcoolicas",    label: "🍷 Bebidas Alcoólicas" },
+  { value: "Destilados",    label: "🥃 Destilados" },
+  { value: "porcoes",       label: "🍟 Porções" },
+  { value: "Mercado",       label: "🛒 Mercado" },
+  { value: "Farmácia",      label: "💊 Farmácia" },
+  { value: "Perfumaria",    label: "✨ Perfumaria" },
+  { value: "Bebidas",       label: "🥤 Bebidas" },
+  { value: "Doces",         label: "🍫 Doces" },
+  { value: "Pet Shop",      label: "🐾 Pet Shop" },
+  { value: "Shopping",      label: "🛍️ Shopping" },
+  { value: "Outros",        label: "🍽️ Categoria Geral (Outros)" },
+];
+
+function parseImages(imageUrl: string | null): string[] {
+  if (!imageUrl) return [];
+  try {
+    const parsed = JSON.parse(imageUrl);
+    if (Array.isArray(parsed)) return parsed.filter((u: any) => typeof u === "string" && u.startsWith("http"));
+  } catch {
+    if (imageUrl.startsWith("http")) return [imageUrl];
+  }
+  return [];
 }
 
 export default function BusinessProductsPage() {
@@ -33,6 +66,10 @@ export default function BusinessProductsPage() {
   const companyId = linkedCompanyId;
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Drag state
+  const dragId = useRef<string | null>(null);
+  const dragCategory = useRef<string | null>(null);
 
   useEffect(() => {
     if (companyId) {
@@ -50,7 +87,7 @@ export default function BusinessProductsPage() {
         .select("*")
         .eq("company_id", cId)
         .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
       setProducts(prods || []);
     } catch (err) {
       console.error("Erro ao carregar produtos:", err);
@@ -62,8 +99,6 @@ export default function BusinessProductsPage() {
   const fetchCompanyAndProducts = () => {
     if (companyId) fetchProducts(companyId);
   };
-
-
 
   const toggleActive = async (product: Product) => {
     const { error } = await (supabase as any)
@@ -89,83 +124,86 @@ export default function BusinessProductsPage() {
     }
   };
 
-  // â”€â”€ Drag & drop manual ordering (per category) â”€â”€
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  const [savingOrder, setSavingOrder] = useState(false);
+  // ── Drag & Drop handlers ──────────────────────────────────────────────────────
+  const handleDragStart = useCallback((id: string, category: string) => {
+    dragId.current = id;
+    dragCategory.current = category;
+  }, []);
 
-  const reorderWithinCategory = async (category: string, fromId: string, toId: string) => {
-    if (fromId === toId) return;
-    const catProducts = products.filter((p) => (p.category || "Outros") === category);
-    const fromIdx = catProducts.findIndex((p) => p.id === fromId);
-    const toIdx = catProducts.findIndex((p) => p.id === toId);
-    if (fromIdx === -1 || toIdx === -1) return;
+  const handleDrop = useCallback(async (targetId: string, targetCategory: string) => {
+    const srcId = dragId.current;
+    const srcCat = dragCategory.current;
+    if (!srcId || srcId === targetId || srcCat !== targetCategory) return;
+
+    const catProducts = products.filter(p => (p.category || "Outros") === targetCategory);
+    const srcIdx = catProducts.findIndex(p => p.id === srcId);
+    const tgtIdx = catProducts.findIndex(p => p.id === targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
 
     const reordered = [...catProducts];
-    const [moved] = reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, moved);
+    const [moved] = reordered.splice(srcIdx, 1);
+    reordered.splice(tgtIdx, 0, moved);
+    const updated = reordered.map((p, i) => ({ ...p, sort_order: i }));
 
-    // Apply new sort_order locally
-    const orderMap = new Map(reordered.map((p, i) => [p.id, i]));
-    setProducts((prev) =>
-      prev.map((p) =>
-        orderMap.has(p.id) ? { ...p, sort_order: orderMap.get(p.id)! } : p
-      )
+    // Optimistic UI
+    setProducts(prev =>
+      prev.map(p => {
+        const found = updated.find(u => u.id === p.id);
+        return found ?? p;
+      })
     );
 
-    setSavingOrder(true);
+    // Persist
     try {
       await Promise.all(
-        reordered.map((p, i) =>
-          supabase.from("products").update({ sort_order: i }).eq("id", p.id)
+        updated.map(p =>
+          supabase.from("products").update({ sort_order: p.sort_order }).eq("id", p.id)
         )
       );
-      toast.success("Ordem atualizada no marketplace");
-    } catch (err) {
+      toast.success("Ordem salva!");
+    } catch {
       toast.error("Erro ao salvar ordem");
-      if (companyId) fetchProducts(companyId);
-    } finally {
-      setSavingOrder(false);
+      fetchCompanyAndProducts();
     }
-  };
 
-  const categories = [...new Set(products.map((product) => product.category || 'Outros'))];
+    dragId.current = null;
+    dragCategory.current = null;
+  }, [products]);
 
-  const categoryDisplayNames: Record<string, string> = {
-    'sorvetes': 'Sorvetes e Picolés',
-    'alcoolicas': 'Bebidas Alcoólicas',
-    'porcoes': 'Porções',
-    'perfumaria': 'Perfumaria',
-    'padaria': 'Padaria',
-    'Hamburguer': 'Hambúrguer Artesanal',
-    'hamburguer_artesanal': 'Hambúrguer Artesanal',
-    'Assados': 'Assados',
-    'Acompanhamentos': 'Acompanhamentos',
-    'Marmita': 'Marmita',
-    'Mercado': 'Mercado',
-    'Farmácia': 'Farmácia',
-    'Bebidas': 'Bebidas',
-    'Doces': 'Doces',
-    'Pet Shop': 'Pet Shop',
-    'Shopping': 'Shopping',
-    'Outros': 'Outros',
-    'Pizza': 'Pizza',
-    'Lanches': 'Lanches'
-  };
+  // Group by category in CATEGORY_OPTIONS order
+  const grouped = CATEGORY_OPTIONS
+    .map(cat => ({
+      cat,
+      items: products.filter(p => (p.category || "Outros") === cat.value),
+    }))
+    .filter(g => g.items.length > 0);
 
-  const formatCategoryName = (cat: string) => categoryDisplayNames[cat] || cat;
+  // Unknown categories → Outros
+  const knownValues = new Set(CATEGORY_OPTIONS.map(c => c.value));
+  const uncategorized = products.filter(p => !knownValues.has(p.category || ""));
+  if (uncategorized.length > 0) {
+    const othersGroup = grouped.find(g => g.cat.value === "Outros");
+    if (othersGroup) {
+      othersGroup.items = [...othersGroup.items, ...uncategorized];
+    }
+  }
 
   if (showForm || editingProduct) {
     return (
       <BusinessLayout title={editingProduct ? "Editar Produto" : "Novo Produto"}>
-         <div className="max-w-4xl mx-auto">
-            <ProductForm
-              companyId={companyId!}
-              product={editingProduct}
-              onClose={() => { setShowForm(false); setEditingProduct(null); }}
-              onSaved={() => { setShowForm(false); setEditingProduct(null); fetchCompanyAndProducts(); }}
-            />
-         </div>
+        <div className="max-w-4xl mx-auto">
+          <ProductForm
+            companyId={companyId!}
+            product={editingProduct}
+            categoryCount={
+              editingProduct
+                ? products.filter(p => (p.category || "Outros") === (editingProduct.category || "Outros")).length
+                : 0
+            }
+            onClose={() => { setShowForm(false); setEditingProduct(null); }}
+            onSaved={() => { setShowForm(false); setEditingProduct(null); fetchCompanyAndProducts(); }}
+          />
+        </div>
       </BusinessLayout>
     );
   }
@@ -178,6 +216,10 @@ export default function BusinessProductsPage() {
             <h2 className="text-2xl font-black text-foreground tracking-tight">Seu Catálogo</h2>
             <p className="text-muted-foreground text-sm font-medium">
               Organize os itens que seus clientes podem comprar no marketplace.
+            </p>
+            <p className="text-xs text-primary/80 font-bold mt-1 flex items-center gap-1">
+              <GripVertical className="h-3 w-3" />
+              Arraste os cards para reordenar dentro de cada categoria
             </p>
           </div>
           <button
@@ -214,44 +256,37 @@ export default function BusinessProductsPage() {
           </div>
         ) : (
           <div className="space-y-12">
-            {categories.map((category) => {
-              const categoryProducts = products.filter((p) => (p.category || 'Outros') === category);
-              if (categoryProducts.length === 0) return null;
-
-              return (
-                <div key={category} className="space-y-4">
-                  <div className="flex items-center gap-3 px-2">
-                    <div className="w-2 h-6 bg-primary rounded-full shadow-lg shadow-primary/20" />
-                    <h3 className="text-xl font-black text-foreground tracking-tight">{formatCategoryName(category)}</h3>
-                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{categoryProducts.length}</span>
-                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wide flex items-center gap-1">
-                      <GripVertical className="h-3 w-3" /> Arraste para ordenar
-                    </span>
+            {grouped.map(({ cat, items }) => (
+              <section key={cat.value}>
+                {/* Category header */}
+                <div className="flex items-center gap-3 mb-5 px-2">
+                  <span className="text-2xl">{cat.label.split(" ")[0]}</span>
+                  <div>
+                    <h3 className="font-black text-xl tracking-tight">
+                      {cat.label.replace(/^\S+\s/, "")}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {items.length} {items.length === 1 ? "item" : "itens"} · arraste para reordenar
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {categoryProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        isDragging={dragId === product.id}
-                        isOver={overId === product.id && dragId !== product.id}
-                        onDragStart={() => setDragId(product.id)}
-                        onDragEnter={() => setOverId(product.id)}
-                        onDragEnd={() => { setDragId(null); setOverId(null); }}
-                        onDrop={() => {
-                          if (dragId) reorderWithinCategory(category, dragId, product.id);
-                          setDragId(null);
-                          setOverId(null);
-                        }}
-                        onEdit={() => setEditingProduct(product)}
-                        onDelete={() => deleteProduct(product.id)}
-                        onToggle={() => toggleActive(product)}
-                      />
-                    ))}
-                  </div>
+                  <div className="flex-1 border-b border-dashed border-border/60 ml-2" />
                 </div>
-              );
-            })}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {items.map(product => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onEdit={() => setEditingProduct(product)}
+                      onDelete={() => deleteProduct(product.id)}
+                      onToggle={() => toggleActive(product)}
+                      onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
+                      onDrop={() => handleDrop(product.id, product.category || "Outros")}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>
@@ -259,41 +294,57 @@ export default function BusinessProductsPage() {
   );
 }
 
-// â”€â”€â”€ Product Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function ProductCard({ product, onEdit, onDelete, onToggle, isDragging, isOver, onDragStart, onDragEnter, onDragEnd, onDrop }: {
+// ── Product Card ──────────────────────────────────────────────────────────────
+function ProductCard({
+  product, onEdit, onDelete, onToggle, onDragStart, onDrop,
+}: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
-  isDragging?: boolean;
-  isOver?: boolean;
-  onDragStart?: () => void;
-  onDragEnter?: () => void;
-  onDragEnd?: () => void;
-  onDrop?: () => void;
+  onDragStart: () => void;
+  onDrop: () => void;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isOver, setIsOver] = useState(false);
   const images = parseImages(product.image_url);
   const mainImage = images[0];
 
   return (
     <div
       draggable
-      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart?.(); }}
-      onDragEnter={onDragEnter}
-      onDragOver={(e) => e.preventDefault()}
-      onDragEnd={onDragEnd}
-      onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        setIsDragging(true);
+        onDragStart();
+      }}
+      onDragEnd={() => setIsDragging(false)}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setIsOver(true);
+      }}
+      onDragLeave={() => setIsOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsOver(false);
+        onDrop();
+      }}
       className={cn(
-        "relative bg-card border border-border/50 rounded-[2.5rem] overflow-hidden shadow-card transition-all hover:shadow-2xl hover:border-primary/20 group cursor-grab active:cursor-grabbing",
-        !product.is_active && "opacity-60 grayscale-[0.5]",
-        isDragging && "opacity-40 scale-95",
-        isOver && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+        "bg-card border rounded-[2.5rem] overflow-hidden shadow-card transition-all duration-200 group relative",
+        !product.is_active && "opacity-60 grayscale-[0.4]",
+        isDragging ? "opacity-40 scale-95 cursor-grabbing shadow-none" : "cursor-grab hover:shadow-2xl hover:border-primary/20 hover:-translate-y-0.5",
+        isOver ? "border-primary ring-2 ring-primary/30 scale-[1.02]" : "border-border/50",
       )}
     >
-      {/* Drag Handle */}
-      <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur-md text-white p-1.5 rounded-lg shadow-lg opacity-70 group-hover:opacity-100 transition-opacity" title="Arraste para reordenar">
-        <GripVertical className="h-4 w-4" />
+      {/* Drag Handle — visible on hover */}
+      <div className="absolute top-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
+          <GripVertical className="h-3 w-3" />
+          Arrastar
+        </span>
       </div>
+
       {/* Image Container */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {mainImage ? (
@@ -303,31 +354,37 @@ function ProductCard({ product, onEdit, onDelete, onToggle, isDragging, isOver, 
             <ImagePlus className="h-12 w-12 text-muted-foreground/20" />
           </div>
         )}
-        
+
         <div className="absolute top-4 right-4 flex gap-2">
-            {!product.is_active && (
-                <div className="bg-destructive text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">
-                    Item Pausado
-                </div>
-            )}
-            <div className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg">
-                <ShoppingCart className="h-3 w-3" /> Marketplace
+          {!product.is_active && (
+            <div className="bg-destructive text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">
+              Pausado
             </div>
+          )}
+          <div className="bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg">
+            <ShoppingCart className="h-3 w-3" /> Marketplace
+          </div>
         </div>
 
         {/* Floating Price */}
         <div className="absolute bottom-4 left-4">
-            <div className="bg-background/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-border/50 shadow-xl">
-                <p className="text-primary font-black text-lg tracking-tight">R$ {product.price.toFixed(2).replace(".", ",")}</p>
-            </div>
+          <div className="bg-background/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-border/50 shadow-xl">
+            <p className="text-primary font-black text-lg tracking-tight">
+              R$ {product.price.toFixed(2).replace(".", ",")}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Info */}
       <div className="p-6 space-y-4">
         <div className="min-h-[56px]">
-          <h3 className="font-black text-foreground text-lg leading-tight truncate group-hover:text-primary transition-colors">{product.name}</h3>
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium leading-relaxed">{product.description || "Sem descrição disponível"}</p>
+          <h3 className="font-black text-foreground text-lg leading-tight truncate group-hover:text-primary transition-colors">
+            {product.name}
+          </h3>
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium leading-relaxed">
+            {product.description || "Sem descrição disponível"}
+          </p>
         </div>
 
         {/* Actions Grid */}
@@ -357,10 +414,11 @@ function ProductCard({ product, onEdit, onDelete, onToggle, isDragging, isOver, 
   );
 }
 
-// â”€â”€â”€ Product Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function ProductForm({ companyId, product, onClose, onSaved }: {
+// ── Product Form ──────────────────────────────────────────────────────────────
+function ProductForm({ companyId, product, categoryCount, onClose, onSaved }: {
   companyId: string;
   product: Product | null;
+  categoryCount: number;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -369,7 +427,6 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
   const [category, setCategory] = useState(product?.category || "Outros");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
-  const [newUrl, setNewUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -377,76 +434,43 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
     const file = event.target.files?.[0];
     if (!file || !companyId) return;
 
-    if (imageUrls.length >= 3) {
-      toast.error("Máximo de 3 fotos");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Imagem muito grande! Limite de 5MB.");
-      return;
-    }
+    if (imageUrls.length >= 3) { toast.error("Máximo de 3 fotos"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Imagem muito grande! Limite de 5MB."); return; }
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `product-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${companyId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('store-assets')
-        .upload(filePath, file);
-
+      const { error: uploadError } = await supabase.storage.from("store-assets").upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from('store-assets')
-        .getPublicUrl(filePath);
-
+      const { data } = supabase.storage.from("store-assets").getPublicUrl(filePath);
       setImageUrls([...imageUrls, data.publicUrl]);
       toast.success("Foto do produto enviada!");
     } catch (error: any) {
-      console.error('Erro no upload:', error);
+      console.error("Erro no upload:", error);
       toast.error("Falha ao enviar imagem.");
     } finally {
       setIsUploading(false);
     }
   };
 
-  const addImageUrl = () => {
-    const url = newUrl.trim();
-    if (!url) return;
-    if (imageUrls.length >= 3) {
-      toast.error("Máximo de 3 fotos");
-      return;
-    }
-    if (!url.startsWith("http")) {
-      toast.error("Insira uma URL válida");
-      return;
-    }
-    setImageUrls([...imageUrls, url]);
-    setNewUrl("");
-  };
-
-  const removeImage = (index: number) => {
-    setImageUrls(imageUrls.filter((_, i) => i !== index));
-  };
+  const removeImage = (index: number) => setImageUrls(imageUrls.filter((_, i) => i !== index));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (imageUrls.length === 0) {
-      toast.error("Adicione pelo menos 1 foto");
-      return;
-    }
+    if (imageUrls.length === 0) { toast.error("Adicione pelo menos 1 foto"); return; }
 
     setSaving(true);
     try {
       const imagePayload = JSON.stringify(imageUrls);
-      const payload = {
+      const payload: Record<string, unknown> = {
         name,
         description: description || null,
         category,
-        price: parseFloat(price.replace(',', '.')),
+        price: parseFloat(price.replace(",", ".")),
         image_url: imagePayload,
       };
 
@@ -455,7 +479,11 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
         if (error) throw error;
         toast.success("Produto atualizado!");
       } else {
-        const { error } = await supabase.from("products").insert([{ ...payload, company_id: companyId, is_active: true }]);
+        // New product appended at end of its category
+        payload.sort_order = categoryCount;
+        const { error } = await supabase
+          .from("products")
+          .insert([{ ...payload, company_id: companyId, is_active: true }]);
         if (error) throw error;
         toast.success("Produto publicado!");
       }
@@ -469,182 +497,157 @@ function ProductForm({ companyId, product, onClose, onSaved }: {
 
   return (
     <div className="space-y-6 animate-in slide-in-from-left-4 duration-500">
-      <button onClick={onClose} className="group flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all">
+      <button
+        onClick={onClose}
+        className="group flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all"
+      >
         <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Voltar ao Cardápio
       </button>
 
       <div className="bg-card border border-border rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
         <div className="absolute -top-32 -right-32 w-80 h-80 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
-        
+
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Form Section */}
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="flex items-center gap-3">
-                 <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center">
-                    <Package className="h-7 w-7 text-primary-foreground" />
-                 </div>
-                 <h2 className="text-2xl font-black text-foreground">Detalhes do Item</h2>
+          {/* Form Section */}
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center">
+                <Package className="h-7 w-7 text-primary-foreground" />
               </div>
-
-              <div className="space-y-6">
-                  {/* Name */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Nome do Produto *</label>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Ex: Combo X-Brasil"
-                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
-                      required
-                    />
-                  </div>
-                  
-                  {/* Category Selection */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria *</label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
-                      required
-                    >
-                      <option value="">Selecione uma categoria</option>
-                      <option value="Pizza">🍕 Pizza</option>
-                      <option value="Lanches">🍔 Lanches</option>
-                      <option value="Hamburguer">🔥 Hambúrguer Artesanal</option>
-                      <option value="Padaria">🥐 Padaria</option>
-                      <option value="Assados">🍗 Assados</option>
-                      <option value="Acompanhamentos">🥗 Acompanhamentos</option>
-                      <option value="Marmita">🍱 Marmita</option>
-                      <option value="sorvetes">🍦 Sorvetes e Picolés</option>
-                      <option value="alcoolicas">🍷 Bebidas Alcoólicas</option>
-                      <option value="porcoes">🍟 Porções</option>
-                      <option value="Mercado">🛒 Mercado</option>
-                      <option value="Farmácia">💊 Farmácia</option>
-                      <option value="Perfumaria">✨ Perfumaria</option>
-                      <option value="Bebidas">🥤 Bebidas</option>
-                      <option value="Doces">🍫 Doces</option>
-                      <option value="Pet Shop">🐾 Pet Shop</option>
-                      <option value="Shopping">🛍️ Shopping</option>
-                      <option value="Outros">🍽️ Categoria Geral (Outros)</option>
-                    </select>
-                  </div>
-
-                  {/* Price */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Preço de Venda *</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                      <input
-                        type="text"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value.replace(/[^0-9.,]/g, ""))}
-                        placeholder="Ex: 25.90 ou 25,90"
-                        className="w-full pl-14 pr-6 py-4 rounded-2xl border border-border bg-background/50 font-black outline-none focus:border-primary transition-all text-lg"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Descrição / Ingredientes</label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Os clientes são atraídos por boas descrições. Liste os ingredientes ou defina as propriedades do seu lanche."
-                      rows={4}
-                      className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all placeholder:font-normal placeholder:opacity-60"
-                    />
-                  </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving || !name || !price || imageUrls.length === 0}
-                className="w-full py-5 rounded-[2rem] gradient-primary text-primary-foreground text-lg font-black shadow-2xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-95 transition-all"
-              >
-                {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-6 w-6" />}
-                {saving ? "Publicando..." : (product ? "Salvar Alterações" : "Adicionar ao Marketplace")}
-              </button>
-            </form>
-
-            {/* Photos Section */}
-            <div className="space-y-8 border-l border-border/50 lg:pl-12">
-               <div className="flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Fotos do Produto ({imageUrls.length}/3)</h3>
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                  {imageUrls.map((url, i) => (
-                    <div key={i} className="relative aspect-square rounded-[2rem] overflow-hidden border border-border group shadow-lg">
-                      <img src={url} alt="Prod" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(i)}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                      {i === 0 && (
-                        <div className="absolute bottom-3 left-3 bg-primary text-white text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">
-                           Principal
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  
-                  {imageUrls.length < 3 && (
-                     <div className="aspect-square rounded-[2rem] border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 transition-colors">
-                        <ImagePlus className="h-8 w-8 stroke-1" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Aguardando Foto</span>
-                     </div>
-                  )}
-               </div>
-
-               <div className="space-y-4">
-                  <div className="relative">
-                     <input 
-                        type="file"
-                        id="prod-upload" 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        disabled={isUploading || imageUrls.length >= 3}
-                     />
-                     <label 
-                        htmlFor="prod-upload"
-                        className={cn(
-                          "w-full py-8 rounded-[2rem] border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-primary/10 transition-all",
-                          (isUploading || imageUrls.length >= 3) && "opacity-50 cursor-not-allowed"
-                        )}
-                     >
-                        {isUploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <ImagePlus className="h-8 w-8 text-primary" />}
-                        <div className="text-center">
-                           <span className="text-sm font-black uppercase tracking-widest text-primary block">Tirar Foto / Galeria</span>
-                           <span className="text-[10px] text-muted-foreground font-bold mt-1 block">Use a câmera ou escolha um arquivo</span>
-                        </div>
-                     </label>
-                  </div>
-                  <p className="text-[9px] text-muted-foreground italic px-2">📷 Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
-               </div>
+              <h2 className="text-2xl font-black text-foreground">Detalhes do Item</h2>
             </div>
+
+            <div className="space-y-6">
+              {/* Name */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Nome do Produto *</label>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ex: Combo X-Brasil"
+                  className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+                  required
+                />
+              </div>
+
+              {/* Category */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria *</label>
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
+                  required
+                >
+                  <option value="">Selecione uma categoria</option>
+                  {CATEGORY_OPTIONS.map(c => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Price */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Preço de Venda *</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+                  <input
+                    type="text"
+                    value={price}
+                    onChange={e => setPrice(e.target.value.replace(/[^0-9.,]/g, ""))}
+                    placeholder="Ex: 25.90 ou 25,90"
+                    className="w-full pl-14 pr-6 py-4 rounded-2xl border border-border bg-background/50 font-black outline-none focus:border-primary transition-all text-lg"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Descrição / Ingredientes</label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Os clientes são atraídos por boas descrições. Liste os ingredientes ou defina as propriedades do seu lanche."
+                  rows={4}
+                  className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all placeholder:font-normal placeholder:opacity-60"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving || !name || !price || imageUrls.length === 0}
+              className="w-full py-5 rounded-[2rem] gradient-primary text-primary-foreground text-lg font-black shadow-2xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3 hover:scale-[1.01] active:scale-95 transition-all"
+            >
+              {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Check className="h-6 w-6" />}
+              {saving ? "Publicando..." : product ? "Salvar Alterações" : "Adicionar ao Marketplace"}
+            </button>
+          </form>
+
+          {/* Photos Section */}
+          <div className="space-y-8 border-l border-border/50 lg:pl-12">
+            <div className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Fotos do Produto ({imageUrls.length}/3)</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {imageUrls.map((url, i) => (
+                <div key={i} className="relative aspect-square rounded-[2rem] overflow-hidden border border-border group shadow-lg">
+                  <img src={url} alt="Prod" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  {i === 0 && (
+                    <div className="absolute bottom-3 left-3 bg-primary text-white text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">
+                      Principal
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {imageUrls.length < 3 && (
+                <div className="aspect-square rounded-[2rem] border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 transition-colors">
+                  <ImagePlus className="h-8 w-8 stroke-1" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Aguardando Foto</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                <input
+                  type="file"
+                  id="prod-upload"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  disabled={isUploading || imageUrls.length >= 3}
+                />
+                <label
+                  htmlFor="prod-upload"
+                  className={cn(
+                    "w-full py-8 rounded-[2rem] border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-primary/10 transition-all",
+                    (isUploading || imageUrls.length >= 3) && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {isUploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <ImagePlus className="h-8 w-8 text-primary" />}
+                  <div className="text-center">
+                    <span className="text-sm font-black uppercase tracking-widest text-primary block">Tirar Foto / Galeria</span>
+                    <span className="text-[10px] text-muted-foreground font-bold mt-1 block">Use a câmera ou escolha um arquivo</span>
+                  </div>
+                </label>
+              </div>
+              <p className="text-[9px] text-muted-foreground italic px-2">📷 Recomendamos fotos quadradas (1080x1080) com fundo limpo.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-// â”€â”€â”€ Helper for parsing image_url â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function parseImages(imageUrl: string | null): string[] {
-  if (!imageUrl) return [];
-  try {
-    const parsed = JSON.parse(imageUrl);
-    if (Array.isArray(parsed)) return parsed.filter((u: any) => typeof u === "string" && u.startsWith("http"));
-  } catch {
-    if (imageUrl.startsWith("http")) return [imageUrl];
-  }
-  return [];
-}
-
