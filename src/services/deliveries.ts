@@ -270,7 +270,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     // Atualizar o status para pending (caso estivesse como draft/hidden) e atualizar o valor
     await supabase.from("deliveries").update({ 
       status: "pending", 
-      value: customValue || existingDelivery.value 
+      value: customValue !== undefined && customValue !== null ? customValue : existingDelivery.value 
     }).eq("id", existingDelivery.id);
 
     // Assegurar que o pedido aponta para a entrega corretamente
@@ -297,7 +297,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       customer_name: customerData?.name || (order as any).customer_name || "Cliente Marketplace",
       customer_phone: cleanPhone || null,
       address: dropoff,
-      value: customValue || order.total || 0,
+      value: customValue !== undefined && customValue !== null ? customValue : 0,
       status: "pending"
     })
     .select()
