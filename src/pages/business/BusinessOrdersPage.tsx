@@ -816,7 +816,7 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
                 <XCircle className="h-4 w-4" />
               </button>
             )}
-            {action && (
+            {action && (!order.delivery_id || action.next !== "delivered") && (
               <button
                 onClick={onAdvance}
                 className={cn(
