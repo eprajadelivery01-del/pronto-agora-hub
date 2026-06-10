@@ -304,8 +304,8 @@ export default function OrderDetailModal({
                                                     </p>
                                                   )}
                                                   {(item.notes || item.observation) && (
-                                                    <p className="text-[10px] text-warning-foreground bg-warning/10 px-2 py-1 rounded-md inline-block leading-snug mt-1">
-                                                      <span className="font-bold">Obs:</span> {item.notes || item.observation}
+                                                    <p className="text-[10px] text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30 px-2 py-1 rounded-md inline-block leading-snug mt-1 font-medium">
+                                                      <span className="font-bold text-amber-800 dark:text-amber-200">Obs:</span> {item.notes || item.observation}
                                                     </p>
                                                   )}
                                                 </div>

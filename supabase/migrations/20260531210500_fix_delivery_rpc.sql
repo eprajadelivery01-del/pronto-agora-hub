@@ -48,9 +48,9 @@ BEGIN
   -- 4. Also update any associated order status safely
   BEGIN
     IF v_db_status = 'accepted' THEN 
-      v_order_status := 'in_route';
+      v_order_status := 'ready';
     ELSIF v_db_status = 'collecting' THEN 
-      v_order_status := 'in_route';
+      v_order_status := 'ready';
     ELSIF v_db_status = 'in_route' THEN 
       v_order_status := 'in_route';
     ELSIF v_db_status = 'completed' THEN 

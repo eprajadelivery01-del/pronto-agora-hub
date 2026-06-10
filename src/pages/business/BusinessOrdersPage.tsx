@@ -775,8 +775,8 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
                   <span className="font-bold text-foreground/80 truncate leading-none">{item.product_name || item.products?.name}</span>
                 </div>
                 {item.notes && (
-                  <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 px-1.5 py-0.5 rounded mt-0.5 ml-8 self-start font-medium border border-amber-200/50 dark:border-amber-900/30">
-                    Obs: {item.notes}
+                  <span className="text-[10px] text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30 px-1.5 py-0.5 rounded mt-0.5 ml-8 self-start font-medium border border-amber-200/50 dark:border-amber-800/30">
+                    <span className="font-bold text-amber-800 dark:text-amber-200">Obs:</span> {item.notes}
                   </span>
                 )}
               </div>
