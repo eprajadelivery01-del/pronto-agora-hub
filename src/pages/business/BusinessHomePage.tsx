@@ -177,9 +177,10 @@ export default function BusinessHomePage() {
 
   // Filter deliveries to only show active ones
   const activeDeliveries = combinedDeliveries.filter(d => {
+    if (!companyId) return false;
     if (d.notes === "Cancelamento automático de entrega prematura") return false;
     if (CLOSED_DELIVERY_STATUSES.includes(d.status)) return false;
-    if (companyId && d.company_id && d.company_id !== companyId) {
+    if (d.company_id !== companyId) {
       const deliveryCompanyName = (d.companies as any)?.name?.trim().toLowerCase();
       const currentCompanyName = companyData?.name?.trim().toLowerCase();
       if (!deliveryCompanyName || deliveryCompanyName !== currentCompanyName) return false;
