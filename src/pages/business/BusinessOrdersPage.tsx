@@ -270,7 +270,7 @@ export default function BusinessOrdersPage() {
             // mas desvinculamos o status de 'in_route'
           }
 
-          const activeDeliveryStatuses = ["pending", "accepted", "collecting", "in_route", "in_transit"];
+          const activeDeliveryStatuses = ["in_route", "in_transit"];
           const computedStatus = (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") ? "in_route" : o.status;
 
           return {
