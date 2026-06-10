@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
@@ -18,21 +19,30 @@ Deno.serve(async (req) => {
     // 1. Get Auth Header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "No authorization header" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // 2. Get Requester Info
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user: requester }, error: userError } = await supabase.auth.getUser(token);
+    const {
+      data: { user: requester },
+      error: userError,
+    } = await supabase.auth.getUser(token);
 
     if (userError || !requester) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Sessão inválida. Acesso Negado." }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // 3. Check if requester IS ADMIN
@@ -44,20 +54,41 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (roleError || !roleData) {
-      return new Response(JSON.stringify({ error: "Unauthorized: Admin role required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Apenas administradores podem criar usuários",
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const body = await req.json();
-    const { email, password, fullName, phone, document, role, vehicle, licensePlate, commissionRate, companyName, address, regionId } = body;
+    const {
+      email,
+      password,
+      fullName,
+      phone,
+      document,
+      role,
+      vehicle,
+      licensePlate,
+      commissionRate,
+      companyName,
+      address,
+      regionId,
+    } = body;
 
     if (!email || !password || !role) {
-      return new Response(JSON.stringify({ error: "email, password e role são obrigatórios" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "email, password e role são obrigatórios" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const validRoles = ["admin", "driver", "company", "customer"];
@@ -69,12 +100,13 @@ Deno.serve(async (req) => {
     }
 
     // Create user
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName || "", role: role },
-    });
+    const { data: authData, error: authError } =
+      await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName || "", role: role },
+      });
 
     if (authError) {
       return new Response(JSON.stringify({ error: authError.message }), {

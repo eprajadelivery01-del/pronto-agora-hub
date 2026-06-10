@@ -444,6 +444,7 @@ export default function BusinessProfilePage() {
 
                {/* Inputs Grid */}
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-border/50">
+                  {/* Left Column - Basic Info */}
                   <div className="space-y-6">
                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                         <Info className="h-3 w-3" /> Sobre o Negócio
@@ -495,111 +496,13 @@ export default function BusinessProfilePage() {
                               <option value="barbantes_tecidos">Barbantes e Tecidos</option>
                            </select>
                         </div>
-                        
-                        <div className="pt-4 border-t border-border/40 mt-6 space-y-3">
-                             {/* Toggle Unificado: Loja Ativa */}
-                             <button
-                                type="button"
-                                onClick={toggleStoreActive}
-                                className={cn(
-                                  "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
-                                  isOpen
-                                    ? "bg-emerald-50 border-emerald-400 shadow-md shadow-emerald-100"
-                                    : "bg-muted/40 border-border/60 hover:border-border"
-                                )}
-                             >
-                                <div className="text-left">
-                                   <p className={cn(
-                                     "text-[11px] font-black uppercase tracking-widest",
-                                     isOpen ? "text-emerald-700" : "text-muted-foreground"
-                                   )}>
-                                     {isOpen ? "✅ Loja Ativa" : "⏸️ Loja Pausada"}
-                                   </p>
-                                   <p className={cn(
-                                     "text-[10px] font-medium mt-0.5",
-                                     isOpen ? "text-emerald-600" : "text-muted-foreground"
-                                   )}>
-                                     {isOpen
-                                       ? "Visível no marketplace · Aceitando pedidos"
-                                       : "Oculta no marketplace · Sem receber pedidos"}
-                                   </p>
-                                </div>
-                                <div className={cn(
-                                  "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
-                                  isOpen ? "bg-emerald-500" : "bg-muted-foreground/30"
-                                )}>
-                                   <span className={cn(
-                                     "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
-                                     isOpen ? "translate-x-6" : "translate-x-1"
-                                   )} />
-                                </div>
-                             </button>
-
-                           <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Horário de Funcionamento</label>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const firstActive = workingDays.find(d => d.active);
-                                    if (firstActive) {
-                                      const newDays = (Array.isArray(workingDays) ? workingDays : []).map(d => ({ ...d, start: firstActive.start, end: firstActive.end }));
-                                      setWorkingDays(newDays);
-                                      toast.success("Horários aplicados a todos os dias!");
-                                    }
-                                  }}
-                                  className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
-                                >
-                                  Repetir Horários (Aplicar a todos)
-                                </button>
-                              </div>
-                              <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
-                                {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => (
-                                  <div key={wd.day} className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0">
-                                    <div className="flex items-center gap-3">
-                                      <input 
-                                        type="checkbox" 
-                                        checked={wd.active} 
-                                        onChange={(e) => updateWorkingDay(idx, 'active', e.target.checked)}
-                                        className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-                                      />
-                                      <span className={cn("text-xs font-bold w-10", wd.active ? "text-foreground" : "text-muted-foreground")}>{wd.day}</span>
-                                    </div>
-                                    
-                                    <div className={cn("flex items-center gap-3 transition-all", !wd.active && "opacity-20 pointer-events-none")}>
-                                      <div className="relative">
-                                        <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                                        <input 
-                                          type="text" 
-                                          value={wd.start} 
-                                          onChange={(e) => updateWorkingDay(idx, 'start', e.target.value)}
-                                          className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
-                                          placeholder="08:00"
-                                        />
-                                      </div>
-                                      <span className="text-[10px] font-black text-muted-foreground/30">➜</span>
-                                      <div className="relative">
-                                        <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                                        <input 
-                                          type="text" 
-                                          value={wd.end} 
-                                          onChange={(e) => updateWorkingDay(idx, 'end', e.target.value)}
-                                          className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
-                                          placeholder="18:00"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                           </div>
-                        </div>
                      </div>
                   </div>
 
+                  {/* Right Column - Contact & Settings */}
                   <div className="space-y-6">
                       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                         <Phone className="h-3 w-3" /> Contato e Localização
+                         <Phone className="h-3 w-3" /> Contato e Configurações
                       </div>
 
                       <div className="space-y-4">
@@ -644,116 +547,213 @@ export default function BusinessProfilePage() {
                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">min</span>
                             </div>
                             <p className="text-xs text-muted-foreground ml-1">
-                              Tempo médio estimado para preparar os pedidos. Exibido aos clientes no marketplace.
+                              Tempo médio para preparar. Exibido aos clientes.
                             </p>
                          </div>
 
-
-
-                         {/* DELIVERY REGIONS PRICING */}
-                         <div className="pt-6 space-y-4">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                               <MapPin className="h-3 w-3" /> Taxas de Entrega por Região
+                         {/* Toggle Unificado: Loja Ativa */}
+                         <button
+                            type="button"
+                            onClick={toggleStoreActive}
+                            className={cn(
+                              "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group mt-2",
+                              isOpen
+                                ? "bg-emerald-50 border-emerald-400 shadow-md shadow-emerald-100"
+                                : "bg-muted/40 border-border/60 hover:border-border"
+                            )}
+                         >
+                            <div className="text-left">
+                               <p className={cn(
+                                 "text-[11px] font-black uppercase tracking-widest",
+                                 isOpen ? "text-emerald-700" : "text-muted-foreground"
+                               )}>
+                                 {isOpen ? "✅ Loja Ativa" : "⏸️ Loja Pausada"}
+                               </p>
+                               <p className={cn(
+                                 "text-[10px] font-medium mt-0.5",
+                                 isOpen ? "text-emerald-600" : "text-muted-foreground"
+                               )}>
+                                 {isOpen
+                                   ? "Visível no marketplace"
+                                   : "Oculta no marketplace"}
+                               </p>
                             </div>
-                            <p className="text-xs text-muted-foreground ml-1">
-                              Defina o valor que o cliente vai pagar pela entrega em cada região.
-                            </p>
+                            <div className={cn(
+                              "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
+                              isOpen ? "bg-emerald-500" : "bg-muted-foreground/30"
+                            )}>
+                               <span className={cn(
+                                 "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
+                                 isOpen ? "translate-x-6" : "translate-x-1"
+                               )} />
+                            </div>
+                         </button>
+                      </div>
+                  </div>
+               </div>
 
-                            {allRegions.length === 0 && (
-                              <div className="py-8 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground/40 gap-2">
-                                <MapPin className="h-6 w-6" />
-                                <p className="text-xs font-bold uppercase tracking-widest">Nenhuma região cadastrada</p>
-                                <p className="text-[10px]">O Admin deve criar as regiões primeiro.</p>
+               {/* FULL WIDTH SECTIONS BELOW */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-border/50">
+                   {/* SCHEDULE SECTION */}
+                   <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                           <Clock3 className="h-3 w-3" /> Horário de Funcionamento
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const firstActive = workingDays.find(d => d.active);
+                            if (firstActive) {
+                              const newDays = (Array.isArray(workingDays) ? workingDays : []).map(d => ({ ...d, start: firstActive.start, end: firstActive.end }));
+                              setWorkingDays(newDays);
+                              toast.success("Horários aplicados a todos os dias!");
+                            }
+                          }}
+                          className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
+                        >
+                          Repetir Horários (Aplicar a todos)
+                        </button>
+                      </div>
+                      <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
+                        {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => (
+                          <div key={wd.day} className="flex items-center justify-between gap-2 py-2 border-b border-border/10 last:border-0 overflow-x-auto">
+                            <div className="flex items-center gap-3 shrink-0">
+                              <input 
+                                type="checkbox" 
+                                checked={wd.active} 
+                                onChange={(e) => updateWorkingDay(idx, 'active', e.target.checked)}
+                                className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                              />
+                              <span className={cn("text-xs font-bold w-10", wd.active ? "text-foreground" : "text-muted-foreground")}>{wd.day}</span>
+                            </div>
+                            
+                            <div className={cn("flex items-center gap-2 shrink-0 transition-all", !wd.active && "opacity-20 pointer-events-none")}>
+                              <div className="relative">
+                                <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                                <input 
+                                  type="text" 
+                                  value={wd.start} 
+                                  onChange={(e) => updateWorkingDay(idx, 'start', e.target.value)}
+                                  className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="08:00"
+                                />
                               </div>
-                            )}
-
-                            <div className="divide-y divide-border rounded-2xl border border-border overflow-hidden">
-                              {allRegions.map((region) => {
-                                const pricing = deliveryRegionsPricing.find(p => p.region_id === region.id);
-                                const customerPrice = pricing ? pricing.customer_price : "";
-
-                                return (
-                                  <div key={region.id} className="flex items-center gap-0 bg-card hover:bg-muted/30 transition-colors">
-                                    {/* Color stripe */}
-                                    <div
-                                      className="w-1 self-stretch shrink-0 rounded-l-none"
-                                      style={{ backgroundColor: region.color || '#6366f1' }}
-                                    />
-
-                                    {/* Region info */}
-                                    <div className="flex-1 min-w-0 px-4 py-3">
-                                      <p className="font-black text-sm leading-tight" style={{ color: region.color || 'inherit' }}>
-                                        {region.name}
-                                      </p>
-                                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                                        Base Admin: <span className="font-bold text-foreground">R$ {Number(region.price || 0).toFixed(2).replace('.', ',')}</span>
-                                      </p>
-                                    </div>
-
-                                    {/* Price input */}
-                                    <div className="shrink-0 px-4 py-3">
-                                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground mb-1.5 text-right">Cobrar do cliente</p>
-                                      <div className="relative w-28">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">R$</span>
-                                        <input
-                                          type="text"
-                                          value={customerPrice}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9.,]/g, "");
-                                            setDeliveryRegionsPricing(prev => {
-                                              const exists = prev.find(p => p.region_id === region.id);
-                                              if (exists) {
-                                                return prev.map(p => p.region_id === region.id ? { ...p, customer_price: val } : p);
-                                              }
-                                              return [...prev, { region_id: region.id, customer_price: val }];
-                                            });
-                                          }}
-                                          placeholder="0,00"
-                                          className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-background outline-none font-black text-primary text-right focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                              <span className="text-[10px] font-black text-muted-foreground/30">➜</span>
+                              <div className="relative">
+                                <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                                <input 
+                                  type="text" 
+                                  value={wd.end} 
+                                  onChange={(e) => updateWorkingDay(idx, 'end', e.target.value)}
+                                  className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="18:00"
+                                />
+                              </div>
                             </div>
-                         </div>
+                          </div>
+                        ))}
                       </div>
                    </div>
 
-                      {/* GALLERY SECTION */}
-                      <div className="pt-8 space-y-4">
-                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                               <ImagePlus className="h-3 w-3" /> Galeria de Fotos
-                            </div>
-                            <label className="cursor-pointer px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
-                               Adicionar
-                               <input type="file" multiple accept="image/*"  className="hidden" onChange={handleGalleryUpload} />
-                            </label>
-                         </div>
-                         
-                         <div className="grid grid-cols-3 gap-3">
-                            {(Array.isArray(gallery) ? gallery : []).map((url, idx) => (
-                               <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group/item border border-border/50">
-                                  <img src={url} className="w-full h-full object-cover" />
-                                  <button 
-                                    onClick={() => removeGalleryItem(url)}
-                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover/item:opacity-100 transition-opacity"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                               </div>
-                            ))}
-                            {gallery.length === 0 && (
-                               <div className="col-span-3 py-12 border-2 border-dashed border-border rounded-[2rem] flex flex-col items-center justify-center text-muted-foreground/30">
-                                  <ImagePlus className="h-8 w-8 mb-2" />
-                                  <p className="text-[10px] font-bold uppercase tracking-widest">Sua galeria está vazia</p>
+                   {/* DELIVERY REGIONS PRICING */}
+                   <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                         <MapPin className="h-3 w-3" /> Taxas de Entrega por Região
+                      </div>
+                      <p className="text-xs text-muted-foreground ml-1">
+                         Defina o valor que o cliente vai pagar pela entrega em cada região.
+                      </p>
+
+                      {allRegions.length === 0 && (
+                        <div className="py-8 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground/40 gap-2">
+                          <MapPin className="h-6 w-6" />
+                          <p className="text-xs font-bold uppercase tracking-widest">Nenhuma região cadastrada</p>
+                          <p className="text-[10px]">O Admin deve criar as regiões primeiro.</p>
+                        </div>
+                      )}
+
+                      <div className="divide-y divide-border rounded-2xl border border-border overflow-hidden">
+                        {allRegions.map((region) => {
+                          const pricing = deliveryRegionsPricing.find(p => p.region_id === region.id);
+                          const customerPrice = pricing ? pricing.customer_price : "";
+
+                          return (
+                            <div key={region.id} className="flex items-center gap-0 bg-card hover:bg-muted/30 transition-colors">
+                              <div
+                                className="w-1 self-stretch shrink-0 rounded-l-none"
+                                style={{ backgroundColor: region.color || '#6366f1' }}
+                              />
+                              <div className="flex-1 min-w-0 px-4 py-3">
+                                <p className="font-black text-sm leading-tight" style={{ color: region.color || 'inherit' }}>
+                                  {region.name}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  Base Admin: <span className="font-bold text-foreground">R$ {Number(region.price || 0).toFixed(2).replace('.', ',')}</span>
+                                </p>
+                              </div>
+                              <div className="shrink-0 px-4 py-3">
+                                <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground mb-1.5 text-right">Cobrar do cliente</p>
+                                <div className="relative w-28">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">R$</span>
+                                  <input
+                                    type="text"
+                                    value={customerPrice}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9.,]/g, "");
+                                      setDeliveryRegionsPricing(prev => {
+                                        const exists = prev.find(p => p.region_id === region.id);
+                                        if (exists) {
+                                          return prev.map(p => p.region_id === region.id ? { ...p, customer_price: val } : p);
+                                        }
+                                        return [...prev, { region_id: region.id, customer_price: val }];
+                                      });
+                                    }}
+                                    placeholder="0,00"
+                                    className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-border bg-background outline-none font-black text-primary text-right focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                                  />
                                 </div>
-                            )}
-                         </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                    </div>
+               </div>
+
+               {/* GALLERY SECTION */}
+               <div className="pt-8 border-t border-border/50 mt-8 space-y-4">
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                        <ImagePlus className="h-3 w-3" /> Galeria de Fotos
+                     </div>
+                     <label className="cursor-pointer px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
+                        Adicionar
+                        <input type="file" multiple accept="image/*"  className="hidden" onChange={handleGalleryUpload} />
+                     </label>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
+                     {(Array.isArray(gallery) ? gallery : []).map((url, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group/item border border-border/50">
+                           <img src={url} className="w-full h-full object-cover" />
+                           <button 
+                             onClick={() => removeGalleryItem(url)}
+                             className="absolute top-2 right-2 p-1.5 bg-red-500/90 hover:bg-red-500 text-white rounded-lg opacity-0 group-hover/item:opacity-100 transition-all shadow-lg"
+                           >
+                             <X className="h-4 w-4" />
+                           </button>
+                        </div>
+                     ))}
+                     {gallery.length === 0 && (
+                        <div className="col-span-full py-16 border-2 border-dashed border-border rounded-[2rem] flex flex-col items-center justify-center text-muted-foreground/40 bg-muted/20">
+                           <ImagePlus className="h-10 w-10 mb-3" />
+                           <p className="text-[11px] font-black uppercase tracking-widest">Sua galeria está vazia</p>
+                           <p className="text-[10px] mt-1 text-muted-foreground">Adicione fotos dos seus melhores pratos!</p>
+                         </div>
+                     )}
+                  </div>
+               </div>
                </div>
             </div>
           </div>
