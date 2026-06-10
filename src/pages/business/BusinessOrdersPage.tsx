@@ -415,7 +415,18 @@ export default function BusinessOrdersPage() {
     setSelectedOrderForDispatch(order);
     
     // Puxa o valor da taxa de entrega que o cliente já pagou no pedido
-    const preCalculatedFee = (order as any).delivery_fee || 0;
+    let preCalculatedFee = (order as any).delivery_fee;
+    
+    if (preCalculatedFee === undefined || preCalculatedFee === null) {
+      if (order.total && order.items && order.items.length > 0) {
+        const itemsTotal = order.items.reduce((sum: number, item: any) => sum + (Number(item.price) * Number(item.quantity)), 0);
+        const diff = Number(order.total) - itemsTotal;
+        preCalculatedFee = diff > 0 ? diff : 0;
+      } else {
+        preCalculatedFee = 0;
+      }
+    }
+    
     setDeliveryFee(formatCurrency(preCalculatedFee));
     setDetectedRegion(null);
     setIsDispatchModalOpen(true);
