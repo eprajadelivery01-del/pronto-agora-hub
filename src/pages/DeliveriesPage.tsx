@@ -147,6 +147,28 @@ export default function DeliveriesPage() {
          productValue = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
       }
     }
+    
+    // Fallback for marketplace orders
+    let itemsHtml = "";
+    if ((delivery as any).orders) {
+      const ordersArray = Array.isArray((delivery as any).orders) ? (delivery as any).orders : [(delivery as any).orders];
+      if (ordersArray.length > 0) {
+        const firstOrder = ordersArray[0];
+        if (productValue === 0) productValue = Number(firstOrder.total || 0);
+        
+        if (firstOrder.order_items && Array.isArray(firstOrder.order_items) && firstOrder.order_items.length > 0) {
+          itemsHtml += `<hr/><div class="label" style="margin-top: 0;">Itens do Pedido</div>`;
+          firstOrder.order_items.forEach((item: any) => {
+             const productName = item.products?.name || "Produto";
+             const quantity = item.quantity || 1;
+             const price = Number(item.price || 0).toFixed(2).replace('.', ',');
+             const escName = productName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+             itemsHtml += `<div class="value" style="font-weight:normal; margin-bottom: 4px; font-size: 12px;">${quantity}x ${escName} (R$ ${price})</div>`;
+          });
+        }
+      }
+    }
+
 
     const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const w = window.open("", "_blank", "width=400,height=600");
@@ -176,6 +198,7 @@ export default function DeliveriesPage() {
         <div class="value">${esc(delivery.status)}</div>
         <div class="label">Forma de Pagamento</div>
         <div class="value">${esc((delivery as any).payment_method || "Não informada")}</div>
+        ${itemsHtml}
         <hr/>
         <div class="label">Valor do Produto</div>
         <div class="value">R$ ${productValue.toFixed(2).replace('.', ',')}</div>
@@ -190,6 +213,7 @@ export default function DeliveriesPage() {
       </body></html>
     `);
     w.document.close();
+
     w.print();
   };
 
