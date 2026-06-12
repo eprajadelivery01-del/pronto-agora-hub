@@ -152,11 +152,11 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
   };
 
   useEffect(() => {
-    if (selectedProducts.length > 0 && !isPaid) {
+    if (selectedProducts.length > 0) {
       const total = selectedProducts.reduce((acc, curr) => acc + (curr.product.price || 0) * curr.quantity, 0);
       setCollectValue(total.toFixed(2).replace('.', ','));
     }
-  }, [selectedProducts, isPaid]);
+  }, [selectedProducts]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -192,7 +192,8 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
 
     try {
       const parsedDeliveryValue = parseFloat(deliveryValue.replace(',', '.'));
-      const parsedCollectValue = isPaid ? 0 : parseFloat(collectValue.replace(',', '.'));
+      const parsedProductValue = parseFloat(collectValue.replace(',', '.'));
+      const parsedCollectValue = isPaid ? 0 : parsedProductValue;
 
       let finalAddress = address;
       if (addressType && addressType !== "Outro") {
@@ -206,11 +207,16 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
           return `${p.quantity}x ${p.product.name} (${formattedPrice})`;
         }).join("\n");
         const totalProducts = selectedProducts.reduce((acc, curr) => acc + (curr.product.price || 0) * curr.quantity, 0);
-        const formattedTotal = totalProducts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const formattedTotal = totalProducts.toFixed(2).replace('.', ',');
 
-        finalNotes = `[PRODUTOS]\n${productsText}\nTotal Produtos: ${formattedTotal}\n\n${finalNotes}`.trim();
-      } else if (productInputMode === 'manual' && manualProducts.trim()) {
-        finalNotes = `[ITENS: DIGITADOS]\n${manualProducts.trim()}\n\n${finalNotes}`.trim();
+        finalNotes = `[PRODUTOS]\n${productsText}\nTotal Produtos: R$ ${formattedTotal}\n\n${finalNotes}`.trim();
+      } else {
+        const formattedTotal = parsedProductValue.toFixed(2).replace('.', ',');
+        finalNotes = `Total Produtos: R$ ${formattedTotal}\n\n${finalNotes}`.trim();
+        
+        if (productInputMode === 'manual' && manualProducts.trim()) {
+          finalNotes = `[ITENS: DIGITADOS]\n${manualProducts.trim()}\n\n${finalNotes}`.trim();
+        }
       }
 
       if (isPaid) {
@@ -409,9 +415,9 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega (R$)</label>
                <input value={deliveryValue} readOnly className="w-full px-5 py-5 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-primary outline-none" />
              </div>
-             <div className={cn("space-y-1.5", isPaid && "opacity-40 grayscale pointer-events-none")}>
-               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Valor a Cobrar (R$)</label>
-               <input value={isPaid ? "0,00" : collectValue} onChange={e => setCollectValue(e.target.value)} className="w-full px-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none" />
+             <div className="space-y-1.5">
+               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Valor do Produto (R$)</label>
+               <input value={collectValue} onChange={e => setCollectValue(e.target.value)} className="w-full px-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none" />
              </div>
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-transparent ml-2 select-none">Pagamento</label>
