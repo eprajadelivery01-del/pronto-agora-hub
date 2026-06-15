@@ -175,7 +175,7 @@ export default function OrderDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh]">
+      <DialogContent className="print-section sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh]">
         <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
         
         {/* Header Ultra-Compacto */}
@@ -393,7 +393,7 @@ export default function OrderDetailModal({
             @page { margin: 0; size: 80mm auto; }
             body { margin: 0; padding: 0; background: white; width: 80mm; }
             body * { visibility: hidden; }
-            .DialogContent { 
+            .print-section { 
               visibility: visible !important; 
               position: absolute !important; 
               left: 0 !important; top: 0 !important; 
@@ -403,7 +403,7 @@ export default function OrderDetailModal({
               display: block !important;
               background: white !important;
             }
-            .DialogContent * { visibility: visible !important; }
+            .print-section * { visibility: visible !important; }
             .print\\:hidden, button { display: none !important; }
           }
         `}} />
