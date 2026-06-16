@@ -11,7 +11,7 @@ export function SoundEnabler() {
 
   useEffect(() => {
     // Check if we already have interaction in this session
-    const soundEnabled = sessionStorage.getItem("epj_sound_enabled");
+    const soundEnabled = localStorage.getItem("epj_sound_enabled");
     if (!soundEnabled) {
       // Show after a short delay
       const timer = setTimeout(() => setIsVisible(true), 1500);
@@ -21,7 +21,7 @@ export function SoundEnabler() {
 
   const enableSound = () => {
     unlockAudio();
-    sessionStorage.setItem("epj_sound_enabled", "true");
+    localStorage.setItem("epj_sound_enabled", "true");
     setIsVisible(false);
   };
 
@@ -43,7 +43,10 @@ export function SoundEnabler() {
         >
           Ativar
         </Button>
-        <button onClick={() => setIsVisible(false)} className="p-2 opacity-50 hover:opacity-100">
+        <button onClick={() => {
+          setIsVisible(false);
+          localStorage.setItem("epj_sound_enabled", "dismissed");
+        }} className="p-2 opacity-50 hover:opacity-100">
           <X className="h-4 w-4" />
         </button>
       </div>
