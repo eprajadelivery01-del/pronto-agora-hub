@@ -559,7 +559,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                 />
                 
                 {/* Category Chips */}
-                <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-hide">
+                <div className="flex flex-wrap gap-2 pb-2 pt-1">
                   {/* Categorias Globais */}
                   {GLOBAL_CATEGORIES.map(c => (
                     <button
