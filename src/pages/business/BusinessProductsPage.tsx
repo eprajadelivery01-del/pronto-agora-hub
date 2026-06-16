@@ -167,10 +167,8 @@ export default function BusinessProductsPage() {
   
   // Group products by their custom category
   const grouped = allCategories.map(catValue => {
-    const predefinedCat = CATEGORY_OPTIONS.find(c => c.value === catValue);
-    const label = predefinedCat ? predefinedCat.label : catValue;
     return {
-      cat: { value: catValue, label },
+      cat: { value: catValue, label: catValue },
       items: products.filter(p => (p.category || "Outros") === catValue).sort((a, b) => a.sort_order - b.sort_order)
     };
   });
