@@ -62,8 +62,7 @@ export default function LoginPage() {
 
         let description = `${message} (Senha enviada: ${passLength} caracteres${hasTrailingSpace ? " com espaço no final" : ""}${hasLeadingSpace ? " com espaço no início" : ""})`;
         if (/invalid login credentials/i.test(message)) {
-          description =
-            `E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador. (Senha digitada: ${passLength} caracteres)`;
+          description = "Credenciais inválidas. Verifique se o e-mail e a senha estão corretos.";
         } else if (/email not confirmed/i.test(message)) {
           description = "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
         }

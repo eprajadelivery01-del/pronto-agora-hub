@@ -42,7 +42,7 @@ export default function BusinessLoginPage() {
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Erro inesperado";
         const description = /invalid login credentials/i.test(message)
-          ? "E-mail ou senha incorretos. Verifique também se o e-mail foi confirmado e se a conta não foi bloqueada pelo administrador."
+          ? "Credenciais inválidas. Verifique se o e-mail e a senha estão corretos."
           : message;
         toast.error("Erro ao entrar: " + description);
         logFailedLogin(normalizedEmail);
