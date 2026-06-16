@@ -381,33 +381,35 @@ function ProductCard({
         </div>
 
         {/* Actions Grid */}
-        <div className="flex items-center gap-2 pt-4 border-t border-border mt-auto">
+        <div className="flex flex-col gap-2 pt-4 border-t border-border mt-auto">
           <button
             onClick={onEdit}
-            className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
+            className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
           >
             <Edit3 className="h-4 w-4" /> Editar
           </button>
-          <button
-            onClick={onToggleFeatured}
-            className={cn("shrink-0 h-11 w-11 rounded-xl flex items-center justify-center transition-all active:scale-95", product.is_featured ? "bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-white" : "bg-muted text-muted-foreground hover:bg-muted/80")}
-            title={product.is_featured ? "Remover Destaque" : "Destacar Produto"}
-          >
-            <Star className={cn("h-4 w-4", product.is_featured && "fill-current")} />
-          </button>
-          <button
-            onClick={onToggle}
-            className="shrink-0 h-11 w-11 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 flex items-center justify-center transition-all active:scale-95"
-            title={product.is_active ? "Pausar Vendas" : "Ativar Vendas"}
-          >
-            {product.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-emerald-500" />}
-          </button>
-          <button
-            onClick={onDelete}
-            className="shrink-0 h-11 w-11 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-all active:scale-95"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={onToggleFeatured}
+              className={cn("py-3 rounded-xl flex items-center justify-center transition-all active:scale-95", product.is_featured ? "bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-white" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+              title={product.is_featured ? "Remover Destaque" : "Destacar Produto"}
+            >
+              <Star className={cn("h-4 w-4", product.is_featured && "fill-current")} />
+            </button>
+            <button
+              onClick={onToggle}
+              className="py-3 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 flex items-center justify-center transition-all active:scale-95"
+              title={product.is_active ? "Pausar Vendas" : "Ativar Vendas"}
+            >
+              {product.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-emerald-500" />}
+            </button>
+            <button
+              onClick={onDelete}
+              className="py-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-all active:scale-95"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
