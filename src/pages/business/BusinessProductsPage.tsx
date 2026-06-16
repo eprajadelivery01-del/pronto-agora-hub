@@ -314,6 +314,7 @@ function ProductCard({
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", product.id);
         setIsDragging(true);
         onDragStart();
       }}
@@ -347,7 +348,7 @@ function ProductCard({
       {/* Image Container */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {mainImage ? (
-          <img src={mainImage} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+          <img src={mainImage} alt={product.name} draggable={false} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ImagePlus className="h-12 w-12 text-muted-foreground/20" />
@@ -444,6 +445,16 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [saving, setSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+
+  const ALL_CHIPS = [
+    ...existingCategories.map(c => ({ name: c, type: 'internal' })),
+    ...GLOBAL_CATEGORIES.filter(c => !existingCategories.includes(c)).map(c => ({ name: c, type: 'global' }))
+  ];
+
+  const MAX_VISIBLE = 5;
+  const displayedChips = showAllCategories ? ALL_CHIPS : ALL_CHIPS.slice(0, MAX_VISIBLE);
+  const hiddenCount = ALL_CHIPS.length - MAX_VISIBLE;
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -560,42 +571,42 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                 
                 {/* Category Chips */}
                 <div className="flex flex-wrap gap-2 pb-2 pt-1">
-                  {/* Categorias Internas da Loja (Prioridade) */}
-                  {existingCategories.map(c => (
+                  {displayedChips.map(chip => (
                     <button
-                      key={`existing-${c}`}
+                      key={`${chip.type}-${chip.name}`}
                       type="button"
-                      onClick={() => setCategory(c)}
+                      onClick={() => setCategory(chip.name)}
                       className={cn(
                         "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-                        category === c 
+                        category === chip.name 
                           ? "bg-primary text-primary-foreground border-primary shadow-md" 
-                          : "bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 font-extrabold"
+                          : chip.type === 'internal'
+                            ? "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200 border-slate-200"
                       )}
                     >
-                      {c}
+                      {chip.name}
                     </button>
                   ))}
-
-                  {/* Categorias Globais */}
-                  {GLOBAL_CATEGORIES.map(c => {
-                    if (existingCategories.includes(c)) return null;
-                    return (
-                      <button
-                        key={`global-${c}`}
-                        type="button"
-                        onClick={() => setCategory(c)}
-                        className={cn(
-                          "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-                          category === c 
-                            ? "bg-primary text-primary-foreground border-primary shadow-md" 
-                            : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
-                        )}
-                      >
-                        {c}
-                      </button>
-                    )
-                  })}
+                  
+                  {!showAllCategories && hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllCategories(true)}
+                      className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-dashed border-border text-muted-foreground hover:bg-muted/50"
+                    >
+                      +{hiddenCount} MAIS
+                    </button>
+                  )}
+                  {showAllCategories && hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllCategories(false)}
+                      className="shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-dashed border-border text-muted-foreground hover:bg-muted/50"
+                    >
+                      OCULTAR
+                    </button>
+                  )}
                 </div>
               </div>
 
