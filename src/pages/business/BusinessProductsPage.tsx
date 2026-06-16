@@ -26,6 +26,15 @@ interface Product {
   is_featured?: boolean | null;
 }
 
+const GLOBAL_CATEGORIES = [
+  "Mercado",
+  "Farmácia",
+  "Restaurante",
+  "Petiscaria",
+  "Bebidas",
+  "Shopping"
+];
+
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
   try {
@@ -550,9 +559,29 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                 />
                 
                 {/* Category Chips */}
-                {existingCategories.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-hide">
-                    {existingCategories.map(c => (
+                <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-hide">
+                  {/* Categorias Globais */}
+                  {GLOBAL_CATEGORIES.map(c => (
+                    <button
+                      key={`global-${c}`}
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      className={cn(
+                        "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                        category === c 
+                          ? "bg-primary text-primary-foreground border-primary shadow-md" 
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
+                      )}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                  
+                  {/* Categorias Internas da Loja */}
+                  {existingCategories.map(c => {
+                    // Evita duplicar se a categoria da loja tiver o mesmo nome de uma global
+                    if (GLOBAL_CATEGORIES.includes(c)) return null;
+                    return (
                       <button
                         key={`existing-${c}`}
                         type="button"
@@ -566,9 +595,9 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                       >
                         {c}
                       </button>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Price */}
