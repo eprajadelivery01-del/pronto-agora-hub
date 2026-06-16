@@ -563,24 +563,52 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
               </div>
 
               {/* Category */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria *</label>
                 <input
-                  list="category-suggestions"
+                  type="text"
                   value={category}
                   onChange={e => setCategory(e.target.value)}
                   placeholder="Ex: Lanches, Bebidas..."
                   className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
                   required
                 />
-                <datalist id="category-suggestions">
+                
+                {/* Category Chips */}
+                <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-hide">
                   {existingCategories.map(c => (
-                    <option key={c} value={c} />
+                    <button
+                      key={`existing-${c}`}
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      className={cn(
+                        "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                        category === c 
+                          ? "bg-primary text-primary-foreground border-primary shadow-md" 
+                          : "bg-primary/5 text-primary hover:bg-primary/10 border-primary/20"
+                      )}
+                    >
+                      {c}
+                    </button>
                   ))}
                   {CATEGORY_OPTIONS.map(c => (
-                    <option key={c.value} value={c.label} />
+                     !existingCategories.includes(c.label) && (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => setCategory(c.label)}
+                        className={cn(
+                          "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                          category === c.label 
+                            ? "bg-primary text-primary-foreground border-primary shadow-md" 
+                            : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
+                        )}
+                      >
+                        {c.label}
+                      </button>
+                    )
                   ))}
-                </datalist>
+                </div>
               </div>
 
               {/* Price */}
