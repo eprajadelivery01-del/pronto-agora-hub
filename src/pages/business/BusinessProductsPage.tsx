@@ -119,6 +119,19 @@ export default function BusinessProductsPage() {
     }
   };
 
+  const toggleFeatured = async (product: Product) => {
+    const { error } = await (supabase as any)
+      .from("products")
+      .update({ is_featured: !product.is_featured })
+      .eq("id", product.id);
+    if (error) {
+      toast.error("Erro ao alterar destaque");
+    } else {
+      toast.success(product.is_featured ? "Destaque removido" : "Produto destacado");
+      fetchCompanyAndProducts();
+    }
+  };
+
   const deleteProduct = async (id: string) => {
     if (!confirm("Deseja realmente remover este produto?")) return;
     const { error } = await supabase.from("products").delete().eq("id", id);
@@ -282,6 +295,7 @@ export default function BusinessProductsPage() {
                       onEdit={() => setEditingProduct(product)}
                       onDelete={() => deleteProduct(product.id)}
                       onToggle={() => toggleActive(product)}
+                      onToggleFeatured={() => toggleFeatured(product)}
                       onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
                       onDrop={() => handleDrop(product.id, product.category || "Outros")}
                     />
@@ -298,12 +312,13 @@ export default function BusinessProductsPage() {
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({
-  product, onEdit, onDelete, onToggle, onDragStart, onDrop,
+  product, onEdit, onDelete, onToggle, onToggleFeatured, onDragStart, onDrop,
 }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  onToggleFeatured: () => void;
   onDragStart: () => void;
   onDrop: () => void;
 }) {
@@ -395,12 +410,19 @@ function ProductCard({
         </div>
 
         {/* Actions Grid */}
-        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border">
+        <div className="grid grid-cols-5 gap-2 pt-2 border-t border-border">
           <button
             onClick={onEdit}
             className="col-span-2 py-3 rounded-xl bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center justify-center gap-2"
           >
             <Edit3 className="h-3.5 w-3.5" /> Editar
+          </button>
+          <button
+            onClick={onToggleFeatured}
+            className={cn("py-3 rounded-xl flex items-center justify-center transition-all", product.is_featured ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+            title={product.is_featured ? "Remover Destaque" : "Destacar Produto"}
+          >
+            <Star className={cn("h-4 w-4", product.is_featured && "fill-current")} />
           </button>
           <button
             onClick={onToggle}
