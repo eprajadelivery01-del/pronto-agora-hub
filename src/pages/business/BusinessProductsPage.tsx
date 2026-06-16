@@ -246,10 +246,12 @@ export default function BusinessProductsPage() {
               <section key={cat.value}>
                 {/* Category header */}
                 <div className="flex items-center gap-3 mb-5 px-2">
-                  <span className="text-2xl">{cat.label.split(" ")[0]}</span>
+                  <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Layers className="h-5 w-5 text-primary" />
+                  </div>
                   <div>
                     <h3 className="font-black text-xl tracking-tight">
-                      {cat.label.replace(/^\S+\s/, "")}
+                      {cat.label}
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       {items.length} {items.length === 1 ? "item" : "itens"} · arraste para reordenar
