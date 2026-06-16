@@ -8,7 +8,7 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, ShoppingCart,
-  GripVertical,
+  GripVertical, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ interface Product {
   company_id: string;
   created_at: string;
   sort_order: number;
+  is_featured?: boolean | null;
 }
 
 const CATEGORY_OPTIONS = [
@@ -175,23 +176,18 @@ export default function BusinessProductsPage() {
     dragCategory.current = null;
   }, [products]);
 
-  // Group by category in CATEGORY_OPTIONS order
-  const grouped = CATEGORY_OPTIONS
-    .map(cat => ({
-      cat,
-      items: products.filter(p => (p.category || "Outros") === cat.value),
-    }))
-    .filter(g => g.items.length > 0);
-
-  // Unknown categories → Outros
-  const knownValues = new Set(CATEGORY_OPTIONS.map(c => c.value));
-  const uncategorized = products.filter(p => !knownValues.has(p.category || ""));
-  if (uncategorized.length > 0) {
-    const othersGroup = grouped.find(g => g.cat.value === "Outros");
-    if (othersGroup) {
-      othersGroup.items = [...othersGroup.items, ...uncategorized];
-    }
-  }
+  // Extract all unique categories
+  const allCategories = Array.from(new Set(products.map(p => p.category || "Outros")));
+  
+  // Group products by their custom category
+  const grouped = allCategories.map(catValue => {
+    const predefinedCat = CATEGORY_OPTIONS.find(c => c.value === catValue);
+    const label = predefinedCat ? predefinedCat.label : catValue;
+    return {
+      cat: { value: catValue, label },
+      items: products.filter(p => (p.category || "Outros") === catValue).sort((a, b) => a.sort_order - b.sort_order)
+    };
+  });
 
   if (showForm || editingProduct) {
     return (
@@ -205,6 +201,7 @@ export default function BusinessProductsPage() {
                 ? products.filter(p => (p.category || "Outros") === (editingProduct.category || "Outros")).length
                 : 0
             }
+            existingCategories={allCategories}
             onClose={() => { setShowForm(false); setEditingProduct(null); }}
             onSaved={() => { setShowForm(false); setEditingProduct(null); fetchCompanyAndProducts(); }}
           />
@@ -360,7 +357,12 @@ function ProductCard({
           </div>
         )}
 
-        <div className="absolute top-4 right-4 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-2 flex-wrap justify-end max-w-[70%]">
+          {product.is_featured && (
+            <div className="bg-amber-500 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+              <Star className="h-2.5 w-2.5 fill-current" /> Destaque
+            </div>
+          )}
           {!product.is_active && (
             <div className="bg-destructive text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg">
               Pausado
@@ -420,10 +422,11 @@ function ProductCard({
 }
 
 // ── Product Form ──────────────────────────────────────────────────────────────
-function ProductForm({ companyId, product, categoryCount, onClose, onSaved }: {
+function ProductForm({ companyId, product, categoryCount, existingCategories, onClose, onSaved }: {
   companyId: string;
   product: Product | null;
   categoryCount: number;
+  existingCategories: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -432,6 +435,7 @@ function ProductForm({ companyId, product, categoryCount, onClose, onSaved }: {
   const [category, setCategory] = useState(product?.category || "Outros");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
+  const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [saving, setSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -477,6 +481,7 @@ function ProductForm({ companyId, product, categoryCount, onClose, onSaved }: {
         category,
         price: parseFloat(price.replace(",", ".")),
         image_url: imagePayload,
+        is_featured: isFeatured,
       };
 
       if (product) {
@@ -538,17 +543,22 @@ function ProductForm({ companyId, product, categoryCount, onClose, onSaved }: {
               {/* Category */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria *</label>
-                <select
+                <input
+                  list="category-suggestions"
                   value={category}
                   onChange={e => setCategory(e.target.value)}
+                  placeholder="Ex: Lanches, Bebidas..."
                   className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
                   required
-                >
-                  <option value="">Selecione uma categoria</option>
-                  {CATEGORY_OPTIONS.map(c => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
+                />
+                <datalist id="category-suggestions">
+                  {existingCategories.map(c => (
+                    <option key={c} value={c} />
                   ))}
-                </select>
+                  {CATEGORY_OPTIONS.map(c => (
+                    <option key={c.value} value={c.label} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Price */}
@@ -565,6 +575,23 @@ function ProductForm({ companyId, product, categoryCount, onClose, onSaved }: {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Featured */}
+              <div className="space-y-2 pt-2">
+                <label className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-background/50 cursor-pointer hover:bg-primary/5 transition-all">
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <Star className={cn("h-4 w-4", isFeatured ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} /> 
+                      Destaque na Loja
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Exibir este produto no topo do seu cardápio.</div>
+                  </div>
+                  <div className={cn("w-12 h-6 rounded-full relative transition-colors duration-300", isFeatured ? "bg-amber-500" : "bg-border")}>
+                    <div className={cn("absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300", isFeatured ? "translate-x-6" : "")} />
+                  </div>
+                  <input type="checkbox" className="hidden" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
+                </label>
               </div>
 
               {/* Description */}
