@@ -198,17 +198,28 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const res = await supabase.functions.invoke("create-admin", {
-        body: {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Sessão expirada");
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-admin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
           email: form.email, password: form.password, fullName: form.fullName,
           phone: form.phone, document: form.document, role: "driver",
-          vehicle: form.vehicle, licensePlate: form.licensePlate,
+          vehicleType: form.vehicle, vehiclePlate: form.licensePlate,
           commissionRate: parseFloat(form.commissionRate) || 15,
-        },
+        })
       });
-      if (res.error) throw new Error(res.error.message);
-      const data = res.data as any;
-      if (data?.error) throw new Error(data.error);
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Erro ao cadastrar motoboy (status " + res.status + ")");
+      }
 
       if (avatarFile && data?.userId) {
         const ext = avatarFile.name.split(".").pop();
