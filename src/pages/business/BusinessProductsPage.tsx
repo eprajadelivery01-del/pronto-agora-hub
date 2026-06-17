@@ -8,9 +8,10 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, ShoppingCart,
-  GripVertical, Star
+  GripVertical, Star, Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BulkImportModal } from "@/components/business/BulkImportModal";
 
 interface Product {
   id: string;
@@ -49,10 +50,11 @@ function parseImages(imageUrl: string | null): string[] {
 export default function BusinessProductsPage() {
   const qc = useQueryClient();
   const { companyId: linkedCompanyId, isLoading: companyLoading } = useCurrentCompany();
+  const companyId = linkedCompanyId;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const companyId = linkedCompanyId;
   const [showForm, setShowForm] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Drag state
@@ -217,14 +219,24 @@ export default function BusinessProductsPage() {
               Arraste os cards para reordenar dentro de cada categoria
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            disabled={!companyId}
-            className="px-8 py-4 rounded-[2rem] gradient-primary text-primary-foreground font-black flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
-          >
-            <Plus className="h-6 w-6" />
-            Novo Item
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => setIsBulkImportOpen(true)}
+              disabled={!companyId}
+              className="px-6 py-4 rounded-[2rem] bg-secondary text-foreground font-black flex items-center justify-center gap-2 shadow-sm hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+            >
+              <Upload className="h-5 w-5" />
+              Importar Lote
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              disabled={!companyId}
+              className="px-8 py-4 rounded-[2rem] gradient-primary text-primary-foreground font-black flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+            >
+              <Plus className="h-6 w-6" />
+              Novo Item
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -288,6 +300,17 @@ export default function BusinessProductsPage() {
           </div>
         )}
       </div>
+      {companyId && (
+        <BulkImportModal 
+          isOpen={isBulkImportOpen}
+          onClose={() => setIsBulkImportOpen(false)}
+          companyId={companyId}
+          onSuccess={() => {
+            setIsBulkImportOpen(false);
+            fetchCompanyAndProducts();
+          }}
+        />
+      )}
     </BusinessLayout>
   );
 }
