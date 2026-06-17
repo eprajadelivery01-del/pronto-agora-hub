@@ -44,9 +44,13 @@ export function BulkImportModal({ isOpen, onClose, onSuccess, companyId }: BulkI
         // Separa por tabulação (Excel/Google Sheets)
         let columns = line.split("\t");
         
-        // Se não houver tabulação, tentar separar por ponto e vírgula
-        if (columns.length === 1 && line.includes(";")) {
-          columns = line.split(";");
+        // Se não houver tabulação, tentar separar por ponto e vírgula ou pipe (|)
+        if (columns.length === 1) {
+          if (line.includes("|")) {
+            columns = line.split("|");
+          } else if (line.includes(";")) {
+            columns = line.split(";");
+          }
         }
 
         // Precisamos de pelo menos nome e preço
