@@ -728,6 +728,7 @@ export default function RegionsPage() {
               </div>
             )}
           </div>
+        </div>
         </TabsContent>
         
         <TabsContent value="pricing" className="flex-1 mt-0 m-0 data-[state=active]:block data-[state=inactive]:hidden h-[calc(100vh-130px)]">
