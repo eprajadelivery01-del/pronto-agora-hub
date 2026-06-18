@@ -5,6 +5,8 @@ import type { RegionRow } from "@/services/regions";
 import { MapPin, Plus, Trash2, Save, Pencil, Loader2, DollarSign, Search, X, MousePointer, PenTool } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CityServiceList } from "@/components/admin/CityServiceList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PricingTablesManager } from "@/components/admin/PricingTablesManager";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useDrivers } from "@/services/drivers";
@@ -461,8 +463,16 @@ export default function RegionsPage() {
 
   return (
     <AdminLayout title="Regiões" subtitle="Gestão de regiões e precificação" fullHeight>
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-73px)] w-full relative">
-        {/* Map */}
+      <Tabs defaultValue="map" className="flex flex-col h-[calc(100vh-73px)] w-full">
+        <div className="px-6 py-3 border-b border-border bg-card z-20">
+          <TabsList className="bg-muted/50 border border-border">
+            <TabsTrigger value="map" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium">Regiões Mapeadas</TabsTrigger>
+            <TabsTrigger value="pricing" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium">Tabelas de Preço</TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value="map" className="flex-1 mt-0 m-0 flex-col lg:flex-row relative data-[state=active]:flex data-[state=inactive]:hidden">
+          {/* Map */}
         <div className="flex-1 relative h-full min-h-[300px]">
           <div ref={mapContainerRef} className="absolute inset-0" />
 
@@ -718,8 +728,12 @@ export default function RegionsPage() {
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </TabsContent>
+        
+        <TabsContent value="pricing" className="flex-1 mt-0 m-0 data-[state=active]:block data-[state=inactive]:hidden h-[calc(100vh-130px)]">
+          <PricingTablesManager />
+        </TabsContent>
+      </Tabs>
     </AdminLayout>
   );
 }

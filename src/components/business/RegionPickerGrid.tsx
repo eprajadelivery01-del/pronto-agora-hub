@@ -5,14 +5,16 @@ import { cn } from "@/lib/utils";
 
 interface RegionPickerGridProps {
   cityId?: string;
+  companyId?: string;
   onRegionSelect?: (fee: number, regionId: string, regionName: string) => void;
   disabled?: boolean;
   initialSelectedId?: string | null;
 }
 
-export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled, initialSelectedId }: RegionPickerGridProps) => {
+export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disabled, initialSelectedId }: RegionPickerGridProps) => {
   const [loading, setLoading] = useState(true);
   const [regions, setRegions] = useState<any[]>([]);
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
 
   useEffect(() => {
@@ -23,14 +25,41 @@ export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled, initia
         (r: any) => r.is_active !== false && (!cityId || r.city_id === cityId)
       );
       setRegions(filtered);
+
+      if (companyId) {
+        // Fetch custom pricing rules
+        const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id').eq('id', companyId).single();
+        if (comp) {
+          let tableId = comp.pricing_table_id;
+          if (!tableId) {
+            const { data: defTable } = await supabase.from('pricing_tables').select('id').eq('is_default', true).maybeSingle();
+            if (defTable) tableId = defTable.id;
+          }
+          if (tableId && comp.region_id) {
+            const { data: rules } = await supabase
+              .from('pricing_rules')
+              .select('*')
+              .eq('pricing_table_id', tableId)
+              .eq('origin_region_id', comp.region_id);
+            if (rules) setPricingRules(rules);
+          }
+        }
+      }
+
       setLoading(false);
     };
     fetchRegions();
-  }, [cityId]);
+  }, [cityId, companyId]);
+
+  const getRegionFee = (region: any) => {
+    const rule = pricingRules.find(r => r.destination_region_id === region.id);
+    if (rule) return Number(rule.base_value);
+    return Number(region.price ?? region.delivery_fee ?? null);
+  };
 
   const handleSelect = (region: any) => {
     if (disabled) return;
-    const fee = Number(region.price ?? region.delivery_fee ?? 0);
+    const fee = getRegionFee(region);
     setSelectedId(region.id);
     onRegionSelect?.(fee, region.id, region.name);
   };
@@ -54,7 +83,7 @@ export const RegionPickerGrid = memo(({ cityId, onRegionSelect, disabled, initia
   return (
     <div className={cn("grid grid-cols-2 md:grid-cols-3 gap-3", disabled && "opacity-50 pointer-events-none")}>
       {regions.map((region) => {
-        const fee = Number(region.price ?? region.delivery_fee ?? null);
+        const fee = getRegionFee(region);
         const hasFee = fee != null && !isNaN(fee);
         const isSelected = selectedId === region.id;
         const color = region.color || '#3b82f6';

@@ -406,7 +406,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Região <span className="text-destructive">*</span></label>
-              <RegionPickerGrid cityId={currentCompany?.city_id || selectedCity} onRegionSelect={handleRegionSelect} initialSelectedId={initialData?.region_id} />
+              <RegionPickerGrid cityId={currentCompany?.city_id || selectedCity} companyId={currentCompany?.id} onRegionSelect={handleRegionSelect} initialSelectedId={initialData?.region_id} />
             </div>
           </div>
 

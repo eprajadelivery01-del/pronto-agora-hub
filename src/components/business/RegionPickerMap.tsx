@@ -6,11 +6,12 @@ import { Loader2, Info } from "lucide-react";
 
 interface RegionPickerMapProps {
   cityId?: string;
+  companyId?: string;
   onRegionSelect?: (fee: number, regionId: string) => void;
 }
 
 // Using memo to prevent re-renders unless cityId or onRegionSelect actually change
-export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMapProps) => {
+export const RegionPickerMap = memo(({ cityId, companyId, onRegionSelect }: RegionPickerMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const labelsRef = useRef<maplibregl.Marker[]>([]);
@@ -19,6 +20,7 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
   
   const [loading, setLoading] = useState(true);
   const [regions, setRegions] = useState<any[]>([]);
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
 
   // Keep callback ref up to date without re-triggering effects
   useEffect(() => {
@@ -37,9 +39,35 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
       const { data } = await supabase.from('regions').select('*');
       const filtered = (data ?? []).filter((r: any) => r.is_active !== false && (!cityId || r.city_id === cityId));
       setRegions(filtered);
+
+      if (companyId) {
+        // Fetch custom pricing rules
+        const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id').eq('id', companyId).single();
+        if (comp) {
+          let tableId = comp.pricing_table_id;
+          if (!tableId) {
+            const { data: defTable } = await supabase.from('pricing_tables').select('id').eq('is_default', true).maybeSingle();
+            if (defTable) tableId = defTable.id;
+          }
+          if (tableId && comp.region_id) {
+            const { data: rules } = await supabase
+              .from('pricing_rules')
+              .select('*')
+              .eq('pricing_table_id', tableId)
+              .eq('origin_region_id', comp.region_id);
+            if (rules) setPricingRules(rules);
+          }
+        }
+      }
     };
     fetchRegions();
-  }, [cityId]);
+  }, [cityId, companyId]);
+
+  const getRegionFee = (region: any) => {
+    const rule = pricingRules.find(r => r.destination_region_id === region.id);
+    if (rule) return Number(rule.base_value);
+    return Number(region.delivery_fee ?? region.price ?? 0);
+  };
 
   // 2. Initialize Map (Strictly Once)
   useEffect(() => {
@@ -105,7 +133,7 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
           data: {
             type: 'Feature',
             geometry: region.geometry,
-            properties: { name: region.name, price: region.delivery_fee || region.price }
+            properties: { name: region.name, price: getRegionFee(region) }
           }
         });
 
@@ -142,10 +170,11 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
           const centroid = getCentroid(geoJSON.coordinates[0]);
           const el = document.createElement("div");
           el.className = "region-label";
+          const fee = getRegionFee(region);
           el.innerHTML = `
             <div style="background:rgba(255,255,255,0.92);padding:4px 10px;border-radius:8px;border:1.5px solid ${region.color || '#3b82f6'};box-shadow:0 2px 6px rgba(0,0,0,0.1);text-align:center;min-width:60px;pointer-events:none;">
               <p style="margin:0;font-size:10px;font-weight:800;color:#444;border-bottom:1px solid #eee;padding-bottom:2px;margin-bottom:2px;">${region.name}</p>
-              <p style="margin:0;font-size:11px;font-weight:900;color:${region.color || '#3b82f6'};">R$ ${Number(region.delivery_fee || region.price || 0).toFixed(2).replace('.', ',')}</p>
+              <p style="margin:0;font-size:11px;font-weight:900;color:${region.color || '#3b82f6'};">R$ ${Number(fee).toFixed(2).replace('.', ',')}</p>
             </div>
           `;
           const labelMarker = new maplibregl.Marker({ element: el }).setLngLat(centroid).addTo(map.current!);
@@ -155,13 +184,13 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
         // Listener using REF to prevent effect re-triggering
         map.current?.off('click', fillId as any); // Ensure single listener
         map.current?.on('click', fillId as any, () => {
-           onRegionSelectRef.current?.(region.delivery_fee || region.price, region.id);
+           onRegionSelectRef.current?.(getRegionFee(region), region.id);
         });
         
         map.current?.on('mouseenter', fillId, (e) => {
           map.current!.getCanvas().style.cursor = 'pointer';
           map.current!.setPaintProperty(fillId, 'fill-opacity', 0.45);
-          const fee = (region.delivery_fee || region.price || 0);
+          const fee = getRegionFee(region);
           popup.setLngLat(e.lngLat).setHTML(`
             <div style="font-family:sans-serif;padding:4px;color:#fff;">
               <strong style="display:block;font-size:12px;margin-bottom:2px;">${region.name}</strong>
@@ -185,7 +214,7 @@ export const RegionPickerMap = memo(({ cityId, onRegionSelect }: RegionPickerMap
     };
 
     draw();
-  }, [regions, cityId]); // Explicitly exclude onRegionSelect from deps
+  }, [regions, cityId, pricingRules]); // Explicitly exclude onRegionSelect from deps
 
   return (
     <div className="relative w-full h-[320px] rounded-[2rem] overflow-hidden border border-border bg-muted/20 shadow-inner">

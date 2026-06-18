@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Loader2 } from "lucide-react";
 import { useRegions } from "@/services/regions";
+import { usePricingTables } from "@/services/pricing";
 
 interface EditCompanyDialogProps {
   company: any;
@@ -19,6 +20,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
   const { data: regions } = useRegions();
+  const { data: pricingTables } = usePricingTables();
   const [ownerProfile, setOwnerProfile] = useState<any>(null);
 
   const [form, setForm] = useState({
@@ -30,6 +32,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
     latitude: "",
     longitude: "",
     regionId: "",
+    pricingTableId: "",
     is_active: true,
   });
 
@@ -45,6 +48,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
         latitude: company.latitude?.toString() || "",
         longitude: company.longitude?.toString() || "",
         regionId: company.region_id || "",
+        pricingTableId: company.pricing_table_id || "",
         is_active: company.is_active ?? true,
       });
       // Fetch owner profile
@@ -100,6 +104,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
           latitude: form.latitude ? parseFloat(form.latitude) : null,
           longitude: form.longitude ? parseFloat(form.longitude) : null,
           region_id: form.regionId || null,
+          pricing_table_id: form.pricingTableId || null,
           is_active: form.is_active,
         })
         .eq("id", company.id);
@@ -181,6 +186,19 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
               <option value="">Sem região</option>
               {(regions ?? []).map((r) => (
                 <option key={r.id} value={r.id}>{r.name} — R$ {Number(r.price).toFixed(2)}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>Tabela de Preço</Label>
+            <select
+              value={form.pricingTableId}
+              onChange={e => set("pricingTableId", e.target.value)}
+              className="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+            >
+              <option value="">Padrão do Sistema</option>
+              {(pricingTables ?? []).map((t) => (
+                <option key={t.id} value={t.id}>{t.name} {t.is_default && "(Padrão)"}</option>
               ))}
             </select>
           </div>
