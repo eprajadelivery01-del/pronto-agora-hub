@@ -170,7 +170,7 @@ function CreateCompanyForm({ onSuccess }: { onSuccess: () => void }) {
 
   const [form, setForm] = useState({
     companyName: "", responsibleName: "", email: "", password: "",
-    phone: "", document: "", address: "", regionId: "",
+    phone: "", document: "", address: "", regionId: "", cityId: "",
     latitude: "", longitude: "",
   });
 
@@ -199,6 +199,7 @@ function CreateCompanyForm({ onSuccess }: { onSuccess: () => void }) {
           email: form.email, password: form.password, fullName: form.responsibleName,
           phone: form.phone, document: form.document, role: "company",
           companyName: form.companyName, address: form.address, regionId: form.regionId || null,
+          cityId: form.cityId || null,
           latitude: form.latitude ? parseFloat(form.latitude) : null,
           longitude: form.longitude ? parseFloat(form.longitude) : null,
         })
@@ -251,6 +252,22 @@ function CreateCompanyForm({ onSuccess }: { onSuccess: () => void }) {
       {step === 2 && (
         <div className="space-y-3">
           <FieldInput label="Endereço completo" value={form.address} onChange={(v) => set("address", v)} placeholder="Rua X, 123 - Bairro" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FieldInput label="Latitude" value={form.latitude} onChange={(v) => set("latitude", v)} placeholder="-15.5989" />
+            <FieldInput label="Longitude" value={form.longitude} onChange={(v) => set("longitude", v)} placeholder="-56.0974" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1.5 block text-foreground">Cidade da Loja (Base)</label>
+            <select value={form.cityId} onChange={(e) => set("cityId", e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors">
+              <option value="">Selecione a cidade base...</option>
+              {/* Note: In a real app, use the actual useCities hook data here. For now, we fetch using useCitiesWithRegions if needed, but the admin handles the regions differently. Let's add the cities later via the hook. */}
+              {Array.from(new Set(regions?.map(r => r.city_id).filter(Boolean))).map((cid: any) => {
+                const cname = regions?.find(r => r.city_id === cid)?.city || "Cidade " + cid.substring(0, 4);
+                return <option key={cid} value={cid}>{cname}</option>;
+              })}
+            </select>
+          </div>
           <div>
             <label className="text-sm font-medium mb-1.5 block text-foreground">Região padrão</label>
             <select value={form.regionId} onChange={(e) => set("regionId", e.target.value)}

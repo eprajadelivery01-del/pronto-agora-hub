@@ -8,7 +8,7 @@ import { useCompanies } from "@/services/companies";
 import { useAllRealtime } from "@/services/realtime";
 import { useState } from "react";
 import { useCity } from "@/contexts/CityContext";
-import { useRegions } from "@/services/regions";
+import { useRegions, useCities } from "@/services/regions";
 import { UnifiedMap } from "@/components/shared/UnifiedMap";
 import { HeroMapSection } from "@/components/shared/HeroMapSection";
 import {
@@ -20,24 +20,28 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [showOnlyCompleted, setShowOnlyCompleted] = useState(false);
+  const [filterCityId, setFilterCityId] = useState("");
 
-  const { data: stats } = useDeliveryStats({ dateFrom, dateTo });
+  const { data: stats } = useDeliveryStats({ dateFrom, dateTo, cityId: filterCityId });
   const { data: onlineDrivers } = useOnlineDrivers();
   const { data: companies } = useCompanies();
   
   // Delivered count for the top stat card
-  const { data: deliveredData } = useDeliveries({ status: "completed", dateFrom, dateTo });
+  const { data: deliveredData } = useDeliveries({ status: "completed", dateFrom, dateTo, cityId: filterCityId });
   
   // In-transit count for the top stat card
-  const { data: inTransitData } = useDeliveries({ status: "in_route", dateFrom, dateTo });
+  const { data: inTransitData } = useDeliveries({ status: "in_route", dateFrom, dateTo, cityId: filterCityId });
 
   // List of deliveries to show on the dashboard
   const { data: recentDeliveries, isLoading: loadingDeliveries } = useDeliveries({ 
     status: showOnlyCompleted ? "completed" : undefined,
     dateFrom,
     dateTo,
+    cityId: filterCityId,
     pageSize: 15
   });
+
+  const { data: adminCities } = useCities();
 
   const { selectedCity, setCity } = useCity();
   const { data: regions } = useRegions(selectedCity || undefined);
@@ -107,6 +111,17 @@ export default function DashboardPage() {
                    className="bg-background border border-border rounded-lg px-3 py-2 text-xs outline-none focus:border-primary"
                  />
                </div>
+               <div className="h-6 w-px bg-border hidden sm:block" />
+               <select
+                 value={filterCityId}
+                 onChange={(e) => setFilterCityId(e.target.value)}
+                 className="bg-background border border-border rounded-lg px-3 py-2 text-xs outline-none focus:border-primary min-w-[150px]"
+               >
+                 <option value="">Todas as Cidades</option>
+                 {(adminCities || []).map((c: any) => (
+                   <option key={c.id} value={c.id}>{c.name}</option>
+                 ))}
+               </select>
                <div className="h-6 w-px bg-border hidden sm:block" />
                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                  <input 

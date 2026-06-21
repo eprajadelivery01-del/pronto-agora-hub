@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Loader2 } from "lucide-react";
-import { useRegions } from "@/services/regions";
+import { useRegions, useCitiesWithRegions } from "@/services/regions";
 import { usePricingTables } from "@/services/pricing";
 
 interface EditCompanyDialogProps {
@@ -32,6 +32,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
     latitude: "",
     longitude: "",
     regionId: "",
+    cityId: "",
     pricingTableId: "",
     is_active: true,
   });
@@ -48,6 +49,7 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
         latitude: company.latitude?.toString() || "",
         longitude: company.longitude?.toString() || "",
         regionId: company.region_id || "",
+        cityId: company.city_id || "",
         pricingTableId: company.pricing_table_id || "",
         is_active: company.is_active ?? true,
       });
@@ -99,11 +101,13 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
         .update({
           name: form.name,
           phone: form.phone,
-          email: form.email,
+          document: form.document,
           address: form.address,
+          email: form.email,
           latitude: form.latitude ? parseFloat(form.latitude) : null,
           longitude: form.longitude ? parseFloat(form.longitude) : null,
           region_id: form.regionId || null,
+          city_id: form.cityId || null,
           pricing_table_id: form.pricingTableId || null,
           is_active: form.is_active,
         })
@@ -177,7 +181,22 @@ export function EditCompanyDialog({ company, open, onOpenChange }: EditCompanyDi
             <Input value={form.address} onChange={e => set("address", e.target.value)} className="mt-1.5" />
           </div>
           <div>
-            <Label>Região</Label>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5 block">Cidade da Loja (Base)</Label>
+              <select 
+                value={form.cityId} 
+                onChange={(e) => set("cityId", e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Selecione a cidade base...</option>
+                {Array.from(new Set(regions?.map(r => r.city_id).filter(Boolean))).map((cid: any) => {
+                  const cname = regions?.find(r => r.city_id === cid)?.city || "Cidade " + cid.substring(0, 4);
+                  return <option key={cid} value={cid}>{cname}</option>;
+                })}
+              </select>
+            </div>
+            
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5 block">Região padrão</Label>
             <select
               value={form.regionId}
               onChange={e => set("regionId", e.target.value)}

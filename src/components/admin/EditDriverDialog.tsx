@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRegions, useCitiesWithRegions } from "@/services/regions";
 
 interface EditDriverDialogProps {
   driver: any;
@@ -17,6 +18,7 @@ interface EditDriverDialogProps {
 export function EditDriverDialog({ driver, open, onOpenChange }: EditDriverDialogProps) {
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
+  const { data: regions } = useRegions();
 
   const [form, setForm] = useState({
     fullName: driver?.full_name || "",
@@ -25,6 +27,7 @@ export function EditDriverDialog({ driver, open, onOpenChange }: EditDriverDialo
     vehicleType: driver?.vehicle_type || "motorcycle",
     vehiclePlate: driver?.vehicle_plate || "",
     commission: driver?.commission_rate?.toString() || "10",
+    cityId: driver?.city_id || "",
   });
 
   const set = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }));
@@ -56,6 +59,7 @@ export function EditDriverDialog({ driver, open, onOpenChange }: EditDriverDialo
           vehicle_type: form.vehicleType,
           vehicle_plate: form.vehiclePlate,
           commission_rate: parseFloat(form.commission),
+          city_id: form.cityId || null,
         })
         .eq("id", driver.id);
 
@@ -116,6 +120,17 @@ export function EditDriverDialog({ driver, open, onOpenChange }: EditDriverDialo
             <div>
               <Label>Comissão (%)</Label>
               <Input type="number" value={form.commission} onChange={e => set("commission", e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Cidade do Entregador (Base)</Label>
+              <select value={form.cityId} onChange={(e) => set("cityId", e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                <option value="">Sem base definida...</option>
+                {Array.from(new Set(regions?.map(r => r.city_id).filter(Boolean))).map((cid: any) => {
+                  const cname = regions?.find(r => r.city_id === cid)?.city || "Cidade " + cid.substring(0, 4);
+                  return <option key={cid} value={cid}>{cname}</option>;
+                })}
+              </select>
             </div>
           </div>
         </div>

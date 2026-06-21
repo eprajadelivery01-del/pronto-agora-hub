@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BikeIcon } from "@/components/icons/BikeIcon";
 import { useDrivers, useToggleDriverOnline } from "@/services/drivers";
-import { useRegions } from "@/services/regions";
+import { useRegions, useCitiesWithRegions } from "@/services/regions";
 import { Star, Phone, Loader2, MoreHorizontal, Plus, Camera, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
@@ -170,6 +170,7 @@ export default function DriversPage() {
 function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: regions } = useRegions();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -177,7 +178,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
 
   const [form, setForm] = useState({
     fullName: "", email: "", password: "", phone: "", document: "",
-    vehicle: "motorcycle", licensePlate: "", commissionRate: "15",
+    vehicle: "motorcycle", licensePlate: "", commissionRate: "15", cityId: "",
   });
 
   const set = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
@@ -213,6 +214,7 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
           phone: form.phone, document: form.document, role: "driver",
           vehicleType: form.vehicle, vehiclePlate: form.licensePlate,
           commissionRate: parseFloat(form.commissionRate) || 15,
+          cityId: form.cityId || null,
         })
       });
 
@@ -290,6 +292,17 @@ function CreateDriverForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
           <FieldInput label="Placa" value={form.licensePlate} onChange={(v) => set("licensePlate", v)} placeholder="ABC-1234" />
           <FieldInput label="Comissão (%)" type="number" value={form.commissionRate} onChange={(v) => set("commissionRate", v)} placeholder="15" />
+          <div>
+            <label className="text-sm font-medium mb-1.5 block text-foreground">Cidade do Entregador (Base)</label>
+            <select value={form.cityId} onChange={(e) => set("cityId", e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors">
+              <option value="">Sem base definida...</option>
+              {Array.from(new Set(regions?.map(r => r.city_id).filter(Boolean))).map((cid: any) => {
+                const cname = regions?.find(r => r.city_id === cid)?.city || "Cidade " + cid.substring(0, 4);
+                return <option key={cid} value={cid}>{cname}</option>;
+              })}
+            </select>
+          </div>
         </div>
       )}
 

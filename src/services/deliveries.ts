@@ -40,13 +40,14 @@ interface UseDeliveriesParams {
   dateTo?: string;
   pageSize?: number;
   page?: number;
+  cityId?: string;
 }
 
 export function useDeliveries(params?: UseDeliveriesParams) {
-  const { status, search, companyId, driverId, dateFrom, dateTo, pageSize = 50, page = 0 } = params || {};
+  const { status, search, companyId, driverId, dateFrom, dateTo, cityId, pageSize = 50, page = 0 } = params || {};
 
   return useQuery({
-    queryKey: ["deliveries", status, search, companyId, driverId, dateFrom, dateTo, page, pageSize],
+    queryKey: ["deliveries", status, search, companyId, driverId, dateFrom, dateTo, cityId, page, pageSize],
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
@@ -73,14 +74,20 @@ export function useDeliveries(params?: UseDeliveriesParams) {
         .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (status && status !== "all") query = query.eq("status", status as any);
-      
-      if (search) {
-        // Multi-column search for better UX
-        query = query.or(`customer_name.ilike.%${search}%,address.ilike.%${search}%,dropoff_address.ilike.%${search}%`);
+      if (status && status !== "all") {
+        if (status === "completed") {
+          query = query.or("status.eq.completed,status.eq.delivered");
+        } else if (status === "in_route") {
+          query = query.or("status.eq.in_route,status.eq.in_transit,status.eq.collecting");
+        } else {
+          query = query.eq("status", status);
+        }
       }
+      
+      if (search) query = query.ilike("customer_name", `%${search}%`);
       if (companyId) query = query.eq("company_id", companyId);
       if (driverId) query = query.eq("driver_id", driverId);
+      if (cityId) query = query.eq("city_id", cityId);
       if (dateFrom) query = query.gte("created_at", new Date(dateFrom).toISOString());
       if (dateTo) {
         const end = new Date(dateTo);
@@ -116,11 +123,11 @@ export function useDeliveries(params?: UseDeliveriesParams) {
   });
 }
 
-export function useDeliveryStats(params?: { companyId?: string; dateFrom?: string; dateTo?: string }) {
-  const { companyId, dateFrom, dateTo } = params || {};
+export function useDeliveryStats(params?: { companyId?: string; dateFrom?: string; dateTo?: string; cityId?: string }) {
+  const { companyId, dateFrom, dateTo, cityId } = params || {};
   
   return useQuery({
-    queryKey: ["delivery-stats", companyId, dateFrom, dateTo],
+    queryKey: ["delivery-stats", companyId, dateFrom, dateTo, cityId],
     queryFn: async () => {
       let query = supabase.from("deliveries").select("status, value");
 
@@ -141,14 +148,19 @@ export function useDeliveryStats(params?: { companyId?: string; dateFrom?: strin
       if (companyId) {
         query = query.eq("company_id", companyId);
       }
+      if (cityId) {
+        query = query.eq("city_id", cityId);
+      }
 
       const { data, error } = await query;
 
       if (error) throw error;
       
-      const [totalRes] = await Promise.all([
-        supabase.from("deliveries").select("id", { count: "exact", head: true }).match(companyId ? { company_id: companyId } : {}),
-      ]);
+      let totalQuery = supabase.from("deliveries").select("id", { count: "exact", head: true });
+      if (companyId) totalQuery = totalQuery.eq("company_id", companyId);
+      if (cityId) totalQuery = totalQuery.eq("city_id", cityId);
+      
+      const [totalRes] = await Promise.all([totalQuery]);
 
       return {
         today: data.length,

@@ -5,11 +5,24 @@ export type RegionRow = Record<string, any>;
 export type CreateRegionInput = Record<string, any>;
 export type UpdateRegionInput = Record<string, any>;
 
+export async function fetchCities() {
+  const { data, error } = await supabase.from("cities").select("*").order("name");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export function useCities() {
+  return useQuery({
+    queryKey: ["cities"],
+    queryFn: fetchCities,
+  });
+}
+
 export async function fetchRegions(city?: string) {
   const { data, error } = await supabase.from("regions").select("*").order("name");
   if (error) throw error;
   const all = data ?? [];
-  if (city) return all.filter((r: any) => r.city === city);
+  if (city) return all.filter((r: any) => r.city === city || r.city_id === city);
   return all;
 }
 
