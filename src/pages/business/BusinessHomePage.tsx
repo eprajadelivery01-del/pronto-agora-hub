@@ -293,14 +293,18 @@ export default function BusinessHomePage() {
     w.document.write(`
       <html><head><title>OS #${delivery.id.slice(0, 8)}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; font-size: 13px; }
-        h1 { font-size: 18px; margin-bottom: 4px; }
-        .label { color: #666; font-size: 11px; text-transform: uppercase; margin-top: 12px; }
-        .value { font-weight: bold; margin-bottom: 8px; }
-        hr { border: none; border-top: 1px dashed #ccc; margin: 16px 0; }
-        .footer { margin-top: 24px; text-align: center; font-size: 11px; color: #999; }
+        body { font-family: monospace; font-size: 12px; margin: 0; padding: 4mm; background: white; color: black; }
+        h1 { font-size: 16px; margin-bottom: 4px; text-align: center; font-weight: bold; }
+        .label { font-size: 10px; text-transform: uppercase; margin-top: 8px; font-weight: bold; border-bottom: 1px dashed #000; margin-bottom: 2px; }
+        .value { font-weight: normal; margin-bottom: 8px; }
+        hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+        .footer { margin-top: 16px; text-align: center; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        @media print {
+          @page { margin: 0; size: 80mm auto; }
+          body { width: 80mm; min-width: 80mm; max-width: 80mm; }
+        }
       </style></head><body>
-        <h1>É Pra Já Delivery</h1>
+        <h1 style="text-align: center; text-transform: uppercase;">É Pra Já Delivery</h1>
         <p style="color:#666;margin-top:0">Ordem de Serviço (Loja)</p>
         <hr/>
         <div class="label">OS</div>
