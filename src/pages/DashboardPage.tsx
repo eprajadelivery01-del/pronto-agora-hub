@@ -17,11 +17,27 @@ import {
 
 export default function DashboardPage() {
 
-  const { data: stats } = useDeliveryStats();
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showOnlyCompleted, setShowOnlyCompleted] = useState(false);
+
+  const { data: stats } = useDeliveryStats({ dateFrom, dateTo });
   const { data: onlineDrivers } = useOnlineDrivers();
   const { data: companies } = useCompanies();
-  const { data: inTransitData } = useDeliveries({ status: "in_route" });
-  const { data: deliveredData } = useDeliveries({ status: "completed" });
+  
+  // Delivered count for the top stat card
+  const { data: deliveredData } = useDeliveries({ status: "completed", dateFrom, dateTo });
+  
+  // In-transit count for the top stat card
+  const { data: inTransitData } = useDeliveries({ status: "in_route", dateFrom, dateTo });
+
+  // List of deliveries to show on the dashboard
+  const { data: recentDeliveries, isLoading: loadingDeliveries } = useDeliveries({ 
+    status: showOnlyCompleted ? "completed" : undefined,
+    dateFrom,
+    dateTo,
+    pageSize: 15
+  });
 
   const { selectedCity, setCity } = useCity();
   const { data: regions } = useRegions(selectedCity || undefined);
@@ -70,7 +86,39 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          {/* City selector moved to Hero or shared context */}
+          {/* Dashboard Filters */}
+          <div className="bg-card p-4 rounded-2xl shadow-card border border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+             <div className="flex items-center gap-3">
+               <h3 className="text-sm font-bold text-foreground">Filtros do Painel:</h3>
+             </div>
+             <div className="flex flex-wrap items-center gap-3">
+               <div className="flex items-center gap-2">
+                 <input 
+                   type="date" 
+                   value={dateFrom} 
+                   onChange={(e) => setDateFrom(e.target.value)}
+                   className="bg-background border border-border rounded-lg px-3 py-2 text-xs outline-none focus:border-primary"
+                 />
+                 <span className="text-muted-foreground text-xs">até</span>
+                 <input 
+                   type="date" 
+                   value={dateTo} 
+                   onChange={(e) => setDateTo(e.target.value)}
+                   className="bg-background border border-border rounded-lg px-3 py-2 text-xs outline-none focus:border-primary"
+                 />
+               </div>
+               <div className="h-6 w-px bg-border hidden sm:block" />
+               <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                 <input 
+                   type="checkbox" 
+                   checked={showOnlyCompleted}
+                   onChange={(e) => setShowOnlyCompleted(e.target.checked)}
+                   className="rounded text-primary focus:ring-primary h-4 w-4"
+                 />
+                 Apenas Corridas Finalizadas
+               </label>
+             </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard icon={<Package className="h-5 w-5" />} label="Corridas Hoje" value={stats?.today ?? 0} iconBg="bg-warning/10" iconColor="text-warning" />
@@ -85,7 +133,66 @@ export default function DashboardPage() {
             <MiniStat icon={<TrendingUp className="h-3.5 w-3.5 text-accent" />} label="Total Geral" value={stats?.total ?? 0} />
           </div>
 
-          {/* Map moved to Hero */}
+          {/* Deliveries List */}
+          <div className="mt-4 bg-card rounded-2xl p-4 shadow-card border border-border flex-1 min-h-[300px]">
+            <h3 className="text-sm font-bold text-foreground mb-4">
+              {showOnlyCompleted ? "Corridas Finalizadas" : "Últimas Corridas"}
+            </h3>
+            
+            {loadingDeliveries ? (
+              <div className="flex items-center justify-center h-32">
+                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : recentDeliveries?.data && recentDeliveries.data.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-xs text-muted-foreground">
+                      <th className="pb-3 pr-4 font-medium">Data</th>
+                      <th className="pb-3 pr-4 font-medium">Cliente</th>
+                      <th className="pb-3 pr-4 font-medium">Status</th>
+                      <th className="pb-3 font-medium text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {recentDeliveries.data.map((delivery) => (
+                      <tr key={delivery.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-3 pr-4 text-xs">
+                          {new Date(delivery.created_at).toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="py-3 pr-4 font-medium">
+                          {delivery.customer_name}
+                          <div className="text-[10px] text-muted-foreground font-normal">
+                             {delivery.companies?.name || "Marketplace"}
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            delivery.status === 'completed' || delivery.status === 'delivered' ? 'bg-success/10 text-success' :
+                            delivery.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+                            'bg-primary/10 text-primary'
+                          }`}>
+                            {delivery.status === 'completed' || delivery.status === 'delivered' ? 'Finalizada' :
+                             delivery.status === 'cancelled' ? 'Cancelada' :
+                             delivery.status === 'pending' ? 'Pendente' :
+                             delivery.status === 'in_route' || delivery.status === 'in_transit' ? 'Em Rota' :
+                             delivery.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right font-bold text-xs">
+                          R$ {Number(delivery.value ?? 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm">
+                Nenhuma corrida encontrada para os filtros atuais.
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="hidden xl:block w-80 flex-shrink-0">

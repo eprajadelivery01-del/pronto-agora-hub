@@ -116,19 +116,27 @@ export function useDeliveries(params?: UseDeliveriesParams) {
   });
 }
 
-export function useDeliveryStats(params?: { companyId?: string }) {
-  const { companyId } = params || {};
+export function useDeliveryStats(params?: { companyId?: string; dateFrom?: string; dateTo?: string }) {
+  const { companyId, dateFrom, dateTo } = params || {};
   
   return useQuery({
-    queryKey: ["delivery-stats", companyId],
+    queryKey: ["delivery-stats", companyId, dateFrom, dateTo],
     queryFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      let query = supabase.from("deliveries").select("status, value");
 
-      let query = supabase
-        .from("deliveries")
-        .select("status, value")
-        .gte("created_at", today.toISOString());
+      if (dateFrom) {
+        query = query.gte("created_at", new Date(dateFrom).toISOString());
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        query = query.gte("created_at", today.toISOString());
+      }
+
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        query = query.lte("created_at", end.toISOString());
+      }
 
       if (companyId) {
         query = query.eq("company_id", companyId);
