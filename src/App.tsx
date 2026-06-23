@@ -30,6 +30,7 @@ import ChatPage from "./pages/ChatPage";
 import BusinessFinancePage from "./pages/business/BusinessFinancePage";
 import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
 import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
+import MerchantInvoicesPage from "./pages/business/MerchantInvoicesPage";
 import { GlobalChatListener } from "@/hooks/useGlobalChatNotifications";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
 import { SoundEnabler } from "@/components/shared/SoundEnabler";
@@ -83,6 +84,7 @@ const App = () => (
                   <Route path="/business/orders" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessOrdersPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/business/products" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessProductsPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/business/finance" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessFinancePage /></ProtectedRoute></PageTransition>} />
+                  <Route path="/business/invoices" element={<PageTransition><ProtectedRoute requiredRole="company"><MerchantInvoicesPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/business/customers" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessCustomersPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/business/history" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessHistoryPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/business/coupons" element={<PageTransition><ProtectedRoute requiredRole="company"><BusinessCouponsPage /></ProtectedRoute></PageTransition>} />

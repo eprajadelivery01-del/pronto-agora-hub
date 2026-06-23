@@ -50,6 +50,7 @@ const tabs = [
   { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
   { label: "Meus Clientes", icon: Users, href: "/business/customers", category: "Marketplace" },
   { label: "Financeiro", icon: DollarSign, href: "/business/finance", category: "Gestão" },
+  { label: "Faturas", icon: DollarSign, href: "/business/invoices", category: "Gestão" },
   { label: "Histórico", icon: History, href: "/business/history", category: "Gestão" },
 ];
 
