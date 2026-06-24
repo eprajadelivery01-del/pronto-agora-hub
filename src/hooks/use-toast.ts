@@ -140,13 +140,7 @@ function toast({ ...props }: Toast) {
 
   // Interceptar toasts destrutivos e enviar ao Telegram automaticamente
   if (props.variant === "destructive") {
-    const title = typeof props.title === "string" ? props.title : "Erro";
-    const description = typeof props.description === "string" ? props.description : "";
-    reportErrorToTelegram({
-      error_message: `🔴 ${title}: ${description}`,
-      url: typeof window !== "undefined" ? window.location.pathname : "",
-      additional_info: { source: "toast_destructive" }
-    }, "Painel Lojista").catch(() => {});
+    // Logging user-facing toasts to telegram is disabled to prevent spam.
   }
 
   const update = (props: ToasterToast) =>
