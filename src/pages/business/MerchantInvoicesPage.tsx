@@ -38,6 +38,7 @@ export default function MerchantInvoicesPage() {
       .from("merchant_invoices")
       .select("*")
       .in("company_id", companyIds)
+      .not("sent_at", "is", null)
       .order("created_at", { ascending: false });
       
     if (data) setInvoices(data);
