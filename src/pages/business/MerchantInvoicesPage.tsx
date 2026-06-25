@@ -2,13 +2,19 @@ import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Loader2, FileText, CheckCircle, Clock } from "lucide-react";
+import { Loader2, FileText, CheckCircle, Clock, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { PrintableInvoiceDialog } from "@/components/business/PrintableInvoiceDialog";
 
 export default function MerchantInvoicesPage() {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Print Dialog
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [invoiceToPrint, setInvoiceToPrint] = useState<any>(null);
 
   const fetchInvoices = async () => {
     setIsLoading(true);
@@ -60,18 +66,23 @@ export default function MerchantInvoicesPage() {
                   <div>
                     <h3 className="font-bold text-lg">Fatura: {inv.reference_month}</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Gerada em {new Date(inv.created_at).toLocaleDateString()}
+                      Gerada em {new Date(inv.created_at).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
-                  {inv.status === 'paid' ? (
-                    <span className="inline-flex items-center bg-success/10 text-success px-3 py-1 rounded-full text-xs font-semibold">
-                      <CheckCircle className="w-4 h-4 mr-1.5" /> Pago
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center bg-warning/10 text-warning px-3 py-1 rounded-full text-xs font-semibold">
-                      <Clock className="w-4 h-4 mr-1.5" /> Aberto
-                    </span>
-                  )}
+                  <div className="flex flex-col gap-2 items-end">
+                    {inv.status === 'paid' ? (
+                      <span className="inline-flex items-center bg-success/10 text-success px-3 py-1 rounded-full text-xs font-semibold">
+                        <CheckCircle className="w-4 h-4 mr-1.5" /> Pago
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center bg-warning/10 text-warning px-3 py-1 rounded-full text-xs font-semibold">
+                        <Clock className="w-4 h-4 mr-1.5" /> Aberto
+                      </span>
+                    )}
+                    <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => { setInvoiceToPrint(inv); setIsPrintDialogOpen(true); }}>
+                      <Printer className="w-3 h-3 mr-1" /> Ver Fatura
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="space-y-3 bg-muted/30 p-4 rounded-lg">
@@ -101,6 +112,12 @@ export default function MerchantInvoicesPage() {
           </div>
         )}
       </div>
+
+      <PrintableInvoiceDialog 
+        isOpen={isPrintDialogOpen} 
+        onClose={() => setIsPrintDialogOpen(false)} 
+        invoice={invoiceToPrint} 
+      />
     </BusinessLayout>
   );
 }
