@@ -236,7 +236,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
         address: finalAddress,
         dropoff_address: finalAddress,
         pickup_address: companyAddress || "Retirada na Loja",
-        value: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue,
+        price: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue,
         estimated_value: isNaN(parsedCollectValue) ? 0 : parsedCollectValue,
         notes: finalNotes || null,
         status: initialData ? initialData.status : "pending",

@@ -15,6 +15,7 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
   const [loading, setLoading] = useState(true);
   const [regions, setRegions] = useState<any[]>([]);
   const [pricingRules, setPricingRules] = useState<any[]>([]);
+  const [companySettings, setCompanySettings] = useState<any>(null);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
 
   useEffect(() => {
@@ -28,8 +29,9 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
 
       if (companyId) {
         // Fetch custom pricing rules
-        const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id').eq('id', companyId).single();
+        const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id, delivery_mode, delivery_fee').eq('id', companyId).single();
         if (comp) {
+          setCompanySettings(comp);
           let tableId = comp.pricing_table_id;
           if (!tableId) {
             const { data: defTable } = await supabase.from('pricing_tables').select('id').eq('is_default', true).maybeSingle();
@@ -52,6 +54,9 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
   }, [cityId, companyId]);
 
   const getRegionFee = (region: any) => {
+    if (companySettings?.delivery_mode === 'fixed_fee' && companySettings?.delivery_fee != null) {
+      return Number(companySettings.delivery_fee);
+    }
     const rule = pricingRules.find(r => r.destination_region_id === region.id);
     if (rule) return Number(rule.base_value);
     return Number(region.price ?? region.delivery_fee ?? null);
