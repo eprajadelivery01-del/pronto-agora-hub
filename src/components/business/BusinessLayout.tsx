@@ -158,7 +158,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none",
+          "fixed top-0 left-0 z-50 h-full bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none pt-[env(safe-area-inset-top)]",
           "lg:translate-x-0 lg:sticky lg:top-0 lg:z-40",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "w-20" : "w-72"
@@ -293,7 +293,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 bg-muted/20 min-h-0">
         {/* Header */}
-        <header className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-6 py-4 flex items-center justify-between gap-4 relative z-30">
+        <header className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4 flex items-center justify-between gap-4 relative z-30">
           <div className="flex items-center gap-4">
             <button
               className="lg:hidden p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors"
