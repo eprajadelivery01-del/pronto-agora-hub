@@ -33,10 +33,6 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
         if (comp) {
           setCompanySettings(comp);
           let tableId = comp.pricing_table_id;
-          if (!tableId) {
-            const { data: defTable } = await supabase.from('pricing_tables').select('id').eq('is_default', true).maybeSingle();
-            if (defTable) tableId = defTable.id;
-          }
           if (tableId && comp.region_id) {
             const { data: rules } = await supabase
               .from('pricing_rules')
@@ -59,7 +55,7 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
     }
     const rule = pricingRules.find(r => r.destination_region_id === region.id);
     if (rule) return Number(rule.base_value);
-    return Number(region.price ?? region.delivery_fee ?? null);
+    return Number(region.delivery_fee || region.price || 0);
   };
 
   const handleSelect = (region: any) => {

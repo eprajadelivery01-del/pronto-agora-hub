@@ -45,10 +45,6 @@ export const RegionPickerMap = memo(({ cityId, companyId, onRegionSelect }: Regi
         const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id').eq('id', companyId).single();
         if (comp) {
           let tableId = comp.pricing_table_id;
-          if (!tableId) {
-            const { data: defTable } = await supabase.from('pricing_tables').select('id').eq('is_default', true).maybeSingle();
-            if (defTable) tableId = defTable.id;
-          }
           if (tableId && comp.region_id) {
             const { data: rules } = await supabase
               .from('pricing_rules')
@@ -66,7 +62,7 @@ export const RegionPickerMap = memo(({ cityId, companyId, onRegionSelect }: Regi
   const getRegionFee = (region: any) => {
     const rule = pricingRules.find(r => r.destination_region_id === region.id);
     if (rule) return Number(rule.base_value);
-    return Number(region.delivery_fee ?? region.price ?? 0);
+    return Number(region.delivery_fee || region.price || 0);
   };
 
   // 2. Initialize Map (Strictly Once)
