@@ -54,10 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const userEmail = (forceEmail || currentUser?.email)?.toLowerCase();
 
-      const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout")), 10000)
-      );
-
       // Fetch roles e profile simultaneamente
       const rolesFetch = supabase.from("user_roles").select("role").eq("user_id", userId);
       const profileFetch = supabase
@@ -66,10 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", userId)
         .maybeSingle();
 
-      const results = (await Promise.race([
-        Promise.all([rolesFetch, profileFetch]),
-        timeout
-      ])) as FetchUserDataResult;
+      const results = await Promise.all([rolesFetch, profileFetch]) as FetchUserDataResult;
 
       const [rolesRes, profileRes] = results;
 
