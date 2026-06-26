@@ -44,11 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserData = async (userId: string, forceEmail?: string) => {
     if (fetchingRef.current === userId) return;
     fetchingRef.current = userId;
-    
-    // Only set rolesLoaded to false if we haven't loaded them yet
-    if (!rolesLoadedRef.current) {
-      setRolesLoaded(false);
-    }
+
+    // Always mark roles as not-yet-loaded while a fresh fetch is in progress.
+    // Otherwise, right after a fresh login (when rolesLoaded was already true from
+    // the no-session init), guards like LoginPage would evaluate with an empty
+    // roles array before the async fallback finishes — wrongly showing
+    // "Portal Restrito" to legitimate users whose role comes from the fallback.
+    setRolesLoaded(false);
 
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
