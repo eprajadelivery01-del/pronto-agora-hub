@@ -129,7 +129,6 @@ export default function BusinessHomePage() {
       return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyId,
-    refetchInterval: 5000,
   });
 
   const { data: openStoreDeliveriesByName, isLoading: isLoadingOpenStoreDeliveriesByName } = useQuery({
@@ -151,7 +150,6 @@ export default function BusinessHomePage() {
       return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyData?.name,
-    refetchInterval: 5000,
   });
 
   // Último fallback: busca tudo que o usuário autenticado consegue enxergar e filtra no cliente.
@@ -183,7 +181,6 @@ export default function BusinessHomePage() {
       });
     },
     enabled: !!companyId || !!companyData?.name || !!companyData?.email || !!user?.id,
-    refetchInterval: 5000,
   });
 
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
