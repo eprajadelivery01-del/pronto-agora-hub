@@ -257,6 +257,18 @@ export default function BusinessHomePage() {
       if (error) throw error;
       toast.success("Entrega cancelada");
       qc.invalidateQueries({ queryKey: ["deliveries"] });
+      qc.invalidateQueries({ queryKey: ["delivery-stats"] });
+      qc.invalidateQueries({ queryKey: ["business-open-store-deliveries"] });
+      qc.invalidateQueries({ queryKey: ["business-open-store-deliveries-by-name"] });
+      qc.invalidateQueries({ queryKey: ["business-visible-deliveries-fallback"] });
+      
+      // Remove from optimistic state if exists
+      setOptimisticManualDeliveries(current => current.filter(d => d.id !== id));
+      
+      // Failsafe force reload after a moment to ensure UI clears
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
     } catch (err: any) {
       toast.error(err.message);
     }
