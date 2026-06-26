@@ -1,6 +1,6 @@
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { Card } from "@/components/ui/card";
 import { Loader2, FileText, CheckCircle, Clock, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,7 +50,7 @@ export default function MerchantInvoicesPage() {
   }, [user]);
 
   return (
-    <BusinessLayout title="Minhas Faturas" subtitle="Valores devidos à plataforma">
+    <BusinessLayout title="Minhas Faturas">
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {isLoading ? (
           <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
