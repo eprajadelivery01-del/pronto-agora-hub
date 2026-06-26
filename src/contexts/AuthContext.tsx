@@ -79,11 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("[Auth] user_roles vazio/erro para", userId, "— usando fallback por tabelas...");
 
         const companyQuery = userEmail 
-          ? supabase.from("companies").select("id").eq("email", userEmail).maybeSingle()
+          ? supabase.from("companies").select("id").ilike("email", userEmail.trim()).maybeSingle()
           : supabase.from("companies").select("id").eq("user_id", userId).maybeSingle();
 
         const driverQuery = userEmail
-          ? supabase.from("delivery_drivers").select("id").eq("email", userEmail).maybeSingle()
+          ? supabase.from("delivery_drivers").select("id").ilike("email", userEmail.trim()).maybeSingle()
           : supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle();
 
         const [companiesRes, driversRes, adminRolesRes] = await Promise.all([
