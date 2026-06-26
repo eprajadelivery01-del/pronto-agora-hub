@@ -98,36 +98,40 @@ export function PrintableInvoiceDialog({
         ) : (
           <div className="p-8 bg-white text-black print-only print:p-0">
             {/* Cabeçalho da Fatura */}
-            <div className="flex justify-between items-start border-b-2 border-gray-200 pb-6 mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 uppercase">Fatura Comercial</h1>
-                <p className="text-sm text-gray-500 mt-1">Ref: {invoice.reference_month}</p>
-                <div className="mt-4">
-                  <h3 className="font-bold text-gray-800">Faturado para:</h3>
-                  <p className="font-medium text-lg">{company?.name}</p>
-                  <p className="text-sm text-gray-600">{company?.city} - {company?.state}</p>
+            <div className="grid grid-cols-3 gap-4 border-b-2 border-gray-200 pb-6 mb-6">
+              {/* Dados da Plataforma */}
+              <div className="text-left">
+                <p className="font-bold text-xl text-gray-900">É Pra Já Delivery</p>
+                <p className="text-sm text-gray-600">Gestão Logística e Tecnologia</p>
+                <p className="text-sm text-gray-500 mt-1">contato@eprajadelivery.com</p>
+              </div>
+
+              {/* Título e Dados da Fatura */}
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-wide">Fatura Comercial</h1>
+                <div className="mt-3 text-sm text-gray-600 space-y-1">
+                  <p><span className="font-semibold text-gray-800">Ref:</span> {invoice.reference_month}</p>
+                  <p><span className="font-semibold text-gray-800">Período:</span> {new Date(invoice.period_start + "T00:00:00").toLocaleDateString('pt-BR')} a {new Date(invoice.period_end + "T23:59:59").toLocaleDateString('pt-BR')}</p>
+                  <p><span className="font-semibold text-gray-800">Status:</span> {invoice.status === 'paid' ? 'Pago' : 'Aberto/Pendente'}</p>
                 </div>
               </div>
+
+              {/* Dados do Cliente */}
               <div className="text-right">
-                <p className="font-bold text-xl text-primary">É Pra Já Delivery</p>
-                <p className="text-sm text-gray-600">Gestão Logística e Tecnologia</p>
-                <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-100 inline-block text-left min-w-[200px]">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total a Pagar</p>
-                  <p className="text-2xl font-bold text-gray-900">R$ {Number(invoice.total_amount).toFixed(2)}</p>
-                  <p className="text-xs text-gray-500 mt-2 font-medium">Vencimento: A combinar</p>
-                </div>
+                <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wider">Faturado para</h3>
+                <p className="font-bold text-lg text-gray-900 mt-1">{company?.name || '—'}</p>
+                <p className="text-sm text-gray-600 mt-1">{company?.cnpj ? `CNPJ: ${company.cnpj}` : ''}</p>
+                <p className="text-sm text-gray-600">{company?.address || ''}</p>
+                <p className="text-sm text-gray-600">{company?.city}{company?.city && company?.state ? ' - ' : ''}{company?.state}</p>
               </div>
             </div>
 
-            {/* Resumo */}
-            <div className="mb-8 flex justify-between bg-gray-50 p-4 rounded-lg border border-gray-100">
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Período</p>
-                <p className="font-medium">{new Date(invoice.period_start + "T00:00:00").toLocaleDateString('pt-BR')} a {new Date(invoice.period_end + "T23:59:59").toLocaleDateString('pt-BR')}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Status</p>
-                <p className="font-medium uppercase">{invoice.status === 'paid' ? 'Pago' : 'Aberto/Pendente'}</p>
+            {/* Total em destaque */}
+            <div className="mb-6 flex justify-end">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 text-right min-w-[220px]">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total a Pagar</p>
+                <p className="text-2xl font-bold text-gray-900">R$ {Number(invoice.total_amount).toFixed(2)}</p>
+                <p className="text-xs text-gray-500 mt-2 font-medium">Vencimento: A combinar</p>
               </div>
             </div>
 
