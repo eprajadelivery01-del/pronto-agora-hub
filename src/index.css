@@ -254,6 +254,16 @@
     margin: 0;
     padding: 0;
   }
+  /* Invoice header print alignment */
+  .print-only .grid.grid-cols-3 {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1rem !important;
+    width: 100% !important;
+  }
+  .print-only .text-left   { text-align: left !important; }
+  .print-only .text-center { text-align: center !important; }
+  .print-only .text-right  { text-align: right !important; }
 }
   
 #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); } 
