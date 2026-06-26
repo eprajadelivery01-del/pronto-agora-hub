@@ -143,18 +143,37 @@ function toast({ ...props }: Toast) {
     const title = typeof props.title === "string" ? props.title : "Alerta de Erro";
     const description = typeof props.description === "string" ? props.description : "";
     
-    import("@/services/logger").then(({ reportErrorToTelegram }) => {
-      reportErrorToTelegram({
-        error_message: `Alerta para o Usuário: [${title}] - ${description}`,
-        stack_trace: "Toast de Erro exibido na tela do usuário.",
-        url: window.location.href,
-        additional_info: {
-          isUserFacingAlert: true,
-          toastTitle: title,
-          toastDescription: description
-        }
-      }, "Painel Lojista").catch(() => {});
-    }).catch(() => {});
+    // Ignorar erros comuns de usabilidade que poluem o Telegram
+    const ignoreList = [
+      "e-mail ou senha",
+      "senha",
+      "esta corrida já foi aceita",
+      "invalid login",
+      "acesso negado",
+      "exclusivo para entregadores",
+      "preencha",
+      "obrigatório"
+    ];
+    
+    const shouldIgnore = ignoreList.some(msg => 
+      title.toLowerCase().includes(msg) || 
+      description.toLowerCase().includes(msg)
+    );
+    
+    if (!shouldIgnore) {
+      import("@/services/logger").then(({ reportErrorToTelegram }) => {
+        reportErrorToTelegram({
+          error_message: `Alerta para o Usuário: [${title}] - ${description}`,
+          stack_trace: "Toast de Erro exibido na tela do usuário.",
+          url: window.location.href,
+          additional_info: {
+            isUserFacingAlert: true,
+            toastTitle: title,
+            toastDescription: description
+          }
+        }, "Painel Lojista").catch(() => {});
+      }).catch(() => {});
+    }
   }
 
   const update = (props: ToasterToast) =>
