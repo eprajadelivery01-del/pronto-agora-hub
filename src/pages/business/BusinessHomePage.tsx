@@ -208,7 +208,7 @@ export default function BusinessHomePage() {
 
   const marketplaceDeliveriesWithOrders: MarketplaceOrder[] = marketplaceDeliveries.map(delivery => {
     const order = (marketplaceOrders || []).find(o => o.delivery_id === delivery.id || o.id === delivery.order_id);
-    return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || delivery.value || 0, deliveryInfo: delivery };
+    return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || (delivery as any).delivery_fee || delivery.value || 0, deliveryInfo: delivery };
   });
 
   // Atualização por HTTP: evita depender de WebSocket/realtime, que está instável no domínio publicado.
@@ -323,7 +323,7 @@ export default function BusinessHomePage() {
         <div class="label">Valor do Produto</div>
         <div class="value">R$ ${productValue.toFixed(2).replace('.', ',')}</div>
         <div class="label">Taxa de Entrega</div>
-        <div class="value">R$ ${Number(delivery.value ?? (delivery as any).price ?? 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number((delivery as any).delivery_fee ?? delivery.value ?? (delivery as any).price ?? 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Data/Hora da Solicitação</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
         ${delivery.notes ? `<div class="label">Observações</div><div class="value">${delivery.notes}</div>` : ""}
@@ -529,7 +529,7 @@ export default function BusinessHomePage() {
                         <div className="flex items-center justify-between pt-2">
                            <div className="text-left">
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">A Cobrar</span>
-                             <p className="text-xl font-black text-warning italic">R$ {(delivery.value || 0).toFixed(2).replace('.', ',')}</p>
+                             <p className="text-xl font-black text-warning italic">R$ {Number((delivery as any).delivery_fee ?? delivery.value ?? 0).toFixed(2).replace('.', ',')}</p>
                            </div>
                            <button onClick={() => handleComplete(delivery)} className="px-6 py-3 rounded-2xl bg-warning text-warning-foreground font-black text-xs uppercase tracking-widest shadow-lg shadow-warning/20 hover:scale-105 transition-all">Concluir</button>
                         </div>
@@ -606,7 +606,7 @@ export default function BusinessHomePage() {
                 <div className="pt-4 border-t border-border flex flex-col gap-2">
                   <div className="flex justify-between items-center mb-4">
                      <span className="text-sm font-black text-muted-foreground uppercase tracking-widest">A Cobrar</span>
-                     <span className="text-2xl font-black text-warning">R$ {(detailDelivery.value || 0).toFixed(2).replace('.', ',')}</span>
+                     <span className="text-2xl font-black text-warning">R$ {Number((detailDelivery as any).delivery_fee ?? detailDelivery.value ?? 0).toFixed(2).replace('.', ',')}</span>
                   </div>
                   <div className="flex gap-3">
                     <button 
