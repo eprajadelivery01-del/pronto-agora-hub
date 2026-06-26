@@ -58,6 +58,8 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           customer_name, 
           address, 
           value, 
+          price,
+          delivery_fee,
           status, 
           created_at, 
           updated_at, 
@@ -129,7 +131,7 @@ export function useDeliveryStats(params?: { companyId?: string; dateFrom?: strin
   return useQuery({
     queryKey: ["delivery-stats", companyId, dateFrom, dateTo, cityId],
     queryFn: async () => {
-      let query = supabase.from("deliveries").select("status, value");
+      let query = supabase.from("deliveries").select("status, value, price, delivery_fee");
 
       if (dateFrom) {
         query = query.gte("created_at", new Date(dateFrom).toISOString());
@@ -169,8 +171,8 @@ export function useDeliveryStats(params?: { companyId?: string; dateFrom?: strin
         inTransit: data.filter((d) => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
         delivered: data.filter((d) => d.status === "completed").length,
         cancelled: data.filter((d) => d.status === "cancelled").length,
-        todayRevenue: data.filter((d) => d.status === "completed").reduce((sum, d) => sum + Number((d as any).value ?? 0), 0),
-        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + Number((d as any).value ?? 0), 0),
+        todayRevenue: data.filter((d) => d.status === "completed").reduce((sum, d) => sum + (Number((d as any).delivery_fee) || Number((d as any).value) || Number((d as any).price) || 0), 0),
+        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + (Number((d as any).delivery_fee) || Number((d as any).value) || Number((d as any).price) || 0), 0),
       };
     },
     refetchInterval: 30000,
@@ -363,7 +365,7 @@ export function useDeliveryTracking(orderId?: string | null) {
     queryKey: ["order", orderId],
     queryFn: async () => {
       if (!orderId) return null;
-      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, created_at)").eq("id", orderId).single();
+      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, price, delivery_fee, created_at)").eq("id", orderId).single();
       return data;
     },
     enabled: !!orderId,
