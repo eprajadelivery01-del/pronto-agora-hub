@@ -140,7 +140,21 @@ function toast({ ...props }: Toast) {
 
   // Interceptar toasts destrutivos e enviar ao Telegram automaticamente
   if (props.variant === "destructive") {
-    // Logging user-facing toasts to telegram is disabled to prevent spam.
+    const title = typeof props.title === "string" ? props.title : "Alerta de Erro";
+    const description = typeof props.description === "string" ? props.description : "";
+    
+    import("@/services/logger").then(({ reportErrorToTelegram }) => {
+      reportErrorToTelegram({
+        error_message: `Alerta para o Usuário: [${title}] - ${description}`,
+        stack_trace: "Toast de Erro exibido na tela do usuário.",
+        url: window.location.href,
+        additional_info: {
+          isUserFacingAlert: true,
+          toastTitle: title,
+          toastDescription: description
+        }
+      }, "Painel Lojista").catch(() => {});
+    }).catch(() => {});
   }
 
   const update = (props: ToasterToast) =>
