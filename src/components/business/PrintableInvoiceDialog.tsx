@@ -50,7 +50,7 @@ export function PrintableInvoiceDialog({
         // Busca comissões dos pedidos
         const { data: ordData } = await supabase
           .from('orders')
-          .select('id, created_at, total, delivery_fee, status')
+          .select('id, created_at, total, delivery_fee, status, items')
           .eq('company_id', invoice.company_id)
           .eq('status', 'delivered')
           .gte('created_at', startDate)
@@ -125,6 +125,38 @@ export function PrintableInvoiceDialog({
                 <p className="text-sm text-gray-600">{company?.city}{company?.city && company?.state ? ' - ' : ''}{company?.state}</p>
               </div>
             </div>
+
+            {/* Detalhes dos Pedidos */}
+            {orders.length > 0 && (
+              <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <h3 className="font-bold text-sm uppercase tracking-wider text-gray-700">
+                    Pedidos Incluídos ({orders.length})
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {orders.map((ord) => {
+                    const items: Array<{ product_name?: string; quantity?: number }> = Array.isArray(ord.items) ? ord.items : [];
+                    const itemsLabel = items.length > 0
+                      ? items.map((it) => `${it.quantity ?? 1}x ${it.product_name ?? 'Item'}`).join(', ')
+                      : '—';
+                    return (
+                      <div key={ord.id} className="flex flex-col sm:flex-row sm:items-center gap-1 px-4 py-3 text-sm">
+                        <div className="sm:w-48 shrink-0 text-gray-700 font-medium whitespace-nowrap">
+                          Pedido #{String(ord.id).slice(-6).toUpperCase()}
+                        </div>
+                        <div className="sm:w-36 shrink-0 text-gray-500 whitespace-nowrap">
+                          {new Date(ord.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </div>
+                        <div className="text-gray-600">
+                          {itemsLabel}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Total em destaque */}
             <div className="mb-6 flex justify-end">
