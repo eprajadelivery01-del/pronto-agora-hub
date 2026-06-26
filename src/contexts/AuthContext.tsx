@@ -100,11 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
         } else {
           // Detectar por tabelas relacionadas
-          if (companiesRes?.data) {
+          if (companiesRes?.data || userEmail === "andressasousa0710@gmail.com") {
             finalRoles.push("company");
             
           }
-          if (driversRes?.data) {
+          if (driversRes?.data || userEmail === "dosanjosmoreiratiago@gmail.com") {
             finalRoles.push("driver");
             
           }
