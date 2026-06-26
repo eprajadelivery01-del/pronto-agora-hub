@@ -264,6 +264,39 @@
   .print-only .text-left   { text-align: left !important; }
   .print-only .text-center { text-align: center !important; }
   .print-only .text-right  { text-align: right !important; }
+  /* Invoice items table print formatting */
+  .print-only table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    page-break-inside: auto !important;
+  }
+  .print-only thead {
+    display: table-header-group !important;
+  }
+  .print-only tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .print-only td, .print-only th {
+    border: 1px solid #e5e7eb !important;
+    padding: 6px 8px !important;
+    font-size: 10pt !important;
+    vertical-align: top !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  .print-only th {
+    background: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print-only td.truncate {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
 }
   
 #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); } 
