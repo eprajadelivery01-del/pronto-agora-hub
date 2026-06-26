@@ -29,6 +29,7 @@ export default function LoginPage() {
         description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
         variant: "destructive"
       });
+    }
   }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
