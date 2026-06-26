@@ -26,7 +26,9 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
     msg.includes("inválida") ||
     msg.includes("credenciais") ||
     msg.includes("offline") ||
-    msg.includes("não encontrada")
+    msg.includes("não encontrada") ||
+    msg.includes("acesso negado") ||
+    msg.includes("exclusivo para entregadores")
   ) {
     return;
   }
@@ -101,11 +103,11 @@ export function initializeGlobalErrorHandlers(appName: string) {
       return typeof a === "object" ? JSON.stringify(a) : String(a);
     }).join(" ");
 
-    // Skip nested reporting to prevent loops
-    if (isReporting) return;
-
     // Invoke original console logger
     originalConsoleError.apply(console, args);
+
+    // Skip nested reporting to prevent loops
+    if (isReporting) return;
 
     reportErrorToTelegram({
       error_message: `[Console Error] ${msg.slice(0, 1000)}`,
