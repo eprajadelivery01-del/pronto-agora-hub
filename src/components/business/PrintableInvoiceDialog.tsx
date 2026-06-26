@@ -103,8 +103,7 @@ export function PrintableInvoiceDialog({
               <div className="text-left">
                 <p className="font-bold text-xl text-gray-900">É Pra Já Delivery</p>
                 <p className="text-sm text-gray-600">Gestão Logística e Tecnologia</p>
-                <p className="text-sm text-gray-500 mt-1">CNPJ: 00.000.000/0001-00</p>
-                <p className="text-sm text-gray-500">contato@eprajadelivery.com</p>
+                <p className="text-sm text-gray-500 mt-1">contato@eprajadelivery.com</p>
               </div>
 
               {/* Título e Dados da Fatura */}
