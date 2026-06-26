@@ -134,26 +134,54 @@ export function PrintableInvoiceDialog({
                     Pedidos Incluídos ({orders.length})
                   </h3>
                 </div>
-                <div className="divide-y divide-gray-100">
-                  {orders.map((ord) => {
-                    const items: Array<{ product_name?: string; quantity?: number }> = Array.isArray(ord.items) ? ord.items : [];
-                    const itemsLabel = items.length > 0
-                      ? items.map((it) => `${it.quantity ?? 1}x ${it.product_name ?? 'Item'}`).join(', ')
-                      : '—';
-                    return (
-                      <div key={ord.id} className="flex flex-col sm:flex-row sm:items-center gap-1 px-4 py-3 text-sm">
-                        <div className="sm:w-48 shrink-0 text-gray-700 font-medium whitespace-nowrap">
-                          Pedido #{String(ord.id).slice(-6).toUpperCase()}
-                        </div>
-                        <div className="sm:w-36 shrink-0 text-gray-500 whitespace-nowrap">
-                          {new Date(ord.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </div>
-                        <div className="text-gray-600">
-                          {itemsLabel}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                      <tr>
+                        <th className="px-4 py-2 w-32">Pedido</th>
+                        <th className="px-4 py-2 w-28">Data</th>
+                        <th className="px-4 py-2 w-16 text-right">Qtd</th>
+                        <th className="px-4 py-2">Produto</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {orders.map((ord) => {
+                        const items: Array<{ product_name?: string; quantity?: number }> = Array.isArray(ord.items) ? ord.items : [];
+                        const orderDate = new Date(ord.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        const orderNum = `#${String(ord.id).slice(-6).toUpperCase()}`;
+                        if (items.length === 0) {
+                          return (
+                            <tr key={ord.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 font-medium text-gray-700 whitespace-nowrap">{orderNum}</td>
+                              <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{orderDate}</td>
+                              <td className="px-4 py-2 text-right text-gray-600">—</td>
+                              <td className="px-4 py-2 text-gray-600">—</td>
+                            </tr>
+                          );
+                        }
+                        return items.map((it, idx) => (
+                          <tr key={`${ord.id}-${idx}`} className="hover:bg-gray-50">
+                            {idx === 0 && (
+                              <>
+                                <td rowSpan={items.length} className="px-4 py-2 font-medium text-gray-700 whitespace-nowrap align-top border-r border-gray-100">
+                                  {orderNum}
+                                </td>
+                                <td rowSpan={items.length} className="px-4 py-2 text-gray-500 whitespace-nowrap align-top border-r border-gray-100">
+                                  {orderDate}
+                                </td>
+                              </>
+                            )}
+                            <td className="px-4 py-2 text-right text-gray-700 font-semibold whitespace-nowrap">
+                              {it.quantity ?? 1}x
+                            </td>
+                            <td className="px-4 py-2 text-gray-800 truncate max-w-[200px]" title={it.product_name ?? 'Item'}>
+                              {it.product_name ?? 'Item'}
+                            </td>
+                          </tr>
+                        ));
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
