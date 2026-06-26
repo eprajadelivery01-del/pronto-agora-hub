@@ -23,10 +23,18 @@ export default function LoginPage() {
       navigate("/pending-approval", { replace: true });
     } else if (hasRole("company")) {
       navigate("/business", { replace: true });
-    } else if (hasRole("admin")) {
-      navigate("/admin", { replace: true });
+    } else {
+      toast({
+        title: "Portal Restrito",
+        description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
+        variant: "destructive"
+      });
+      setTimeout(() => {
+        supabase.auth.signOut().then(() => {
+          window.location.reload();
+        });
+      }, 3000);
     }
-    // Se roles vazias, apenas aguarda — não deslogar o usuário aqui
   }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
