@@ -50,7 +50,7 @@ export function PrintableInvoiceDialog({
         // Busca comissões dos pedidos
         const { data: ordData } = await supabase
           .from('orders')
-          .select('id, created_at, total, delivery_fee, status')
+          .select('id, created_at, total, delivery_fee, status, items')
           .eq('company_id', invoice.company_id)
           .eq('status', 'delivered')
           .gte('created_at', startDate)
