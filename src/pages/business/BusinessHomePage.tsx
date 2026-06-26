@@ -69,7 +69,7 @@ export default function BusinessHomePage() {
       }
     }
     
-    const deliveryFee = Number(delivery.delivery_fee ?? delivery.price ?? delivery.value ?? 0);
+    const deliveryFee = Number(delivery.commission ?? delivery.price ?? delivery.value ?? 0);
     return productValue + deliveryFee;
   };
 
@@ -229,10 +229,10 @@ export default function BusinessHomePage() {
 
   const marketplaceDeliveriesWithOrders: MarketplaceOrder[] = marketplaceDeliveries.map(delivery => {
     const order = (marketplaceOrders || []).find(o => o.delivery_id === delivery.id || o.id === delivery.order_id);
-    return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || (delivery as any).delivery_fee || delivery.value || 0, deliveryInfo: delivery };
+    return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || (delivery as any).commission || delivery.value || 0, deliveryInfo: delivery };
   });
 
-  // Atualização por HTTP: evita depender de WebSocket/realtime, que está instável no domínio publicado.
+  // Atualização agora depende do cache do React Query ou webhooks reais
   useEffect(() => {
     if (!companyId) return;
     const invalidateDeliveryQueries = () => {
@@ -245,8 +245,6 @@ export default function BusinessHomePage() {
     };
 
     invalidateDeliveryQueries();
-    const interval = window.setInterval(invalidateDeliveryQueries, 5000);
-    return () => window.clearInterval(interval);
   }, [companyId, qc]);
 
   const stats = useMemo(() => ({
@@ -344,7 +342,7 @@ export default function BusinessHomePage() {
         <div class="label">Valor do Produto</div>
         <div class="value">R$ ${productValue.toFixed(2).replace('.', ',')}</div>
         <div class="label">Taxa de Entrega</div>
-        <div class="value">R$ ${Number((delivery as any).delivery_fee ?? delivery.value ?? (delivery as any).price ?? 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${Number((delivery as any).commission ?? delivery.value ?? (delivery as any).price ?? 0).toFixed(2).replace('.', ',')}</div>
         <div class="label">Data/Hora da Solicitação</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
         ${delivery.notes ? `<div class="label">Observações</div><div class="value">${delivery.notes}</div>` : ""}

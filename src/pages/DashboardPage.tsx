@@ -195,7 +195,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td className="py-3 text-right font-bold text-xs">
-                          R$ {Number((delivery as any).delivery_fee ?? delivery.value ?? 0).toFixed(2)}
+                          R$ {Number((delivery as any).commission ?? delivery.value ?? 0).toFixed(2)}
                         </td>
                       </tr>
                     ))}

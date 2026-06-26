@@ -59,7 +59,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           address, 
           value, 
           price,
-          delivery_fee,
+          commission,
           payment_method,
           status, 
           created_at, 
@@ -132,7 +132,7 @@ export function useDeliveryStats(params?: { companyId?: string; dateFrom?: strin
   return useQuery({
     queryKey: ["delivery-stats", companyId, dateFrom, dateTo, cityId],
     queryFn: async () => {
-      let query = supabase.from("deliveries").select("status, value, price, delivery_fee");
+      let query = supabase.from("deliveries").select("status, value, price, commission");
 
       if (dateFrom) {
         query = query.gte("created_at", new Date(dateFrom).toISOString());
@@ -366,7 +366,7 @@ export function useDeliveryTracking(orderId?: string | null) {
     queryKey: ["order-delivery", orderId],
     queryFn: async () => {
       if (!orderId) return null;
-      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, price, delivery_fee, payment_method, created_at)").eq("id", orderId).single();
+      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, price, commission, payment_method, created_at)").eq("id", orderId).single();
       return data;
     },
     enabled: !!orderId,
