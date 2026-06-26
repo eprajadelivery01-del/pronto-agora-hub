@@ -25,7 +25,7 @@ export default function MerchantInvoicesPage() {
     const { data: companies } = await supabase
       .from('companies')
       .select('id')
-      .eq('owner_id', user.id);
+      .eq('user_id', user.id);
       
     if (!companies || companies.length === 0) {
       setIsLoading(false);
