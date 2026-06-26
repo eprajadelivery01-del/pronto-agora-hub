@@ -118,7 +118,7 @@ export default function BusinessFinancePage() {
       // Filtramos apenas as que NÃO possuem order_id ou que foram cobradas avulsas
       const { data: deliveriesData } = await supabase
         .from("deliveries")
-        .select("id, value, status, created_at, order_id")
+        .select("id, value, price, delivery_fee, status, created_at, order_id")
         .eq("company_id", companyId)
         .gte("created_at", startIso)
         .lte("created_at", endIso);
@@ -141,7 +141,7 @@ export default function BusinessFinancePage() {
     
     // Manual Delivery Spending (only non-cancelled deliveries)
     const activeDeliveries = deliveries.filter(d => d.status !== "cancelled");
-    const manualDeliverySpending = activeDeliveries.reduce((s, d) => s + (Number(d.value) || 0), 0);
+    const manualDeliverySpending = activeDeliveries.reduce((s, d) => s + (Number(d.delivery_fee) || Number(d.value) || Number(d.price) || 0), 0);
     const platformFee = marketplaceRevenue * (commissionPercentage / 100);
 
     const avgTicket = completedOrders.length > 0 ? marketplaceRevenue / completedOrders.length : 0;

@@ -44,16 +44,37 @@ export default function BusinessHomePage() {
   const [optimisticManualDeliveries, setOptimisticManualDeliveries] = useState<DeliveryWithRelations[]>([]);
   const qc = useQueryClient();
   
-  const { companyId, company: companyData } = useCurrentCompany();
-
   const getDeliveryPaymentMethod = (delivery: any) => {
+    const orderPayment = delivery.orders?.[0]?.payment_method || delivery.orders?.payment_method;
+    if (orderPayment) return orderPayment;
     if (delivery.payment_method) return delivery.payment_method;
-    if (!delivery.notes) return "Não informado";
-    if (delivery.notes.includes("[PAGO]")) return "Já pago";
-    const match = delivery.notes.match(/\[RECEBER: (.*?)\]/);
-    if (match) return match[1];
+    if (delivery.notes) {
+      if (delivery.notes.includes("[PAGO]")) return "Já pago";
+      const match = delivery.notes.match(/\[RECEBER: (.*?)\]/);
+      if (match) return match[1];
+    }
     return "Não informado";
   };
+
+  const getDeliveryTotalToCollect = (delivery: any): number => {
+    if (delivery.notes && delivery.notes.includes("[PAGO]")) {
+       return 0; 
+    }
+    
+    let productValue = Number(delivery.estimated_value || 0);
+    if (productValue === 0 && delivery.notes) {
+      const match = delivery.notes.match(/Total Produtos:\s*R\$\s*([\d,.]+)/);
+      if (match) {
+         productValue = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
+      }
+    }
+    
+    const deliveryFee = Number(delivery.delivery_fee ?? delivery.price ?? delivery.value ?? 0);
+    return productValue + deliveryFee;
+  };
+
+  const { companyId, company: companyData } = useCurrentCompany();
+
 
   // 1. Fetch Marketplace Orders with active deliveries
   const { data: marketplaceOrders, isLoading: isLoadingMarketplace } = useQuery({
@@ -318,7 +339,7 @@ export default function BusinessHomePage() {
         <div class="label">Status</div>
         <div class="value">${delivery.status}</div>
         <div class="label">Forma de Pagamento</div>
-        <div class="value">${(delivery as any).payment_method || "Não informada"}</div>
+        <div class="value">${getDeliveryPaymentMethod(delivery)}</div>
         <hr/>
         <div class="label">Valor do Produto</div>
         <div class="value">R$ ${productValue.toFixed(2).replace('.', ',')}</div>
@@ -529,7 +550,7 @@ export default function BusinessHomePage() {
                         <div className="flex items-center justify-between pt-2">
                            <div className="text-left">
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">A Cobrar</span>
-                             <p className="text-xl font-black text-warning italic">R$ {Number((delivery as any).delivery_fee ?? delivery.value ?? 0).toFixed(2).replace('.', ',')}</p>
+                             <p className="text-xl font-black text-warning italic">R$ {getDeliveryTotalToCollect(delivery).toFixed(2).replace('.', ',')}</p>
                            </div>
                            <button onClick={() => handleComplete(delivery)} className="px-6 py-3 rounded-2xl bg-warning text-warning-foreground font-black text-xs uppercase tracking-widest shadow-lg shadow-warning/20 hover:scale-105 transition-all">Concluir</button>
                         </div>
@@ -606,7 +627,7 @@ export default function BusinessHomePage() {
                 <div className="pt-4 border-t border-border flex flex-col gap-2">
                   <div className="flex justify-between items-center mb-4">
                      <span className="text-sm font-black text-muted-foreground uppercase tracking-widest">A Cobrar</span>
-                     <span className="text-2xl font-black text-warning">R$ {Number((detailDelivery as any).delivery_fee ?? detailDelivery.value ?? 0).toFixed(2).replace('.', ',')}</span>
+                     <span className="text-2xl font-black text-warning">R$ {getDeliveryTotalToCollect(detailDelivery).toFixed(2).replace('.', ',')}</span>
                   </div>
                   <div className="flex gap-3">
                     <button 

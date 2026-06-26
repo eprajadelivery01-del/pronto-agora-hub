@@ -86,7 +86,7 @@ export default function BusinessHistoryPage() {
             .eq("company_id", companyId)
             .order("created_at", { ascending: false }),
           supabase.from("deliveries")
-            .select(`id, status, value, created_at, customer_name`)
+            .select(`id, status, value, price, delivery_fee, created_at, customer_name`)
             .eq("company_id", companyId)
             .order("created_at", { ascending: false })
         ]);
@@ -117,7 +117,7 @@ export default function BusinessHistoryPage() {
             unifiedHistory.push({
               id: d.id,
               status: d.status,
-              total: d.value || 0,
+              total: Number(d.delivery_fee) || Number(d.price) || Number(d.value) || 0,
               created_at: d.created_at,
               customer_name: d.customer_name || "Cliente Manual",
               type: 'manual'
