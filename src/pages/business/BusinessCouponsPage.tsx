@@ -144,7 +144,8 @@ export default function BusinessCouponsPage() {
 
     try {
       if (editing) {
-        await updateCoupon.mutateAsync({ id: editing.id, data: payload, product_ids: payload.product_ids });
+        const { product_ids, ...couponData } = payload;
+        await updateCoupon.mutateAsync({ id: editing.id, data: couponData, product_ids: product_ids });
         toast.success("Cupom atualizado!");
       } else {
         await createCoupon.mutateAsync(payload);
