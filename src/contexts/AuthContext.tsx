@@ -78,9 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // (companies e delivery_drivers têm RLS permissivo — nunca retornam 403)
         console.warn("[Auth] user_roles vazio/erro para", userId, "— usando fallback por tabelas...");
 
+        const companyQuery = userEmail 
+          ? supabase.from("companies").select("id").or(`user_id.eq.${userId},email.ilike.${userEmail}`).maybeSingle()
+          : supabase.from("companies").select("id").eq("user_id", userId).maybeSingle();
+
+        const driverQuery = userEmail
+          ? supabase.from("delivery_drivers").select("id").or(`user_id.eq.${userId},email.ilike.${userEmail}`).maybeSingle()
+          : supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle();
+
         const [companiesRes, driversRes, adminRolesRes] = await Promise.all([
-          supabase.from("companies").select("id").eq("user_id", userId).maybeSingle(),
-          supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle(),
+          companyQuery,
+          driverQuery,
           supabase.from("user_roles").select("role").eq("user_id", userId),
         ]);
 
