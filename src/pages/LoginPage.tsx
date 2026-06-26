@@ -29,12 +29,6 @@ export default function LoginPage() {
         description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
         variant: "destructive"
       });
-      setTimeout(() => {
-        supabase.auth.signOut().then(() => {
-          window.location.reload();
-        });
-      }, 3000);
-    }
   }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
