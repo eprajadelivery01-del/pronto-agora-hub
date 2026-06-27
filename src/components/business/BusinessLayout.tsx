@@ -92,7 +92,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
 
       const { data } = await supabase
         .from('orders')
-        .select('*')
+        .select('id, status, total, created_at, customer_id, company_id')
         .eq('company_id', targetId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -110,7 +110,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     const interval = window.setInterval(() => {
       fetchStatus();
       fetchPendingOrders(companyData.id);
-    }, 5000);
+    }, 20000);
 
     return () => {
       window.clearInterval(interval);
