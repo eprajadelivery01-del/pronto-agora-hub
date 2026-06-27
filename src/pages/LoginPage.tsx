@@ -21,15 +21,35 @@ export default function LoginPage() {
 
     if (userStatus === "pending") {
       navigate("/pending-approval", { replace: true });
-    } else if (hasRole("company")) {
-      navigate("/business", { replace: true });
-    } else {
-      toast({
-        title: "Portal Restrito",
-        description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
-        variant: "destructive"
-      });
+      return;
     }
+
+    // Lojista (ou admin com acesso) -> entra direto no painel
+    if (hasRole("company") || hasRole("admin")) {
+      navigate("/business", { replace: true });
+      return;
+    }
+
+    // IMPORTANTE: nunca mostrar "Portal Restrito" enquanto não houver certeza.
+    // O resolvedor de roles tem um fallback assíncrono (por email/tabelas) que
+    // pode ainda não ter populado o array de roles. Se ainda não há NENHUMA role,
+    // aguardamos e revalidamos antes de bloquear, evitando o alerta falso para
+    // lojistas que estão entrando corretamente.
+    if (roles.length === 0) return;
+
+    // Só bloqueia se o usuário realmente tem outra role (ex.: entregador)
+    // e definitivamente não é lojista.
+    const timer = setTimeout(() => {
+      if (!hasRole("company") && !hasRole("admin")) {
+        toast({
+          title: "Portal Restrito",
+          description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
+          variant: "destructive",
+        });
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
