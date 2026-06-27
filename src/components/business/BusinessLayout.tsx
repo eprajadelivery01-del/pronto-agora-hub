@@ -25,6 +25,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";

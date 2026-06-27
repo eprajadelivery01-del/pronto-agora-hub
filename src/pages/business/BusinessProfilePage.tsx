@@ -10,6 +10,7 @@ import {
   Smartphone, Eye, Layers, Info, CheckCircle2, Pencil, X, Link as LinkIcon, Clock3, DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 
 const DEFAULT_WORKING_DAYS = [
   { day: 'Seg', active: true, start: '08:00', end: '18:00' },

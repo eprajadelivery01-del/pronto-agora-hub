@@ -11,6 +11,7 @@ import {
   GripVertical, Star, Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { BulkImportModal } from "@/components/business/BulkImportModal";
 
 interface Product {

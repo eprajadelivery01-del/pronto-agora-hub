@@ -8,6 +8,7 @@ import { RegionPickerGrid } from "@/components/business/RegionPickerGrid";
 import { CustomerSelector } from "@/components/business/CustomerSelector";
 import { useProductsManager } from "@/services/stores-products";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 
 interface NewDeliveryFormProps {
   onClose: () => void;

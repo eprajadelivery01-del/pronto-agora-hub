@@ -6,6 +6,7 @@ import {
   Package, ImagePlus, Loader2, RotateCcw, Truck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { supabase } from "@/lib/supabaseClient";
 import DeliveryTrackingMap from "./DeliveryTrackingMap";
 
