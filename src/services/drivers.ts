@@ -17,6 +17,7 @@ export type DriverWithProfile = {
   current_longitude?: number | null;
   avatar_url?: string | null;
   status?: string | null;
+  commission_rate?: number | null;
   created_at?: string;
   profiles?: {
     full_name?: string | null;
