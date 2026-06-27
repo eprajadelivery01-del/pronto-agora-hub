@@ -63,10 +63,19 @@ function SummaryCard({ label, value, icon, subValue, trend }: { label: string, v
 }
 
 const getOrderTotal = (d: any) => {
-  if (d.orders && typeof d.orders.total === 'number') {
-    return d.orders.total;
+  if (d.orders) {
+    if (Array.isArray(d.orders) && d.orders.length > 0 && typeof d.orders[0].total === 'number') {
+      return d.orders[0].total;
+    }
+    if (typeof d.orders.total === 'number') {
+      return d.orders.total;
+    }
   }
-  return getDeliveryValue(d);
+  // Try to use estimated_value if available and > 0
+  if (typeof d.estimated_value === 'number' && d.estimated_value > 0) {
+    return d.estimated_value;
+  }
+  return 0;
 };
 
 export default function ReportsPage() {
