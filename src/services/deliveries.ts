@@ -69,7 +69,6 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           estimated_value,
           orders(
             total,
-            delivery_fee,
             order_items(quantity, price, products(name))
           ),
           companies(name, phone),
