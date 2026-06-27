@@ -4,81 +4,70 @@ import { useDeliveries } from "@/services/deliveries";
 import { useCompanies } from "@/services/companies";
 import { useDrivers } from "@/services/drivers";
 import { useRegions } from "@/services/regions";
-import { BarChart3, Download, Loader2, Filter, Search } from "lucide-react";
+import { BarChart3, Download, Loader2, Filter, Search, Printer } from "lucide-react";
 import { format, startOfDay, endOfDay, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getDeliveryValue, formatDeliveryValue } from "@/lib/delivery";
 import { useMemo } from "react";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, BarChart, Bar, Legend 
 } from "recharts";
 
-const STATUS_COLORS = {
-  pending: "hsl(var(--warning))",
-  broadcasted: "hsl(var(--info))",
-  accepted: "hsl(var(--info))",
-  collecting: "hsl(var(--accent))",
-  in_transit: "hsl(var(--primary))",
-  delivered: "#22c55e",
-  completed: "#22c55e",
-  cancelled: "#ef4444",
-  returned: "#6b7280",
-};
-
-const STATUS_LABELS = {
+const STATUS_LABELS: Record<string, string> = {
   pending: "Pendente",
-  broadcasted: "Enviada",
-  accepted: "Aceita",
-  collecting: "Coletando",
-  in_transit: "Em Trânsito",
+  assigned: "Atribuída",
+  in_transit: "Em Rota",
   delivered: "Finalizada",
-  completed: "Finalizada",
+  completed: "Finalizada (Marketplace)",
   cancelled: "Cancelada",
-  returned: "Devolvida",
 };
 
-function SummaryCard({ label, value, icon, subValue, trend }: { 
-  label: string; 
-  value: string | number; 
-  icon: React.ReactNode;
-  subValue?: string;
-  trend?: string;
-}) {
-  return (
-    <div className="bg-card/60 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/10 hover:border-primary/20 transition-all group overflow-hidden relative">
-      <div className="absolute -right-2 -top-2 w-24 h-24 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all pointer-events-none" />
-      <div className="flex items-start justify-between mb-4">
-        {icon}
-        {trend && (
-          <div className="px-2.5 py-1 rounded-full bg-success/10 text-[9px] font-black text-success uppercase tracking-wider">
-            {trend}
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1.5">{label}</p>
-        <p className="text-2xl font-black text-foreground tracking-tight">{value}</p>
-        {subValue && <p className="text-xs font-medium text-muted-foreground/60 mt-1">{subValue}</p>}
-      </div>
-    </div>
-  );
-}
+const STATUS_COLORS: Record<string, string> = {
+  pending: "#eab308", // warning
+  assigned: "#3b82f6", // info
+  in_transit: "#8b5cf6", // violet
+  delivered: "#22c55e", // success
+  completed: "#10b981", // emerald
+  cancelled: "#ef4444", // destructive
+};
 
 function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "hsl(var(--muted))";
-  const label = STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status;
-  
+  const label = STATUS_LABELS[status] || status;
+  const color = STATUS_COLORS[status] || "#8884d8";
   return (
-    <span 
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-current shadow-sm"
-      style={{ color, backgroundColor: `${color}15` }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
+    <span style={{ backgroundColor: color + "20", color: color }} className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
       {label}
     </span>
   );
 }
 
+function SummaryCard({ label, value, icon, subValue, trend }: { label: string, value: string | number, icon: React.ReactNode, subValue?: string, trend?: string }) {
+  return (
+    <div className="bg-card rounded-3xl p-6 border border-border shadow-sm flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
+        {icon}
+      </div>
+      <div>
+        <div className="text-3xl font-black text-foreground">{value}</div>
+        {(subValue || trend) && (
+          <div className="flex items-center justify-between mt-3">
+            {subValue && <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">{subValue}</span>}
+            {trend && <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-full">{trend}</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const getOrderTotal = (d: any) => {
+  if (d.orders && typeof d.orders.total === 'number') {
+    return d.orders.total;
+  }
+  return getDeliveryValue(d);
+};
 
 export default function ReportsPage() {
   const { toast } = useToast();
@@ -112,24 +101,24 @@ export default function ReportsPage() {
     return rawDeliveries.filter((d) => {
       if (regionFilter && d.region_id !== regionFilter) return false;
       if (paymentFilter && d.payment_method !== paymentFilter) return false;
-      if (minVal && Number(d.value ?? 0) < Number(minVal)) return false;
-      if (maxVal && Number(d.value ?? 0) > Number(maxVal)) return false;
+      if (minVal && getDeliveryValue(d) < Number(minVal)) return false;
+      if (maxVal && getDeliveryValue(d) > Number(maxVal)) return false;
       return true;
     });
   }, [rawDeliveries, regionFilter, paymentFilter, minVal, maxVal]);
 
   const validDeliveries = useMemo(() => deliveries.filter(d => d.status === "delivered" || d.status === "completed"), [deliveries]);
 
-  const totalValue = validDeliveries.reduce((s, d) => s + Number(d.value ?? 0), 0);
+  const totalValue = validDeliveries.reduce((s, d) => s + getOrderTotal(d), 0);
   const totalCommission = validDeliveries.reduce((s, d) => s + Number((d as any).commission ?? 0), 0);
   const completedCount = validDeliveries.length;
   const successRate = deliveries.length > 0 ? (completedCount / deliveries.length) * 100 : 0;
+  const ticketMedio = completedCount > 0 ? totalValue / completedCount : 0;
 
   // Chart Data Processing
   const timeSeriesData = useMemo(() => {
     if (deliveries.length === 0) return [];
     
-    // Group by day for the last X days or selected interval
     const groups: Record<string, { date: string, rawDate: Date, total: number, commission: number, count: number }> = {};
     
     deliveries.forEach(d => {
@@ -145,7 +134,7 @@ export default function ReportsPage() {
       }
       const isCompleted = d.status === "delivered" || d.status === "completed";
       if (isCompleted) {
-        groups[dateStr].total += Number(d.value ?? 0);
+        groups[dateStr].total += getOrderTotal(d);
         groups[dateStr].commission += Number((d as any).commission ?? 0);
       }
       groups[dateStr].count += 1;
@@ -159,10 +148,11 @@ export default function ReportsPage() {
     deliveries.forEach(d => {
       const isCompleted = d.status === "delivered" || d.status === "completed";
       if (!isCompleted) return;
+
       const cId = d.company_id || "unknown";
       const cName = (d as any).companies?.name || "Sem empresa";
       if (!map[cId]) map[cId] = { name: cName, companyId: cId, revenue: 0, count: 0 };
-      map[cId].revenue += Number(d.value ?? 0);
+      map[cId].revenue += getOrderTotal(d);
       map[cId].count += 1;
     });
     return Object.values(map).sort((a, b) => b.revenue - a.revenue);
@@ -173,11 +163,12 @@ export default function ReportsPage() {
     deliveries.forEach(d => {
       const isCompleted = d.status === "delivered" || d.status === "completed";
       if (!isCompleted) return;
+
       if (!d.driver_id) return;
       const driver = (drivers ?? []).find(dr => dr.id === d.driver_id);
       const name = driver?.full_name || `Motorista ${d.driver_id.slice(0, 6)}`;
       if (!map[d.driver_id]) map[d.driver_id] = { name, driverId: d.driver_id, revenue: 0, count: 0 };
-      map[d.driver_id].revenue += Number(d.value ?? 0);
+      map[d.driver_id].revenue += getDeliveryValue(d);
       map[d.driver_id].count += 1;
     });
     return Object.values(map).sort((a, b) => b.count - a.count);
@@ -243,7 +234,7 @@ export default function ReportsPage() {
       (d as any).companies?.name || "",
       d.address,
       d.status,
-      Number(d.value ?? 0).toFixed(2),
+      formatDeliveryValue(d),
       Number((d as any).commission ?? 0).toFixed(2),
     ]);
     const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
@@ -255,6 +246,272 @@ export default function ReportsPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: "Relatório exportado!" });
+  };
+
+  const handlePrint = () => {
+    if (deliveries.length === 0) {
+      toast({ title: "Nenhum dado para imprimir", variant: "destructive" });
+      return;
+    }
+
+    // Build active filters description
+    const filterLines: string[] = [];
+    if (dateFrom || dateTo) filterLines.push(`Período: ${dateFrom || "início"} até ${dateTo || "hoje"}`);
+    if (companyFilter) {
+      const co = (companies ?? []).find(c => c.id === companyFilter);
+      if (co) filterLines.push(`Empresa: ${co.name}`);
+    }
+    if (driverFilter) {
+      const dr = (drivers ?? []).find(d => d.id === driverFilter);
+      if (dr) filterLines.push(`Entregador: ${dr.full_name}`);
+    }
+    if (regionFilter) {
+      const rg = (regions ?? []).find(r => r.id === regionFilter);
+      if (rg) filterLines.push(`Região: ${rg.name}`);
+    }
+    if (statusFilter && statusFilter !== "all") filterLines.push(`Status: ${STATUS_LABELS[statusFilter as keyof typeof STATUS_LABELS] || statusFilter}`);
+    if (paymentFilter) filterLines.push(`Pagamento: ${paymentFilter}`);
+    if (minVal) filterLines.push(`Valor mín.: R$ ${minVal}`);
+    if (maxVal) filterLines.push(`Valor máx.: R$ ${maxVal}`);
+    if (searchQuery) filterLines.push(`Busca: "${searchQuery}"`);
+
+    // Company billing rows
+    const companyBillingRows = companyBreakdown.map(c => {
+      const companyObj = (companies ?? []).find(co => co.id === c.companyId);
+      const commPct = companyObj?.commission_percentage !== undefined && companyObj?.commission_percentage !== null
+        ? Number(companyObj.commission_percentage) : 10.00;
+      const totalDue = c.revenue * (commPct / 100);
+      return `
+        <tr>
+          <td>${c.name}</td>
+          <td style="text-align:center">${c.count}</td>
+          <td style="text-align:right">R$ ${c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:center">${commPct.toFixed(1)}%</td>
+          <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+        </tr>`;
+    }).join("");
+
+    // Driver billing rows
+    const driverBillingRows = driverBreakdown.map(d => {
+      const driverObj = (drivers ?? []).find(dr => dr.id === d.driverId);
+      const commRate = driverObj?.commission_rate !== undefined && driverObj?.commission_rate !== null
+        ? Number(driverObj.commission_rate) : 0.40;
+      const totalDue = d.count * commRate;
+      return `
+        <tr>
+          <td>${d.name}</td>
+          <td style="text-align:center">${d.count}</td>
+          <td style="text-align:right">R$ ${d.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right">R$ ${commRate.toFixed(2).replace(".", ",")}</td>
+          <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+        </tr>`;
+    }).join("");
+
+    // Delivery detail rows (ALL records, no limit)
+    const deliveryRows = deliveries.map(d => `
+      <tr>
+        <td>${format(new Date(d.created_at), "dd/MM/yyyy HH:mm")}</td>
+        <td>${d.customer_name || "—"}</td>
+        <td>${(d as any).companies?.name || "Marketplace"}</td>
+        <td style="max-width:200px;overflow:hidden">${d.address || "—"}</td>
+        <td style="text-align:center">${STATUS_LABELS[d.status as keyof typeof STATUS_LABELS] || d.status}</td>
+        <td style="text-align:right;font-weight:700">R$ ${formatDeliveryValue(d)}</td>
+        <td style="text-align:right">R$ ${Number((d as any).commission ?? 0).toFixed(2)}</td>
+      </tr>`).join("");
+
+    const totalCompanyDue = companyBreakdown.reduce((s, c) => {
+      const co = (companies ?? []).find(x => x.id === c.companyId);
+      const pct = (co?.commission_percentage !== undefined && co?.commission_percentage !== null)
+        ? Number(co.commission_percentage) : 10.00;
+      return s + c.revenue * (pct / 100);
+    }, 0);
+
+    const totalDriverDue = driverBreakdown.reduce((s, d) => {
+      const dr = (drivers ?? []).find(x => x.id === d.driverId);
+      const rate = (dr?.commission_rate !== undefined && dr?.commission_rate !== null)
+        ? Number(dr.commission_rate) : 0.40;
+      return s + d.count * rate;
+    }, 0);
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Relatório Financeiro — É Pra Já</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a2e; background: #fff; padding: 20px; }
+    
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #6366f1; padding-bottom: 16px; margin-bottom: 20px; }
+    .header-title { font-size: 22px; font-weight: 900; color: #6366f1; letter-spacing: -0.5px; }
+    .header-subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .header-meta { text-align: right; font-size: 10px; color: #64748b; }
+    
+    .filters-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+    .filters-title { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: #6366f1; margin-bottom: 6px; }
+    .filters-list { color: #475569; line-height: 1.7; }
+    
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+    .kpi-label { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: #64748b; margin-bottom: 4px; }
+    .kpi-value { font-size: 18px; font-weight: 900; color: #1a1a2e; }
+    .kpi-sub { font-size: 9px; color: #94a3b8; margin-top: 2px; }
+    
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: #6366f1; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 12px; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    thead tr { background: #6366f1; color: white; }
+    thead th { padding: 8px 10px; text-align: left; font-weight: 900; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody tr:hover { background: #f0f4ff; }
+    tbody td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    
+    tfoot tr { background: #1e1b4b; color: white; }
+    tfoot td { padding: 8px 10px; font-weight: 900; font-size: 10px; }
+    
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    
+    .footer { margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; color: #94a3b8; font-size: 9px; }
+    
+    @media print {
+      body { padding: 10px; font-size: 10px; }
+      @page { margin: 15mm; size: A4; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; }
+      .section { page-break-inside: avoid; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="header-title">📦 É Pra Já — Relatório Financeiro</div>
+      <div class="header-subtitle">Plataforma de Delivery | BONASOFT</div>
+    </div>
+    <div class="header-meta">
+      Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}<br/>
+      Total de registros: <strong>${deliveries.length}</strong>
+    </div>
+  </div>
+
+  ${filterLines.length > 0 ? `
+  <div class="filters-box">
+    <div class="filters-title">🔍 Filtros Aplicados</div>
+    <div class="filters-list">${filterLines.join(" &nbsp;|&nbsp; ")}</div>
+  </div>` : ""}
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Total de Corridas</div>
+      <div class="kpi-value">${deliveries.length}</div>
+      <div class="kpi-sub">${completedCount} finalizadas (${successRate.toFixed(1)}% sucesso)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Faturamento Total</div>
+      <div class="kpi-value">R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+      <div class="kpi-sub">Receita bruta processada</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Comissões Plataforma</div>
+      <div class="kpi-value">R$ ${(totalCompanyDue + totalDriverDue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+      <div class="kpi-sub">Lojistas + Entregadores</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ticket Médio</div>
+      <div class="kpi-value">R$ ${ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+      <div class="kpi-sub">Valor médio por entrega</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="section">
+      <div class="section-title">🏢 Cobrança de Lojistas</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th style="text-align:center">Pedidos</th>
+            <th style="text-align:right">Vendas</th>
+            <th style="text-align:center">Taxa</th>
+            <th style="text-align:right">Devido</th>
+          </tr>
+        </thead>
+        <tbody>${companyBillingRows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">Sem dados</td></tr>'}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4">TOTAL DEVIDO (Lojistas)</td>
+            <td style="text-align:right">R$ ${totalCompanyDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🏍️ Cobrança de Entregadores</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Entregador</th>
+            <th style="text-align:center">Corridas</th>
+            <th style="text-align:right">Ganhos</th>
+            <th style="text-align:right">Taxa/Entrega</th>
+            <th style="text-align:right">Devido</th>
+          </tr>
+        </thead>
+        <tbody>${driverBillingRows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">Sem dados</td></tr>'}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4">TOTAL DEVIDO (Entregadores)</td>
+            <td style="text-align:right">R$ ${totalDriverDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top: 8px">
+    <div class="section-title">📋 Detalhamento de Entregas (${deliveries.length} registros)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Data / Hora</th>
+          <th>Cliente</th>
+          <th>Empresa</th>
+          <th>Endereço</th>
+          <th style="text-align:center">Status</th>
+          <th style="text-align:right">Valor</th>
+          <th style="text-align:right">Comissão</th>
+        </tr>
+      </thead>
+      <tbody>${deliveryRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5">TOTAIS</td>
+          <td style="text-align:right">R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right">R$ ${totalCommission.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>É Pra Já — Plataforma de Delivery | BONASOFT</span>
+    <span>Relatório gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")} — Confidencial</span>
+  </div>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast({ title: "Bloqueio de pop-up detectado", description: "Permita pop-ups para este site e tente novamente.", variant: "destructive" });
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
   };
 
   return (
@@ -406,7 +663,7 @@ export default function ReportsPage() {
         />
         <SummaryCard 
           label="Ticket Médio" 
-          value={`R$ ${(completedCount > 0 ? totalValue / completedCount : 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} 
+          value={`R$ ${ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} 
           icon={<div className="w-12 h-12 rounded-2xl bg-info/10 flex items-center justify-center text-info shadow-inner"><Filter className="h-6 w-6" /></div>}
           subValue="Valor médio por entrega"
         />
@@ -444,8 +701,8 @@ export default function ReportsPage() {
                   itemStyle={{ fontSize: "12px", fontWeight: "bold" }}
                   formatter={(val: any) => [`R$ ${Number(val).toFixed(2)}`, ""]}
                 />
-                <Area type="monotone" dataKey="total" name="Faturamento" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
-                <Area type="monotone" dataKey="commission" name="Comissão" stroke="hsl(var(--primary))" strokeWidth={1} strokeDasharray="4 4" fill="transparent" />
+                <Area isAnimationActive={false} type="monotone" dataKey="total" name="Faturamento" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
+                <Area isAnimationActive={false} type="monotone" dataKey="commission" name="Comissão" stroke="hsl(var(--primary))" strokeWidth={1} strokeDasharray="4 4" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -467,6 +724,7 @@ export default function ReportsPage() {
                   outerRadius={100}
                   paddingAngle={8}
                   dataKey="value"
+                  isAnimationActive={false}
                 >
                   {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name as keyof typeof STATUS_COLORS] || "#8884d8"} />
@@ -577,6 +835,85 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* Platform Billings Report Section */}
+      <div className="bg-card rounded-3xl p-6 border border-border shadow-xl mb-10 animate-in fade-in duration-500">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+            <span className="text-lg">🪙</span>
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-foreground uppercase tracking-widest text-left">Cobranças Plataforma &amp; Saldos Devidos</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 text-left">Saldos devidos pelos lojistas (% sobre vendas) e entregadores (taxa fixa por entrega)</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Lojistas (Merchants) */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 text-left">
+              🏢 Cobrança de Lojistas (% sobre Vendas)
+            </h4>
+            <div className="border border-border rounded-2xl overflow-hidden bg-background/50 divide-y divide-border">
+              {companyBreakdown.length > 0 ? (
+                companyBreakdown.map((c: any) => {
+                  const companyObj = (companies ?? []).find(co => co.id === c.companyId);
+                  const commPct = companyObj?.commission_percentage !== undefined && companyObj?.commission_percentage !== null ? Number(companyObj.commission_percentage) : 10.00;
+                  const totalDue = c.revenue * (commPct / 100);
+                  return (
+                    <div key={c.companyId} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-foreground">{c.name}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                          Vendas: R$ {c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} • Taxa: {commPct.toFixed(1)}%
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devido</p>
+                        <p className="text-sm font-black text-primary">R$ {totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-6 text-center text-xs text-muted-foreground">Nenhum lojista com movimentação</div>
+              )}
+            </div>
+          </div>
+
+          {/* Entregadores (Drivers) */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 text-left">
+              🏍️ Cobrança de Entregadores (Taxa por Entrega)
+            </h4>
+            <div className="border border-border rounded-2xl overflow-hidden bg-background/50 divide-y divide-border">
+              {driverBreakdown.length > 0 ? (
+                driverBreakdown.map((d: any) => {
+                  const driverObj = (drivers ?? []).find(dr => dr.id === d.driverId);
+                  const commRate = driverObj?.commission_rate !== undefined && driverObj?.commission_rate !== null ? Number(driverObj.commission_rate) : 0.40;
+                  const totalDue = d.count * commRate;
+                  return (
+                    <div key={d.driverId} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-foreground">{d.name}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                          Corridas: {d.count} • Taxa por entrega: R$ {commRate.toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devido</p>
+                        <p className="text-sm font-black text-primary">R$ {totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-6 text-center text-xs text-muted-foreground">Nenhum entregador com movimentação</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-card/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden mb-12">
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div className="flex items-center gap-4">
@@ -588,12 +925,20 @@ export default function ReportsPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">{deliveries.length} registros encontrados</p>
              </div>
           </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-primary text-primary-foreground text-sm font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
-          >
-            <Download className="h-4 w-4" /> Exportar CSV
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-foreground text-background text-sm font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
+            >
+              <Printer className="h-4 w-4" /> Imprimir Relatório
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-primary text-primary-foreground text-sm font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
+            >
+              <Download className="h-4 w-4" /> Exportar CSV
+            </button>
+          </div>
         </div>
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-20 gap-4">
@@ -606,7 +951,7 @@ export default function ReportsPage() {
               <thead>
                 <tr className="bg-muted/30">
                   <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Data / ID</th>
-                  <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Cliente & Empresa</th>
+                  <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Cliente &amp; Empresa</th>
                   <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6 hidden lg:table-cell">Endereço de Entrega</th>
                   <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Status</th>
                   <th className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Financeiro</th>
@@ -634,8 +979,8 @@ export default function ReportsPage() {
                        <StatusBadge status={d.status} />
                     </td>
                     <td className="p-6 text-right">
-                      <p className="text-sm font-black text-foreground">R$ {Number(d.value ?? 0).toFixed(2)}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-1 tracking-widest uppercase">Comissão: R$ {Number((d as any).commission ?? 0).toFixed(2)}</p>
+                      <p className="text-sm font-black text-foreground">Venda: R$ {getOrderTotal(d).toFixed(2)}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground mt-1 tracking-widest uppercase">Frete: R$ {formatDeliveryValue(d)}</p>
                     </td>
                   </tr>
                 ))}
