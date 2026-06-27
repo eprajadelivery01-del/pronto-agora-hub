@@ -151,6 +151,7 @@ export default function BusinessHomePage() {
       return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyData?.name,
+    staleTime: 15_000,
   });
 
   // Último fallback: busca tudo que o usuário autenticado consegue enxergar e filtra no cliente.
