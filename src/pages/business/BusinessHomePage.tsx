@@ -193,6 +193,44 @@ export default function BusinessHomePage() {
     return Array.from(byId.values());
   }, [deliveriesData?.data, openStoreDeliveries, openStoreDeliveriesByName, optimisticManualDeliveries, visibleDeliveriesFallback]);
 
+  // Resolve driver names for all deliveries that have a driver_id but no joined driver data.
+  const driverIds = useMemo(() => {
+    const ids = new Set<string>();
+    combinedDeliveries.forEach((d) => {
+      if (d.driver_id && !(d.delivery_drivers as any)?.full_name) ids.add(d.driver_id);
+    });
+    return Array.from(ids);
+  }, [combinedDeliveries]);
+
+  const { data: driverNameMap } = useQuery({
+    queryKey: ["business-driver-names", driverIds],
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      if (driverIds.length === 0) return map;
+      const { data, error } = await supabase
+        .from("delivery_drivers")
+        .select("id, full_name")
+        .in("id", driverIds);
+      if (error) {
+        console.warn("[Lojista] Falha ao resolver nomes de entregadores:", error);
+        return map;
+      }
+      (data || []).forEach((d: any) => {
+        if (d.id) map[d.id] = d.full_name;
+      });
+      return map;
+    },
+    enabled: driverIds.length > 0,
+  });
+
+  const resolveDriverName = (delivery: any): string => {
+    return (
+      (delivery?.delivery_drivers as any)?.full_name ||
+      (delivery?.driver_id ? driverNameMap?.[delivery.driver_id] : undefined) ||
+      "Atribuído"
+    );
+  };
+
   // Filter deliveries to only show active ones
   const activeDeliveries = combinedDeliveries.filter(d => {
     if (!companyId) return false;
