@@ -15,9 +15,12 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus, signIn } = useAuth();
 
-  // Enquanto autenticado mas sem a role definitiva resolvida, exibimos um
-  // estado de "carregando permissões" e NÃO disparamos nenhum toast.
-  const resolvingPermissions = !!user && (authLoading || !rolesLoaded || roles.length === 0);
+  // Enquanto autenticado mas sem a role DEFINITIVA resolvida (rolesLoaded),
+  // exibimos "carregando permissões" e NÃO disparamos toast. Não dependemos
+  // de roles.length aqui: depois que rolesLoaded vira true, já temos a resposta
+  // definitiva (o fallback assíncrono roda antes disso) — caso contrário um
+  // usuário sem role ficaria em loading infinito.
+  const resolvingPermissions = !!user && (authLoading || !rolesLoaded);
 
   useEffect(() => {
     // Aguarda autenticação E carregamento de roles terminarem
