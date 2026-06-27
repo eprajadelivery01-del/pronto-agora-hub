@@ -507,7 +507,7 @@ export default function BusinessHomePage() {
                             <div className="flex justify-between items-center text-xs">
                               <span className="text-muted-foreground">Entregador:</span>
                               <span className="font-bold text-primary truncate max-w-[120px]">
-                                {(order.deliveryInfo?.delivery_drivers as any)?.full_name || "Atribuído"}
+                                {resolveDriverName(order.deliveryInfo)}
                               </span>
                             </div>
                           )}
