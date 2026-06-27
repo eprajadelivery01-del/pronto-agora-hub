@@ -80,19 +80,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // (companies e delivery_drivers têm RLS permissivo — nunca retornam 403)
         console.warn("[Auth] user_roles vazio/erro para", userId, "— usando fallback por tabelas...");
 
-        const companyQuery = userEmail 
+        // Verifica vínculo por user_id E por email (cobre empresas cadastradas
+        // com um email diferente do email de login do usuário).
+        const companyByUser = supabase.from("companies").select("id").eq("user_id", userId).maybeSingle();
+        const companyByEmail = userEmail
           ? supabase.from("companies").select("id").ilike("email", userEmail.trim()).maybeSingle()
-          : supabase.from("companies").select("id").eq("user_id", userId).maybeSingle();
+          : Promise.resolve({ data: null });
 
-        const driverQuery = userEmail
+        const driverByUser = supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle();
+        const driverByEmail = userEmail
           ? supabase.from("delivery_drivers").select("id").ilike("email", userEmail.trim()).maybeSingle()
-          : supabase.from("delivery_drivers").select("id").eq("user_id", userId).maybeSingle();
+          : Promise.resolve({ data: null });
 
-        const [companiesRes, driversRes, adminRolesRes] = await Promise.all([
-          companyQuery,
-          driverQuery,
+        const [companyByUserRes, companyByEmailRes, driverByUserRes, driverByEmailRes, adminRolesRes] = await Promise.all([
+          companyByUser,
+          companyByEmail,
+          driverByUser,
+          driverByEmail,
           supabase.from("user_roles").select("role").eq("user_id", userId),
         ]);
+
+        const companiesRes = { data: companyByUserRes?.data || companyByEmailRes?.data || null };
+        const driversRes = { data: driverByUserRes?.data || driverByEmailRes?.data || null };
+
 
         // Re-tentar user_roles direto (segunda chance)
         if (adminRolesRes?.data && adminRolesRes.data.length > 0) {
