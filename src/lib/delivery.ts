@@ -23,14 +23,24 @@ export type DeliveryValueShape = {
 };
 
 /** Retorna o valor numérico da corrida com fallback `value → price → 0`. */
-export function getDeliveryValue(d: DeliveryValueShape | null | undefined): number {
+export function getDeliveryValue(d: any): number {
   if (!d) return 0;
+  
+  if (d.orders) {
+    if (Array.isArray(d.orders) && d.orders.length > 0 && d.orders[0].delivery_fee != null) {
+      return Number(d.orders[0].delivery_fee);
+    }
+    if (!Array.isArray(d.orders) && d.orders.delivery_fee != null) {
+      return Number(d.orders.delivery_fee);
+    }
+  }
+
   const f = Number(d.delivery_fee);
   if (f) return f;
+  
   const p = Number(d.price);
   if (p) return p;
-  const v = Number(d.value);
-  if (v) return v;
+
   return 0;
 }
 
