@@ -180,7 +180,13 @@ export default function BusinessHomePage() {
         );
       });
     },
-    enabled: !!companyId || !!companyData?.name || !!companyData?.email || !!user?.id,
+    // Só roda esse scan pesado quando as consultas escopadas por empresa não trouxeram nada.
+    enabled:
+      (!!companyId || !!companyData?.name || !!companyData?.email || !!user?.id) &&
+      (openStoreDeliveries?.length ?? 0) === 0 &&
+      (openStoreDeliveriesByName?.length ?? 0) === 0,
+    staleTime: 30_000,
+    gcTime: 60_000,
   });
 
   const { data: deliveryStats, isLoading: isLoadingStats } = useDeliveryStats({ companyId: companyId || undefined });
