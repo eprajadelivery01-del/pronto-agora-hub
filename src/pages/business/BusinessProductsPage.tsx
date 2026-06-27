@@ -11,6 +11,7 @@ import {
   GripVertical, Star, Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { BulkImportModal } from "@/components/business/BulkImportModal";
 
 interface Product {
@@ -371,7 +372,7 @@ function ProductCard({
       {/* Image Container */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {mainImage ? (
-          <img src={mainImage} alt={product.name} draggable={false} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+          <img src={optimizeStorageImage(mainImage, { width: 400 })} alt={product.name} draggable={false} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ImagePlus className="h-12 w-12 text-muted-foreground/20" />
@@ -699,7 +700,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
             <div className="grid grid-cols-2 gap-4">
               {imageUrls.map((url, i) => (
                 <div key={i} className="relative aspect-square rounded-[2rem] overflow-hidden border border-border group shadow-lg">
-                  <img src={url} alt="Prod" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                  <img src={optimizeStorageImage(url, { width: 300 })} alt="Prod" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => removeImage(i)}

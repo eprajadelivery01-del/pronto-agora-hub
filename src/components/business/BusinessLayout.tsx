@@ -25,6 +25,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "../shared/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
@@ -169,7 +170,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="h-10 w-10 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-border shrink-0 overflow-hidden">
               {companyData?.logo_url ? (
-                <img src={companyData.logo_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                <img src={optimizeStorageImage(companyData.logo_url, { width: 96 })} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full gradient-primary flex items-center justify-center">
                   <Store className="h-5 w-5 text-white" />
@@ -382,7 +383,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                   <button className="flex items-center gap-2 p-1 rounded-2xl hover:bg-muted transition-all group border border-transparent hover:border-border">
                     <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
                       {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                        <img src={optimizeStorageImage(profile.avatar_url, { width: 96 })} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         <User className="h-4 w-4 text-primary" />
                       )}
