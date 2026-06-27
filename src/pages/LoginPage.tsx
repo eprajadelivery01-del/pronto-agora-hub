@@ -37,10 +37,8 @@ export default function LoginPage() {
       return;
     }
 
-    // IMPORTANTE: nunca mostrar "Portal Restrito" enquanto não houver certeza.
-    // Só bloqueamos quando a role definitiva foi resolvida (há ao menos uma
-    // role) e ela definitivamente não é de lojista/admin.
-    if (roles.length === 0) return;
+    // Role definitiva já resolvida (rolesLoaded === true). Se não for
+    // lojista/admin, bloqueamos.
 
     if (!hasRole("company") && !hasRole("admin")) {
       toast({
