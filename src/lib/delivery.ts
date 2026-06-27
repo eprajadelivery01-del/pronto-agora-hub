@@ -41,6 +41,9 @@ export function getDeliveryValue(d: any): number {
   const p = Number(d.price);
   if (p) return p;
 
+  const v = Number(d.value);
+  if (v) return v;
+
   return 0;
 }
 
