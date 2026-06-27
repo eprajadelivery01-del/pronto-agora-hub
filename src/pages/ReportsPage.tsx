@@ -988,8 +988,7 @@ export default function ReportsPage() {
                        <StatusBadge status={d.status} />
                     </td>
                     <td className="p-6 text-right">
-                      <p className="text-sm font-black text-foreground">Venda: R$ {getOrderTotal(d).toFixed(2)}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-1 tracking-widest uppercase">Frete: R$ {formatDeliveryValue(d)}</p>
+                      <p className="text-sm font-black text-foreground">R$ {formatDeliveryValue(d)}</p>
                     </td>
                   </tr>
                 ))}
