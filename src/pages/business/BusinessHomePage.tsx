@@ -129,6 +129,7 @@ export default function BusinessHomePage() {
       return (data || []) as DeliveryWithRelations[];
     },
     enabled: !!companyId,
+    staleTime: 15_000,
   });
 
   const { data: openStoreDeliveriesByName, isLoading: isLoadingOpenStoreDeliveriesByName } = useQuery({
