@@ -99,7 +99,8 @@ export default function BusinessHomePage() {
       if (error) throw error;
       return (data || []) as MarketplaceOrder[];
     },
-    enabled: !!companyId
+    enabled: !!companyId,
+    staleTime: 15_000,
   });
 
   // 2. Fetch all active deliveries
