@@ -363,7 +363,7 @@ export default function BusinessProfilePage() {
             <div className="relative group/banner h-64 md:h-80 bg-muted">
                {/* Banner Image */}
                {coverUrl ? (
-                 <img src={coverUrl} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="Banner" />
+                 <img src={optimizeStorageImage(coverUrl, { width: 1200, quality: 75 })} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="Banner" />
                ) : (
                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
                     <Camera className="h-12 w-12 text-muted-foreground/20" />
@@ -394,7 +394,7 @@ export default function BusinessProfilePage() {
                   <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] bg-white dark:bg-card p-2 shadow-2xl border-4 border-card relative">
                      <div className="w-full h-full rounded-[2rem] bg-muted overflow-hidden flex items-center justify-center relative">
                         {logoUrl ? (
-                          <img src={logoUrl} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="Logo" />
+                          <img src={optimizeStorageImage(logoUrl, { width: 320 })} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="Logo" />
                         ) : (
                           <Store className="h-10 w-10 text-muted-foreground/30" />
                         )}
@@ -740,7 +740,7 @@ export default function BusinessProfilePage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
                      {(Array.isArray(gallery) ? gallery : []).map((url, idx) => (
                         <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group/item border border-border/50">
-                           <img src={url} alt="Galeria" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                           <img src={optimizeStorageImage(url, { width: 300 })} alt="Galeria" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                            <button 
                              onClick={() => removeGalleryItem(url)}
                              className="absolute top-2 right-2 p-1.5 bg-red-500/90 hover:bg-red-500 text-white rounded-lg opacity-0 group-hover/item:opacity-100 transition-all shadow-lg"
@@ -778,11 +778,11 @@ export default function BusinessProfilePage() {
                     !isOpen && "grayscale opacity-50"
                  )}>
                     <div className="h-20 bg-muted overflow-hidden relative">
-                       {coverUrl && <img src={coverUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+                       {coverUrl && <img src={optimizeStorageImage(coverUrl, { width: 520 })} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
                        <div className="absolute inset-0 bg-black/20" />
                        <div className="absolute -bottom-3 left-3 w-10 h-10 rounded-xl bg-white p-1 shadow-lg">
                           <div className="w-full h-full rounded-lg bg-muted overflow-hidden">
-                             {logoUrl && <img src={logoUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+                             {logoUrl && <img src={optimizeStorageImage(logoUrl, { width: 120 })} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
                           </div>
                        </div>
                     </div>

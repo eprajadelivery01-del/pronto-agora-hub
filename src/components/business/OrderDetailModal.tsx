@@ -274,7 +274,7 @@ export default function OrderDetailModal({
                                   <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.25rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
                                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/50">
                                           {mainImage ? (
-                                              <img src={mainImage} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.product_name} />
+                                              <img src={optimizeStorageImage(mainImage, { width: 160 })} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.product_name} />
                                           ) : (
                                               <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
                                                   <ImagePlus className="w-6 h-6" />
