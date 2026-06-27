@@ -15,6 +15,10 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { user, loading: authLoading, rolesLoaded, hasRole, roles, userStatus, signIn } = useAuth();
 
+  // Enquanto autenticado mas sem a role definitiva resolvida, exibimos um
+  // estado de "carregando permissões" e NÃO disparamos nenhum toast.
+  const resolvingPermissions = !!user && (authLoading || !rolesLoaded || roles.length === 0);
+
   useEffect(() => {
     // Aguarda autenticação E carregamento de roles terminarem
     if (!user || authLoading || !rolesLoaded) return;
@@ -31,26 +35,35 @@ export default function LoginPage() {
     }
 
     // IMPORTANTE: nunca mostrar "Portal Restrito" enquanto não houver certeza.
-    // O resolvedor de roles tem um fallback assíncrono (por email/tabelas) que
-    // pode ainda não ter populado o array de roles. Se ainda não há NENHUMA role,
-    // aguardamos e revalidamos antes de bloquear, evitando o alerta falso para
-    // lojistas que estão entrando corretamente.
+    // Só bloqueamos quando a role definitiva foi resolvida (há ao menos uma
+    // role) e ela definitivamente não é de lojista/admin.
     if (roles.length === 0) return;
 
-    // Só bloqueia se o usuário realmente tem outra role (ex.: entregador)
-    // e definitivamente não é lojista.
-    const timer = setTimeout(() => {
-      if (!hasRole("company") && !hasRole("admin")) {
-        toast({
-          title: "Portal Restrito",
-          description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
-          variant: "destructive",
-        });
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
+    if (!hasRole("company") && !hasRole("admin")) {
+      toast({
+        title: "Portal Restrito",
+        description: "Este painel é exclusivo para Lojistas. Acesse o portal correto.",
+        variant: "destructive",
+      });
+    }
   }, [user, authLoading, rolesLoaded, roles, userStatus, hasRole, navigate, toast]);
+
+  if (resolvingPermissions) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg overflow-hidden border border-border">
+            <img src="/logo.png" alt="É Pra Já" className="w-full h-full object-cover" />
+          </div>
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Carregando permissões…</p>
+            <p className="text-xs text-muted-foreground mt-1">Verificando seu acesso, aguarde um instante.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
