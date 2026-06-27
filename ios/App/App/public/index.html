@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=0" />
+    <title>&Eacute; Pra J&aacute; - Lojista</title>
+    <meta name="description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
+    <meta name="author" content="&Eacute; Pra J&aacute;" />
+
+    
+    
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo.png?v=7">
+
+    <meta name="twitter:card" content="summary_large_image" />
+    
+    
+    <meta name="twitter:image" content="/logo.png?v=7">
+    
+    <link rel="icon" type="image/png" href="/favicon.png?v=7">
+    
+    <style>
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease-out;
+      }
+      .splash-logo {
+        width: 150px; height: 150px;
+        -o-object-fit: contain;
+           object-fit: contain;
+        border-radius: 24px;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      #root:not(:empty) + #splash-screen {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash-screen.hidden {
+        display: none !important;
+      }
+    </style>
+    <meta name="theme-color" content="#FF7A00">
+    <link rel="manifest" href="/manifest.json">
+  
+  
+  
+  
+  <meta property="og:title" content="&Eacute; Pra J&aacute; - Lojista">
+  <meta name="twitter:title" content="&Eacute; Pra J&aacute; - Lojista">
+  <meta property="og:description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
+  <meta name="twitter:description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
+  <script type="module" crossorigin src="/assets/index-BMqwq1JD.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DJvBN3pa.css">
+</head>
+
+  <body>
+    <div id="root"></div>
+    <div id="splash-screen">
+      <img src="/logo.png?v=7" alt="&Eacute; Pra J&aacute;" class="splash-logo" style="border-radius: 20px;">
+      <div style="width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #F97316; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p style="margin-top: 20px; font-family: sans-serif; font-weight: bold; color: #666; font-size: 14px; letter-spacing: 2px;">CARREGANDO</p>
+    </div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    
+    <script>
+      // Garantir que o splash screen desapareÃ§a quando o app carregar
+      const splashObserver = new MutationObserver(() => {
+        const root = document.getElementById('root');
+        const splash = document.getElementById('splash-screen');
+        if (root && root.children.length > 0 && splash) {
+          splash.classList.add('hidden');
+          splash.style.opacity = '0';
+          splash.style.pointerEvents = 'none';
+          setTimeout(() => { if (splash.parentNode) splash.remove(); }, 500);
+          splashObserver.disconnect();
+        }
+      });
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        if (rootEl.children.length > 0) {
+          const s = document.getElementById('splash-screen');
+          if (s) s.classList.add('hidden');
+        } else {
+          splashObserver.observe(rootEl, { childList: true });
+        }
+      }
+    </script>
+    
+    <script>
+      window.SUPABASE_CONFIG = {
+        url: "https://nptkxlrhrlssdsevpgqe.supabase.co",
+        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdGt4bHJocmxzc2RzZXZwZ3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDE4MTQsImV4cCI6MjA5MDYxNzgxNH0.t8Cu-yFnSqOURT4GXCZ_mBghpxucT89nRBFlBNA1vZs"
+      };
+    </script>
+
+  </body>
+</html>
+
+
+

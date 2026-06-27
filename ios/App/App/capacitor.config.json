@@ -1,0 +1,12 @@
+{
+	"appId": "com.eprajalojista",
+	"appName": "É Pra Já - Lojista",
+	"webDir": "dist",
+	"plugins": {
+		"StatusBar": {
+			"style": "DARK",
+			"overlaysWebView": false
+		}
+	},
+	"packageClassList": []
+}
