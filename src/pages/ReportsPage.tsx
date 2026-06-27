@@ -64,16 +64,16 @@ function SummaryCard({ label, value, icon, subValue, trend }: { label: string, v
 
 const getOrderTotal = (d: any) => {
   if (d.orders) {
-    if (Array.isArray(d.orders) && d.orders.length > 0 && typeof d.orders[0].total === 'number') {
-      return d.orders[0].total;
+    if (Array.isArray(d.orders) && d.orders.length > 0 && d.orders[0].total != null) {
+      return Number(d.orders[0].total);
     }
-    if (typeof d.orders.total === 'number') {
-      return d.orders.total;
+    if (d.orders.total != null) {
+      return Number(d.orders.total);
     }
   }
   // Try to use estimated_value if available and > 0
-  if (typeof d.estimated_value === 'number' && d.estimated_value > 0) {
-    return d.estimated_value;
+  if (d.estimated_value != null && Number(d.estimated_value) > 0) {
+    return Number(d.estimated_value);
   }
   return 0;
 };
