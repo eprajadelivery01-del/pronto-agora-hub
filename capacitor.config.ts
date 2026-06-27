@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.eprajalojista',
+  appId: 'br.com.epraja.lojista',
   appName: 'É Pra Já - Lojista',
   webDir: 'dist',
   plugins: {
