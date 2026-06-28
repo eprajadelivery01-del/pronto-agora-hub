@@ -142,7 +142,9 @@
       const hideSplash = () => {
         const root = document.getElementById('root');
         const splash = document.getElementById('splash-screen');
+        if (!splash) return true;
         if (root && root.children.length > 0 && splash) {
+          try { sessionStorage.removeItem('epj-splash-retry-v3'); } catch (error) {}
           splash.classList.add('hidden');
           splash.style.opacity = '0';
           splash.style.pointerEvents = 'none';
@@ -170,7 +172,7 @@
           var alreadyRetried = sessionStorage.getItem('epj-splash-retry-v3') === '1';
           if (!alreadyRetried) {
             sessionStorage.setItem('epj-splash-retry-v3', '1');
-            window.location.replace(window.location.pathname + window.location.search + (window.location.search ? '&' : '?') + 'fresh=' + Date.now());
+            window.location.replace(window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'fresh=' + Date.now());
             return;
           }
           var splash = document.getElementById('splash-screen');
