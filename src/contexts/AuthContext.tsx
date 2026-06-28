@@ -231,9 +231,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const hasRole = (role: AppRole) => {
+  const hasRole = useCallback((role: AppRole) => {
     return roles.includes(role);
-  };
+  }, [roles]);
   
   const signIn = async (email: string, password: string) => {
     await resetLocalAuthSession();
@@ -274,10 +274,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const contextValue = useMemo(() => ({
+    user, session, loading, rolesLoaded, roles, userStatus, profile, hasRole, signIn, signUp, signOut, deleteAccount 
+  }), [user, session, loading, rolesLoaded, roles, userStatus, profile, hasRole]);
+
   return (
-    <AuthContext.Provider value={{ 
-      user, session, loading, rolesLoaded, roles, userStatus, profile, hasRole, signIn, signUp, signOut, deleteAccount 
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
