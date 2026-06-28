@@ -280,7 +280,12 @@ export default function BusinessProfilePage() {
     try {
       const { error } = await supabase
         .from("companies")
-        .update({ is_open: newActive, show_in_marketplace: newActive })
+        .update({ 
+          is_open: newActive, 
+          show_in_marketplace: newActive,
+          active: newActive,
+          is_active: newActive
+        })
         .eq("id", companyId);
       if (error) throw error;
       toast.success(
