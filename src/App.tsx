@@ -55,6 +55,22 @@ const OrderAlertsListener = () => {
   return null;
 };
 
+// Guarda da rota raiz: usuários anônimos vão para /login,
+// autenticados seguem para o painel (que revalida a role).
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <Navigate to={user ? "/business" : "/login"} replace />;
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
