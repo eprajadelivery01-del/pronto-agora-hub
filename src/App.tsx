@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CityProvider } from "@/contexts/CityContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
@@ -53,6 +53,22 @@ import CustomersPage from "./pages/CustomersPage";
 const OrderAlertsListener = () => {
   useOrderAlerts();
   return null;
+};
+
+// Guarda da rota raiz: usuários anônimos vão para /login,
+// autenticados seguem para o painel (que revalida a role).
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <Navigate to={user ? "/business" : "/login"} replace />;
 };
 
 const queryClient = new QueryClient();
@@ -108,7 +124,7 @@ const App = () => (
                   <Route path="/admin/chat" element={<PageTransition><ProtectedRoute requiredRole="admin"><ChatPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/admin/profile" element={<PageTransition><ProtectedRoute requiredRole="admin"><ProfilePage /></ProtectedRoute></PageTransition>} />
                   
-                  <Route path="/" element={<Navigate to="/business" replace />} />
+                  <Route path="/" element={<RootRedirect />} />
 
                   <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
                 </Routes>
