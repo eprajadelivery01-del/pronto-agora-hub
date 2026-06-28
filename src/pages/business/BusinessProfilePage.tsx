@@ -621,7 +621,7 @@ export default function BusinessProfilePage() {
                       </div>
                       <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
                         {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => (
-                          <div key={wd.day} className="flex items-center justify-between gap-2 py-2 border-b border-border/10 last:border-0 overflow-x-auto">
+                          <div key={wd.day} className="flex items-center justify-between gap-2 py-2 border-b border-border/10 last:border-0">
                             <div className="flex items-center gap-3 shrink-0">
                               <input 
                                 type="checkbox" 
