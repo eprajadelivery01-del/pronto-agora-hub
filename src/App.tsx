@@ -124,7 +124,7 @@ const App = () => (
                   <Route path="/admin/chat" element={<PageTransition><ProtectedRoute requiredRole="admin"><ChatPage /></ProtectedRoute></PageTransition>} />
                   <Route path="/admin/profile" element={<PageTransition><ProtectedRoute requiredRole="admin"><ProfilePage /></ProtectedRoute></PageTransition>} />
                   
-                  <Route path="/" element={<Navigate to="/business" replace />} />
+                  <Route path="/" element={<RootRedirect />} />
 
                   <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
                 </Routes>
