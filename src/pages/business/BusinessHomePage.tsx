@@ -276,6 +276,10 @@ export default function BusinessHomePage() {
     return { ...order, id: order?.id || delivery.order_id || delivery.id, total: order?.total || (delivery as any).commission || delivery.value || 0, deliveryInfo: delivery };
   });
 
+  const orphanedOrders = (marketplaceOrders || []).filter(o => 
+    o.delivery_id && !marketplaceDeliveriesWithOrders.some(m => m.id === o.id)
+  );
+
   // Atualização agora depende do cache do React Query ou webhooks reais
   useEffect(() => {
     if (!companyId) return;
@@ -460,14 +464,35 @@ export default function BusinessHomePage() {
 
                   <button
                     onClick={() => setShowNewDelivery(true)}
-                    className="px-8 py-4 rounded-2xl bg-white text-primary text-lg font-black flex items-center justify-center gap-3 shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+                    className="flex-1 md:flex-none py-4 px-6 rounded-2xl bg-white text-primary font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.5)] flex items-center justify-center gap-2"
                   >
-                    <Plus className="h-6 w-6" />
+                    <Plus className="h-5 w-5" />
                     Nova Entrega
                   </button>
                 </div>
               </div>
             </div>
+
+            {orphanedOrders.length > 0 && (
+              <div className="bg-destructive/10 border-l-4 border-destructive rounded-r-2xl p-6 flex items-start gap-4 animate-in fade-in zoom-in duration-300">
+                <div className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center shrink-0">
+                  <Truck className="h-6 w-6 text-destructive" />
+                </div>
+                <div>
+                  <h3 className="text-destructive font-black text-lg">Entregas Canceladas!</h3>
+                  <p className="text-destructive/80 font-medium text-sm mt-1">
+                    Você tem {orphanedOrders.length} pedido(s) em que o motoboy cancelou a entrega. 
+                    Eles voltaram para a lista de "Em Preparo".
+                  </p>
+                  <button 
+                    onClick={() => navigate('/business/orders')}
+                    className="mt-3 px-4 py-2 bg-destructive text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:bg-destructive/90 transition-colors"
+                  >
+                    Ver Pedidos e Re-despachar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

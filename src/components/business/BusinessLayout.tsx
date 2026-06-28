@@ -91,14 +91,36 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       const targetId = cId || companyData?.id;
       if (!targetId) return;
 
-      const { data } = await supabase
+      const { data: rawOrders } = await supabase
         .from('orders')
-        .select('id, status, total, created_at, customer_id, company_id')
+        .select('id, status, total, created_at, customer_id, company_id, delivery_id')
         .eq('company_id', targetId)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'preparing', 'ready'])
         .order('created_at', { ascending: false });
       
-      if (data) setPendingOrders(data);
+      if (rawOrders) {
+        const deliveryIds = rawOrders.map(o => o.delivery_id).filter(Boolean);
+        const cancelledDeliveryIds = new Set();
+        
+        if (deliveryIds.length > 0) {
+           const { data: deliveriesData } = await supabase
+              .from('deliveries')
+              .select('id, status')
+              .in('id', deliveryIds)
+              .eq('status', 'cancelled');
+           if (deliveriesData) {
+              deliveriesData.forEach(d => cancelledDeliveryIds.add(d.id));
+           }
+        }
+
+        const notifs = rawOrders.filter(o => o.status === 'pending' || cancelledDeliveryIds.has(o.delivery_id)).map(o => ({
+          ...o,
+          notifType: o.status === 'pending' ? 'new_order' : 'delivery_cancelled'
+        }));
+        setPendingOrders(notifs);
+      } else {
+        setPendingOrders([]);
+      }
     };
 
     if (companyData?.id) {
@@ -367,13 +389,20 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                             className="p-5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
-                              <span className="text-[10px] font-bold text-muted-foreground">
-                                Há {Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000)} min
-                              </span>
+                              {order.notifType === 'delivery_cancelled' ? (
+                                <span className="text-[10px] font-black uppercase tracking-widest text-destructive bg-destructive/10 px-2 py-0.5 rounded-full animate-pulse">Motoboy Cancelou</span>
+                              ) : (
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
+                              )}
+                              <span className="text-xs font-bold text-muted-foreground">{new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
-                            <p className="text-sm font-bold mt-2">Pedido #{order.id.slice(-6).toUpperCase()}</p>
+                            <p className="text-sm font-bold mt-2">Pedido #{order.id?.slice(-6).toUpperCase()}</p>
                             <p className="text-xs text-muted-foreground truncate">{order.customer_name || 'Cliente Marketplace'}</p>
+                            {order.notifType === 'delivery_cancelled' ? (
+                              <span className="text-xs text-destructive font-medium">Vá em "Novos Pedidos" para re-despachar.</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground font-medium">R$ {order.total.toFixed(2).replace('.', ',')}</span>
+                            )}
                           </div>
                         ))}
                       </div>
