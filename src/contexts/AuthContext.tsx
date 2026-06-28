@@ -1,3 +1,4 @@
+import * as React from "react";
 import { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { clearSupabaseAuthStorage, resetLocalAuthSession, supabase } from "@/lib/supabaseClient";
