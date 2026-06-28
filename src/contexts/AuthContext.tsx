@@ -131,13 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           } else {
             console.warn("[Auth] Nenhuma role encontrada para", userId, "- Aguardando processamento de convite...");
-            // Retentativa para o caso do role ser atribuído logo após o sign-in no fluxo de convite
-            setTimeout(async () => {
-              const { data: retryRoles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-              if (retryRoles && retryRoles.length > 0) {
-                setRoles(retryRoles.map((r: any) => r.role));
-              }
-            }, 2000);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const { data: retryRoles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+            if (retryRoles && retryRoles.length > 0) {
+              finalRoles = retryRoles.map((r: any) => r.role);
+            }
           }
         }
       }
