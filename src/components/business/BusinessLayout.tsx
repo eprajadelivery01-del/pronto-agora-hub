@@ -131,7 +131,12 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     try {
       const { error } = await supabase
         .from('companies')
-        .update({ is_open: newStatus, show_in_marketplace: newStatus })
+        .update({ 
+          is_open: newStatus, 
+          show_in_marketplace: newStatus,
+          active: newStatus,
+          is_active: newStatus
+        })
         .eq('id', companyData.id);
       
       if (error) throw error;
