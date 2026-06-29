@@ -201,7 +201,7 @@ export default function OrderDetailModal({
                       </div>
                   </div>
                   
-                  <div className="flex flex-wrap items-center justify-between gap-4 text-left bg-white/10 p-3 rounded-2xl border border-white/10">
+                  <div className="flex flex-wrap items-center justify-between gap-4 text-left bg-white/10 dark:bg-black/20 p-3 rounded-2xl border border-white/10">
                       <div className="flex items-center gap-3">
                           <DialogTitle className="text-lg font-black tracking-tight text-white m-0 leading-none">
                             #{order.id?.slice(-6).toUpperCase() || "..."}
@@ -273,7 +273,7 @@ export default function OrderDetailModal({
                               const images = parseImages(item.products?.image_url);
                               const mainImage = images[0];
                               return (
-                                  <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.25rem] bg-white border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
+                                  <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.25rem] bg-card border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
                                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/50">
                                           {mainImage ? (
                                               <img src={optimizeStorageImage(mainImage, { width: 160 })} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.product_name} />
@@ -344,7 +344,7 @@ export default function OrderDetailModal({
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => window.print()} 
-                  className="h-12 w-12 rounded-xl bg-white border border-border flex items-center justify-center hover:bg-muted transition-all text-muted-foreground print:hidden shadow-sm"
+                  className="h-12 w-12 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-muted transition-all text-muted-foreground print:hidden shadow-sm"
                   title="Imprimir Pedido"
                 >
                    <Printer className="h-5 w-5" />
