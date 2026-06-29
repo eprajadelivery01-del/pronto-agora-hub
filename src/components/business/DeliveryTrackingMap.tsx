@@ -37,7 +37,7 @@ export default function DeliveryTrackingMap({ deliveryId, driverId, destinationA
         const map = new maplibregl.Map({
           container: mapContainerRef.current,
           style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
-          center: destCoords ? [destCoords.lon, destCoords.lat] : [-56.097, -15.601], // Default Cuiabá
+          center: destCoords ? [destCoords.lng, destCoords.lat] : [-56.097, -15.601], // Default Cuiabá
           zoom: 14,
         });
 
@@ -46,7 +46,7 @@ export default function DeliveryTrackingMap({ deliveryId, driverId, destinationA
 
         if (destCoords) {
           new maplibregl.Marker({ color: "#ef4444" })
-            .setLngLat([destCoords.lon, destCoords.lat])
+            .setLngLat([destCoords.lng, destCoords.lat])
             .setPopup(new maplibregl.Popup().setHTML("<b>Destino</b>"))
             .addTo(map);
         }
