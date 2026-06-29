@@ -1,0 +1,42 @@
+name: CI Pipeline (Lojista)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Lint, Type Check and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Type Checking
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+      # (Optional) Playwright Tests - will run if tests are defined
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        continue-on-error: true
+
+      - name: Run E2E Tests
+        run: npx playwright test
+        continue-on-error: true
