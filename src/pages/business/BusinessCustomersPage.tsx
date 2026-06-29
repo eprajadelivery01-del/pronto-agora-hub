@@ -26,8 +26,10 @@ export default function BusinessCustomersPage() {
 
   // Modal de novo cliente
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", cpf: "" });
   const [addressEntries, setAddressEntries] = useState<{ label: string; address: string; reference: string }[]>([
     { label: "Casa", address: "", reference: "" },
@@ -247,10 +249,97 @@ export default function BusinessCustomersPage() {
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || "Erro ao cadastrar cliente");
-    } finally {
-      setSaving(false);
-    }
-  };
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleEdit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedCustomer) return;
+        if (!form.name.trim()) {
+          toast.error("Informe o nome do cliente");
+          return;
+        }
+        
+        setSaving(true);
+        try {
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(selectedCustomer.id);
+          
+          if (isUUID) {
+            const { error } = await supabase
+              .from("customers")
+              .update({
+                name: form.name.trim(),
+                phone: form.phone.trim() || null,
+                cpf: form.cpf.trim() || null,
+              })
+              .eq("id", selectedCustomer.id);
+              
+            if (error) throw error;
+          } else {
+            const { error } = await supabase
+              .from("deliveries")
+              .update({
+                customer_name: form.name.trim(),
+                customer_phone: form.phone.trim() || null,
+                customer_cpf: form.cpf.trim() || null,
+              })
+              .eq("company_id", companyId)
+              .eq(selectedCustomer.phone ? "customer_phone" : "customer_name", selectedCustomer.phone || selectedCustomer.name);
+              
+            if (error) throw error;
+          }
+
+          toast.success("Cliente atualizado com sucesso!");
+          setShowEditModal(false);
+          setSelectedCustomer(null);
+          fetchCustomers();
+        } catch (err: any) {
+          console.error(err);
+          toast.error(err?.message || "Erro ao atualizar cliente");
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleDelete = async (customer: CustomerRecord) => {
+        if (!window.confirm(`Tem certeza que deseja excluir o cliente ${customer.name}? Essa ação pode afetar o histórico de pedidos e não pode ser desfeita.`)) {
+          return;
+        }
+        
+        setIsDeleting(true);
+        try {
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(customer.id);
+          
+          if (isUUID) {
+            const { error } = await supabase.from("customers").delete().eq("id", customer.id);
+            if (error) {
+               if (error.code === '23503') {
+                 throw new Error("Não é possível excluir este cliente pois ele possui pedidos vinculados. (Proteção de integridade financeira)");
+               }
+               throw error;
+            }
+          } else {
+            const { error } = await supabase
+              .from("deliveries")
+              .update({ customer_name: "Cliente Excluído", customer_phone: null, customer_cpf: null })
+              .eq("company_id", companyId)
+              .eq(customer.phone ? "customer_phone" : "customer_name", customer.phone || customer.name);
+              
+            if (error) throw error;
+          }
+          
+          toast.success("Cliente excluído com sucesso!");
+          setSelectedCustomer(null);
+          fetchCustomers();
+        } catch (err: any) {
+          console.error(err);
+          toast.error(err?.message || "Erro ao excluir cliente");
+        } finally {
+          setIsDeleting(false);
+        }
+      };
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -355,6 +444,95 @@ export default function BusinessCustomersPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de Editar Cliente */}
+      {showEditModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => !saving && setShowEditModal(false)}
+        >
+          <div
+            className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-md p-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-black text-foreground">Editar Cliente</h3>
+                <p className="text-xs text-muted-foreground font-medium mt-1">Altere as informações de contato.</p>
+              </div>
+              <button
+                onClick={() => !saving && setShowEditModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                disabled={saving}
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">Nome *</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: Maria Silva"
+                  className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">Celular (Opcional)</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="Ex: 11999999999"
+                    className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">CPF (Opcional)</label>
+                  <input
+                    type="text"
+                    value={form.cpf}
+                    onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                    placeholder="Somente números"
+                    className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-border mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-foreground hover:bg-muted transition-colors"
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    "Salvar Alterações"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal Novo Cliente */}
       {showNewModal && (
@@ -604,7 +782,27 @@ export default function BusinessCustomersPage() {
                 </section>
               </div>
 
-              <div className="mt-12 pt-8 border-t border-border">
+              <div className="mt-12 pt-8 border-t border-border flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    setForm({
+                      name: selectedCustomer.name,
+                      phone: selectedCustomer.phone || "",
+                      cpf: selectedCustomer.cpf || ""
+                    });
+                    setShowEditModal(true);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all shadow-xl"
+                >
+                  Editar Cliente
+                </button>
+                <button 
+                  onClick={() => handleDelete(selectedCustomer)}
+                  disabled={isDeleting}
+                  className="w-full py-4 rounded-2xl bg-destructive/10 text-destructive font-black text-xs uppercase tracking-widest hover:bg-destructive hover:text-destructive-foreground transition-all"
+                >
+                  {isDeleting ? "Excluindo..." : "Excluir Cliente"}
+                </button>
                 <button 
                   onClick={() => toast.info("Relatório detalhado do cliente em desenvolvimento.")}
                   className="w-full py-4 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-widest hover:bg-foreground/90 transition-all shadow-xl"
