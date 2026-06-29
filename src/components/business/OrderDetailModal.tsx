@@ -178,7 +178,7 @@ export default function OrderDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-white text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh] print:shadow-none print:rounded-none print:overflow-visible">
+      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-background text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh] print:shadow-none print:rounded-none print:overflow-visible">
         <DialogDescription className="sr-only">Detalhes completos do pedido, itens e valores.</DialogDescription>
         
         {/* VISUAL UI (Hidden on Print) */}
@@ -223,7 +223,7 @@ export default function OrderDetailModal({
               </DialogHeader>
           </div>
 
-          <div className="flex-1 min-h-0 p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar bg-white/95">
+          <div className="flex-1 min-h-0 p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar bg-background">
               {/* Tracking Map Section */}
               {order.delivery_id && (
                 <div className="mb-8">
@@ -232,7 +232,7 @@ export default function OrderDetailModal({
                        <Truck className="h-4 w-4 text-primary" />
                        Acompanhamento da Entrega
                      </h3>
-                     <span className="text-[9px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-lg uppercase animate-pulse">Tempo Real</span>
+                     <span className="text-[9px] font-black text-green-600 bg-green-500/10 px-2 py-1 rounded-lg uppercase animate-pulse">Tempo Real</span>
                    </div>
                    <DeliveryTrackingMap 
                       deliveryId={order.delivery_id} 
@@ -380,14 +380,14 @@ export default function OrderDetailModal({
 
                   <button 
                     onClick={onClose}
-                    className="px-6 h-12 rounded-xl border border-border bg-white text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
+                    className="px-6 h-12 rounded-xl border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"
                   >
                     Fechar
                   </button>
                   {status.prev && (
                     <button 
                       onClick={handlePrev}
-                      className="px-5 h-12 rounded-xl border border-border bg-white text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center gap-2 group/btn"
+                      className="px-5 h-12 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center justify-center gap-2 group/btn"
                       title={status.prevLabel}
                     >
                       <RotateCcw className="h-3 w-3 group-hover/btn:-rotate-45 transition-transform" />
