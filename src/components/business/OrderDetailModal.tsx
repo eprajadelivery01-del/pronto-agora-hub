@@ -330,11 +330,22 @@ export default function OrderDetailModal({
               </div>
 
                {order.notes && (
-                  <div className="p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-[2rem] space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                      <AlertCircle className="h-3 w-3" /> Observações do Cliente
+                  <div className="p-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-[2rem] space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                      <AlertCircle className="h-3 w-3" /> Forma de Pagamento / Observações
                     </p>
-                    <p className="text-sm font-medium italic text-amber-900 dark:text-amber-100">"{order.notes}"</p>
+                    <p className="text-sm font-medium italic text-blue-900 dark:text-blue-100">
+                      {order.notes.includes("Troco para R$") ? (
+                        <>
+                           Dinheiro <br/>
+                           <span className="text-base font-black text-green-700 dark:text-green-400 not-italic mt-1 block">
+                             🚨 LEVAR TROCO PARA R$ {order.notes.split("Troco para R$")[1]?.trim()} 🚨
+                           </span>
+                        </>
+                      ) : (
+                        order.notes
+                      )}
+                    </p>
                   </div>
                )}
           </div>
@@ -450,8 +461,12 @@ export default function OrderDetailModal({
 
           {order.notes && (
              <div className="border-b border-black pb-2 mb-2 border-dashed">
-               <p className="font-bold uppercase m-0 p-0 mb-1">OBSERVAÇÕES DO PEDIDO</p>
-               <p className="m-0 p-0 italic">{order.notes}</p>
+               <p className="font-bold uppercase m-0 p-0 mb-1">PAGAMENTO / OBSERVAÇÕES</p>
+               <p className="m-0 p-0 italic font-bold">
+                 {order.notes.includes("Troco para R$") 
+                   ? `DINHEIRO - TROCO P/ R$ ${order.notes.split("Troco para R$")[1]?.trim()}`
+                   : order.notes}
+               </p>
              </div>
           )}
 
