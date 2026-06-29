@@ -43,34 +43,49 @@ export async function getDirectConversation(userId: string, targetUserId: string
 }
 
 export async function getAdminId() {
-  let { data, error } = await supabase
+  const { data: roles, error } = await supabase
     .from("user_roles")
     .select("user_id")
-    .eq("role", "admin")
-    .limit(1)
-    .maybeSingle();
-  
-  if (data?.user_id) return data.user_id;
+    .eq("role", "admin");
+    
+  if (roles && roles.length > 0) {
+    const adminIds = roles.map(r => r.user_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, full_name")
+      .in("user_id", adminIds);
+      
+    if (profiles && profiles.length > 0) {
+      const davinyn = profiles.find(p => p.full_name && p.full_name.toLowerCase().includes('davinyn'));
+      if (davinyn) return davinyn.user_id;
+      return profiles[0].user_id;
+    }
+    return adminIds[0];
+  }
 
   // Fallback 1: Buscar em profiles
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("user_id")
-    .eq("role", "admin")
-    .limit(1)
-    .maybeSingle();
+    .select("user_id, full_name")
+    .eq("role", "admin");
     
-  if (profileData?.user_id) return profileData.user_id;
+  if (profileData && profileData.length > 0) {
+    const davinyn = profileData.find(p => p.full_name && p.full_name.toLowerCase().includes('davinyn'));
+    if (davinyn) return davinyn.user_id;
+    return profileData[0].user_id;
+  }
 
-  // Fallback 2: Pegar o primeiro perfil do sistema
-  const { data: fallbackData } = await supabase
+  // Fallback 2: Buscar e-mail específico (davinyn)
+  const { data: specificAdmin } = await supabase
     .from("profiles")
     .select("user_id")
-    .order("created_at", { ascending: true })
+    .ilike("full_name", "%davinyn%")
     .limit(1)
     .maybeSingle();
     
-  return fallbackData?.user_id || null;
+  if (specificAdmin?.user_id) return specificAdmin.user_id;
+
+  return null;
 }
 
 export async function getMessages(conversationId: string) {
