@@ -80,7 +80,6 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
   { key: "preparing", label: "Em Preparo", icon: Package, color: "blue" },
   { key: "ready", label: "Prontos", icon: CheckCircle, color: "green" },
   { key: "in_route", label: "Em Rota", icon: Truck, color: "purple" },
-  { key: "delivered", label: "Concluídos", icon: CheckCircle, color: "success" },
 ];
 
 export default function BusinessOrdersPage() {
@@ -288,9 +287,7 @@ export default function BusinessOrdersPage() {
         // 2. Now filter based on the COMPUTED status
         const mapped = mappedRaw.filter((o: any) => {
           if (o.status === "cancelled") return false;
-          if (["completed", "delivered"].includes(o.status)) {
-            return isToday(o.created_at) || isToday(o.updated_at);
-          }
+          if (["completed", "delivered"].includes(o.status)) return false;
           return true;
         });
         
