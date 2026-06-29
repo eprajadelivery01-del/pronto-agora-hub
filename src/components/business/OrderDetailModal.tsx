@@ -329,14 +329,14 @@ export default function OrderDetailModal({
                   )}
               </div>
 
-              {order.notes && (
-                 <div className="p-6 bg-warning/5 border border-warning/10 rounded-[2rem] space-y-2">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-warning flex items-center gap-2">
-                     <AlertCircle className="h-3 w-3" /> Observações do Cliente
-                   </p>
-                   <p className="text-sm font-medium italic text-foreground/80">"{order.notes}"</p>
-                 </div>
-              )}
+               {order.notes && (
+                  <div className="p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-[2rem] space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                      <AlertCircle className="h-3 w-3" /> Observações do Cliente
+                    </p>
+                    <p className="text-sm font-medium italic text-amber-900 dark:text-amber-100">"{order.notes}"</p>
+                  </div>
+               )}
           </div>
 
           {/* Footer Actions */}

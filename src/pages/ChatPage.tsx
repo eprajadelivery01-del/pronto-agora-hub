@@ -227,7 +227,7 @@ export default function ChatPage() {
                     onClick={() => setSelectedConv(conv)}
                     className={cn(
                       "w-full p-4 text-left transition-all border-b border-border/40 relative group",
-                      selectedConv?.id === conv.id ? "bg-white shadow-sm z-10" : "hover:bg-white/50"
+                      selectedConv?.id === conv.id ? "bg-card shadow-sm z-10" : "hover:bg-muted/50"
                     )}
                   >
                     <div className="flex items-center gap-3">

@@ -193,6 +193,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const email = currentUser.email?.toLowerCase();
           
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
+          
+          // Fallback timer to prevent infinite loading if fetchUserData gets skipped
+          setTimeout(() => { if (mounted) setLoading(false); }, 3000);
         } else {
           setRolesLoaded(true);
           setLoading(false);
@@ -233,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           const email = currentUser.email?.toLowerCase();
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
+          setTimeout(() => { if (mounted) setLoading(false); }, 3000);
         } else {
           setRolesLoaded(true);
           setLoading(false);

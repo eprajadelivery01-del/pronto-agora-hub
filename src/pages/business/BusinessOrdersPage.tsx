@@ -131,7 +131,7 @@ export default function BusinessOrdersPage() {
     }
     
     try {
-      setLoading(true);
+      // setLoading(true); removido para evitar travamento da UI via Realtime
       
       // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
       let { data, error } = await supabase
@@ -677,7 +677,7 @@ export default function BusinessOrdersPage() {
                   value={deliveryFee}
                   onChange={(e) => setDeliveryFee(applyMoneyMask(e.target.value))}
                   placeholder="0,00"
-                  className="w-full h-16 pl-16 pr-6 rounded-[1.25rem] bg-secondary/30 border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all text-2xl font-black tracking-tighter outline-none"
+                  className="w-full h-16 pl-16 pr-6 rounded-[1.25rem] bg-secondary/30 border-2 border-transparent focus:border-primary/20 focus:bg-background transition-all text-2xl font-black tracking-tighter outline-none"
                   autoFocus
                 />
               </div>
@@ -807,7 +807,7 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black text-muted-foreground uppercase opacity-60">Total</span>
-            <p className="text-lg font-black text-primary tracking-tighter italic leading-none">R$ {((order.items?.reduce((acc, curr) => acc + ((curr.unit_price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace(".", ",")}</p>
+            <p className="text-lg font-black text-primary tracking-tighter italic leading-none">R$ {((order.items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace(".", ",")}</p>
           </div>
           
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
