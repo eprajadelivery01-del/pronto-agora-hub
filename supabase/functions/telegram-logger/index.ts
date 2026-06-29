@@ -25,19 +25,39 @@ serve(async (req) => {
     }
 
     const payload = await req.json()
-    const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload
 
-    // Extrair IP do atacante a partir dos Headers (se disponível)
-    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'Desconhecido'
-    const country = req.headers.get('cf-ipcountry') || 'Desconhecido'
+    let message = "";
 
-    // Formatar a mensagem dependendo se for um ataque ou erro normal
-    let title = "⚠️ Erro no Sistema"
-    if (is_attack || (error_message && error_message.includes("[ATAQUE DETECTADO]"))) {
-      title = "🚨 ATAQUE / ATIVIDADE SUSPEITA DETECTADA 🚨"
-    }
+    // Check if it is a Supabase Database Webhook payload (from system_alerts)
+    if (payload.type === 'INSERT' && payload.table === 'system_alerts') {
+      const record = payload.record;
+      const title = "🚨 ALERTA DO SISTEMA (Sentinela) 🚨";
+      message = `
+${title}
+📍 *Tipo:* ${record.type || 'N/A'}
+🕒 *Hora:* ${record.created_at ? new Date(record.created_at).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
 
-    const message = `
+❌ *Mensagem:* ${record.message || 'N/A'}
+
+📝 *Detalhes:*
+\`\`\`json
+${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
+\`\`\`
+`.trim();
+    } else {
+      const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload
+      
+      // Extrair IP do atacante a partir dos Headers (se disponível)
+      const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'Desconhecido'
+      const country = req.headers.get('cf-ipcountry') || 'Desconhecido'
+
+      // Formatar a mensagem dependendo se for um ataque ou erro normal
+      let title = "⚠️ Erro no Sistema"
+      if (is_attack || (error_message && error_message.includes("[ATAQUE DETECTADO]"))) {
+        title = "🚨 ATAQUE / ATIVIDADE SUSPEITA DETECTADA 🚨"
+      }
+
+      message = `
 ${title}
 📱 *App:* ${app_name || 'Desconhecido'}
 🕒 *Hora:* ${new Date().toLocaleString('pt-BR')}
@@ -54,7 +74,8 @@ ${title}
 \`\`\`json
 ${JSON.stringify(additional_info || {}, null, 2).substring(0, 500)}${JSON.stringify(additional_info || {}).length > 500 ? '...' : ''}
 \`\`\`
-`.trim()
+`.trim();
+    }
 
     // Enviar para a API do Telegram
     const telegramResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
