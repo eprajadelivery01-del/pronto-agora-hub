@@ -178,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser ?? null);
         
         if (currentUser) {
+          setRolesLoaded(false);
           const email = currentUser.email?.toLowerCase();
           
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
@@ -215,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Ignore token refreshed events to prevent infinite reload loops
           return;
         } else if (currentUser) {
+          setRolesLoaded(false);
           const email = currentUser.email?.toLowerCase();
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
         } else {
