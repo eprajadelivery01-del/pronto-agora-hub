@@ -483,26 +483,10 @@ export default function BusinessProfilePage() {
                            >
                               <option value="restaurante">Restaurante</option>
                               <option value="mercado">Mercado / Mercearia</option>
-                              <option value="batata recheada">Batata recheada</option>
-                              <option value="combo">Combo</option>
-                              <option value="caldos">Caldos</option>
                               <option value="farmacia">Farmácia / Drogaria</option>
-                              <option value="lanches">Lanches / Fast Food</option>
-                              <option value="pizza">Pizzaria</option>
+                              <option value="petiscaria">Petiscaria</option>
                               <option value="bebidas">Adega / Bebidas</option>
-                              <option value="padaria">Padaria / Confeitaria</option>
-                              <option value="hamburguer">Hambúrguer Artesanal</option>
-                              <option value="assados">Assados</option>
-                              <option value="acompanhamentos">Acompanhamentos</option>
-                              <option value="marmita">Marmita</option>
-                              <option value="sorvetes">Sorvetes e Picolés</option>
-                              <option value="alcoolicas">Bebidas Alcoólicas</option>
-                              <option value="porcoes">Porções</option>
-                              <option value="perfumaria">Perfumaria</option>
-                              <option value="doces">Doceria / Sobremesas</option>
-                              <option value="pet">Pet Shop / Agro</option>
                               <option value="shopping">Shopping / Variedades</option>
-                              <option value="barbantes_tecidos">Barbantes e Tecidos</option>
                            </select>
                         </div>
                      </div>
