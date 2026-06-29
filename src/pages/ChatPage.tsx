@@ -209,6 +209,8 @@ export default function ChatPage() {
                 // Pega as mensagens ordenadas corretamente
                 const sortedMessages = conv.messages ? [...conv.messages].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) : [];
                 const lastMsg = sortedMessages[0];
+                const otherId = getOtherParticipantId(conv);
+                const otherProfile = otherId ? profilesMap?.[otherId] : null;
                 
                 return (
                   <button
