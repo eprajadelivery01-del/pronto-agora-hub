@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
   CheckCircle2, AlertCircle, X, Printer, ArrowRight, ArrowLeft, Trash2,
-  Package, ImagePlus, Loader2, RotateCcw, Truck
+  Package, ImagePlus, Loader2, RotateCcw, Truck, MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { supabase } from "@/lib/supabaseClient";
 import DeliveryTrackingMap from "./DeliveryTrackingMap";
+import { useNavigate } from "react-router-dom";
 
 interface OrderDetailModalProps {
   order: any;
@@ -27,6 +28,7 @@ export default function OrderDetailModal({
   updateStatus,
   onStatusUpdate
 }: OrderDetailModalProps) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{name: string | null, phone: string | null} | null>(null);
@@ -363,6 +365,19 @@ export default function OrderDetailModal({
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
+                  
+                  <button 
+                    onClick={() => {
+                      onClose();
+                      navigate(`/business/chat?order_id=${order.id}`);
+                    }}
+                    className="px-5 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center gap-2 hover:bg-primary hover:text-white transition-all shadow-sm group/btn"
+                    title="Chat com o Cliente"
+                  >
+                    <MessageSquare className="h-4 w-4 group-hover/btn:scale-110 transition-transform" />
+                    <span className="hidden md:inline text-[9px] font-black uppercase tracking-widest">Chat</span>
+                  </button>
+
                   <button 
                     onClick={onClose}
                     className="px-6 h-12 rounded-xl border border-border bg-white text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted transition-all"

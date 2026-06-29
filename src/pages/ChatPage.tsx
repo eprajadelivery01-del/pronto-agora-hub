@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BikeIcon } from "@/components/icons/BikeIcon";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
@@ -15,6 +16,8 @@ export default function ChatPage() {
   const { user, profile, hasRole } = useAuth();
   const [selectedConv, setSelectedConv] = useState<any>(null);
   const [message, setMessage] = useState("");
+  const [searchParams] = useSearchParams();
+  const orderIdParam = searchParams.get("order_id");
   
   const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
@@ -58,6 +61,15 @@ export default function ChatPage() {
       return data;
     }
   });
+
+  useEffect(() => {
+    if (conversations && orderIdParam && !selectedConv) {
+      const convForOrder = conversations.find((c: any) => c.order_id === orderIdParam);
+      if (convForOrder) {
+        setSelectedConv(convForOrder);
+      }
+    }
+  }, [conversations, orderIdParam, selectedConv]);
 
   // Profiles map for conversation display
   const { data: profilesMap } = useQuery({
@@ -216,9 +228,12 @@ export default function ChatPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-black text-foreground truncate">{getConvTitle(conv)}</p>
+                          <span className="font-semibold text-sm truncate">
+                          {otherProfile?.full_name || "Usuário"} {otherProfile?.role === 'driver' && <span className="text-xs font-normal text-muted-foreground ml-1">(Entregador)</span>}
+                          {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(Pedido #{conv.order_id.slice(0, 4)})</span>}
+                          </span>
                           {lastMsg && (
-                            <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                            <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
                               {format(new Date(lastMsg.created_at), "HH:mm")}
                             </span>
                           )}
