@@ -280,7 +280,7 @@ export default function BusinessHomePage() {
     o.delivery_id && !marketplaceDeliveriesWithOrders.some(m => m.id === o.id)
   );
 
-  // Atualização agora depende do cache do React Query ou webhooks reais
+  // Atualização agora depende do cache do React Query e de Webhooks em tempo real
   useEffect(() => {
     if (!companyId) return;
     const invalidateDeliveryQueries = () => {
@@ -293,6 +293,28 @@ export default function BusinessHomePage() {
     };
 
     invalidateDeliveryQueries();
+
+    // Inscrever-se para atualizações em tempo real das entregas no Supabase
+    const channel = supabase
+      .channel(`business-deliveries-${companyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "deliveries",
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          console.log("[Realtime] Atualização em delivery recebida, recarregando...");
+          invalidateDeliveryQueries();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [companyId, qc]);
 
   const stats = useMemo(() => ({
