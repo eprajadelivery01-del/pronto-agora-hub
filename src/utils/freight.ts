@@ -92,11 +92,24 @@ export async function calculateDeliveryFee(
 
     // Normaliza o pricing do lojista para lookup rápido por region_id
     const merchantPricing: Record<string, number> = {};
+    
+    // Suporte para o formato antigo (Array puro) e o novo formato JSONB ({ matrix: [...] })
+    let pricingArray: any[] = [];
     if (Array.isArray(companyDeliveryRegionsPricing)) {
-      for (const entry of companyDeliveryRegionsPricing) {
-        const price = Number(String(entry.customer_price).replace(',', '.'));
-        if (entry.region_id && !isNaN(price) && price >= 0) {
-          merchantPricing[entry.region_id] = price;
+      pricingArray = companyDeliveryRegionsPricing;
+    } else if (companyDeliveryRegionsPricing && typeof companyDeliveryRegionsPricing === 'object' && Array.isArray((companyDeliveryRegionsPricing as any).matrix)) {
+      pricingArray = (companyDeliveryRegionsPricing as any).matrix;
+    }
+
+    if (pricingArray.length > 0) {
+      for (const entry of pricingArray) {
+        // Suporta tanto `customer_price` (legado) quanto `price` (novo) e `region_id` (legado) quanto `to` (novo)
+        const rawPrice = entry.price !== undefined ? entry.price : entry.customer_price;
+        const regionId = entry.to !== undefined ? entry.to : entry.region_id;
+        
+        const price = Number(String(rawPrice).replace(',', '.'));
+        if (regionId && !isNaN(price) && price >= 0) {
+          merchantPricing[regionId] = price;
         }
       }
     }

@@ -83,7 +83,7 @@ const COLUMNS: { key: OrderStatus; label: string; icon: any; color: string }[] =
 ];
 
 export default function BusinessOrdersPage() {
-  const { companyId, isLoading: companyLoading } = useCurrentCompany();
+  const { companyId, company, isLoading: companyLoading } = useCurrentCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -448,9 +448,9 @@ export default function BusinessOrdersPage() {
         const lat = deliveryData?.delivery_latitude;
         const lng = deliveryData?.delivery_longitude;
 
-        if (lat && lng) {
-          const result = await calculateDeliveryFee(lat, lng, supabase);
-          if (result.fee !== null && !result.isOutOfRange) {
+          if (lat && lng) {
+            const result = await calculateDeliveryFee(lat, lng, supabase, company?.delivery_regions_pricing);
+            if (result.fee !== null && !result.isOutOfRange) {
             setDeliveryFee(formatCurrency(result.fee));
             setDetectedRegion(result.regionName);
             toast.info(`📍 Frete sugerido pela região: R$ ${formatCurrency(result.fee)}`);
