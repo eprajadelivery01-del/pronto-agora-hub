@@ -316,10 +316,7 @@ export default function BusinessHomePage() {
       // Remove from optimistic state if exists
       setOptimisticManualDeliveries(current => current.filter(d => d.id !== id));
       
-      // Failsafe force reload after a moment to ensure UI clears
-      setTimeout(() => {
-        window.location.reload();
-      }, 800);
+      // UI already clears via optimistic state and react query invalidation
     } catch (err: any) {
       toast.error(err.message);
     }

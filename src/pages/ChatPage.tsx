@@ -134,17 +134,19 @@ export default function ChatPage() {
   const { data: messages, isLoading: loadingMessages } = useMessages(selectedConv?.id);
   const sendMessageMutation = useSendMessage();
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!message.trim() || !selectedConv) return;
-    try {
-      await sendMessageMutation.mutateAsync({
-        conversationId: selectedConv.id,
-        content: message.trim()
-      });
-      setMessage("");
-    } catch (err) {
-      console.error(err);
-    }
+    const contentToSend = message.trim();
+    setMessage(""); // Limpa imediatamente
+    
+    sendMessageMutation.mutate({
+      conversationId: selectedConv.id,
+      content: contentToSend
+    }, {
+      onError: (err) => {
+        console.error("Failed to send message:", err);
+      }
+    });
   };
 
   const getOtherParticipantId = (conv: any) => {

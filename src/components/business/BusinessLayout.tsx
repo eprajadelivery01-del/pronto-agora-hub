@@ -127,17 +127,6 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       fetchStatus();
       fetchPendingOrders(companyData.id);
     }
-
-    if (!companyData?.id) return;
-
-    const interval = window.setInterval(() => {
-      fetchStatus();
-      fetchPendingOrders(companyData.id);
-    }, 20000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
   }, [user?.id, companyData?.id]);
 
   const toggleStoreStatus = async () => {

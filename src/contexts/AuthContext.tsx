@@ -142,8 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setRoles(finalRoles);
-
-
+      localStorage.setItem(`roles_${userId}`, JSON.stringify(finalRoles));
 
       // --- PROFILE HANDLING ---
       if (profileRes?.data) {
@@ -179,7 +178,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(currentUser ?? null);
         
         if (currentUser) {
-          setRolesLoaded(false);
+          const cachedRoles = localStorage.getItem(`roles_${currentUser.id}`);
+          if (cachedRoles) {
+            try {
+              const parsed = JSON.parse(cachedRoles);
+              setRoles(parsed);
+              setRolesLoaded(true);
+            } catch (e) {
+              setRolesLoaded(false);
+            }
+          } else {
+            setRolesLoaded(false);
+          }
           const email = currentUser.email?.toLowerCase();
           
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);

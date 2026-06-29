@@ -351,7 +351,7 @@ export default function OrderDetailModal({
                 </button>
                 <div className="flex flex-col text-left">
                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
-                   <p className="text-2xl font-black text-primary italic leading-none mt-0.5">R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+                   <p className="text-2xl font-black text-primary italic leading-none mt-0.5">R$ {((items?.reduce((acc, curr) => acc + ((curr.price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace('.', ',')}</p>
                 </div>
               </div>
 
@@ -456,7 +456,7 @@ export default function OrderDetailModal({
           )}
 
           <div className="text-right border-b border-black pb-2 mb-2 border-dashed">
-             <p className="font-bold text-lg m-0 p-0">TOTAL: R$ {order.total?.toFixed(2).replace('.', ',')}</p>
+             <p className="font-bold text-lg m-0 p-0">TOTAL: R$ {((items?.reduce((acc, curr) => acc + ((curr.price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace('.', ',')}</p>
           </div>
 
           <div className="text-center pt-2 pb-4">

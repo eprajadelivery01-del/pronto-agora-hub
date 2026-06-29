@@ -807,7 +807,7 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black text-muted-foreground uppercase opacity-60">Total</span>
-            <p className="text-lg font-black text-primary tracking-tighter italic leading-none">R$ {order.total.toFixed(2).replace(".", ",")}</p>
+            <p className="text-lg font-black text-primary tracking-tighter italic leading-none">R$ {((order.items?.reduce((acc, curr) => acc + ((curr.unit_price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace(".", ",")}</p>
           </div>
           
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
