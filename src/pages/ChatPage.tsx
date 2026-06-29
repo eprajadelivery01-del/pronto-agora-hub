@@ -25,9 +25,9 @@ export default function ChatPage() {
   
   // Fetch Admin ID
   const { data: adminId } = useQuery({
-    queryKey: ["admin-id"],
-    queryFn: getAdminId,
-    enabled: isLojista
+    queryKey: ["admin-id", user?.id],
+    queryFn: () => getAdminId(user?.id),
+    enabled: isLojista && !!user?.id
   });
 
   const handleStartAdminChat = async () => {

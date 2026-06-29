@@ -42,8 +42,19 @@ export async function getDirectConversation(userId: string, targetUserId: string
   return data;
 }
 
-export async function getAdminId() {
-  const { data: roles, error } = await supabase
+export async function getAdminId(currentUserId?: string) {
+  // 1. Tentar pegar a administradora absoluta via RPC (ignora RLS e busca pelo email)
+  try {
+    const { data: rpcAdminId, error: rpcErr } = await supabase.rpc('get_davinyn_admin_id');
+    if (!rpcErr && rpcAdminId) {
+      return rpcAdminId;
+    }
+  } catch (e) {
+    console.error("RPC get_davinyn_admin_id não encontrado ainda.");
+  }
+
+  // 2. Fallback: Busca na tabela user_roles
+  const { data: roles } = await supabase
     .from("user_roles")
     .select("user_id")
     .eq("role", "admin");
@@ -58,8 +69,14 @@ export async function getAdminId() {
     if (profiles && profiles.length > 0) {
       const davinyn = profiles.find(p => p.full_name && p.full_name.toLowerCase().includes('davinyn'));
       if (davinyn) return davinyn.user_id;
+      
+      const filtered = profiles.filter(p => p.user_id !== currentUserId);
+      if (filtered.length > 0) return filtered[0].user_id;
       return profiles[0].user_id;
     }
+    
+    const filteredIds = adminIds.filter(id => id !== currentUserId);
+    if (filteredIds.length > 0) return filteredIds[0];
     return adminIds[0];
   }
 
