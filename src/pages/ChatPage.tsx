@@ -74,10 +74,11 @@ export default function ChatPage() {
         .select("user_id, full_name, avatar_url, role")
         .in("user_id", participantIds);
 
+      // Busca empresas tanto pelo owner (user_id) quanto pelo ID da empresa
       const { data: companies } = await supabase
         .from("companies")
-        .select("user_id, name, logo_url")
-        .in("user_id", participantIds);
+        .select("id, user_id, name, logo_url")
+        .or(`user_id.in.(${participantIds.join(',')}),id.in.(${participantIds.join(',')})`);
 
       const { data: drivers } = await supabase
         .from("delivery_drivers")
@@ -89,12 +90,14 @@ export default function ChatPage() {
         map[p.user_id] = { ...p };
       });
       companies?.forEach(c => {
-        if (c.user_id) {
-          if (!map[c.user_id]) map[c.user_id] = { user_id: c.user_id };
-          map[c.user_id].full_name = c.name;
-          map[c.user_id].avatar_url = c.logo_url;
-          map[c.user_id].role = 'company';
-        }
+        const idMap = (idToMap: string) => {
+          if (!map[idToMap]) map[idToMap] = { user_id: idToMap };
+          map[idToMap].full_name = c.name;
+          map[idToMap].avatar_url = c.logo_url;
+          map[idToMap].role = 'company';
+        };
+        if (c.user_id) idMap(c.user_id);
+        if (c.id) idMap(c.id);
       });
       drivers?.forEach(d => {
         if (d.user_id) {
