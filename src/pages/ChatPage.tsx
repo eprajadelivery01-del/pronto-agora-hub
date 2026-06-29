@@ -112,7 +112,7 @@ export default function ChatPage() {
         if (c.id) idMap(c.id);
       });
       drivers?.forEach(d => {
-        if (d.user_id) {
+        if (d.user_id && d.user_id !== adminId) {
           const profile = data?.find(p => p.user_id === d.user_id);
           if (!map[d.user_id]) map[d.user_id] = { user_id: d.user_id };
           map[d.user_id].full_name = profile?.full_name || map[d.user_id].full_name || "Entregador";
@@ -120,6 +120,13 @@ export default function ChatPage() {
           map[d.user_id].role = 'driver';
         }
       });
+
+      if (adminId) {
+        if (!map[adminId]) map[adminId] = { user_id: adminId };
+        map[adminId].role = 'admin';
+        map[adminId].full_name = map[adminId].full_name || 'Suporte É Pra Já';
+      }
+
       return map;
     },
   });
