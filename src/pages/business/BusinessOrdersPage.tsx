@@ -138,7 +138,8 @@ export default function BusinessOrdersPage() {
         .from("orders")
         .select(`
           id, status, total, delivery_fee, created_at, customer_id, delivery_id,
-          delivery_address, payment_method, notes,
+          delivery_address, payment_method, notes, region_id,
+          regions ( id, delivery_fee, price ),
           order_items (
             id, quantity, price, notes,
             products (id, name, image_url, description)
@@ -411,16 +412,21 @@ export default function BusinessOrdersPage() {
 
     setSelectedOrderForDispatch(order);
     
-    // Puxa o valor da taxa de entrega que o cliente já pagou no pedido
-    let preCalculatedFee = (order as any).delivery_fee;
+    // Puxa o valor da TAXA BASE DA REGIÃO (Admin Fee) para pagar o motoboy, preservando o lucro do lojista
+    let preCalculatedFee = (order as any).regions?.delivery_fee || (order as any).regions?.price;
     
+    // Fallback: caso a região não venha vinculada, tenta achar pelo valor da entrega original
     if (preCalculatedFee === undefined || preCalculatedFee === null) {
-      if (order.total && order.items && order.items.length > 0) {
-        const itemsTotal = order.items.reduce((sum: number, item: any) => sum + (Number(item.price) * Number(item.quantity)), 0);
-        const diff = Number(order.total) - itemsTotal;
-        preCalculatedFee = diff > 0 ? diff : 0;
-      } else {
-        preCalculatedFee = 0;
+      preCalculatedFee = (order as any).delivery_fee;
+      
+      if (preCalculatedFee === undefined || preCalculatedFee === null) {
+        if (order.total && order.items && order.items.length > 0) {
+          const itemsTotal = order.items.reduce((sum: number, item: any) => sum + (Number(item.price) * Number(item.quantity)), 0);
+          const diff = Number(order.total) - itemsTotal;
+          preCalculatedFee = diff > 0 ? diff : 0;
+        } else {
+          preCalculatedFee = 0;
+        }
       }
     }
     
