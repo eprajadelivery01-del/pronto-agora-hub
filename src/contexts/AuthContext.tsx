@@ -41,17 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
   const fetchingRef = useRef<string | null>(null);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   const fetchUserData = async (userId: string, forceEmail?: string) => {
     if (fetchingRef.current === userId) return;
     fetchingRef.current = userId;
 
-    // Always mark roles as not-yet-loaded while a fresh fetch is in progress.
-    // Otherwise, right after a fresh login (when rolesLoaded was already true from
-    // the no-session init), guards like LoginPage would evaluate with an empty
-    // roles array before the async fallback finishes — wrongly showing
-    // "Portal Restrito" to legitimate users whose role comes from the fallback.
-    setRolesLoaded(false);
+    // Apenas bloqueia a UI (tela de Verificando permissões) 
+    // se for o primeiro carregamento ou se o usuário trocou de conta.
+    if (loadedUserIdRef.current !== userId) {
+      setRolesLoaded(false);
+    }
 
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -158,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: unknown) {
       console.error("[Auth] ERRO NO FETCH:", error instanceof Error ? error.message : error);
     } finally {
+      loadedUserIdRef.current = userId;
       fetchingRef.current = null;
       setRolesLoaded(true);
       setLoading(false);
@@ -212,11 +213,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setUserStatus(null);
           setLoading(false);
+          loadedUserIdRef.current = null;
         } else if (event === "TOKEN_REFRESHED") {
           // Ignore token refreshed events to prevent infinite reload loops
           return;
         } else if (currentUser) {
-          setRolesLoaded(false);
+          if (loadedUserIdRef.current !== currentUser.id) {
+            setRolesLoaded(false);
+          }
           const email = currentUser.email?.toLowerCase();
           setTimeout(() => { if (mounted) fetchUserData(currentUser.id, email); }, 0);
         } else {
