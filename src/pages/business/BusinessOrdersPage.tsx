@@ -302,14 +302,19 @@ export default function BusinessOrdersPage() {
           (isToday(o.created_at) || isToday(o.updated_at))
         );
 
+        const computeOrderTotal = (o: any) => {
+          const itemsSum = (o.items || o.order_items || []).reduce((acc: number, curr: any) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0);
+          return itemsSum + (Number(o.delivery_fee) || 0);
+        };
+
         setStats({
           pending: mapped.filter(o => o.status === "pending" || !["accepted", "preparing", "ready", "in_route", "completed", "delivered", "cancelled"].includes(o.status)).length,
           preparing: mapped.filter(o => ["accepted", "preparing"].includes(o.status)).length,
           ready: mapped.filter(o => o.status === "ready").length,
           in_route: inRouteOrders.length,
-          revenue_today: deliveredToday.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-          open_total: openOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-          in_route_total: inRouteOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0),
+          revenue_today: deliveredToday.reduce((acc, o) => acc + computeOrderTotal(o), 0),
+          open_total: openOrders.reduce((acc, o) => acc + computeOrderTotal(o), 0),
+          in_route_total: inRouteOrders.reduce((acc, o) => acc + computeOrderTotal(o), 0),
         });
 
         // Remover log com dados sensíveis do console.
