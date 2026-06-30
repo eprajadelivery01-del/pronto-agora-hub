@@ -274,11 +274,8 @@ export default function BusinessOrdersPage() {
           // Se o pedido está em 'accepted' ou 'preparing' no BD (por causa de triggers),
           // mas ele já possui uma entrega ativa vinculada que foi aceita pelo entregador,
           // forçamos o status para 'ready' para ele não voltar pra 'Em Preparo'.
-          if ((o.status === 'accepted' || o.status === 'preparing') && deliveryStatus && deliveryStatus !== 'pending' && deliveryStatus !== 'cancelled') {
-             o.status = 'ready';
-          }
-
-          const activeDeliveryStatuses = ["in_route", "in_transit"];
+          
+          const activeDeliveryStatuses = ["pending", "broadcasted", "accepted", "collecting", "in_route", "in_transit"];
           const computedStatus = (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") ? "in_route" : o.status;
 
           return {

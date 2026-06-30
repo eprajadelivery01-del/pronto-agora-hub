@@ -304,7 +304,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     // Assegurar que o pedido aponta para a entrega corretamente
     await supabase
       .from("orders")
-      .update({ delivery_id: existingDelivery.id, status: "ready" } as any)
+      .update({ delivery_id: existingDelivery.id, status: "in_route" } as any)
       .eq("id", orderId);
 
     return existingDelivery;
@@ -338,10 +338,10 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
 
   console.log(`[Deliveries] Entrega criada com ID: ${delivery.id}. Vinculando ao pedido...`);
 
-  // 3. Associa a delivery_id ao pedido e muda o status para 'ready' para aguardar o entregador
+  // 3. Associa a delivery_id ao pedido e muda o status para 'in_route' para a caixa Em Rota
   await supabase
     .from("orders")
-    .update({ delivery_id: delivery.id, status: "ready" } as any)
+    .update({ delivery_id: delivery.id, status: "in_route" } as any)
     .eq("id", orderId);
 
   return delivery;
