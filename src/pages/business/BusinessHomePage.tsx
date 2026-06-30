@@ -218,14 +218,14 @@ export default function BusinessHomePage() {
       if (driverIds.length === 0) return map;
       const { data, error } = await supabase
         .from("delivery_drivers")
-        .select("id, profiles(full_name)")
+        .select("id, full_name")
         .in("id", driverIds);
       if (error) {
         console.warn("[Lojista] Falha ao resolver nomes de entregadores:", error);
         return map;
       }
       (data || []).forEach((d: any) => {
-        if (d.id) map[d.id] = d.profiles?.full_name || d.full_name;
+        if (d.id) map[d.id] = d.full_name || d.profiles?.full_name;
       });
       return map;
     },
