@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabaseClient";
 import { Loader2, Printer, X } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 export function PrintableInvoiceDialog({
@@ -80,6 +80,7 @@ export function PrintableInvoiceDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 [&>button]:hidden">
+        <DialogTitle className="sr-only">Impressão de Fatura</DialogTitle>
         {/* Header de controles - Não aparece na impressão */}
         <div className="sticky top-0 bg-background border-b z-10 flex justify-between items-center p-4 print:hidden shadow-sm">
           <h2 className="text-lg font-bold">Detalhamento da Fatura</h2>
