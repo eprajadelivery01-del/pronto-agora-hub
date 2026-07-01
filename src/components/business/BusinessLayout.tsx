@@ -302,6 +302,9 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                           {collapsed && tab.label === "Suporte" && unreadChatCount > 0 && (
                             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full border border-card" />
                           )}
+                          {collapsed && tab.label === "Novos Pedidos" && pendingOrders.length > 0 && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full border border-card" />
+                          )}
                         </div>
                         {!collapsed && (
                           <span className="flex-1 flex items-center justify-between animate-in fade-in slide-in-from-left-2 duration-300">
@@ -309,6 +312,11 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                             {tab.label === "Suporte" && unreadChatCount > 0 && (
                               <span className="ml-2 inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
                                 {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                              </span>
+                            )}
+                            {tab.label === "Novos Pedidos" && pendingOrders.length > 0 && (
+                              <span className="ml-2 inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] animate-pulse shadow-lg">
+                                {pendingOrders.length > 99 ? '99+' : pendingOrders.length}
                               </span>
                             )}
                           </span>

@@ -53,6 +53,7 @@ export function useOrderAlerts() {
     },
     enabled: !!companyId,
     refetchInterval: 15000,
+    refetchIntervalInBackground: true,
   });
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export function useOrderAlerts() {
               description: "Acesse a Gestão de Pedidos para aceitar.",
               duration: 10000,
             });
+            startLoop();
           }
           qc.invalidateQueries({ queryKey: ["orders-alert-check", companyId] });
           qc.invalidateQueries({ queryKey: ["orders"] });
@@ -86,9 +88,20 @@ export function useOrderAlerts() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
-        () => {
+        async (payload) => {
           qc.invalidateQueries({ queryKey: ["orders-alert-check", companyId] });
           qc.invalidateQueries({ queryKey: ["orders"] });
+          
+          if (payload.new.status !== "pending") {
+            const { count } = await supabase
+              .from("orders")
+              .select("*", { count: "exact", head: true })
+              .eq("company_id", companyId)
+              .eq("status", "pending");
+            if ((count || 0) === 0) {
+              stopLoop();
+            }
+          }
         }
       )
       .subscribe();
@@ -96,5 +109,5 @@ export function useOrderAlerts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [companyId, qc]);
+  }, [companyId, qc, startLoop, stopLoop]);
 }
