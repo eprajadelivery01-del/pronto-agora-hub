@@ -22,6 +22,18 @@ export default function ChatPage() {
   const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
   const qc = useQueryClient();
+
+  const [readTimestamps, setReadTimestamps] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const updateTimestamps = () => {
+      setReadTimestamps(JSON.parse(localStorage.getItem('chat_read_timestamps') || '{}'));
+    };
+    updateTimestamps();
+    window.addEventListener('chat_read_update', updateTimestamps);
+    return () => window.removeEventListener('chat_read_update', updateTimestamps);
+  }, []);
+
   
   // Fetch Admin ID
   const { data: adminId } = useQuery({
@@ -230,6 +242,14 @@ export default function ChatPage() {
                 const otherId = getOtherParticipantId(conv);
                 const otherProfile = otherId ? profilesMap?.[otherId] : null;
                 
+                const convReadAt = readTimestamps[conv.id];
+                const unreadCount = sortedMessages.filter((m: any) => {
+                  const isMe = (m.sender_id === user?.id && m.content?.endsWith('\u200B')) || m.sender_id === user?.id;
+                  if (isMe) return false;
+                  if (!convReadAt) return true;
+                  return new Date(m.created_at) > new Date(convReadAt);
+                }).length;
+                
                 return (
                   <button
                     key={conv.id}
@@ -253,9 +273,16 @@ export default function ChatPage() {
                           {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(Pedido #{conv.order_id.slice(0, 4)})</span>}
                           </span>
                           {lastMsg && (
-                            <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-                              {format(new Date(lastMsg.created_at), "HH:mm")}
-                            </span>
+                            <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {format(new Date(lastMsg.created_at), "HH:mm")}
+                              </span>
+                              {unreadCount > 0 && selectedConv?.id !== conv.id && (
+                                <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
+                                  {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                         <p className="text-[11px] font-bold text-muted-foreground truncate mt-0.5">
