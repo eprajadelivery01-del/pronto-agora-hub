@@ -134,6 +134,15 @@ export default function ChatPage() {
   const { data: messages, isLoading: loadingMessages } = useMessages(selectedConv?.id);
   const sendMessageMutation = useSendMessage();
 
+  useEffect(() => {
+    if (selectedConv) {
+      const readTimestamps = JSON.parse(localStorage.getItem('chat_read_timestamps') || '{}');
+      readTimestamps[selectedConv.id] = new Date().toISOString();
+      localStorage.setItem('chat_read_timestamps', JSON.stringify(readTimestamps));
+      window.dispatchEvent(new Event('chat_read_update'));
+    }
+  }, [selectedConv, messages]);
+
   const handleSend = () => {
     if (!message.trim() || !selectedConv) return;
     const contentToSend = message.trim();

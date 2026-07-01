@@ -73,6 +73,8 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
 
   const categories = Array.from(new Set(tabs.map(t => t.category)));
 
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -123,10 +125,58 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       }
     };
 
+    const checkUnreadChats = async () => {
+      const { data: convs } = await supabase
+        .from("conversations")
+        .select("id, messages(created_at, sender_id, content)")
+        .contains("participants", [user.id]);
+        
+      if (convs) {
+        let count = 0;
+        const readTimestamps = JSON.parse(localStorage.getItem('chat_read_timestamps') || '{}');
+        
+        for (const conv of convs) {
+          if (!conv.messages || conv.messages.length === 0) continue;
+          
+          const sorted = [...conv.messages].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          const lastMsg = sorted[0];
+          
+          // Se o last message foi enviado pelo proprio usuario (usando hack de \u200B) ou se é do próprio ID sem hack
+          const isMe = (lastMsg.sender_id === user.id && lastMsg.content?.endsWith('\u200B')) || lastMsg.sender_id === user.id; 
+          
+          if (!isMe) {
+            const lastRead = readTimestamps[conv.id];
+            if (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead)) {
+              count++;
+            }
+          }
+        }
+        setUnreadChatCount(count);
+      }
+    };
+
     if (companyData?.id) {
       fetchStatus();
       fetchPendingOrders(companyData.id);
     }
+    
+    checkUnreadChats();
+
+    const channel = supabase.channel('public:messages_layout')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+         checkUnreadChats();
+      })
+      .subscribe();
+
+    const handleStorage = () => checkUnreadChats();
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('chat_read_update', handleStorage);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('chat_read_update', handleStorage);
+    };
   }, [user?.id, companyData?.id]);
 
   const toggleStoreStatus = async () => {
@@ -247,8 +297,22 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                         )}
                         title={collapsed ? tab.label : ""}
                       >
-                        <tab.icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
-                        {!collapsed && <span className="flex-1 animate-in fade-in slide-in-from-left-2 duration-300">{tab.label}</span>}
+                        <div className="relative shrink-0">
+                          <tab.icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
+                          {collapsed && tab.label === "Suporte" && unreadChatCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full border border-card" />
+                          )}
+                        </div>
+                        {!collapsed && (
+                          <span className="flex-1 flex items-center justify-between animate-in fade-in slide-in-from-left-2 duration-300">
+                            {tab.label}
+                            {tab.label === "Suporte" && unreadChatCount > 0 && (
+                              <span className="ml-2 inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
+                                {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                              </span>
+                            )}
+                          </span>
+                        )}
                         {active && !collapsed && <ChevronRight className="h-4 w-4 opacity-50" />}
                       </Link>
                     ) : (
