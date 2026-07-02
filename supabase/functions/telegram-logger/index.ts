@@ -1,10 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Limita o tamanho do corpo para impedir abuso/flood de dados arbitrários
+const MAX_BODY_BYTES = 16 * 1024 // 16 KB
 
 serve(async (req) => {
   // Trata requisições preflight do CORS
@@ -12,7 +16,40 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Método não permitido' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405,
+    })
+  }
+
   try {
+    // --- AUTENTICAÇÃO ---
+    // Exige um token emitido por este projeto (anon ou usuário autenticado).
+    // Isso bloqueia usuários anônimos aleatórios da internet que não possuem
+    // um token válido do projeto.
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    if (supabaseUrl && supabaseAnonKey) {
+      const token = authHeader.replace('Bearer ', '')
+      const supabase = createClient(supabaseUrl, supabaseAnonKey)
+      const { data, error } = await supabase.auth.getClaims(token)
+      if (error || !data?.claims) {
+        return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        })
+      }
+    }
+
     const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
     const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
 
@@ -24,13 +61,37 @@ serve(async (req) => {
       })
     }
 
-    const payload = await req.json()
+    // --- VALIDAÇÃO DE ENTRADA ---
+    const rawBody = await req.text()
+    if (rawBody.length > MAX_BODY_BYTES) {
+      return new Response(JSON.stringify({ error: 'Payload muito grande' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 413,
+      })
+    }
+
+    let payload: Record<string, unknown>
+    try {
+      payload = JSON.parse(rawBody)
+    } catch {
+      return new Response(JSON.stringify({ error: 'JSON inválido' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    if (!payload || typeof payload !== 'object') {
+      return new Response(JSON.stringify({ error: 'Corpo inválido' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
 
     let message = "";
 
     // Check if it is a Supabase Database Webhook payload (from system_alerts)
     if (payload.type === 'INSERT' && payload.table === 'system_alerts') {
-      const record = payload.record;
+      const record = (payload.record ?? {}) as Record<string, any>;
       const title = "🚨 ALERTA DO SISTEMA (Sentinela) 🚨";
       message = `
 ${title}
@@ -45,7 +106,7 @@ ${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
 \`\`\`
 `.trim();
     } else {
-      const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload
+      const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload as Record<string, any>
       
       // Extrair IP do atacante a partir dos Headers (se disponível)
       const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'Desconhecido'
@@ -53,7 +114,7 @@ ${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
 
       // Formatar a mensagem dependendo se for um ataque ou erro normal
       let title = "⚠️ Erro no Sistema"
-      if (is_attack || (error_message && error_message.includes("[ATAQUE DETECTADO]"))) {
+      if (is_attack || (typeof error_message === 'string' && error_message.includes("[ATAQUE DETECTADO]"))) {
         title = "🚨 ATAQUE / ATIVIDADE SUSPEITA DETECTADA 🚨"
       }
 
