@@ -22,28 +22,43 @@ export type DeliveryValueShape = {
   delivery_fee?: number | string | null;
 };
 
-/** Retorna o valor numérico da corrida com fallback `value → price → 0`. */
 export function getDeliveryValue(d: any): number {
   if (!d) return 0;
   
+  let orderFee = 0;
+  let hasOrderFee = false;
+  
+  // 1. Tenta pegar do pedido associado (Marketplace)
   if (d.orders) {
     if (Array.isArray(d.orders) && d.orders.length > 0 && d.orders[0].delivery_fee != null) {
-      return Number(d.orders[0].delivery_fee);
-    }
-    if (!Array.isArray(d.orders) && d.orders.delivery_fee != null) {
-      return Number(d.orders.delivery_fee);
+      orderFee = Number(d.orders[0].delivery_fee);
+      hasOrderFee = true;
+    } else if (!Array.isArray(d.orders) && d.orders.delivery_fee != null) {
+      orderFee = Number(d.orders.delivery_fee);
+      hasOrderFee = true;
     }
   }
 
-  const f = Number(d.delivery_fee);
-  if (f) return f;
+  // 2. Valores das colunas da própria tabela deliveries
+  const v = Number(d.value) || 0;
+  const p = Number(d.price) || 0;
+  const df = Number(d.delivery_fee) || 0;
+
+  // Se veio do Marketplace e tem taxa > 0, respeita a taxa original
+  if (hasOrderFee && orderFee > 0) {
+    return orderFee;
+  }
   
-  const p = Number(d.price);
-  if (p) return p;
-
-  const v = Number(d.value);
-  if (v) return v;
-
+  // Para envios manuais (Lojista via Kanban ou Admin) a ordem pode não ter taxa 
+  // e o valor estar gravado em 'value', 'price' ou 'delivery_fee'. 
+  // Pegamos o maior valor preenchido nestas colunas.
+  const maxDeliveryValue = Math.max(v, p, df);
+  
+  if (maxDeliveryValue > 0) {
+    return maxDeliveryValue;
+  }
+  
+  // Se todos forem 0, então é de fato um Frete Grátis (0.00)
   return 0;
 }
 
