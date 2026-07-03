@@ -480,30 +480,58 @@ export default function OrderDetailModal({
         </div>
 
         {/* Global Print Styles */}
-        <style dangerouslySetInnerHTML={{ __html: `
+                <style dangerouslySetInnerHTML={{ __html: 
           @media print {
             @page { margin: 0; size: 80mm auto; }
-            body, html { margin: 0 !important; padding: 0 !important; background: white !important; width: 80mm !important; }
-            body * { visibility: hidden; }
-            
-            #thermal-receipt, #thermal-receipt * { 
-              visibility: visible !important; 
+            body, html { 
+              margin: 0 !important; 
+              padding: 0 !important; 
+              background: white !important; 
             }
-            #thermal-receipt {
+            
+            /* Hide the main app */
+            #root { display: none !important; }
+            
+            /* Reset the portal wrapper so it doesn't center the dialog during print */
+            [data-radix-portal] {
               position: absolute !important;
-              left: 0 !important;
               top: 0 !important;
-              width: 80mm !important;
-              min-width: 80mm !important;
-              max-width: 80mm !important;
+              left: 0 !important;
+              width: 100% !important;
               margin: 0 !important;
-              padding: 4mm !important;
+              padding: 0 !important;
+            }
+            
+            /* Reset the dialog centering transform */
+            div[role="dialog"] {
+              position: static !important;
+              transform: none !important;
+              max-width: 80mm !important;
+              width: 80mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+
+            /* Hide everything inside the dialog that is not the thermal receipt */
+            div[role="dialog"] > *:not(#thermal-receipt) {
+              display: none !important;
+            }
+            
+            #thermal-receipt { 
+              display: block !important;
+              width: 80mm !important;
+              margin: 0 !important;
+              padding: 2mm !important;
               background: white !important;
               color: black !important;
+              visibility: visible !important;
             }
           }
-        `}} />
+        }} />
       </DialogContent>
     </Dialog>
   );
 }
+
