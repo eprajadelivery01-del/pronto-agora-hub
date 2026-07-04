@@ -391,3 +391,4 @@ export function MapView({ centerCity, darkTheme = false }: MapViewProps) {
     <div ref={mapContainer} className="w-full h-full rounded-xl overflow-hidden" />
   );
 }
+

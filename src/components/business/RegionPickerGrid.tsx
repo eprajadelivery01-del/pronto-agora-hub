@@ -28,8 +28,8 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
       setRegions(filtered);
 
       if (companyId) {
-        // Fetch custom pricing rules
-        const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id, delivery_mode, delivery_fee').eq('id', companyId).single();
+        // Fetch custom pricing rules and new matrix
+        const { data: comp } = await supabase.from('companies').select('pricing_table_id, region_id, delivery_mode, delivery_fee, delivery_regions_pricing').eq('id', companyId).single();
         if (comp) {
           setCompanySettings(comp);
           let tableId = comp.pricing_table_id;
@@ -53,8 +53,31 @@ export const RegionPickerGrid = memo(({ cityId, companyId, onRegionSelect, disab
     if (companySettings?.delivery_mode === 'fixed_fee' && companySettings?.delivery_fee != null) {
       return Number(companySettings.delivery_fee);
     }
+    // 1. Tenta pegar o preço da matriz do lojista (novo formato JSON)
+    if (companySettings?.delivery_regions_pricing) {
+      let matrix = companySettings.delivery_regions_pricing;
+      if (typeof matrix === 'string') {
+        try { matrix = JSON.parse(matrix); } catch(e) {}
+      }
+      if (matrix && typeof matrix === 'object' && !Array.isArray(matrix) && matrix.matrix) {
+        matrix = matrix.matrix;
+      }
+      if (Array.isArray(matrix)) {
+        const match = matrix.find((m: any) => m.region_id === region.id || m.to === region.id);
+        if (match && (match.customer_price != null || match.price != null)) {
+          const val = match.customer_price != null ? match.customer_price : match.price;
+          if (val !== "" && val !== null) {
+            return Number(String(val).replace(',', '.'));
+          }
+        }
+      }
+    }
+
+    // 2. Fallback para pricing_rules antigas
     const rule = pricingRules.find(r => r.destination_region_id === region.id);
     if (rule) return Number(rule.base_value);
+
+    // 3. Fallback para valor padrão da região
     return Number(region.delivery_fee || region.price || 0);
   };
 

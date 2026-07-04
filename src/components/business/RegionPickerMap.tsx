@@ -72,7 +72,7 @@ export const RegionPickerMap = memo(({ cityId, companyId, onRegionSelect }: Regi
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [-56.5126, -14.3986],
+      center: [-56.4461, -14.4086],
       zoom: 12,
       attributionControl: false // Cleaner UI
     });
@@ -231,4 +231,5 @@ export const RegionPickerMap = memo(({ cityId, companyId, onRegionSelect }: Regi
 });
 
 RegionPickerMap.displayName = "RegionPickerMap";
+
 

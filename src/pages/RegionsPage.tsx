@@ -61,7 +61,7 @@ export default function RegionsPage() {
     const m = new maplibregl.Map({
       container: mapContainerRef.current,
       style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
-      center: [-56.0974, -15.5989],
+      center: [-56.4461, -14.4086],
       zoom: 11,
     });
     m.addControl(new maplibregl.NavigationControl(), "bottom-right");
@@ -738,3 +738,4 @@ export default function RegionsPage() {
     </AdminLayout>
   );
 }
+

@@ -239,7 +239,7 @@
     filter: blur(0px);
   }
 }
-@media print {
+@media print {`n  @page { margin: 0; }
   body * {
     visibility: hidden;
   }
@@ -257,7 +257,7 @@
   /* Invoice header print alignment */
   .print-only .grid.grid-cols-3 {
     display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
+    flex-direction: column !important; display: flex !important;
     gap: 1rem !important;
     width: 100% !important;
   }
@@ -269,7 +269,7 @@
     border-collapse: collapse !important;
     width: 100% !important;
     max-width: 100% !important;
-    table-layout: fixed !important;
+    table-layout: auto !important;
     page-break-inside: auto !important;
   }
   .print-only thead {
@@ -281,8 +281,8 @@
   }
   .print-only td, .print-only th {
     border: 1px solid #e5e7eb !important;
-    padding: 6px 8px !important;
-    font-size: 10pt !important;
+    padding: 2px 4px !important;
+    font-size: 8pt !important;
     vertical-align: top !important;
     word-wrap: break-word !important;
     overflow-wrap: break-word !important;
@@ -300,3 +300,4 @@
 }
   
 #root { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); } 
+

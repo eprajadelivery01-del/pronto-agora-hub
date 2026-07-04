@@ -399,7 +399,7 @@ export default function BusinessHomePage() {
         .footer { margin-top: 16px; text-align: center; font-size: 10px; font-weight: bold; text-transform: uppercase; }
         @media print {
           @page { margin: 0; size: 80mm auto; }
-          body { width: 80mm; min-width: 80mm; max-width: 80mm; }
+          body { width: 100%; max-width: 100%; margin: 0; }
         }
       </style></head><body>
         <h1 style="text-align: center; text-transform: uppercase;">É Pra Já Delivery</h1>
@@ -784,3 +784,4 @@ function EmptyState({ icon: Icon, message }: any) {
     </div>
   );
 }
+

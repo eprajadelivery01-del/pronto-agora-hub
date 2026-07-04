@@ -418,7 +418,7 @@ export default function OrderDetailModal({
         </div>
 
         {/* THERMAL TICKET (Visible ONLY on Print) */}
-        <div id="thermal-receipt" className="hidden print:block w-[80mm] mx-auto p-0 bg-white text-black font-mono text-sm leading-snug">
+        <div id="thermal-receipt" className="hidden print:block w-full p-0 bg-white text-black font-mono text-sm leading-snug">
           <div className="text-center border-b border-black pb-2 mb-2 border-dashed">
             <h2 className="font-bold text-xl m-0 p-0">É PRA JÁ DELIVERY</h2>
             <h3 className="font-bold text-lg m-0 p-0 mt-1">PEDIDO #{order.id?.slice(-6).toUpperCase()}</h3>
@@ -482,7 +482,7 @@ export default function OrderDetailModal({
         {/* Global Print Styles */}
                 <style dangerouslySetInnerHTML={{ __html: 
           @media print {
-            @page { margin: 0; size: 80mm auto; }
+            @page { margin: 0; }
             body, html { 
               margin: 0 !important; 
               padding: 0 !important; 
@@ -504,10 +504,10 @@ export default function OrderDetailModal({
             
             /* Reset the dialog centering transform */
             div[role="dialog"] {
-              position: static !important;
+              position: relative !important; left: 0 !important; top: 0 !important;
               transform: none !important;
-              max-width: 80mm !important;
-              width: 80mm !important;
+              max-width: 100% !important;
+              width: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
               border: none !important;
@@ -521,7 +521,7 @@ export default function OrderDetailModal({
             
             #thermal-receipt { 
               display: block !important;
-              width: 80mm !important;
+              width: 100% !important;
               margin: 0 !important;
               padding: 2mm !important;
               background: white !important;
@@ -534,4 +534,6 @@ export default function OrderDetailModal({
     </Dialog>
   );
 }
+
+
 
