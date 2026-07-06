@@ -480,7 +480,7 @@ export default function OrderDetailModal({
         </div>
 
         {/* Global Print Styles */}
-                <style dangerouslySetInnerHTML={{ __html: 
+                <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page { margin: 0; }
             body, html { 
