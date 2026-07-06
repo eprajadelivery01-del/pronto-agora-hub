@@ -239,7 +239,8 @@
     filter: blur(0px);
   }
 }
-@media print {`n  @page { margin: 0; }
+@media print {
+  @page { margin: 0; }
   body * {
     visibility: hidden;
   }
