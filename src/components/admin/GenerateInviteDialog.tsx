@@ -110,7 +110,7 @@ export function GenerateInviteDialog({ fixedRole, triggerLabel }: GenerateInvite
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              O link gerado será válido por <strong>30 dias</strong> e permitirá que o parceiro realize o próprio cadastro no sistema.
+              O link gerado será válido por <strong>30 dias</strong> e permitirá que o parceiro realize o próprio 
             </p>
             <Button className="w-full" onClick={generateLink} disabled={loading}>
               {loading ? "Gerando..." : "Gerar Link de Convite"}
