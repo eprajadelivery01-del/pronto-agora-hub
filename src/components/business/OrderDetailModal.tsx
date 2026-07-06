@@ -529,7 +529,7 @@ export default function OrderDetailModal({
               visibility: visible !important;
             }
           }
-        }} />
+        `}} />
       </DialogContent>
     </Dialog>
   );
