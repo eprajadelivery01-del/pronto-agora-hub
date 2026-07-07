@@ -68,3 +68,9 @@ A correção consiste na implementação de uma proteção Tripla-Camada EXCLUSI
 - **Impact:** Active deliveries could vanish from the original driver's screen, and financial compensation could be awarded to a malicious driver.
 - **Root Cause:** Missing global ownership check against `auth.uid()` after acquiring the `SELECT ... FOR UPDATE` lock, combined with trusting client-side input in a `SECURITY DEFINER` function without strict identity validation.
 - **Resolution:** The RPC was fundamentally rewritten to enforce strict zero-trust identity: `auth.uid()` is resolved against the `delivery_drivers` table, a global ownership check asserts that if the delivery has an owner it MUST match the authenticated driver, and `p_driver_id` is completely ignored for ownership assignment.
+### Bug 052: Marketplace Evaluation PGRST116 Error (Multiple Rows)
+- **Problem**: In the Marketplace Client (`eprajadelivery.com/marketplace`), users encountered the `[Console Error] [useEvaluation] Error checking rating: {"code":"PGRST116","details":"Results contain 2 rows..."}` when trying to load or submit a review.
+- **Cause**: The `useEvaluation` hook called `.maybeSingle()` to check if the user had already rated the order. However, due to previous race conditions or missing constraints, multiple review entries could exist for a single order in the database. When the Supabase API returned 2 rows instead of 0 or 1, `maybeSingle()` crashed.
+- **Fix**: Replaced `.maybeSingle()` with `.limit(1)` and modified the validation check to evaluate if the returned array length is greater than 0 (`data && data.length > 0`).
+- **Location**: `instant-hub/src/hooks/useEvaluation.ts`
+- **Status**: Fixed.
