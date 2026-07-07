@@ -62,3 +62,9 @@ A correção consiste na implementação de uma proteção Tripla-Camada EXCLUSI
 1. **Whitelist Explícita (`ALLOWED_MANUAL_TRANSITIONS`)**: Mapeando cada nó para seu respectivo avanço lógico.
 2. **Exceções Mapeadas**: Incorporando retornos válidos de ponta-a-ponta (como a rota de Cancelamento) sem quebrar o Board.
 3. **Compare-and-Set e Strict Lock (`useRef`)**: Evitando que múltiplos toques atropelem o mesmo card e causem a duplicação na requisição para o Edge Function.
+
+## Bug 051: Delivery Steal Vulnerability via RPC Bypassing
+- **Description:** A security definer RPC (`update_delivery_status_safe`) designed to handle delivery status transitions allowed an authenticated driver to "steal" a delivery already accepted by another driver. The RPC failed to perform a global ownership check when the requested status was anything other than `accepted`, and blindly trusted the `p_driver_id` input parameter via a `COALESCE` assignment.
+- **Impact:** Active deliveries could vanish from the original driver's screen, and financial compensation could be awarded to a malicious driver.
+- **Root Cause:** Missing global ownership check against `auth.uid()` after acquiring the `SELECT ... FOR UPDATE` lock, combined with trusting client-side input in a `SECURITY DEFINER` function without strict identity validation.
+- **Resolution:** The RPC was fundamentally rewritten to enforce strict zero-trust identity: `auth.uid()` is resolved against the `delivery_drivers` table, a global ownership check asserts that if the delivery has an owner it MUST match the authenticated driver, and `p_driver_id` is completely ignored for ownership assignment.
