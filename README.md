@@ -74,3 +74,16 @@ A correção consiste na implementação de uma proteção Tripla-Camada EXCLUSI
 - **Fix**: Replaced `.maybeSingle()` with `.limit(1)` and modified the validation check to evaluate if the returned array length is greater than 0 (`data && data.length > 0`).
 - **Location**: `instant-hub/src/hooks/useEvaluation.ts`
 - **Status**: Fixed.
+### Bug 053: Kanban Strict Transition Blocking "Cancelled"
+- **Problem**: Order cancellation from the Painel Lojista was being blocked by the strict status sequence checking logic (`Transição bloqueada: pending -> cancelled`).
+- **Cause**: The Kanban flow transition whitelist only allowed predefined linear flows (e.g., `pending -> preparing -> ready -> in_route -> delivered`) and lacked an exception for the `cancelled` status, which should be reachable from any point.
+- **Fix**: Modified `BusinessOrdersPage.tsx` whitelist logic to always allow transitions where `newStatus === "cancelled"`.
+- **Location**: `pronto-agora-hub/src/pages/business/BusinessOrdersPage.tsx`
+- **Status**: Fixed.
+
+### Bug 054: DeliveryOverlay Notifications Spam (WebView Persistence)
+- **Problem**: The Telegram notification bot continued spamming "DeliveryOverlay is not defined" errors even after silencing it in the frontend codebase.
+- **Cause**: The Android delivery drivers are using an installed WebView (APK) that executes locally bundled Javascript (`localhost/assets/...`). Thus, the frontend patch deployed earlier does not take effect until they update the app from the PlayStore.
+- **Fix**: Blocked the error payload directly on the Supabase backend in the `telegram-logger` Edge Function so that the bot ignores the payload before sending the message to Telegram, effectively silencing legacy app versions immediately.
+- **Location**: `pronto-agora-hub/supabase/functions/telegram-logger/index.ts`
+- **Status**: Fixed.
