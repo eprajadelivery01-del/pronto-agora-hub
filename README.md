@@ -52,3 +52,13 @@ xcodebuild -exportArchive -archivePath build/App.xcarchive -exportOptionsPlist b
 # 3. Upload
 xcrun altool --upload-app -f build/App.ipa -t ios --apiKey "GNCVF862P9" --apiIssuer "b3214eff-b69b-4b7a-bfd0-0c476ed2605c"
 ```
+
+### Bug 049
+**Título**: Salto Abusivo de Etapas do Kanban (Pulo de Status) e Conflito de Assinatura
+**Descrição**: Foi detectada uma falha estrutural gravíssima na segurança do painel: mesmo com *Compare-and-Set* (que evita race conditions de cliques simultâneos), a interface poderia disparar uma transição arbitrária e ilegal (ex: de `preparing` direto para `delivered`), e o servidor aceitaria cegamente, pois o `updateStatus` validaria apenas se a sessão conhecia o status anterior, mas não restringiria o próximo salto (não havia Whitelist de estado da máquina).
+Além disso, a implementação forçada de uma Whitelist de mão única (`pending -> preparing -> ready`) esbarrou em outros botões já consolidados (como Cancelar Pedido ou os fluxos de `OrderDetailModal`), revelando que `updateStatus` é uma função super-utilizada no sistema todo, gerando exceções não tratadas ao tentar blindá-la de forma ingênua.
+**Correção (Em Andamento)**: 
+A correção consiste na implementação de uma proteção Tripla-Camada EXCLUSIVA para a função de controle do Kanban de Lojista:
+1. **Whitelist Explícita (`ALLOWED_MANUAL_TRANSITIONS`)**: Mapeando cada nó para seu respectivo avanço lógico.
+2. **Exceções Mapeadas**: Incorporando retornos válidos de ponta-a-ponta (como a rota de Cancelamento) sem quebrar o Board.
+3. **Compare-and-Set e Strict Lock (`useRef`)**: Evitando que múltiplos toques atropelem o mesmo card e causem a duplicação na requisição para o Edge Function.
