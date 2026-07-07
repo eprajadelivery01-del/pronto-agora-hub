@@ -265,11 +265,12 @@ export default function BusinessOrdersPage() {
           const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
 
           const deliveryStatus = o.delivery_id ? deliveryStatusMap[o.delivery_id] : null;
-          
+          let computedStatus = o.status;
+
           // 🔥 RESILIÊNCIA: Se a entrega já foi concluída, o pedido TEM que constar como concluído
           // Isso evita que pedidos fiquem "presos" em Prontos se houver falha de sincronia com o banco.
           if (deliveryStatus === "completed" || deliveryStatus === "delivered") {
-            o.status = "delivered";
+            computedStatus = "delivered";
           } else if (deliveryStatus === "cancelled") {
             // Se a entrega foi cancelada, o pedido VOLTA para Pronto para que o lojista
             // possa chamar outro motoboy. Não volta para Novo.
@@ -282,15 +283,13 @@ export default function BusinessOrdersPage() {
           // Se o pedido possui uma entrega vinculada (motoboy chamado), ele NÃO PODE voltar
           // para Em Preparo ou Novo, pois a chamada do motoboy só ocorre na fase "Pronto".
           
-          let computedStatus = o.status;
-
           // Se a entrega já está ativa na rua
           const activeDeliveryStatuses = ["in_route", "in_transit", "collecting"];
-          if (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") {
+          if (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && computedStatus !== "delivered") {
             computedStatus = "in_route";
           } 
           // Se a entrega existe (foi chamada) mas ainda não saiu
-          else if (deliveryStatus) {
+          else if (deliveryStatus && computedStatus !== "delivered" && deliveryStatus !== "cancelled") {
              if (["pending", "accepted", "preparing"].includes(computedStatus)) {
                 computedStatus = "ready";
              }
