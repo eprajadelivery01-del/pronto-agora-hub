@@ -271,8 +271,11 @@ export default function BusinessOrdersPage() {
           if (deliveryStatus === "completed" || deliveryStatus === "delivered") {
             o.status = "delivered";
           } else if (deliveryStatus === "cancelled") {
-            // Se a entrega foi cancelada, não forçamos cancelado no pedido (pode pedir outro motoboy),
-            // mas desvinculamos o status de 'in_route'
+            // Se a entrega foi cancelada, o pedido VOLTA para Pronto para que o lojista
+            // possa chamar outro motoboy. Não volta para Novo.
+            if (["pending", "accepted", "preparing", "in_route"].includes(computedStatus)) {
+              computedStatus = "ready";
+            }
           }
 
           // 🔥 PREVENÇÃO CONTRA REGRESSÃO AVANÇADA (Kanban Loop Bug)
@@ -434,10 +437,17 @@ export default function BusinessOrdersPage() {
           
         // Atualizamos localmente para permitir a abertura do modal sem refresh
         order.delivery_id = null;
-      } else {
-        // Se já existe entrega ativa, apenas garantimos que o status do pedido seja atualizado para sair do Kanban
+      } else if (delivery.status === 'pending' || delivery.status === 'broadcasted') {
+        // Se a entrega está pendente/broadcasted, significa que o motoboy ainda não aceitou.
+        // O lojista clicou em 'Chamar Entregador' mas ela já existe (criada no checkout).
+        // Atualizamos localmente para in_route para mover no Kanban, mas avisamos amigavelmente.
         await updateStatus(order.id, "in_route");
-        toast.info("Este pedido já possui uma entrega ativa. Movendo para o painel de entregas...");
+        toast.success("Buscando entregador parceiro na região...");
+        return;
+      } else {
+        // Se já existe entrega ativa (aceita/coletando/em rota)
+        await updateStatus(order.id, "in_route");
+        toast.info("A entrega já está em andamento com um entregador.");
         return;
       }
     }
