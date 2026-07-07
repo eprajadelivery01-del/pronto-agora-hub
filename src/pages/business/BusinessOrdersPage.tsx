@@ -283,8 +283,9 @@ export default function BusinessOrdersPage() {
           // Se o pedido possui uma entrega vinculada (motoboy chamado), ele NÃO PODE voltar
           // para Em Preparo ou Novo, pois a chamada do motoboy só ocorre na fase "Pronto".
           
-          // Se a entrega já está ativa na rua
-          const activeDeliveryStatuses = ["in_route", "in_transit", "collecting"];
+          // Se a entrega já está ativa na rua (ou aguardando entregador)
+          // Jogamos para "Em Rota" visualmente para o Lojista saber que o entregador foi chamado.
+          const activeDeliveryStatuses = ["pending", "draft", "broadcasted", "accepted", "in_route", "in_transit", "collecting"];
           if (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && computedStatus !== "delivered") {
             computedStatus = "in_route";
           } 
@@ -395,14 +396,15 @@ export default function BusinessOrdersPage() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("orders")
         .update({ status: newStatus })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .select("id");
 
-      if (error) {
-        console.error("[Painel] Erro no UPDATE de orders:", error);
-        toast.error("Falha na atualização: " + error.message);
+      if (error || !data || data.length === 0) {
+        console.error("[Painel] Erro no UPDATE de orders ou bloqueio RLS:", error || "Sem permissão (0 rows)");
+        toast.error(error ? `Falha na atualização: ${error.message}` : "Erro de Permissão: Você não é o dono principal da loja (usuário divergente). Nenhuma alteração foi salva.");
         setOrders(previous); // rollback
         return;
       }
@@ -438,15 +440,14 @@ export default function BusinessOrdersPage() {
         order.delivery_id = null;
       } else if (delivery.status === 'pending' || delivery.status === 'broadcasted') {
         // Se a entrega está pendente/broadcasted, significa que o motoboy ainda não aceitou.
-        // O lojista clicou em 'Chamar Entregador' mas ela já existe (criada no checkout).
-        // Atualizamos localmente para in_route para mover no Kanban, mas avisamos amigavelmente.
-        await updateStatus(order.id, "in_route");
+        // O lojista clicou em 'Chamar Entregador' mas ela já existe (criada no checkout ou disparo duplo).
         toast.success("Buscando entregador parceiro na região...");
+        fetchOrders();
         return;
       } else {
         // Se já existe entrega ativa (aceita/coletando/em rota)
-        await updateStatus(order.id, "in_route");
         toast.info("A entrega já está em andamento com um entregador.");
+        fetchOrders();
         return;
       }
     }
