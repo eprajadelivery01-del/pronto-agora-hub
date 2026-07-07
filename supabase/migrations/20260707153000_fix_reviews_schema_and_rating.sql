@@ -1,14 +1,4 @@
--- Fix Reviews schema to match Marketplace expectations
-ALTER TABLE public.reviews
-  ADD COLUMN IF NOT EXISTS order_id UUID REFERENCES public.orders(id),
-  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(user_id),
-  ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES public.companies(id),
-  ADD COLUMN IF NOT EXISTS type TEXT;
-
-ALTER TABLE public.reviews
-  ALTER COLUMN delivery_id DROP NOT NULL,
-  ALTER COLUMN driver_id DROP NOT NULL;
-
+-- Fix Reviews permissions and rating trigger
 -- Allow users to insert their own reviews
 DO $$
 BEGIN
@@ -17,6 +7,17 @@ BEGIN
   ) THEN
     CREATE POLICY "Users can insert reviews" ON public.reviews
       FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- Allow users to update their own reviews
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can update reviews' AND tablename = 'reviews'
+  ) THEN
+    CREATE POLICY "Users can update reviews" ON public.reviews
+      FOR UPDATE USING (auth.uid() = user_id);
   END IF;
 END $$;
 
