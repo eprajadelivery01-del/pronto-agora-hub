@@ -124,12 +124,17 @@ export default function BusinessOrdersPage() {
     return parseFloat(masked.replace(/\./g, '').replace(',', '.')) || 0;
   };
 
+  // Prevenir Race Conditions no fetch
+  const fetchIdRef = useRef(0);
+
   const fetchOrders = useCallback(async () => {
     if (!companyId) {
       setLoading(false);
       return;
     }
     
+    const currentFetchId = ++fetchIdRef.current;
+
     try {
       // setLoading(true); removido para evitar travamento da UI via Realtime
       
@@ -270,13 +275,23 @@ export default function BusinessOrdersPage() {
             // mas desvinculamos o status de 'in_route'
           }
 
-          // 🔥 PREVENÇÃO CONTRA REGRESSÃO (Kanban Loop Bug)
-          // Se o pedido está em 'accepted' ou 'preparing' no BD (por causa de triggers),
-          // mas ele já possui uma entrega ativa vinculada que foi aceita pelo entregador,
-          // forçamos o status para 'ready' para ele não voltar pra 'Em Preparo'.
+          // 🔥 PREVENÇÃO CONTRA REGRESSÃO AVANÇADA (Kanban Loop Bug)
+          // Se o pedido possui uma entrega vinculada (motoboy chamado), ele NÃO PODE voltar
+          // para Em Preparo ou Novo, pois a chamada do motoboy só ocorre na fase "Pronto".
           
-          const activeDeliveryStatuses = ["in_route", "in_transit"];
-          const computedStatus = (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") ? "in_route" : o.status;
+          let computedStatus = o.status;
+
+          // Se a entrega já está ativa na rua
+          const activeDeliveryStatuses = ["in_route", "in_transit", "collecting"];
+          if (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && o.status !== "delivered") {
+            computedStatus = "in_route";
+          } 
+          // Se a entrega existe (foi chamada) mas ainda não saiu
+          else if (deliveryStatus) {
+             if (["pending", "accepted", "preparing"].includes(computedStatus)) {
+                computedStatus = "ready";
+             }
+          }
 
           return {
             ...o,
@@ -297,6 +312,9 @@ export default function BusinessOrdersPage() {
           return true;
         });
         
+        // Se este fetch não é o mais recente, ignorar! (Previne regressão de status por respostas lentas)
+        if (currentFetchId !== fetchIdRef.current) return;
+
         setOrders(mapped);
         
         const openOrders = mapped.filter(o => ["pending", "accepted", "preparing", "ready"].includes(o.status));
@@ -324,14 +342,18 @@ export default function BusinessOrdersPage() {
 
         // Remover log com dados sensíveis do console.
       } else {
+        if (currentFetchId !== fetchIdRef.current) return;
         setOrders([]);
         setStats({ pending: 0, preparing: 0, ready: 0, in_route: 0, revenue_today: 0, open_total: 0, in_route_total: 0 });
       }
     } catch (err: any) {
+      if (currentFetchId !== fetchIdRef.current) return;
       console.error("[Painel] Falha catastrófica no fetchOrders:", err);
       toast.error("Ocorreu um erro ao processar os dados.");
     } finally {
-      setLoading(false);
+      if (currentFetchId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [companyId]);
 

@@ -9,6 +9,7 @@ import {
   Store, Camera, ImagePlus, Loader2, Save, User, MapPin, Phone, 
   Smartphone, Eye, Layers, Info, CheckCircle2, Pencil, X, Link as LinkIcon, Clock3, DollarSign
 } from "lucide-react";
+import { maskPhone, maskTime } from "@/lib/masks";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { isStoreOpenBySchedule } from "@/lib/storeHours";
@@ -506,7 +507,7 @@ export default function BusinessProfilePage() {
                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                <input
                                   value={phone}
-                                  onChange={(e) => setPhone(e.target.value)}
+                                  onChange={(e) => setPhone(maskPhone(e.target.value))}
                                   className="w-full pl-11 pr-5 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
                                   placeholder="(00) 00000-0000"
                                />
@@ -628,7 +629,7 @@ export default function BusinessProfilePage() {
                                 <input 
                                   type="text" 
                                   value={wd.start} 
-                                  onChange={(e) => updateWorkingDay(idx, 'start', e.target.value)}
+                                  onChange={(e) => updateWorkingDay(idx, 'start', maskTime(e.target.value))}
                                   className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
                                   placeholder="08:00"
                                 />
@@ -639,7 +640,7 @@ export default function BusinessProfilePage() {
                                 <input 
                                   type="text" 
                                   value={wd.end} 
-                                  onChange={(e) => updateWorkingDay(idx, 'end', e.target.value)}
+                                  onChange={(e) => updateWorkingDay(idx, 'end', maskTime(e.target.value))}
                                   className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
                                   placeholder="18:00"
                                 />

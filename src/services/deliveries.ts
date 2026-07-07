@@ -339,10 +339,16 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   console.log(`[Deliveries] Entrega criada com ID: ${delivery.id}. Vinculando ao pedido...`);
 
   // 3. Associa a delivery_id ao pedido e preserva o status atual
-  await supabase
+  const { error: updateError } = await supabase
     .from("orders")
     .update({ delivery_id: delivery.id } as any)
     .eq("id", orderId);
+
+  if (updateError) {
+    console.error("[Deliveries] Erro crítico ao associar delivery_id ao pedido:", updateError);
+    // Mesmo que dê erro, retornamos a delivery, pois ela já foi criada e o motoboy pode aceitar,
+    // mas o painel ficará dessincronizado se não tratarmos.
+  }
 
   return delivery;
 }

@@ -128,7 +128,12 @@ export function isStoreOpenBySchedule(
   const entry = schedule.find((d) => d.day === day);
   if (!entry || entry.active === false) return false;
   const startMinutes = toMinutes(entry.start, 0);
-  const endMinutes = toMinutes(entry.end, 23 * 60 + 59);
+  let endMinutes = toMinutes(entry.end, 23 * 60 + 59);
+
+  // If end time is earlier or equal to start time (e.g. 08:00 to 00:00 or 18:00 to 02:00), it spans across midnight
+  if (endMinutes <= startMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+  }
 
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }

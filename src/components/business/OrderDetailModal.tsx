@@ -418,7 +418,7 @@ export default function OrderDetailModal({
         </div>
 
         {/* THERMAL TICKET (Visible ONLY on Print) */}
-        <div id="thermal-receipt" className="hidden print:block w-full p-0 bg-white text-black font-mono text-sm leading-snug">
+        <div id="thermal-receipt" className="hidden print-only print:block w-full p-0 bg-white text-black font-mono text-sm leading-snug">
           <div className="text-center border-b border-black pb-2 mb-2 border-dashed">
             <h2 className="font-bold text-xl m-0 p-0">É PRA JÁ DELIVERY</h2>
             <h3 className="font-bold text-lg m-0 p-0 mt-1">PEDIDO #{order.id?.slice(-6).toUpperCase()}</h3>

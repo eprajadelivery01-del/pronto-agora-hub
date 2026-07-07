@@ -334,13 +334,10 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ) : messages?.map((msg) => {
-                  // Hack para permitir testes com a MESMA conta:
-                  // Mensagens enviadas por este painel admin recebem um zero-width space no final (\u200B).
-                  // E para corrigir as mensagens antigas do print, forçamos 'oi' como mensagem do admin.
-                  const isAdminMessage = msg.content.endsWith('\u200B') || msg.content.trim().toLowerCase() === 'oi';
-                  // Se os IDs são iguais (mesma conta), usamos o \u200B para saber quem enviou. 
-                  // Se os IDs são diferentes (produção normal), isAdminMessage e sender_id darão o resultado correto.
-                  const isMe = msg.sender_id === user?.id && isAdminMessage;
+                  // A identificação verdadeira deve ser SEMPRE pelo sender_id.
+                  // Se em ambiente de teste for a mesma conta, o zero-width space ainda é usado como fallback temporário.
+                  const isTestAccountHack = msg.content.endsWith('\u200B');
+                  const isMe = (msg.sender_id === user?.id) || isTestAccountHack;
                   const displayContent = msg.content.replace(/\u200B/g, '');
 
                   return (

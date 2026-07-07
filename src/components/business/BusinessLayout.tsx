@@ -168,12 +168,21 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       })
       .subscribe();
 
+    const orderChannel = supabase.channel(`public:orders_layout_${companyData?.id || ''}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+         if (companyData?.id) {
+           fetchPendingOrders(companyData.id);
+         }
+      })
+      .subscribe();
+
     const handleStorage = () => checkUnreadChats();
     window.addEventListener('storage', handleStorage);
     window.addEventListener('chat_read_update', handleStorage);
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(orderChannel);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('chat_read_update', handleStorage);
     };
