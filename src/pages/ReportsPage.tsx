@@ -630,6 +630,9 @@ export default function ReportsPage() {
                 <option value="">Todas as Formas</option>
                 <option value="pix">Pix</option>
                 <option value="card">Cartão</option>
+                <option value="credit_card">Cartão de Crédito</option>
+                <option value="debit_card">Cartão de Débito</option>
+                <option value="money">Dinheiro</option>
                 <option value="cash">Dinheiro</option>
               </select>
             </div>

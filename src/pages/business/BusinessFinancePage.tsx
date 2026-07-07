@@ -39,9 +39,12 @@ const PIE_COLORS = [
 
 const PAYMENT_LABELS: Record<string, string> = {
   money: "Dinheiro",
+  cash: "Dinheiro",
   pix: "Pix",
   credit_card: "Cartão de Crédito",
   debit_card: "Cartão de Débito",
+  card: "Cartão",
+  machine: "Máquina Móvel",
   voucher: "Vale Refeição",
   online: "Pagamento Online",
   "Não informado": "Não informado"

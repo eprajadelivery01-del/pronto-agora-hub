@@ -786,10 +786,14 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
             </p>
             <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[100px]">
-              {order.payment_method === 'money' ? 'Dinheiro' : 
+              {order.payment_method === 'money' || order.payment_method === 'cash' ? 'Dinheiro' : 
                order.payment_method === 'pix' ? 'Pix' : 
-               order.payment_method === 'credit_card' ? 'Cartão' : 
-               order.payment_method === 'debit_card' ? 'Débito' : 
+               order.payment_method === 'credit_card' ? 'Cartão de Crédito' : 
+               order.payment_method === 'debit_card' ? 'Cartão de Débito' :
+               order.payment_method === 'card' ? 'Cartão' : 
+               order.payment_method === 'machine' ? 'Máquina Móvel' :
+               order.payment_method === 'online' ? 'Online' :
+               order.payment_method === 'voucher' ? 'Vale Refeição' :
                order.payment_method || 'Presencial'}
             </p>
         </div>

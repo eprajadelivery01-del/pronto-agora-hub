@@ -17,8 +17,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
 
-const CLOSED_DELIVERY_STATUSES = ["completed", "delivered", "cancelled"];
 const MOVING_DELIVERY_STATUSES = ["accepted", "collecting", "in_route", "in_transit"];
+
+const PAYMENT_LABELS: Record<string, string> = {
+  money: "Dinheiro",
+  cash: "Dinheiro",
+  pix: "Pix",
+  credit_card: "Cartão de Crédito",
+  debit_card: "Cartão de Débito",
+  card: "Cartão",
+  machine: "Máquina Móvel",
+  voucher: "Vale Refeição",
+  online: "Pagamento Online",
+  "Não informado": "Não informado"
+};
 
 type MarketplaceOrder = {
   id: string;
@@ -554,7 +566,9 @@ export default function BusinessHomePage() {
                         <div className="flex flex-col gap-1 mt-1 bg-muted/20 p-2 rounded-xl">
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-muted-foreground">Pagamento:</span>
-                            <span className="font-bold text-foreground capitalize truncate max-w-[120px]">{order.payment_method || (order.deliveryInfo as any)?.payment_method || "Não informado"}</span>
+                            <span className="font-bold text-foreground capitalize truncate max-w-[120px]">
+                              {PAYMENT_LABELS[order.payment_method || (order.deliveryInfo as any)?.payment_method] || order.payment_method || (order.deliveryInfo as any)?.payment_method || "Não informado"}
+                            </span>
                           </div>
                           {order.deliveryInfo?.driver_id && (
                             <div className="flex justify-between items-center text-xs">
