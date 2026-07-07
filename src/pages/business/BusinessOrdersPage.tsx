@@ -65,11 +65,16 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
+const ALLOWED_MANUAL_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
+  pending: "preparing",
+  preparing: "ready",
+  in_route: "delivered",
+};
+
 const getNextActions = (status: OrderStatus) => {
   const actions: Record<string, { label: string, next: OrderStatus }> = {
     pending: { label: "Aceitar Pedido", next: "preparing" },
     preparing: { label: "Marcar Pronto", next: "ready" },
-    ready: { label: "Chamar Entregador", next: "ready" },
     in_route: { label: "Finalizar", next: "delivered" },
   };
   return actions[status];
@@ -101,6 +106,23 @@ export default function BusinessOrdersPage() {
   
   // Estados para o Modal de Despacho
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  
+  // Controle Transacional Rigoroso
+  const processingOrderIdsRef = useRef<Set<string>>(new Set());
+  const [processingOrderIds, setProcessingOrderIds] = useState<Set<string>>(new Set());
+
+  const acquireLock = (id: string) => {
+    if (processingOrderIdsRef.current.has(id)) return false;
+    processingOrderIdsRef.current.add(id);
+    setProcessingOrderIds(new Set(processingOrderIdsRef.current));
+    return true;
+  };
+
+  const releaseLock = (id: string) => {
+    processingOrderIdsRef.current.delete(id);
+    setProcessingOrderIds(new Set(processingOrderIdsRef.current));
+  };
+  
   const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState<Order | null>(null);
   const [deliveryFee, setDeliveryFee] = useState<string>("0,00");
   const [loadingFee, setLoadingFee] = useState(false);
@@ -390,30 +412,51 @@ export default function BusinessOrdersPage() {
   }, [companyId, fetchOrders]);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    const currentOrder = orders.find(o => o.id === orderId);
 
-    // Atualização otimista
-    const previous = orders;
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    if (!currentOrder) {
+      toast.warning("Pedido não encontrado. A lista será sincronizada.");
+      fetchOrders();
+      return false;
+    }
+
+    const expectedStatus = currentOrder.status;
+    const allowedNextStatus = ALLOWED_MANUAL_TRANSITIONS[expectedStatus];
+
+    // CAMADA 1: Whitelist (Impede Pulo Lógico)
+    if (!allowedNextStatus || allowedNextStatus !== newStatus) {
+      console.error("[KANBAN] Transição bloqueada:", {
+        orderId,
+        expectedStatus,
+        attemptedStatus: newStatus,
+      });
+
+      toast.error(`Transição de pedido não permitida: ${STATUS_LABELS[expectedStatus] || expectedStatus} → ${STATUS_LABELS[newStatus] || newStatus}`);
+      fetchOrders();
+      return false;
+    }
 
     try {
+      // CAMADA 2: Compare-and-Set (Impede Race Condition)
       const { data, error } = await supabase
         .from("orders")
         .update({ status: newStatus })
         .eq("id", orderId)
-        .select("id");
+        .eq("status", expectedStatus)
+        .select("id, status")
+        .maybeSingle();
 
-      if (error || !data || data.length === 0) {
-        console.error("[Painel] Erro no UPDATE de orders ou bloqueio RLS:", error || "Sem permissão (0 rows)");
-        toast.error(error ? `Falha na atualização: ${error.message}` : "Erro de Permissão: Você não é o dono principal da loja (usuário divergente). Nenhuma alteração foi salva.");
-        setOrders(previous); // rollback
-        return;
+      if (error || !data) {
+        toast.warning("O status deste pedido foi atualizado em outra sessão. A lista foi sincronizada.");
+        fetchOrders();
+        return false;
       }
-
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
+      fetchOrders();
+      return true;
     } catch (err: any) {
-      console.error("[Painel] Falha catastrófica na atualização:", err);
       toast.error("Erro crítico: " + (err?.message || "desconhecido"));
-      setOrders(previous);
+      return false;
     }
   };
 
@@ -511,6 +554,25 @@ export default function BusinessOrdersPage() {
   const confirmDispatch = async () => {
     if (!selectedOrderForDispatch) return;
     
+    // Validação Defensiva Pré-vôo
+    const { data: currentOrder, error: currentOrderError } = await supabase
+      .from('orders')
+      .select('status, delivery_id')
+      .eq('id', selectedOrderForDispatch.id)
+      .maybeSingle();
+
+    if (currentOrderError) {
+      toast.error("Não foi possível validar o pedido no servidor. Nenhuma solicitação enviada.");
+      return;
+    }
+
+    if (!currentOrder || currentOrder.status !== "ready" || currentOrder.delivery_id) {
+      toast.warning("Não é possível chamar entregador: o pedido foi alterado ou já possui entrega.");
+      setIsDispatchModalOpen(false);
+      fetchOrders();
+      return;
+    }
+
     const fee = parseCurrency(deliveryFee);
     if (isNaN(fee) || fee < 0) {
       toast.error("Por favor, insira um valor válido para a entrega.");
@@ -655,15 +717,36 @@ export default function BusinessOrdersPage() {
                   <OrderCard
                     key={order.id}
                     order={order}
-                    onAdvance={() => {
+                    isProcessing={processingOrderIds.has(order.id)}
+                    onAdvance={async () => {
+                      if (!acquireLock(order.id)) return;
+                      try {
                         const action = getNextActions(order.status);
-                        if (action) {
-                           if (order.status === "ready") {
-                              handleDispatch(order);
-                           } else {
-                              updateStatus(order.id, action.next);
-                           }
+                        if (action && action.next) {
+                          await updateStatus(order.id, action.next);
                         }
+                      } finally {
+                        releaseLock(order.id);
+                      }
+                    }}
+                    onDispatch={async () => {
+                      if (!acquireLock(order.id)) return;
+                      try {
+                        const { data: realOrder } = await supabase.from('orders').select('status, delivery_id').eq('id', order.id).maybeSingle();
+                        if (!realOrder || realOrder.status !== "ready") {
+                          toast.warning("O status foi alterado. Lista sincronizada.");
+                          fetchOrders();
+                          return;
+                        }
+                        if (realOrder.delivery_id) {
+                          toast.info("Já existe entrega vinculada.");
+                          fetchOrders();
+                          return;
+                        }
+                        await handleDispatch(order);
+                      } finally {
+                        releaseLock(order.id);
+                      }
                     }}
                     onCancel={() => updateStatus(order.id, "cancelled")}
                     onRefresh={fetchOrders}
@@ -754,13 +837,15 @@ export default function BusinessOrdersPage() {
   );
 }
 
-function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus }: {
+function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRefresh, action, updateStatus }: {
   order: Order;
+  isProcessing?: boolean;
   onAdvance: () => void;
+  onDispatch: () => void;
   onCancel: () => void;
   onRefresh: () => void;
   action: { label: string, next: OrderStatus } | null;
-  updateStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
@@ -855,24 +940,39 @@ function OrderCard({ order, onAdvance, onCancel, onRefresh, action, updateStatus
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             {isPending && (
               <button 
-                onClick={onCancel}
-                className="w-10 h-10 rounded-xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onCancel(); }}
+                disabled={isProcessing}
+                className="w-10 h-10 rounded-xl bg-destructive/5 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all disabled:opacity-50"
               >
                 <XCircle className="h-4 w-4" />
               </button>
             )}
+            {order.status === "ready" && !order.delivery_id && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDispatch(); }}
+                disabled={isProcessing}
+                className="flex-1 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-foreground text-background disabled:opacity-50"
+              >
+                {isProcessing ? "Aguarde..." : "Chamar Entregador"}
+                {!isProcessing && <Truck className="h-3 w-3" />}
+              </button>
+            )}
             {action && (!order.delivery_id || action.next !== "delivered") && (
               <button
-                onClick={onAdvance}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAdvance(); }}
+                disabled={isProcessing}
                 className={cn(
-                  "flex-1 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  "flex-1 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50",
                   isPending 
                     ? "bg-primary text-white shadow-md shadow-primary/20" 
                     : "bg-foreground text-background"
                 )}
               >
-                {action.label}
-                <ArrowRight className="h-3 w-3" />
+                {isProcessing ? "Aguarde..." : action.label}
+                {!isProcessing && <ArrowRight className="h-3 w-3" />}
               </button>
             )}
           </div>
