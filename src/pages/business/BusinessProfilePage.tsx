@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
+import { isStoreOpenBySchedule } from "@/lib/storeHours";
 
 const DEFAULT_WORKING_DAYS = [
   { day: 'Seg', active: true, start: '08:00', end: '18:00' },
@@ -432,9 +433,9 @@ export default function BusinessProfilePage() {
                         {storeName || "Minha Loja"}
                      </h2>
                      <div className="flex items-center gap-2 mt-1">
-                        <div className={cn("h-2.5 w-2.5 rounded-full", isOpen ? "bg-green-500 animate-pulse" : "bg-red-500")} />
-                        <span className={cn("text-[11px] font-black uppercase tracking-widest", isOpen ? "text-green-600" : "text-red-600")}>
-                           {isOpen ? "Sua Loja está aberta" : "Sua Loja está fechada"}
+                        <div className={cn("h-2.5 w-2.5 rounded-full", (isOpen && isStoreOpenBySchedule(workingDays)) ? "bg-green-500 animate-pulse" : "bg-red-500")} />
+                        <span className={cn("text-[11px] font-black uppercase tracking-widest", (isOpen && isStoreOpenBySchedule(workingDays)) ? "text-green-600" : "text-red-600")}>
+                           {(isOpen && isStoreOpenBySchedule(workingDays)) ? "Sua Loja está aberta" : (isOpen ? "Sua Loja está fora do horário" : "Sua Loja está fechada")}
                         </span>
                       </div>
                   </div>
@@ -564,10 +565,10 @@ export default function BusinessProfilePage() {
                                </p>
                                <p className={cn(
                                  "text-[10px] font-medium mt-0.5",
-                                 isOpen ? "text-emerald-600" : "text-muted-foreground"
+                                 isOpen ? (isStoreOpenBySchedule(workingDays) ? "text-emerald-600" : "text-amber-600") : "text-muted-foreground"
                                )}>
                                  {isOpen
-                                   ? "Visível no marketplace"
+                                   ? (isStoreOpenBySchedule(workingDays) ? "Visível no marketplace" : "Pausada pelo seu horário de funcionamento")
                                    : "Oculta no marketplace"}
                                </p>
                             </div>
