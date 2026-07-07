@@ -104,9 +104,6 @@ export default function BusinessOrdersPage() {
   const { stopLoop } = useAudioAlert();
   const createDeliveryMut = useCreateDeliveryRequest();
   
-  // Estados para o Modal de Despacho
-  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
-  
   // Controle Transacional Rigoroso
   const processingOrderIdsRef = useRef<Set<string>>(new Set());
   const [processingOrderIds, setProcessingOrderIds] = useState<Set<string>>(new Set());
@@ -121,29 +118,6 @@ export default function BusinessOrdersPage() {
   const releaseLock = (id: string) => {
     processingOrderIdsRef.current.delete(id);
     setProcessingOrderIds(new Set(processingOrderIdsRef.current));
-  };
-  
-  const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState<Order | null>(null);
-  const [deliveryFee, setDeliveryFee] = useState<string>("0,00");
-  const [loadingFee, setLoadingFee] = useState(false);
-  const [detectedRegion, setDetectedRegion] = useState<string | null>(null);
-
-  // Formata um número para o padrão monetário brasileiro: 10 → "10,00" / 1234.5 → "1.234,50"
-  const formatCurrency = (value: number): string => {
-    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  // Máscara monetária: remove não-dígitos, divide por 100 e reformata
-  const applyMoneyMask = (raw: string): string => {
-    const digitsOnly = raw.replace(/\D/g, '');
-    if (!digitsOnly) return '0,00';
-    const numeric = parseInt(digitsOnly, 10) / 100;
-    return formatCurrency(numeric);
-  };
-
-  // Converte o valor mascarado de volta para número ("1.234,56" → 1234.56)
-  const parseCurrency = (masked: string): number => {
-    return parseFloat(masked.replace(/\./g, '').replace(',', '.')) || 0;
   };
 
   // Prevenir Race Conditions no fetch
@@ -482,21 +456,16 @@ export default function BusinessOrdersPage() {
         // Atualizamos localmente para permitir a abertura do modal sem refresh
         order.delivery_id = null;
       } else if (delivery.status === 'pending' || delivery.status === 'broadcasted') {
-        // Se a entrega está pendente/broadcasted, significa que o motoboy ainda não aceitou.
-        // O lojista clicou em 'Chamar Entregador' mas ela já existe (criada no checkout ou disparo duplo).
         toast.success("Buscando entregador parceiro na região...");
         fetchOrders();
         return;
       } else {
-        // Se já existe entrega ativa (aceita/coletando/em rota)
         toast.info("A entrega já está em andamento com um entregador.");
         fetchOrders();
         return;
       }
     }
 
-    setSelectedOrderForDispatch(order);
-    
     // Puxa o valor da TAXA BASE DA REGIÃO (Admin Fee) para pagar o motoboy, preservando o lucro do lojista
     let preCalculatedFee = (order as any).regions?.delivery_fee || (order as any).regions?.price;
     
@@ -515,13 +484,10 @@ export default function BusinessOrdersPage() {
       }
     }
     
-    setDeliveryFee(formatCurrency(preCalculatedFee));
-    setDetectedRegion(null);
-    setIsDispatchModalOpen(true);
+    let finalFee = Number(preCalculatedFee) || 0;
 
     // Só tenta calcular frete automático se o pedido não tiver taxa cobrada
-    if (preCalculatedFee === 0 && order.delivery_address) {
-      setLoadingFee(true);
+    if (finalFee === 0 && order.delivery_address) {
       try {
         // Buscar coordenadas do pedido pela tabela deliveries ou orders
         const { data: deliveryData } = await supabase
@@ -533,32 +499,22 @@ export default function BusinessOrdersPage() {
         const lat = deliveryData?.delivery_latitude;
         const lng = deliveryData?.delivery_longitude;
 
-          if (lat && lng) {
-            const result = await calculateDeliveryFee(lat, lng, supabase, company?.delivery_regions_pricing);
-            if (result.fee !== null && !result.isOutOfRange) {
-            setDeliveryFee(formatCurrency(result.fee));
-            setDetectedRegion(result.regionName);
-            toast.info(`📍 Frete sugerido pela região: R$ ${formatCurrency(result.fee)}`);
-          } else if (result.isOutOfRange) {
-            setDetectedRegion('Fora da área de cobertura');
+        if (lat && lng) {
+          const result = await calculateDeliveryFee(lat, lng, supabase, company?.delivery_regions_pricing);
+          if (result.fee !== null && !result.isOutOfRange) {
+            finalFee = result.fee;
           }
         }
       } catch (err: any) {
         console.warn('[Painel] Não foi possível calcular frete automático:', err?.message);
-      } finally {
-        setLoadingFee(false);
       }
     }
-  };
 
-  const confirmDispatch = async () => {
-    if (!selectedOrderForDispatch) return;
-    
     // Validação Defensiva Pré-vôo
     const { data: currentOrder, error: currentOrderError } = await supabase
       .from('orders')
       .select('status, delivery_id')
-      .eq('id', selectedOrderForDispatch.id)
+      .eq('id', order.id)
       .maybeSingle();
 
     if (currentOrderError) {
@@ -568,24 +524,21 @@ export default function BusinessOrdersPage() {
 
     if (!currentOrder || currentOrder.status !== "ready" || currentOrder.delivery_id) {
       toast.warning("Não é possível chamar entregador: o pedido foi alterado ou já possui entrega.");
-      setIsDispatchModalOpen(false);
       fetchOrders();
       return;
     }
 
-    const fee = parseCurrency(deliveryFee);
-    if (isNaN(fee) || fee < 0) {
-      toast.error("Por favor, insira um valor válido para a entrega.");
+    if (isNaN(finalFee) || finalFee < 0) {
+      toast.error("Erro no cálculo da taxa de entrega.");
       return;
     }
 
     try {
-      setIsDispatchModalOpen(false);
       toast.info("Solicitando entregador...", { id: "dispatch" });
       
       await createDeliveryMut.mutateAsync({ 
-        orderId: selectedOrderForDispatch.id, 
-        customValue: fee 
+        orderId: order.id, 
+        customValue: finalFee 
       });
       
       toast.success("🚚 Entregador Solicitado! Aguardando aceite.", { id: "dispatch" });
@@ -767,72 +720,7 @@ export default function BusinessOrdersPage() {
         </div>
       </div>
 
-      {/* MODAL DE DESPACHO (CHAMAR ENTREGADOR) */}
-      <Dialog open={isDispatchModalOpen} onOpenChange={setIsDispatchModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none shadow-2xl overflow-hidden p-0">
-          <div className="bg-primary/5 p-8 pb-4">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-primary/10 flex items-center justify-center mb-6">
-              <Truck className="h-8 w-8 text-primary" />
-            </div>
-            <DialogHeader className="text-left p-0">
-              <DialogTitle className="text-2xl font-black tracking-tight text-foreground">Chamar Entregador</DialogTitle>
-              <DialogDescription className="text-muted-foreground font-bold text-sm leading-relaxed mt-2">
-                Informe o valor que será pago ao entregador por esta entrega. Este valor será visível para os motoboys da região.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
 
-          <div className="p-8 pt-6 space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Valor da Entrega (R$)</label>
-              {detectedRegion && (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/5 border border-primary/10">
-                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="text-xs font-bold text-primary">{detectedRegion}</span>
-                  {loadingFee && <span className="text-xs text-muted-foreground ml-auto">Calculando...</span>}
-                </div>
-              )}
-              <div className="relative group">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
-                   <DollarSign className="h-5 w-5 text-primary" />
-                </div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={deliveryFee}
-                  onChange={(e) => setDeliveryFee(applyMoneyMask(e.target.value))}
-                  placeholder="0,00"
-                  className="w-full h-16 pl-16 pr-6 rounded-[1.25rem] bg-secondary/30 border-2 border-transparent focus:border-primary/20 focus:bg-background transition-all text-2xl font-black tracking-tighter outline-none"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setIsDispatchModalOpen(false)}
-                className="flex-1 h-14 rounded-2xl bg-secondary text-foreground font-black text-xs uppercase tracking-widest hover:bg-secondary/80 transition-all border border-border"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDispatch}
-                disabled={createDeliveryMut.isPending}
-                className="flex-[2] h-14 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-widest hover:bg-foreground/90 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {createDeliveryMut.isPending ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    Confirmar Solicitação
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </BusinessLayout>
   );
 }
