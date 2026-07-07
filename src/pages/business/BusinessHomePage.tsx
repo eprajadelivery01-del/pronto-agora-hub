@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
 
+const CLOSED_DELIVERY_STATUSES = ["completed", "delivered", "cancelled"];
 const MOVING_DELIVERY_STATUSES = ["accepted", "collecting", "in_route", "in_transit"];
 
 const PAYMENT_LABELS: Record<string, string> = {
