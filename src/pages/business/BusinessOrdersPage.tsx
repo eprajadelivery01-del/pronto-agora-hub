@@ -398,7 +398,7 @@ export default function BusinessOrdersPage() {
     const allowedNextStatus = ALLOWED_MANUAL_TRANSITIONS[expectedStatus];
 
     // CAMADA 1: Whitelist (Impede Pulo Lógico)
-    if (!allowedNextStatus || allowedNextStatus !== newStatus) {
+    if (newStatus !== "cancelled" && (!allowedNextStatus || allowedNextStatus !== newStatus)) {
       console.error("[KANBAN] Transição bloqueada:", {
         orderId,
         expectedStatus,

@@ -108,6 +108,14 @@ ${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
     } else {
       const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload as Record<string, any>
       
+      const msgLower = (error_message || "").toLowerCase()
+      if (msgLower.includes("deliveryoverlay is not defined") || msgLower.includes("permissão de sobreposição")) {
+        return new Response(JSON.stringify({ success: true, ignored: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+      
       // Extrair IP do atacante a partir dos Headers (se disponível)
       const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'Desconhecido'
       const country = req.headers.get('cf-ipcountry') || 'Desconhecido'
