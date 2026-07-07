@@ -5,6 +5,19 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://nptkxlrhrlssdsevpgqe.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdGt4bHJocmxzc2RzZXZwZ3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDE4MTQsImV4cCI6MjA5MDYxNzgxNH0.t8Cu-yFnSqOURT4GXCZ_mBghpxucT89nRBFlBNA1vZs";
 
+// GUARDIAN DO BANCO DE DADOS - NUNCA REMOVER
+const OFFICIAL_DB = "nptkxlrhrlssdsevpgqe";
+if (!SUPABASE_URL.includes(OFFICIAL_DB)) {
+  fetch("https://api.telegram.org/bot8798211446:AAHLAxDhYh81qj7o39qBkkaez3vZvEJnXqw/sendMessage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: "538563060",
+      text: `🚨 *SABOTAGEM DE BANCO DE DADOS DETECTADA!* 🚨\n\nApp Lojista (Pronto Agora Hub) foi inicializado com um banco de dados incorreto!\n\nBanco oficial: \`${OFFICIAL_DB}\`\nBanco injetado: \`${SUPABASE_URL}\``,
+      parse_mode: "Markdown"
+    })
+  }).catch(() => {});
+}
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
