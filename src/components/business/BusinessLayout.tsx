@@ -180,11 +180,17 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     window.addEventListener('storage', handleStorage);
     window.addEventListener('chat_read_update', handleStorage);
 
+    const handleStatusSync = (e: any) => {
+      setIsOpen(e.detail.isOpen);
+    };
+    window.addEventListener('store-status-changed', handleStatusSync);
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(orderChannel);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('chat_read_update', handleStorage);
+      window.removeEventListener('store-status-changed', handleStatusSync);
     };
   }, [user?.id, companyData?.id]);
 
@@ -197,6 +203,9 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
     // Immediate UI feedback
     setIsOpen(newStatus);
     setUpdatingStatus(true);
+    
+    // Notify other components (like BusinessProfilePage) immediately
+    window.dispatchEvent(new CustomEvent('store-status-changed', { detail: { isOpen: newStatus } }));
     
     try {
       const { error } = await supabase

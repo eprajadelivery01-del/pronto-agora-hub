@@ -123,8 +123,16 @@ export default function BusinessProfilePage() {
       })
       .subscribe();
 
+    // Custom event listener to keep in sync with BusinessLayout (Header) toggle
+    const handleStatusSync = (e: any) => {
+      setIsOpen(e.detail.isOpen);
+      setShowInMarketplace(e.detail.isOpen);
+    };
+    window.addEventListener('store-status-changed', handleStatusSync);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('store-status-changed', handleStatusSync);
     };
   }, [user?.id]);
 
@@ -279,6 +287,10 @@ export default function BusinessProfilePage() {
     const newActive = !isOpen;
     setIsOpen(newActive);
     setShowInMarketplace(newActive);
+    
+    // Notify BusinessLayout (Header) immediately
+    window.dispatchEvent(new CustomEvent('store-status-changed', { detail: { isOpen: newActive } }));
+    
     try {
       const { error } = await supabase
         .from("companies")
@@ -327,8 +339,6 @@ export default function BusinessProfilePage() {
           category: category,
           delivery_fee: parseFloat(deliveryFee.replace(',', '.')),
           prep_time: parseInt(prepTime, 10) || 0,
-          is_open: isOpen,
-          show_in_marketplace: showInMarketplace,
           business_hours: hoursJson,
           gallery: gallery,
           delivery_regions_pricing: deliveryRegionsPricing,
