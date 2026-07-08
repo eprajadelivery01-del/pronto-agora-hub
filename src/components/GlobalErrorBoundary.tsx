@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from "react";
+import { reportErrorToTelegram } from "@/services/logger";
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,17 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
     this.setState({ error, errorInfo });
+    
+    // Explicitly send crash to Telegram (bypassing console.error interceptors just in case)
+    reportErrorToTelegram({
+      error_message: `[REACT CRASH] ${error.message}`,
+      stack_trace: `${error.stack}\n\nComponent Stack:\n${errorInfo.componentStack}`,
+      url: window.location.href,
+      additional_info: {
+        type: "GlobalErrorBoundary",
+        componentStack: errorInfo.componentStack
+      }
+    }, "Painel Lojista");
     
     // Forçar remoção do carregar se houver crash
     const splash = document.getElementById("splash-screen");
