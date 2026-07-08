@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { usePricingTables, usePricingRules, useCreatePricingTable, useDeletePricingTable, useUpsertPricingRule } from "@/services/pricing";
 import { useRegions } from "@/services/regions";
-import { Loader2, Plus, AlertCircle, ChevronDown } from "lucide-react";
+import { Loader2, Plus, AlertCircle, ChevronDown, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AdminFeeModal } from "./AdminFeeModal";
 
 export function PricingTablesManager() {
   const { data: tables, isLoading: isLoadingTables } = usePricingTables();
@@ -14,6 +15,7 @@ export function PricingTablesManager() {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [newTableName, setNewTableName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
 
   const { data: rules, isLoading: isLoadingRules } = usePricingRules(selectedTableId);
 
@@ -120,9 +122,18 @@ export function PricingTablesManager() {
       <div className="w-full md:w-80 border-r border-border bg-card p-4 flex flex-col h-full overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-foreground">Tabelas de Preço</h2>
-          <button onClick={() => setIsCreating(true)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20">
-            <Plus className="h-4 w-4" />
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setIsFeeModalOpen(true)} 
+              title="Taxa Fixa Admin por Loja"
+              className="p-2 bg-blue-500/10 text-blue-600 rounded-lg hover:bg-blue-500/20"
+            >
+              <DollarSign className="h-4 w-4" />
+            </button>
+            <button onClick={() => setIsCreating(true)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20">
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {isCreating && (
@@ -220,6 +231,8 @@ export function PricingTablesManager() {
           </div>
         )}
       </div>
+
+      <AdminFeeModal open={isFeeModalOpen} onOpenChange={setIsFeeModalOpen} />
     </div>
   );
 }

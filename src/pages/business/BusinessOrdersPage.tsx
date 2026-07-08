@@ -467,7 +467,8 @@ export default function BusinessOrdersPage() {
     }
 
     // Puxa o valor da TAXA BASE DA REGIÃO (Admin Fee) para pagar o motoboy, preservando o lucro do lojista
-    let preCalculatedFee = (order as any).regions?.delivery_fee || (order as any).regions?.price;
+    // NOVA REGRA: Se houver admin_delivery_fee fixo para esta loja, usa ele! Caso contrário usa a matriz/região.
+    let preCalculatedFee = company?.admin_delivery_fee ?? (order as any).regions?.delivery_fee ?? (order as any).regions?.price;
     
     // Fallback: caso a região não venha vinculada, tenta achar pelo valor da entrega original
     if (preCalculatedFee === undefined || preCalculatedFee === null) {
