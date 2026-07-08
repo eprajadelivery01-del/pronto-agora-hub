@@ -126,7 +126,6 @@ export default function BusinessProfilePage() {
     // Custom event listener to keep in sync with BusinessLayout (Header) toggle
     const handleStatusSync = (e: any) => {
       setIsOpen(e.detail.isOpen);
-      setShowInMarketplace(e.detail.isOpen);
     };
     window.addEventListener('store-status-changed', handleStatusSync);
 
@@ -283,19 +282,13 @@ export default function BusinessProfilePage() {
 
   const toggleStoreActive = async () => {
     if (!companyId) return;
-    // Both fields toggle together: open = visible in marketplace
-    const newActive = !isOpen;
-    setIsOpen(newActive);
+    const newActive = !showInMarketplace;
     setShowInMarketplace(newActive);
-    
-    // Notify BusinessLayout (Header) immediately
-    window.dispatchEvent(new CustomEvent('store-status-changed', { detail: { isOpen: newActive } }));
     
     try {
       const { error } = await supabase
         .from("companies")
         .update({ 
-          is_open: newActive, 
           show_in_marketplace: newActive,
           active: newActive,
           is_active: newActive
@@ -304,13 +297,12 @@ export default function BusinessProfilePage() {
       if (error) throw error;
       toast.success(
         newActive
-          ? "✅ Loja ativa! Visível no marketplace e aceitando pedidos."
-          : "⏸️ Loja pausada. Oculta no marketplace e sem receber pedidos."
+          ? "✅ Loja visível no marketplace!"
+          : "⏸️ Loja oculta no marketplace."
       );
     } catch {
-      setIsOpen(!newActive);
       setShowInMarketplace(!newActive);
-      toast.error("Erro ao atualizar status da loja");
+      toast.error("Erro ao atualizar visibilidade da loja");
     }
   };
 
@@ -562,7 +554,7 @@ export default function BusinessProfilePage() {
                             onClick={toggleStoreActive}
                             className={cn(
                               "w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group mt-2",
-                              isOpen
+                              showInMarketplace
                                 ? "bg-emerald-50 border-emerald-400 shadow-md shadow-emerald-100"
                                 : "bg-muted/40 border-border/60 hover:border-border"
                             )}
@@ -570,26 +562,26 @@ export default function BusinessProfilePage() {
                             <div className="text-left">
                                <p className={cn(
                                  "text-[11px] font-black uppercase tracking-widest",
-                                 isOpen ? "text-emerald-700" : "text-muted-foreground"
+                                 showInMarketplace ? "text-emerald-700" : "text-muted-foreground"
                                )}>
-                                 {isOpen ? "✅ Loja Ativa" : "⏸️ Loja Pausada"}
+                                 {showInMarketplace ? "✅ Loja Ativa" : "⏸️ Loja Inativa"}
                                </p>
                                <p className={cn(
                                  "text-[10px] font-medium mt-0.5",
-                                 isOpen ? (isStoreOpenBySchedule(workingDays) ? "text-emerald-600" : "text-amber-600") : "text-muted-foreground"
+                                 showInMarketplace ? "text-emerald-600" : "text-muted-foreground"
                                )}>
-                                 {isOpen
-                                   ? (isStoreOpenBySchedule(workingDays) ? "Visível no marketplace" : "Pausada pelo seu horário de funcionamento")
+                                 {showInMarketplace
+                                   ? "Visível no marketplace"
                                    : "Oculta no marketplace"}
                                </p>
                             </div>
                             <div className={cn(
                               "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors",
-                              isOpen ? "bg-emerald-500" : "bg-muted-foreground/30"
+                              showInMarketplace ? "bg-emerald-500" : "bg-muted-foreground/30"
                             )}>
                                <span className={cn(
                                  "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
-                                 isOpen ? "translate-x-6" : "translate-x-1"
+                                 showInMarketplace ? "translate-x-6" : "translate-x-1"
                                )} />
                             </div>
                          </button>
