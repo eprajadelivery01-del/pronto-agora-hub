@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, useEffect } from "react";
+import React, { useState, FormEvent, useEffect, useRef } from "react";
 import { Plus, ArrowLeft, Loader2, User, Phone, MapPin, DollarSign, Wallet, CheckCircle, RotateCcw, Home, Briefcase, Heart, Handshake } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -102,6 +102,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [submitted, setSubmitted] = useState(false);
   const [saveCustomer, setSaveCustomer] = useState(true);
   const [selectedRegionName, setSelectedRegionName] = useState<string | null>(initialData?.region_name || null);
@@ -161,6 +162,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
 
     // 0. Validar sessão + empresa
     const { data: sessionData } = await supabase.auth.getSession();
@@ -189,6 +191,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
     }
 
 
+    isSubmittingRef.current = true;
     setSubmitting(true);
 
     try {
@@ -289,6 +292,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar entrega");
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
   };
