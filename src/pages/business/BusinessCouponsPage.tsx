@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -43,6 +43,7 @@ export default function BusinessCouponsPage() {
   const [discountValue, setDiscountValue] = useState("");
   const [appliesTo, setAppliesTo] = useState<"all" | "specific">("all");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const isSubmittingRef = useRef(false);
   const [usageLimit, setUsageLimit] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [minOrderValue, setMinOrderValue] = useState("");
@@ -125,6 +126,7 @@ export default function BusinessCouponsPage() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmittingRef.current) return;
     if (!code.trim()) return toast.error("Informe o código do cupom.");
     if (!discountValue || Number(discountValue) <= 0) return toast.error("Informe um valor de desconto válido.");
     if (discountType === "percentage" && Number(discountValue) > 100) return toast.error("Percentual não pode ser maior que 100%.");
@@ -143,6 +145,7 @@ export default function BusinessCouponsPage() {
     };
 
     try {
+      isSubmittingRef.current = true;
       if (editing) {
         const { product_ids, ...couponData } = payload;
         await updateCoupon.mutateAsync({ id: editing.id, data: couponData, product_ids: product_ids });
@@ -155,6 +158,8 @@ export default function BusinessCouponsPage() {
       resetForm();
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar cupom.");
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 

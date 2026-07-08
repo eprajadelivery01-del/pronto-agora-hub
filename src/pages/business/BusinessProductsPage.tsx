@@ -468,6 +468,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [saving, setSaving] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
@@ -511,8 +512,10 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     if (imageUrls.length === 0) { toast.error("Adicione pelo menos 1 foto"); return; }
 
+    isSubmittingRef.current = true;
     setSaving(true);
     try {
       const imagePayload = JSON.stringify(imageUrls);
@@ -542,6 +545,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar");
     } finally {
+      isSubmittingRef.current = false;
       setSaving(false);
     }
   };
