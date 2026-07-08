@@ -773,9 +773,21 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
           </div>
           <div className="min-w-0">
             <p className="text-sm font-black text-foreground truncate leading-tight">{order.customer?.name}</p>
-            <p className="text-[10px] text-primary font-bold flex items-center gap-1 mt-0.5">
-               <Phone className="h-2.5 w-2.5" /> {order.customer?.phone}
-            </p>
+            {order.customer?.phone ? (
+              <a 
+                href={`https://wa.me/55${order.customer.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[10px] text-primary font-bold flex items-center gap-1 mt-0.5 hover:underline cursor-pointer"
+              >
+                 <Phone className="h-2.5 w-2.5" /> {order.customer.phone}
+              </a>
+            ) : (
+              <p className="text-[10px] text-primary font-bold flex items-center gap-1 mt-0.5">
+                 <Phone className="h-2.5 w-2.5" /> Sem telefone
+              </p>
+            )}
           </div>
         </div>
 
