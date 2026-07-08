@@ -83,6 +83,7 @@ export default function BusinessProfilePage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("restaurante");
   const [deliveryFee, setDeliveryFee] = useState("0.00");
+  const [adminDeliveryFee, setAdminDeliveryFee] = useState<number | null>(null);
   const [prepTime, setPrepTime] = useState("30");
   const [isOpen, setIsOpen] = useState(true);
   const [showInMarketplace, setShowInMarketplace] = useState(false);
@@ -157,6 +158,7 @@ export default function BusinessProfilePage() {
         setIsOpen(company.is_open ?? true);
         setShowInMarketplace(company.show_in_marketplace ?? false);
         setDeliveryFee(company.delivery_fee?.toString() || "0.00");
+        setAdminDeliveryFee(company.admin_delivery_fee || null);
         setPrepTime(company.prep_time?.toString() || "30");
         setBusinessHours(company.business_hours || "");
         setGallery(normalizeGallery(company.gallery));
@@ -686,7 +688,7 @@ export default function BusinessProfilePage() {
                                   {region.name}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                                  Base Admin: <span className="font-bold text-foreground">R$ {Number(company?.admin_delivery_fee ?? region.price ?? 0).toFixed(2).replace('.', ',')}</span>
+                                  Base Admin: <span className="font-bold text-foreground">R$ {Number(adminDeliveryFee ?? region.price ?? 0).toFixed(2).replace('.', ',')}</span>
                                 </p>
                               </div>
                               <div className="shrink-0 px-4 py-3">
