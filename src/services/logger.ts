@@ -53,9 +53,23 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
       }
     };
 
-    // Invoke the Supabase Edge Function
-    await supabase.functions.invoke("telegram-logger", {
-      body: requestBody
+    // Bypass temporário: Envio direto para o Telegram para não depender da Edge Function (que estava com bugs de autenticação)
+    const TELEGRAM_BOT_TOKEN = "8798211446:AAHLAxDhYh81qj7o39qBkkaez3vZvEJnXqw";
+    const TELEGRAM_CHAT_ID = "538563060";
+    
+    let alertText = `🚨 *Erro no ${requestBody.app_name}* 🚨\n\n`;
+    alertText += `*Usuário:* ${requestBody.user_email}\n`;
+    alertText += `*URL:* ${requestBody.url}\n\n`;
+    alertText += `*Mensagem:* \n\`${requestBody.error_message}\`\n\n`;
+
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: alertText,
+        parse_mode: "Markdown"
+      })
     });
   } catch (err) {
     console.error("Failed to report error to Telegram:", err);
