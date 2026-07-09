@@ -2,6 +2,7 @@ import * as React from "react";
 import { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { clearSupabaseAuthStorage, resetLocalAuthSession, supabase } from "@/lib/supabaseClient";
+import { useLoginSecurityMonitor } from "@/hooks/useLoginSecurityMonitor";
 
 type AppRole = "admin" | "company" | "driver" | "customer";
 type UserStatus = "pending" | "active" | "rejected";
@@ -42,6 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
   const fetchingRef = useRef<string | null>(null);
   const loadedUserIdRef = useRef<string | null>(null);
+
+  const { checkIpBeforeLogin, recordLoginFailure, resetFailedAttempts } = useLoginSecurityMonitor({
+    appName: "Painel Lojista",
+    maxFailedAttemptsBeforeAlert: 3,
+    failedAttemptsWindowMs: 120_000,
+  });
 
   const fetchUserData = async (userId: string, forceEmail?: string) => {
     if (fetchingRef.current === userId) return;
@@ -258,8 +265,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const signIn = async (email: string, password: string) => {
     await resetLocalAuthSession();
+    // Verificar IP antes do login (VPN, Proxy, País fora do BR)
+    await checkIpBeforeLogin(email.trim().toLowerCase()).catch(() => {});
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-    if (error) throw error;
+    if (error) {
+      // Registrar falha para detecção de Brute Force
+      await recordLoginFailure(email.trim().toLowerCase(), error.message).catch(() => {});
+      throw error;
+    }
+    // Login bem-sucedido: resetar contadores
+    resetFailedAttempts();
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
