@@ -83,10 +83,10 @@ const App = () => (
           <Sonner />
           <SoundEnabler />
           <BrowserRouter>
-            <GlobalScrapingListener />
             <ScrollToTop />
             <CityProvider>
               <AuthProvider>
+                <GlobalScrapingListener />
                 <GlobalChatListener />
                 <OrderAlertsListener />
                 <Routes>
