@@ -386,11 +386,14 @@ export default function BusinessOrdersPage() {
   }, [companyId, fetchOrders]);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    if (!acquireLock(orderId)) return false;
+    
     const currentOrder = orders.find(o => o.id === orderId);
 
     if (!currentOrder) {
       toast.warning("Pedido não encontrado. A lista será sincronizada.");
       fetchOrders();
+      releaseLock(orderId);
       return false;
     }
 
@@ -431,12 +434,17 @@ export default function BusinessOrdersPage() {
     } catch (err: any) {
       toast.error("Erro crítico: " + (err?.message || "desconhecido"));
       return false;
+    } finally {
+      releaseLock(orderId);
     }
   };
 
   const handleDispatch = async (order: Order) => {
-    // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
-    if (order.delivery_id) {
+    if (!acquireLock(order.id)) return;
+    
+    try {
+      // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
+      if (order.delivery_id) {
       
       const { data: delivery, error } = await supabase
         .from('deliveries')

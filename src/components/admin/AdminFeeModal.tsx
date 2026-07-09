@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ export function AdminFeeModal({ open, onOpenChange }: AdminFeeModalProps) {
   const [selectedCompanies, setSelectedCompanies] = useState<Record<string, boolean>>({});
   const [feeValues, setFeeValues] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (open && companies) {
@@ -62,6 +63,8 @@ export function AdminFeeModal({ open, onOpenChange }: AdminFeeModalProps) {
   };
 
   const handleSave = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsSaving(true);
     try {
       const updates = [];
@@ -97,6 +100,7 @@ export function AdminFeeModal({ open, onOpenChange }: AdminFeeModalProps) {
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
     } finally {
+      isSubmittingRef.current = false;
       setIsSaving(false);
     }
   };
