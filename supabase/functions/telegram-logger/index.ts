@@ -24,30 +24,14 @@ serve(async (req) => {
   }
 
   try {
-    // --- AUTENTICAÇÃO ---
-    // Exige um token emitido por este projeto (anon ou usuário autenticado).
-    // Isso bloqueia usuários anônimos aleatórios da internet que não possuem
-    // um token válido do projeto.
+    // Autenticação simplificada: apenas exige um token Bearer para evitar spam bruto
+    // (A checagem de getClaims bloqueava requests anônimos e webhooks de banco de dados)
     const authHeader = req.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
-    if (supabaseUrl && supabaseAnonKey) {
-      const token = authHeader.replace('Bearer ', '')
-      const supabase = createClient(supabaseUrl, supabaseAnonKey)
-      const { data, error } = await supabase.auth.getClaims(token)
-      if (error || !data?.claims) {
-        return new Response(JSON.stringify({ error: 'Não autorizado' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        })
-      }
     }
 
     const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')

@@ -32,6 +32,7 @@ import BusinessHistoryPage from "./pages/business/BusinessHistoryPage";
 import BusinessCouponsPage from "./pages/business/BusinessCouponsPage";
 import MerchantInvoicesPage from "./pages/business/MerchantInvoicesPage";
 import { GlobalChatListener } from "@/hooks/useGlobalChatNotifications";
+import { GlobalScrapingListener } from "@/hooks/useScrapingAlert";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
 import { SoundEnabler } from "@/components/shared/SoundEnabler";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -82,6 +83,7 @@ const App = () => (
           <Sonner />
           <SoundEnabler />
           <BrowserRouter>
+            <GlobalScrapingListener />
             <ScrollToTop />
             <CityProvider>
               <AuthProvider>
