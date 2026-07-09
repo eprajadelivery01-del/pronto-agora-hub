@@ -34,8 +34,8 @@ serve(async (req) => {
       })
     }
 
-    const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
-    const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
+    const TELEGRAM_BOT_TOKEN = "8798211446:AAHLAxDhYh81qj7o39qBkkaez3vZvEJnXqw"
+    const TELEGRAM_CHAT_ID = "538563060"
 
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       console.error("Telegram credentials missing in Edge Function.")
