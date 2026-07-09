@@ -682,34 +682,24 @@ export default function BusinessOrdersPage() {
                     order={order}
                     isProcessing={processingOrderIds.has(order.id)}
                     onAdvance={async () => {
-                      if (!acquireLock(order.id)) return;
-                      try {
-                        const action = getNextActions(order.status);
-                        if (action && action.next) {
-                          await updateStatus(order.id, action.next);
-                        }
-                      } finally {
-                        releaseLock(order.id);
+                      const action = getNextActions(order.status);
+                      if (action && action.next) {
+                        await updateStatus(order.id, action.next);
                       }
                     }}
                     onDispatch={async () => {
-                      if (!acquireLock(order.id)) return;
-                      try {
-                        const { data: realOrder } = await supabase.from('orders').select('status, delivery_id').eq('id', order.id).maybeSingle();
-                        if (!realOrder || realOrder.status !== "ready") {
-                          toast.warning("O status foi alterado. Lista sincronizada.");
-                          fetchOrders();
-                          return;
-                        }
-                        if (realOrder.delivery_id) {
-                          toast.info("Já existe entrega vinculada.");
-                          fetchOrders();
-                          return;
-                        }
-                        await handleDispatch(order);
-                      } finally {
-                        releaseLock(order.id);
+                      const { data: realOrder } = await supabase.from('orders').select('status, delivery_id').eq('id', order.id).maybeSingle();
+                      if (!realOrder || realOrder.status !== "ready") {
+                        toast.warning("O status foi alterado. Lista sincronizada.");
+                        fetchOrders();
+                        return;
                       }
+                      if (realOrder.delivery_id) {
+                        toast.info("Já existe entrega vinculada.");
+                        fetchOrders();
+                        return;
+                      }
+                      await handleDispatch(order);
                     }}
                     onCancel={() => updateStatus(order.id, "cancelled")}
                     onRefresh={fetchOrders}
