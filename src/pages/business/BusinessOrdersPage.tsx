@@ -442,9 +442,8 @@ export default function BusinessOrdersPage() {
   const handleDispatch = async (order: Order) => {
     if (!acquireLock(order.id)) return;
     
-    try {
-      // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
-      if (order.delivery_id) {
+    // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
+    if (order.delivery_id) {
       
       const { data: delivery, error } = await supabase
         .from('deliveries')
@@ -555,6 +554,8 @@ export default function BusinessOrdersPage() {
     } catch (err: any) {
       console.error("[Painel] Erro ao despachar:", err);
       toast.error(`Falha ao despachar: ${err.message}`, { id: "dispatch" });
+    } finally {
+      releaseLock(order.id);
     }
   };
 
