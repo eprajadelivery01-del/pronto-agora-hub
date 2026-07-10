@@ -24,15 +24,41 @@ serve(async (req) => {
   }
 
   try {
-    // Autenticação simplificada: apenas exige um token Bearer para evitar spam bruto
-    // (A checagem de getClaims bloqueava requests anônimos e webhooks de banco de dados)
+    // Autenticação: exige um JWT válido do Supabase (usuário autenticado ou service role).
+    // Um simples header Bearer não basta — validamos o token de verdade.
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+    if (!token) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
+
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+    // Aceita chamadas internas com a service role key; caso contrário valida o JWT do usuário.
+    let isAuthorized = SERVICE_ROLE_KEY.length > 0 && token === SERVICE_ROLE_KEY
+    if (!isAuthorized) {
+      if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+        console.error('Supabase env vars ausentes para validação de auth.')
+        return new Response(JSON.stringify({ error: 'Configuração de autenticação ausente' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        })
+      }
+      const authClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+      const { data: { user }, error: authErr } = await authClient.auth.getUser(token)
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        })
+      }
+      isAuthorized = true
+    }
+
 
     const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || "8798211446:AAHLAxDhYh81qj7o39qBkkaez3vZvEJnXqw"
     const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
