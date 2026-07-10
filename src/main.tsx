@@ -6,6 +6,11 @@ import { toast as sonnerToast } from "sonner";
 
 initializeGlobalErrorHandlers("Painel Lojista");
 
+window.addEventListener("vite:preloadError", (event) => {
+  console.warn("Vite preload error (chunk missing). Reloading page...");
+  window.location.reload();
+});
+
 // Patch sonner toast.error globally to automatically capture all user-facing errors
 const originalError = sonnerToast.error;
 sonnerToast.error = function (message: any, options: any) {

@@ -28,7 +28,10 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
     msg.includes("offline") ||
     msg.includes("não encontrada") ||
     msg.includes("acesso negado") ||
-    msg.includes("exclusivo para entregadores")
+    msg.includes("exclusivo para entregadores") ||
+    msg.includes("load failed") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("network request failed")
   ) {
     return;
   }
