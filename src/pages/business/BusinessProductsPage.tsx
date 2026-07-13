@@ -463,7 +463,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
 }) {
   const [name, setName] = useState(product?.name || "");
   const [description, setDescription] = useState(product?.description || "");
-  const [category, setCategory] = useState(product?.category || "Outros");
+  const [category, setCategory] = useState(product?.category || "Mercado");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
@@ -472,14 +472,11 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   const [isUploading, setIsUploading] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
-  const ALL_CHIPS = [
-    ...existingCategories.map(c => ({ name: c, type: 'internal' })),
-    ...GLOBAL_CATEGORIES.filter(c => !existingCategories.includes(c)).map(c => ({ name: c, type: 'global' }))
-  ];
+  const ALL_CHIPS = GLOBAL_CATEGORIES.map(c => ({ name: c, type: 'global' }));
 
-  const MAX_VISIBLE = 5;
-  const displayedChips = showAllCategories ? ALL_CHIPS : ALL_CHIPS.slice(0, MAX_VISIBLE);
-  const hiddenCount = ALL_CHIPS.length - MAX_VISIBLE;
+  const MAX_VISIBLE = GLOBAL_CATEGORIES.length;
+  const displayedChips = ALL_CHIPS;
+  const hiddenCount = 0;
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
