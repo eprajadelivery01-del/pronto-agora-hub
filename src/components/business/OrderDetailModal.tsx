@@ -70,12 +70,12 @@ export default function OrderDetailModal({
       // Tentativa 1: Perfis (ID ou User ID)
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, phone, user_id")
+        .select("id, full_name, phone, user_id")
         .or(`id.eq.${order.customer_id},user_id.eq.${order.customer_id}`)
         .maybeSingle() as { data: any };
       
       if (profile && profile.id) {
-        setCustomerInfo({ name: profile.id, phone: profile.phone });
+        setCustomerInfo({ name: profile.full_name || profile.id, phone: profile.phone });
         return;
       }
 

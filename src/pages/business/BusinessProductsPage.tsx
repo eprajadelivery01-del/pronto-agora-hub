@@ -29,6 +29,7 @@ interface Product {
 }
 
 const GLOBAL_CATEGORIES = [
+  "Lanches",
   "Mercado",
   "Farmácia",
   "Restaurante",
@@ -463,7 +464,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
 }) {
   const [name, setName] = useState(product?.name || "");
   const [description, setDescription] = useState(product?.description || "");
-  const [category, setCategory] = useState(product?.category || "Mercado");
+  const [category, setCategory] = useState(product?.category || "Lanches");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);

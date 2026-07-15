@@ -224,14 +224,14 @@ export default function BusinessOrdersPage() {
         if (missingFromCustomers.length > 0) {
           const { data: profilesData } = await supabase
             .from("profiles")
-            .select("id, name, phone, user_id")
+            .select("id, full_name, phone, user_id")
             .or(`id.in.(${missingFromCustomers.join(',')}),user_id.in.(${missingFromCustomers.join(',')})`);
           
           if (profilesData) {
             profilesData.forEach(p => {
               missingFromCustomers.forEach(mId => {
                 if (p.id === mId || p.user_id === mId) {
-                  customerMap[mId].name = customerMap[mId].name || p.name;
+                  customerMap[mId].name = customerMap[mId].name || p.full_name;
                   customerMap[mId].phone = (customerMap[mId].phone && customerMap[mId].phone !== "Não informado") ? customerMap[mId].phone : p.phone;
                 }
               });
