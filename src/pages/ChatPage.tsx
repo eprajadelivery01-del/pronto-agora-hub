@@ -75,13 +75,35 @@ export default function ChatPage() {
   });
 
   useEffect(() => {
-    if (conversations && orderIdParam && !selectedConv) {
-      const convForOrder = conversations.find((c: any) => c.order_id === orderIdParam);
-      if (convForOrder) {
-        setSelectedConv(convForOrder);
+    const handleUrlParams = async () => {
+      if (conversations && orderIdParam && !selectedConv) {
+        let convForOrder = conversations.find((c: any) => c.order_id === orderIdParam);
+        
+        if (!convForOrder && searchParams.get("customer_id") && user) {
+          const customerId = searchParams.get("customer_id");
+          const { data: created } = await supabase
+            .from("conversations")
+            .insert({ 
+              order_id: orderIdParam, 
+              participants: [user.id, customerId],
+              topic: "Suporte do Pedido" 
+            })
+            .select("*, messages(content, created_at)")
+            .single();
+          
+          if (created) {
+            convForOrder = created;
+            qc.invalidateQueries({ queryKey: ["conversations", user.id] });
+          }
+        }
+
+        if (convForOrder) {
+          setSelectedConv(convForOrder);
+        }
       }
-    }
-  }, [conversations, orderIdParam, selectedConv]);
+    };
+    handleUrlParams();
+  }, [conversations, orderIdParam, selectedConv, searchParams, user, qc]);
 
   // Profiles map for conversation display
   const { data: profilesMap } = useQuery({

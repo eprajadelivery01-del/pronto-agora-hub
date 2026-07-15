@@ -380,7 +380,7 @@ export default function OrderDetailModal({
                   <button 
                     onClick={() => {
                       onClose();
-                      navigate(`/business/chat?order_id=${order.id}`);
+                      navigate(`/business/chat?order_id=${order.id}${order.user_id ? `&customer_id=${order.user_id}` : ''}`);
                     }}
                     className="px-5 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center gap-2 hover:bg-primary hover:text-white transition-all shadow-sm group/btn"
                     title="Chat com o Cliente"
