@@ -18,6 +18,7 @@ interface OrderDetailModalProps {
   onAdvance?: (orderId: string, nextStatus: string) => void;
   updateStatus?: (orderId: string, status: any) => Promise<void>;
   onStatusUpdate?: () => void;
+  onDispatch?: () => void;
 }
 
 export default function OrderDetailModal({ 
@@ -26,7 +27,8 @@ export default function OrderDetailModal({
   onClose, 
   onAdvance,
   updateStatus,
-  onStatusUpdate
+  onStatusUpdate,
+  onDispatch
 }: OrderDetailModalProps) {
   const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
@@ -142,6 +144,10 @@ export default function OrderDetailModal({
   const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined, prev: undefined, prevLabel: undefined };
   
   const handleAdvance = () => {
+    if (order.status === "ready" && onDispatch) {
+      onDispatch();
+      return;
+    }
     if (status.next) {
       if (onAdvance) {
         onAdvance(order.id, status.next);

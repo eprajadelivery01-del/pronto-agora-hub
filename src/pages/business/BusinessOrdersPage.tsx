@@ -889,6 +889,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
         onClose={() => setIsModalOpen(false)}
         updateStatus={updateStatus}
         onStatusUpdate={onRefresh}
+        onDispatch={onDispatch}
       />
     </>
   );
