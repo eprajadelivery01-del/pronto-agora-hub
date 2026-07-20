@@ -284,6 +284,17 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   
   if (!dropoff) dropoff = "Retirada no Local ou Endereço Inválido";
 
+  // 1.2 Busca a empresa para pegar as coordenadas de coleta
+  let companyData = null;
+  if (order.company_id) {
+    const { data: comp } = await supabase
+      .from("companies")
+      .select("address, latitude, longitude")
+      .eq("id", order.company_id)
+      .maybeSingle();
+    if (comp) companyData = comp;
+  }
+
   // 2. VERIFICAÇÃO DE DUPLICIDADE: Verifica se já existe uma entrega para este pedido
   const { data: existingDelivery } = await supabase
     .from("deliveries")
@@ -317,6 +328,9 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   }
 
   // 3. Cria a entrega vinculada
+  const estimatedValue = Math.max(0, Number(order.total || 0) - Number(order.delivery_fee || 0));
+  const driverFee = customValue !== undefined && customValue !== null ? customValue : 0;
+
   const { data: delivery, error: deliveryError } = await supabase
     .from("deliveries")
     .insert({
@@ -325,7 +339,20 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       customer_name: customerData?.name || (order as any).customer_name || "Cliente Marketplace",
       customer_phone: cleanPhone || null,
       address: dropoff,
-      value: customValue !== undefined && customValue !== null ? customValue : 0,
+      dropoff_address: dropoff,
+      delivery_address: dropoff,
+      value: driverFee,
+      commission: driverFee,
+      price: order.delivery_fee || 0,
+      estimated_value: estimatedValue,
+      payment_method: order.payment_method || null,
+      notes: order.notes || null,
+      region_id: (order as any).region_id || null,
+      pickup_address: companyData?.address || "",
+      pickup_latitude: companyData?.latitude || null,
+      pickup_longitude: companyData?.longitude || null,
+      delivery_latitude: (order as any).delivery_latitude || null,
+      delivery_longitude: (order as any).delivery_longitude || null,
       status: "pending"
     })
     .select()
