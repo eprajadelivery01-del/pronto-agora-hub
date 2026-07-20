@@ -303,13 +303,19 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     .not("status", "eq", "cancelled")
     .maybeSingle();
 
+  const estimatedValue = Math.max(0, Number(order.total || 0) - Number(order.delivery_fee || 0));
+  const driverFee = customValue !== undefined && customValue !== null ? customValue : 0;
+
   if (existingDelivery) {
     console.log(`[Deliveries] Entrega já existe para o pedido ${orderId}. Atualizando para pending e retornando existente.`);
     
     // Atualizar o status para pending (caso estivesse como draft/hidden) e atualizar o valor
     await supabase.from("deliveries").update({ 
       status: "pending", 
-      value: customValue !== undefined && customValue !== null ? customValue : existingDelivery.value 
+      value: customValue !== undefined && customValue !== null ? customValue : existingDelivery.value,
+      commission: customValue !== undefined && customValue !== null ? customValue : existingDelivery.commission,
+      price: order.delivery_fee || existingDelivery.price || 0,
+      estimated_value: estimatedValue
     }).eq("id", existingDelivery.id);
 
     // Assegurar que o pedido aponta para a entrega corretamente
@@ -328,8 +334,6 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   }
 
   // 3. Cria a entrega vinculada
-  const estimatedValue = Math.max(0, Number(order.total || 0) - Number(order.delivery_fee || 0));
-  const driverFee = customValue !== undefined && customValue !== null ? customValue : 0;
 
   const { data: delivery, error: deliveryError } = await supabase
     .from("deliveries")
