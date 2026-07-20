@@ -349,7 +349,6 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       commission: driverFee,
       price: order.delivery_fee || 0,
       estimated_value: estimatedValue,
-      payment_method: order.payment_method || null,
       notes: order.notes || null,
       region_id: (order as any).region_id || null,
       pickup_address: companyData?.address || "",
