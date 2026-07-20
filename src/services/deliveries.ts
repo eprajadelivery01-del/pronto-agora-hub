@@ -303,7 +303,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     .not("status", "eq", "cancelled")
     .maybeSingle();
 
-  const estimatedValue = Math.max(0, Number(order.total || 0) - Number(order.delivery_fee || 0));
+  const estimatedValue = Number(order.total || 0);
   const driverFee = customValue !== undefined && customValue !== null ? customValue : 0;
 
   if (existingDelivery) {
