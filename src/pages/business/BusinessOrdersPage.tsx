@@ -219,8 +219,11 @@ export default function BusinessOrdersPage() {
           });
         }
 
-        // 6. Busca de Fallback em PROFILES (Apenas para quem ainda está sem nome)
-        const missingFromCustomers = customerIds.filter(id => !customerMap[id] || !customerMap[id].name);
+        // 6. Busca de Fallback em PROFILES (Para quem está sem nome ou sem telefone)
+        const missingFromCustomers = customerIds.filter(id => {
+          const c = customerMap[id];
+          return !c || !c.name || !c.phone || c.phone === "Não informado";
+        });
         if (missingFromCustomers.length > 0) {
           const { data: profilesData } = await supabase
             .from("profiles")

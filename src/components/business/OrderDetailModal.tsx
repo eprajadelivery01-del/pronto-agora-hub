@@ -56,12 +56,15 @@ export default function OrderDetailModal({
     
     // Check if we already have good data
     const existingName = order.customer?.name || order.customer_name;
-    const isGeneric = !existingName || existingName === "Cliente Marketplace" || existingName === "Consumidor";
+    const existingPhone = order.customer?.phone || order.customer_phone;
     
-    if (!isGeneric) {
+    const isGenericName = !existingName || existingName === "Cliente Marketplace" || existingName === "Consumidor";
+    const isGenericPhone = !existingPhone || existingPhone === "Não informado";
+    
+    if (!isGenericName && !isGenericPhone) {
       setCustomerInfo({
         name: existingName,
-        phone: order.customer?.phone || order.customer_phone
+        phone: existingPhone
       });
       return;
     }
