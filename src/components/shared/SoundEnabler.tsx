@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Volume2, BellRing, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-import { useAudioAlert } from "@/hooks/useAudioAlert";
+import { useAudioAlert, requestNotificationPermission } from "@/hooks/useAudioAlert";
 
 export function SoundEnabler() {
   const [isVisible, setIsVisible] = useState(false);
@@ -21,6 +21,7 @@ export function SoundEnabler() {
 
   const enableSound = () => {
     unlockAudio();
+    requestNotificationPermission();
     localStorage.setItem("epj_sound_enabled", "true");
     setIsVisible(false);
   };

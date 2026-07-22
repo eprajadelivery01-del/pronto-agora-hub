@@ -3,7 +3,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useAudioAlert } from "@/hooks/useAudioAlert";
+import {
+  useAudioAlert,
+  requestNotificationPermission,
+  sendNativeDeviceNotification,
+  triggerDeviceVibration
+} from "@/hooks/useAudioAlert";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 
 export function useOrderAlerts() {
@@ -11,6 +16,11 @@ export function useOrderAlerts() {
   const qc = useQueryClient();
   const { playAlert, startLoop, stopLoop } = useAudioAlert();
   const { companyId } = useCurrentCompany();
+
+  // Solicita a permissão de notificações do celular/browser ao iniciar
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   // Admin Alerts (Toca uma vez só quando entra algo)
   useEffect(() => {
@@ -24,6 +34,11 @@ export function useOrderAlerts() {
           (payload) => {
             console.log("[OrderAlerts] Novo pedido detectado (Admin)!");
             playAlert();
+            triggerDeviceVibration();
+            sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
+              body: "Novo pedido recebido no sistema marketplace.",
+              tag: `admin-order-${payload.new?.id}`,
+            });
             toast.success("📦 NOVO PEDIDO RECEBIDO!", {
               description: "Acesse o painel para gerenciar.",
               duration: 10000,
@@ -39,7 +54,7 @@ export function useOrderAlerts() {
     }
   }, [user, hasRole, qc, playAlert]);
 
-  // Lojista Alerts (Loop contínuo se houver pedido pendente)
+  // Lojista Alerts (Loop contínuo com som, vibração e notificação se houver pedido pendente)
   const { data: hasPending = false } = useQuery({
     queryKey: ["orders-alert-check", companyId],
     queryFn: async () => {
@@ -59,6 +74,10 @@ export function useOrderAlerts() {
   useEffect(() => {
     if (!companyId) return;
     if (hasPending) {
+      sendNativeDeviceNotification("📦 NOVO PEDIDO PENDENTE! 🛎️", {
+        body: "Você possui pedido novo aguardando confirmação no marketplace!",
+        tag: `company-pending-${companyId}`,
+      });
       startLoop();
     } else {
       stopLoop();
@@ -75,6 +94,10 @@ export function useOrderAlerts() {
         { event: "INSERT", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
           if (payload.new.status === "pending") {
+            sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
+              body: "Novo pedido no marketplace! Abra a gestão de pedidos para aceitar.",
+              tag: `order-${payload.new.id}`,
+            });
             toast.success("📦 NOVO PEDIDO RECEBIDO!", {
               description: "Acesse a Gestão de Pedidos para aceitar.",
               duration: 10000,

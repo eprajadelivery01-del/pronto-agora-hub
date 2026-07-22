@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
-import { useAudioAlert } from "@/hooks/useAudioAlert";
+import { useAudioAlert, sendNativeDeviceNotification, requestNotificationPermission } from "@/hooks/useAudioAlert";
 import { useCustomerPhone, formatPhoneNumber, cleanPhoneNumber } from "@/hooks/useCustomerPhone";
 
 import {
@@ -399,13 +399,19 @@ export default function BusinessOrdersPage() {
     stopLoop();
   };
 
-  // Realtime subscription with visual Ping
+  // Realtime subscription with visual Ping & Native Notification
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
       .channel(`business-orders-${companyId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
+          if (payload.eventType === "INSERT") {
+            sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
+              body: `Novo pedido no marketplace! Acesse o painel para aceitar.`,
+              tag: `order-${payload.new?.id || Date.now()}`,
+            });
+          }
           fetchOrders();
         }
       )
