@@ -327,8 +327,23 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     return existingDelivery;
   }
 
-  const rawPhone = customerData?.phone || (order as any).customer_phone || "";
-  let cleanPhone = rawPhone.replace(/\D/g, "");
+  let rawPhone = customerData?.phone || (order as any).customer_phone || (order as any).customer?.phone || "";
+  
+  if (!rawPhone || rawPhone === "Não informado" || rawPhone.trim() === "") {
+    const targetId = (order as any).user_id || (order as any).customer_id;
+    if (targetId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("phone")
+        .or(`id.eq.${targetId},user_id.eq.${targetId}`)
+        .maybeSingle();
+      if (prof?.phone) {
+        rawPhone = prof.phone;
+      }
+    }
+  }
+
+  let cleanPhone = rawPhone ? rawPhone.replace(/\D/g, "") : "";
   if (cleanPhone.startsWith("55") && (cleanPhone.length === 12 || cleanPhone.length === 13)) {
     cleanPhone = cleanPhone.substring(2);
   }

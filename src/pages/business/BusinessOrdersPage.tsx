@@ -7,6 +7,7 @@ import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { useAudioAlert } from "@/hooks/useAudioAlert";
+import { useCustomerPhone, formatPhoneNumber, cleanPhoneNumber } from "@/hooks/useCustomerPhone";
 
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
@@ -167,28 +168,43 @@ export default function BusinessOrdersPage() {
 
 
       if (data && data.length > 0) {
-        // 1. Extração IMEDIATA de todos os IDs necessários para busca paralela
+        // 1. Extração IMEDIATA de todos os IDs necessários para busca paralela (customer_id e user_id)
         const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
+        const userIds = [...new Set(data.map((o: any) => o.user_id))].filter(Boolean);
         const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
         const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
         
         // Mapeamento preparado antecipadamente
         let customerMap: Record<string, any> = {};
         customerIds.forEach(id => { customerMap[id] = { id }; });
+        userIds.forEach(id => { if (!customerMap[id]) customerMap[id] = { id }; });
 
+        const allUserOrCustIds = [...new Set([...customerIds, ...userIds])];
 
-        // 2. BUSCA PARALELA (Elimina o efeito cascata/waterfall)
-        const [customersRes, deliveriesRes, addressesRes] = await Promise.all([
-          customerIds.length > 0 ? supabase.from("customers").select("id, name, phone").in("id", customerIds) : Promise.resolve({ data: [] }),
+        // 2. BUSCA PARALELA (Elimina o efeito cascata/waterfall e une profiles + customers)
+        const [customersRes, deliveriesRes, addressesRes, profilesRes] = await Promise.all([
+          customerIds.length > 0 ? supabase.from("customers").select("id, name, phone, user_id").in("id", customerIds) : Promise.resolve({ data: [] }),
           deliveryIds.length > 0 ? supabase.from("deliveries").select("id, address, customer_name, customer_phone, status").in("id", deliveryIds) : Promise.resolve({ data: [] }),
-          addressIds.length > 0 ? supabase.from("addresses").select("*").in("id", addressIds) : Promise.resolve({ data: [] })
+          addressIds.length > 0 ? supabase.from("addresses").select("*").in("id", addressIds) : Promise.resolve({ data: [] }),
+          allUserOrCustIds.length > 0 ? supabase.from("profiles").select("id, full_name, phone, user_id").or(`id.in.(${allUserOrCustIds.join(',')}),user_id.in.(${allUserOrCustIds.join(',')})`) : Promise.resolve({ data: [] })
         ]);
+
+        let profileMap: Record<string, any> = {};
+        if (profilesRes.data) {
+          profilesRes.data.forEach((p: any) => {
+            if (p.id) profileMap[p.id] = p;
+            if (p.user_id) profileMap[p.user_id] = p;
+          });
+        }
 
         // 3. Processamento de Clientes (Base Principal)
         if (customersRes.data) {
           customersRes.data.forEach(c => {
             const isGeneric = !c.name || c.name === "Cliente Marketplace" || c.name === "Consumidor";
             customerMap[c.id] = { ...customerMap[c.id], ...c, name: isGeneric ? null : c.name };
+            if (c.user_id && !customerMap[c.user_id]) {
+              customerMap[c.user_id] = customerMap[c.id];
+            }
           });
         }
 
@@ -198,13 +214,17 @@ export default function BusinessOrdersPage() {
           deliveriesRes.data.forEach(d => {
             deliveryStatusMap[d.id] = d.status;
             const order = data.find((o: any) => o.delivery_id === d.id);
-            if (order && customerMap[order.customer_id]) {
-              customerMap[order.customer_id].address = d.address;
-              if (!customerMap[order.customer_id].name && d.customer_name) {
-                customerMap[order.customer_id].name = d.customer_name;
-              }
-              if ((!customerMap[order.customer_id].phone || customerMap[order.customer_id].phone === "Não informado") && d.customer_phone) {
-                customerMap[order.customer_id].phone = d.customer_phone;
+            if (order) {
+              const targetKey = order.customer_id || order.user_id;
+              if (targetKey && customerMap[targetKey]) {
+                customerMap[targetKey].address = d.address;
+                if (!customerMap[targetKey].name && d.customer_name) {
+                  customerMap[targetKey].name = d.customer_name;
+                }
+                const delPhone = cleanPhoneNumber(d.customer_phone);
+                if ((!customerMap[targetKey].phone || customerMap[targetKey].phone === "Não informado") && delPhone) {
+                  customerMap[targetKey].phone = delPhone;
+                }
               }
             }
           });
@@ -213,34 +233,38 @@ export default function BusinessOrdersPage() {
         // 5. Processamento de Endereços Opcionais
         if (addressesRes.data) {
           addressesRes.data.forEach(a => {
-            if (customerMap[a.customer_id] && !customerMap[a.customer_id].address) {
-              customerMap[a.customer_id].address = `${a.street}, ${a.number}${a.complement ? ` - ${a.complement}` : ""} - ${a.neighborhood}, ${a.city}`;
+            const targetKey = a.customer_id || a.user_id;
+            if (targetKey && customerMap[targetKey] && !customerMap[targetKey].address) {
+              customerMap[targetKey].address = `${a.street}, ${a.number}${a.complement ? ` - ${a.complement}` : ""} - ${a.neighborhood}, ${a.city}`;
             }
           });
         }
 
-        // 6. Busca de Fallback em PROFILES (Para quem está sem nome ou sem telefone)
-        const missingFromCustomers = customerIds.filter(id => {
-          const c = customerMap[id];
-          return !c || !c.name || !c.phone || c.phone === "Não informado";
-        });
-        if (missingFromCustomers.length > 0) {
-          const { data: profilesData } = await supabase
-            .from("profiles")
-            .select("id, full_name, phone, user_id")
-            .or(`id.in.(${missingFromCustomers.join(',')}),user_id.in.(${missingFromCustomers.join(',')})`);
-          
-          if (profilesData) {
-            profilesData.forEach(p => {
-              missingFromCustomers.forEach(mId => {
-                if (p.id === mId || p.user_id === mId) {
-                  customerMap[mId].name = customerMap[mId].name || p.full_name;
-                  customerMap[mId].phone = (customerMap[mId].phone && customerMap[mId].phone !== "Não informado") ? customerMap[mId].phone : p.phone;
-                }
-              });
-            });
+        // 6. Integração Total de PROFILES (Fallback robusto por user_id e customer_id)
+        data.forEach((o: any) => {
+          const cId = o.customer_id;
+          const uId = o.user_id;
+          const targetObj = customerMap[cId] || customerMap[uId] || {};
+          const prof = profileMap[uId] || profileMap[cId];
+
+          if (prof) {
+            if (!targetObj.name || targetObj.name === "Cliente Marketplace") {
+              targetObj.name = prof.full_name || targetObj.name;
+            }
+            const profPhone = cleanPhoneNumber(prof.phone);
+            if ((!targetObj.phone || targetObj.phone === "Não informado") && profPhone) {
+              targetObj.phone = profPhone;
+            }
           }
-        }
+
+          const directOrderPhone = cleanPhoneNumber(o.customer_phone);
+          if ((!targetObj.phone || targetObj.phone === "Não informado") && directOrderPhone) {
+            targetObj.phone = directOrderPhone;
+          }
+
+          if (cId) customerMap[cId] = targetObj;
+          if (uId) customerMap[uId] = targetObj;
+        });
 
         const isToday = (dateString: string | null) => {
           if (!dateString) return false;
@@ -251,7 +275,8 @@ export default function BusinessOrdersPage() {
         
         // 1. First map all data to compute real statuses (including resilience checks)
         const mappedRaw = data.map((o: any) => {
-          const customerDataFromMap = customerMap[o.customer_id] || {};
+          const customerDataFromMap = customerMap[o.customer_id] || customerMap[o.user_id] || {};
+          const prof = profileMap[o.user_id] || profileMap[o.customer_id];
           
           const cleanVal = (val: string | null | undefined, placeholder: string) => {
             if (!val) return null;
@@ -260,8 +285,8 @@ export default function BusinessOrdersPage() {
             return v;
           };
 
-          const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || cleanVal(o.customer_name, "Cliente Marketplace") || cleanVal(o.customers?.name, "Cliente Marketplace") || "Cliente Marketplace";
-          const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
+          const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || cleanVal(prof?.full_name, "Cliente Marketplace") || cleanVal(o.customer_name, "Cliente Marketplace") || cleanVal(o.customers?.name, "Cliente Marketplace") || "Cliente Marketplace";
+          const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(prof?.phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
 
           const deliveryStatus = o.delivery_id ? deliveryStatusMap[o.delivery_id] : null;
           let computedStatus = o.status;
@@ -774,20 +799,24 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
           <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0 border border-primary/10">
             <User className="h-5 w-5 text-primary" />
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-black text-foreground truncate leading-tight">{order.customer?.name}</p>
-            {order.customer?.phone ? (
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-foreground truncate leading-tight">
+              {order.customer?.name || "Cliente Marketplace"}
+            </p>
+            {order.customer?.phone && order.customer.phone !== "Não informado" ? (
               <a 
                 href={`https://wa.me/55${order.customer.phone.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-[10px] text-primary font-bold flex items-center gap-1 mt-0.5 hover:underline cursor-pointer"
+                className="text-[11px] text-primary font-black flex items-center gap-1 mt-1 hover:underline cursor-pointer bg-primary/10 px-2 py-0.5 rounded-lg w-fit"
+                title="Clique para abrir WhatsApp"
               >
-                 <Phone className="h-2.5 w-2.5" /> {order.customer.phone}
+                 <Phone className="h-3 w-3 text-primary shrink-0" />
+                 <span>{formatPhoneNumber(order.customer.phone) || order.customer.phone}</span>
               </a>
             ) : (
-              <p className="text-[10px] text-primary font-bold flex items-center gap-1 mt-0.5">
+              <p className="text-[10px] text-muted-foreground/60 font-bold flex items-center gap-1 mt-0.5">
                  <Phone className="h-2.5 w-2.5" /> Sem telefone
               </p>
             )}
