@@ -74,8 +74,8 @@ export function useOrderAlerts() {
   useEffect(() => {
     if (!companyId) return;
     if (hasPending) {
-      sendNativeDeviceNotification("📦 NOVO PEDIDO PENDENTE! 🛎️", {
-        body: "Você possui pedido novo aguardando confirmação no marketplace!",
+      sendNativeDeviceNotification("Chegou um novo pedido!", {
+        body: "Acesse o app para aceitar e começar a preparar",
         tag: `company-pending-${companyId}`,
       });
       startLoop();
@@ -94,12 +94,12 @@ export function useOrderAlerts() {
         { event: "INSERT", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
           if (payload.new.status === "pending") {
-            sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
-              body: "Novo pedido no marketplace! Abra a gestão de pedidos para aceitar.",
+            sendNativeDeviceNotification("Chegou um novo pedido!", {
+              body: "Acesse o app para aceitar e começar a preparar",
               tag: `order-${payload.new.id}`,
             });
-            toast.success("📦 NOVO PEDIDO RECEBIDO!", {
-              description: "Acesse a Gestão de Pedidos para aceitar.",
+            toast.success("Chegou um novo pedido!", {
+              description: "Acesse o app para aceitar e começar a preparar.",
               duration: 10000,
             });
             startLoop();

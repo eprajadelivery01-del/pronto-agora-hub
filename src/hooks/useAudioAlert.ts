@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 // Singleton instances to be used globally outside React lifecycle
 const ALERT_SOUND_URL = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
@@ -47,6 +49,9 @@ export function triggerDeviceVibration(pattern: number[] = [500, 200, 500, 200, 
  * Solicita a permissão do sistema para Notificações Nativas do Aparelho (Central de Notificações do Celular/PC)
  */
 export function requestNotificationPermission() {
+  if (Capacitor.isNativePlatform()) {
+    LocalNotifications.requestPermissions().catch(() => {});
+  }
   if (typeof window !== "undefined" && "Notification" in window) {
     if (Notification.permission === "default") {
       Notification.requestPermission()
@@ -70,7 +75,30 @@ export function sendNativeDeviceNotification(
   // 1. Aciona vibração no dispositivo
   triggerDeviceVibration();
 
-  // 2. Aciona Notificação Nativa na Barra de Notificações do Aparelho
+  // 2. Aciona Notificação Nativa do Celular (Android / iOS)
+  if (Capacitor.isNativePlatform()) {
+    try {
+      LocalNotifications.schedule({
+        notifications: [
+          {
+            title: title || "Chegou um novo pedido!",
+            body: options?.body || "Acesse o app para aceitar e começar a preparar",
+            id: Math.floor(Math.random() * 100000),
+            schedule: { at: new Date(Date.now() + 100) },
+            extra: {
+              tag: options?.tag || "epraja-new-order"
+            }
+          }
+        ]
+      }).catch((e) => {
+        console.warn("[LocalNotifications] Erro ao agendar notificação nativa:", e);
+      });
+    } catch (e) {
+      console.warn("[LocalNotifications] Erro nativo:", e);
+    }
+  }
+
+  // 3. Aciona Notificação Nativa do Navegador (Desktop / PWA)
   if (typeof window !== "undefined" && "Notification" in window) {
     if (Notification.permission === "granted") {
       try {
@@ -78,7 +106,7 @@ export function sendNativeDeviceNotification(
           activeNotification.close();
         }
         activeNotification = new Notification(title, {
-          body: options?.body || "Novo pedido no marketplace! Acesse a gestão para aceitar.",
+          body: options?.body || "Acesse o app para aceitar e começar a preparar",
           icon: options?.icon || "/favicon.ico",
           badge: "/favicon.ico",
           tag: options?.tag || "epraja-new-order",

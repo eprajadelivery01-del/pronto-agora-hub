@@ -171,6 +171,7 @@ export default function BusinessOrdersPage() {
         // 1. Extração IMEDIATA de todos os IDs necessários para busca paralela (customer_id e user_id)
         const customerIds = [...new Set(data.map((o: any) => o.customer_id))].filter(Boolean);
         const userIds = [...new Set(data.map((o: any) => o.user_id))].filter(Boolean);
+        const orderIds = [...new Set(data.map((o: any) => o.id))].filter(Boolean);
         const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
         const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
         
@@ -181,10 +182,14 @@ export default function BusinessOrdersPage() {
 
         const allUserOrCustIds = [...new Set([...customerIds, ...userIds])];
 
-        // 2. BUSCA PARALELA (Elimina o efeito cascata/waterfall e une profiles + customers)
+        // 2. BUSCA PARALELA (Busca entregas por delivery_id E TAMBÉM por order_id para resiliência total)
+        const deliveriesQuery = orderIds.length > 0
+          ? supabase.from("deliveries").select("id, order_id, address, customer_name, customer_phone, status").or(`id.in.(${[...deliveryIds, '00000000-0000-0000-0000-000000000000'].join(',')}),order_id.in.(${orderIds.join(',')})`)
+          : Promise.resolve({ data: [] });
+
         const [customersRes, deliveriesRes, addressesRes, profilesRes] = await Promise.all([
           customerIds.length > 0 ? supabase.from("customers").select("id, name, phone, user_id").in("id", customerIds) : Promise.resolve({ data: [] }),
-          deliveryIds.length > 0 ? supabase.from("deliveries").select("id, address, customer_name, customer_phone, status").in("id", deliveryIds) : Promise.resolve({ data: [] }),
+          deliveriesQuery,
           addressIds.length > 0 ? supabase.from("addresses").select("*").in("id", addressIds) : Promise.resolve({ data: [] }),
           allUserOrCustIds.length > 0 ? supabase.from("profiles").select("id, full_name, phone, user_id").or(`id.in.(${allUserOrCustIds.join(',')}),user_id.in.(${allUserOrCustIds.join(',')})`) : Promise.resolve({ data: [] })
         ]);
@@ -208,12 +213,14 @@ export default function BusinessOrdersPage() {
           });
         }
 
-        // 4. Processamento de Entregas (Fallback de Endereço, Nome e Mapeamento de Status)
+        // 4. Processamento de Entregas (Fallback de Endereço, Nome e Mapeamento de Status por ID e por Order ID)
         let deliveryStatusMap: Record<string, string> = {};
         if (deliveriesRes.data) {
           deliveriesRes.data.forEach(d => {
-            deliveryStatusMap[d.id] = d.status;
-            const order = data.find((o: any) => o.delivery_id === d.id);
+            if (d.id) deliveryStatusMap[d.id] = d.status;
+            if (d.order_id && d.status !== 'cancelled') deliveryStatusMap[d.order_id] = d.status;
+            
+            const order = data.find((o: any) => o.delivery_id === d.id || o.id === d.order_id);
             if (order) {
               const targetKey = order.customer_id || order.user_id;
               if (targetKey && customerMap[targetKey]) {
@@ -288,7 +295,7 @@ export default function BusinessOrdersPage() {
           const finalName = cleanVal(customerDataFromMap.name, "Cliente Marketplace") || cleanVal(prof?.full_name, "Cliente Marketplace") || cleanVal(o.customer_name, "Cliente Marketplace") || cleanVal(o.customers?.name, "Cliente Marketplace") || "Cliente Marketplace";
           const finalPhone = cleanVal(customerDataFromMap.phone, "Não informado") || cleanVal(o.customer_phone, "Não informado") || cleanVal(prof?.phone, "Não informado") || cleanVal(o.customers?.phone, "Não informado") || "Não informado";
 
-          const deliveryStatus = o.delivery_id ? deliveryStatusMap[o.delivery_id] : null;
+          const deliveryStatus = (o.delivery_id ? deliveryStatusMap[o.delivery_id] : null) || deliveryStatusMap[o.id] || null;
           let computedStatus = o.status;
 
           // 🔥 RESILIÊNCIA: Se a entrega já foi concluída, o pedido TEM que constar como concluído

@@ -295,13 +295,15 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     if (comp) companyData = comp;
   }
 
-  // 2. VERIFICAÇÃO DE DUPLICIDADE: Verifica se já existe uma entrega para este pedido
-  const { data: existingDelivery } = await supabase
+  // 2. VERIFICAÇÃO DE DUPLICIDADE: Verifica se já existe uma entrega ativa/existente para este pedido
+  const { data: existingDeliveries } = await supabase
     .from("deliveries")
     .select("*")
     .eq("order_id", orderId)
     .not("status", "eq", "cancelled")
-    .maybeSingle();
+    .order("created_at", { ascending: false });
+
+  const existingDelivery = existingDeliveries && existingDeliveries.length > 0 ? existingDeliveries[0] : null;
 
   const estimatedValue = Number(order.total || 0);
   const driverFee = customValue !== undefined && customValue !== null ? customValue : 0;
