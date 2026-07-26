@@ -473,9 +473,27 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   const [isUploading, setIsUploading] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
-  const ALL_CHIPS = GLOBAL_CATEGORIES.map(c => ({ name: c, type: 'global' }));
+  const customCategoriesFromStore = (existingCategories || []).filter(
+    (c) => c && typeof c === "string" && !GLOBAL_CATEGORIES.includes(c)
+  );
 
-  const MAX_VISIBLE = GLOBAL_CATEGORIES.length;
+  const currentTrimmedCategory = category ? category.trim() : "";
+  const isCurrentCategoryNew =
+    currentTrimmedCategory &&
+    !GLOBAL_CATEGORIES.includes(currentTrimmedCategory) &&
+    !customCategoriesFromStore.includes(currentTrimmedCategory);
+
+  const allCustomCategories = [
+    ...customCategoriesFromStore,
+    ...(isCurrentCategoryNew ? [currentTrimmedCategory] : []),
+  ];
+
+  const ALL_CHIPS = [
+    ...GLOBAL_CATEGORIES.map((c) => ({ name: c, type: "global" })),
+    ...allCustomCategories.map((c) => ({ name: c, type: "custom" })),
+  ];
+
+  const MAX_VISIBLE = ALL_CHIPS.length;
   const displayedChips = ALL_CHIPS;
   const hiddenCount = 0;
 
@@ -496,7 +514,8 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from("store-assets").getPublicUrl(filePath);
-      setImageUrls([...imageUrls, data.publicUrl]);
+      const publicUrl = data.publicUrl;
+      setImageUrls([...imageUrls, publicUrl]);
       toast.success("Foto do produto enviada!");
     } catch (error: any) {
       console.error("Erro no upload:", error);
@@ -531,7 +550,6 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
         if (error) throw error;
         toast.success("Produto atualizado!");
       } else {
-        // New product appended at end of its category
         payload.sort_order = categoryCount;
         const { error } = await supabase
           .from("products")
@@ -595,25 +613,40 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                   required
                 />
                 
-                {/* Category Chips */}
+                {/* Category Chips com destaque azul para categorias novas/customizadas */}
                 <div className="flex flex-wrap gap-2 pb-2 pt-1">
-                  {displayedChips.map(chip => (
-                    <button
-                      key={`${chip.type}-${chip.name}`}
-                      type="button"
-                      onClick={() => setCategory(chip.name)}
-                      className={cn(
-                        "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-                        category === chip.name 
-                          ? "bg-primary text-primary-foreground border-primary shadow-md" 
-                          : chip.type === 'internal'
-                            ? "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
-                            : "bg-slate-100 text-slate-500 hover:bg-slate-200 border-slate-200"
-                      )}
-                    >
-                      {chip.name}
-                    </button>
-                  ))}
+                  {displayedChips.map(chip => {
+                    const isSelected = category === chip.name;
+                    const isCustom = chip.type === 'custom';
+
+                    return (
+                      <button
+                        key={`${chip.type}-${chip.name}`}
+                        type="button"
+                        onClick={() => setCategory(chip.name)}
+                        className={cn(
+                          "shrink-0 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border shadow-sm flex items-center gap-1.5",
+                          isCustom
+                            ? isSelected
+                              ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/30 scale-105 ring-2 ring-blue-400"
+                              : "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-300 font-extrabold"
+                            : isSelected
+                              ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200 font-bold"
+                        )}
+                      >
+                        {isCustom && (
+                          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        )}
+                        {chip.name}
+                        {isCustom && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-700 ml-1 font-black uppercase">
+                            Nova
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                   
                   {!showAllCategories && hiddenCount > 0 && (
                     <button
