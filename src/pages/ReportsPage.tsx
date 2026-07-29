@@ -424,8 +424,8 @@ export default function ReportsPage() {
     </div>
     <div class="kpi">
       <div class="kpi-label">Comissões Plataforma</div>
-      <div class="kpi-value">R$ ${(totalCompanyDue + totalDriverDue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-      <div class="kpi-sub">Lojistas + Entregadores</div>
+      <div class="kpi-value">R$ ${totalDriverDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+      <div class="kpi-sub">Entregadores</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Ticket Médio</div>
