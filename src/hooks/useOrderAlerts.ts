@@ -11,6 +11,9 @@ import {
 } from "@/hooks/useAudioAlert";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 
+import { Capacitor } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
+
 export function useOrderAlerts() {
   const { user, hasRole } = useAuth();
   const qc = useQueryClient();
@@ -21,6 +24,55 @@ export function useOrderAlerts() {
   useEffect(() => {
     requestNotificationPermission();
   }, []);
+
+  // Configurar registro de Push Notifications se estiver em plataforma nativa (Android/iOS)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !companyId) return;
+
+    let regListener: any = null;
+    let errListener: any = null;
+    let pushListener: any = null;
+
+    PushNotifications.requestPermissions().then((result) => {
+      if (result.receive === "granted") {
+        PushNotifications.register().catch(e => 
+          console.warn("[Push] Falha ao registrar push (safe):", e)
+        );
+      }
+    }).catch(e => console.warn("[Push] Falha ao pedir permissões de push:", e));
+
+    PushNotifications.addListener("registration", (token) => {
+      console.log("[Push] Token FCM registrado:", token.value);
+      // Atualiza o token do lojista no banco de dados
+      supabase
+        .from("companies")
+        .update({ fcm_token: token.value })
+        .eq("id", companyId)
+        .then(({ error }) => {
+          if (error) console.error("[Push] Erro ao persistir fcm_token no banco:", error);
+          else console.log("[Push] fcm_token persistido com sucesso para a empresa:", companyId);
+        });
+    }).then(listener => { regListener = listener; });
+
+    PushNotifications.addListener("registrationError", (error: any) => {
+      console.error("[Push] Erro no registro de Push:", error);
+    }).then(listener => { errListener = listener; });
+
+    PushNotifications.addListener("pushNotificationReceived", (notification) => {
+      console.log("[Push] Notificação recebida em foreground:", notification);
+      playAlert();
+      toast.success(notification.title || "Chegou um novo pedido!", {
+        description: notification.body,
+        duration: 10000
+      });
+    }).then(listener => { pushListener = listener; });
+
+    return () => {
+      if (regListener) regListener.remove();
+      if (errListener) errListener.remove();
+      if (pushListener) pushListener.remove();
+    };
+  }, [companyId, playAlert]);
 
   // Admin Alerts (Toca uma vez só quando entra algo)
   useEffect(() => {
