@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "69983283333",
+    "project_id": "e-pra-ja-a410d",
+    "storage_bucket": "e-pra-ja-a410d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:69983283333:android:f2d6decd08fea94fbe61ec",
+        "android_client_info": {
+          "package_name": "com.eprajaentregador"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACof4RgGw9WR_P7QDvxJVYTazOAabieoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:69983283333:android:5eadd6041181c165be61ec",
+        "android_client_info": {
+          "package_name": "com.eprajalojista"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACof4RgGw9WR_P7QDvxJVYTazOAabieoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
