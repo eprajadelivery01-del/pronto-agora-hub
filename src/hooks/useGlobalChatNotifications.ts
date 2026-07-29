@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAudioAlert } from "@/hooks/useAudioAlert";
+import { useAudioAlert, sendNativeDeviceNotification } from "@/hooks/useAudioAlert";
 
 export function useGlobalChatNotifications() {
   const { user, hasRole } = useAuth();
@@ -65,6 +65,12 @@ export function useGlobalChatNotifications() {
               .single();
             senderName = driver?.full_name;
           }
+
+          // Notificar na central de notificações nativa do celular/desktop
+          sendNativeDeviceNotification(senderName || "Nova mensagem recebida!", {
+            body: newMessage.content,
+            tag: `chat-msg-${newMessage.conversation_id}`,
+          });
 
           toast.info(senderName || "Nova mensagem recebida!", {
             description: newMessage.content,
