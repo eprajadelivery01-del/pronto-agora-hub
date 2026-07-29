@@ -253,8 +253,8 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
       console.log("[NewDeliveryForm] enviando payload", payload);
 
       const deliveryWrite = initialData
-        ? await supabase.from("deliveries").update(payload).eq("id", initialData.id).select("*").single()
-        : await supabase.from("deliveries").insert([payload]).select("*").single();
+        ? await supabase.from("deliveries").update(payload).eq("id", initialData.id)
+        : await supabase.from("deliveries").insert([payload]);
 
       if (deliveryWrite.error) {
         const error = deliveryWrite.error;
