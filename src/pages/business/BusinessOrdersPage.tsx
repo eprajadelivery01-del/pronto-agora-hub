@@ -469,6 +469,20 @@ export default function BusinessOrdersPage() {
         fetchOrders();
         return false;
       }
+
+      // Dispara notificação de status diretamente para o celular do cliente
+      supabase.functions.invoke('notify-customer', {
+        body: {
+          record: {
+            id: orderId,
+            status: newStatus,
+            customer_id: currentOrder.customer_id,
+            user_id: (currentOrder as any).user_id
+          },
+          old_record: { status: expectedStatus }
+        }
+      }).catch(e => console.warn('[notify-customer] erro ao notificar cliente:', e));
+
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
       fetchOrders();
       return true;
