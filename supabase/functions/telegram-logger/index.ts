@@ -60,7 +60,7 @@ serve(async (req) => {
     }
 
 
-    const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || "8798211446:AAHLAxDhYh81qj7o39qBkkaez3vZvEJnXqw"
+    const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
     const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
 
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
@@ -178,7 +178,8 @@ ${JSON.stringify(additional_info || {}, null, 2).substring(0, 500)}${JSON.string
       status: 200,
     })
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Falha ao processar registro autenticado:', error)
+    return new Response(JSON.stringify({ error: 'Não foi possível processar o registro' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })
