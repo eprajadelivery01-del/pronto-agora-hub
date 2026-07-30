@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:69983283333:android:3102342a93e2a094be61ec",
+        "android_client_info": {
+          "package_name": "com.epraja"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACof4RgGw9WR_P7QDvxJVYTazOAabieoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:69983283333:android:f2d6decd08fea94fbe61ec",
         "android_client_info": {
           "package_name": "com.eprajaentregador"
