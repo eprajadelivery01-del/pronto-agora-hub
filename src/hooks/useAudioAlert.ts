@@ -50,7 +50,18 @@ export function triggerDeviceVibration(pattern: number[] = [500, 200, 500, 200, 
  */
 export function requestNotificationPermission() {
   if (Capacitor.isNativePlatform()) {
-    LocalNotifications.requestPermissions().catch(() => {});
+    LocalNotifications.requestPermissions().then((res) => {
+      if (res.display === "granted") {
+        LocalNotifications.createChannel({
+          id: "default",
+          name: "Notificações do Lojista",
+          description: "Avisos de novos pedidos e mensagens dos clientes",
+          importance: 4,
+          visibility: 1,
+          vibration: true,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
   }
   if (typeof window !== "undefined" && "Notification" in window) {
     if (Notification.permission === "default") {
@@ -85,6 +96,7 @@ export function sendNativeDeviceNotification(
             body: options?.body || "Acesse o app para aceitar e começar a preparar",
             id: Math.floor(Math.random() * 100000),
             schedule: { at: new Date(Date.now() + 100) },
+            channelId: "default",
             extra: {
               tag: options?.tag || "epraja-new-order"
             }
