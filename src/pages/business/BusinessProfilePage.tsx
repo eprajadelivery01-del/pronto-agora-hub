@@ -336,6 +336,8 @@ export default function BusinessProfilePage() {
           business_hours: hoursJson,
           gallery: gallery,
           delivery_regions_pricing: deliveryRegionsPricing,
+          is_open: isOpen,
+          show_in_marketplace: true,
         })
         .eq("id", companyId);
 
