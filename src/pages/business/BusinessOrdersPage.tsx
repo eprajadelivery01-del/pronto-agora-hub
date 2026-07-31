@@ -473,6 +473,9 @@ export default function BusinessOrdersPage() {
       // Dispara notificação de status diretamente para o celular do cliente
       supabase.functions.invoke('notify-customer', {
         body: {
+          orderId: orderId,
+          status: newStatus,
+          deliveryStatus: newStatus,
           record: {
             id: orderId,
             status: newStatus,
