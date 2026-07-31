@@ -320,10 +320,10 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       estimated_value: estimatedValue
     }).eq("id", existingDelivery.id);
 
-    // Assegurar que o pedido aponta para a entrega corretamente
+    // Assegurar que o pedido aponta para a entrega e atualiza status para delivering
     await supabase
       .from("orders")
-      .update({ delivery_id: existingDelivery.id } as any)
+      .update({ delivery_id: existingDelivery.id, status: 'delivering' } as any)
       .eq("id", orderId);
 
     return existingDelivery;
@@ -385,10 +385,10 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
 
   console.log(`[Deliveries] Entrega criada com ID: ${delivery.id}. Vinculando ao pedido...`);
 
-  // 3. Associa a delivery_id ao pedido e preserva o status atual
+  // 3. Associa a delivery_id ao pedido e marca status do pedido como delivering (Saiu para entrega)
   const { error: updateError } = await supabase
     .from("orders")
-    .update({ delivery_id: delivery.id } as any)
+    .update({ delivery_id: delivery.id, status: 'delivering' } as any)
     .eq("id", orderId);
 
   if (updateError) {
