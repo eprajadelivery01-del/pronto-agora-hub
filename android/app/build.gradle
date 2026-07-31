@@ -70,3 +70,24 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Copia o APK gerado (debug ou release) SEMPRE para a mesma pasta fixa na raiz do projeto
+def fixedOutputDir = file("${rootDir}/../../apk-output")
+
+tasks.whenTaskAdded { task ->
+    if (task.name == 'assembleDebug' || task.name == 'assembleRelease' || task.name == 'bundleRelease') {
+        task.doLast {
+            fixedOutputDir.mkdirs()
+
+            if (task.name == 'assembleDebug') {
+                copy {
+                    from "${buildDir}/outputs/apk/debug/"
+                    into fixedOutputDir
+                    include "**/*.apk"
+                    rename { "epraja-lojista.apk" }
+                }
+                println "✅ APK LOJISTA copiado para: ${fixedOutputDir}/epraja-lojista.apk"
+            }
+        }
+    }
+}
