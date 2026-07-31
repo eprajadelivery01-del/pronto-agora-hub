@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -14,8 +14,8 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 
-// Set global de IDs de pedidos já notificados para prevenir duplicações
-const processedNotifications = new Set<string>();
+// Set global de IDs de pedidos já notificados para prevenir qualquer duplicata no dispositivo
+const processedOrders = new Set<string>();
 
 export function useOrderAlerts() {
   const { user, hasRole } = useAuth();
@@ -60,17 +60,18 @@ export function useOrderAlerts() {
       console.error("[Push] Erro no registro de Push:", error);
     }).then(listener => { errListener = listener; });
 
+    // Ouvinte do FCM Push quando o app está aberto/foreground
     PushNotifications.addListener("pushNotificationReceived", (notification) => {
-      console.log("FCM:", notification.data?.order_id || notification.id || "FCM-Received");
-      const orderId = notification.data?.order_id || notification.data?.orderId;
-      
-      if (orderId && processedNotifications.has(orderId)) {
-        console.log("FCM ignorado (pedido já notificado):", orderId);
+      const orderId = notification.data?.order_id || notification.data?.orderId || notification.id;
+      console.log("[FCM]", orderId);
+
+      if (orderId && processedOrders.has(orderId)) {
+        console.log("[FCM] Pedido já notificado previamente, ignorando duplicata nativa:", orderId);
         return;
       }
 
       if (orderId) {
-        processedNotifications.add(orderId);
+        processedOrders.add(orderId);
       }
 
       playAlert();
@@ -89,7 +90,7 @@ export function useOrderAlerts() {
     };
   }, [companyId, playAlert, startLoop]);
 
-  // Admin Alerts (Toca uma vez só quando entra algo)
+  // Admin Alerts (Toca uma vez só quando entra um novo pedido no sistema)
   useEffect(() => {
     if (!user) return;
     if (hasRole("admin")) {
@@ -100,10 +101,10 @@ export function useOrderAlerts() {
           { event: "INSERT", schema: "public", table: "orders" },
           (payload) => {
             const orderId = payload.new?.id;
-            console.log("Realtime Admin:", orderId);
+            console.log("[REALTIME ADMIN]", orderId);
             
-            if (orderId && processedNotifications.has(orderId)) return;
-            if (orderId) processedNotifications.add(orderId);
+            if (orderId && processedOrders.has(orderId)) return;
+            if (orderId) processedOrders.add(orderId);
 
             playAlert();
             triggerDeviceVibration();
@@ -126,7 +127,7 @@ export function useOrderAlerts() {
     }
   }, [user, hasRole, qc, playAlert]);
 
-  // Lojista Alerts (Loop contínuo com som, vibração e notificação se houver pedido pendente)
+  // Lojista Alerts - POLLING (15s): O polling serve EXCLUSIVAMENTE para garantir que o som da campainha continue tocando até que a loja aceite o pedido. O POLLING NUNCA CRIA NOTIFICAÇÕES VISUAIS DO SISTEMA!
   const { data: pendingOrders = [] } = useQuery({
     queryKey: ["orders-alert-check", companyId],
     queryFn: async () => {
@@ -149,16 +150,10 @@ export function useOrderAlerts() {
     if (!companyId) return;
 
     if (hasPending) {
-      // Notifica apenas se houver algum pedido pendente não processado ainda
       pendingOrders.forEach((ord: any) => {
-        console.log("Polling:", ord.id);
-        if (!processedNotifications.has(ord.id)) {
-          processedNotifications.add(ord.id);
-          sendNativeDeviceNotification("📦 Novo pedido recebido!", {
-            body: "Acesse o app para aceitar e começar a preparar",
-            tag: `order-${ord.id}`,
-          });
-        }
+        console.log("[POLLING]", ord.id);
+        // O Polling apenas registra o ID se não existir, mas NUNCA chama sendNativeDeviceNotification!
+        processedOrders.add(ord.id);
       });
       startLoop();
     } else {
@@ -166,7 +161,7 @@ export function useOrderAlerts() {
     }
   }, [hasPending, pendingOrders, startLoop, stopLoop, companyId]);
 
-  // Ouve inserções e atualizações via Realtime para atualizar instantaneamente o estado
+  // Ouve inserções e atualizações via Supabase Realtime para tocar som e atualizar a tela instantaneamente
   useEffect(() => {
     if (!companyId) return;
 
@@ -178,16 +173,20 @@ export function useOrderAlerts() {
         { event: "INSERT", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
           const order = payload.new;
-          console.log("Realtime:", order.id);
+          console.log("[REALTIME]", order.id);
 
           if (order.status === "pending") {
-            if (!processedNotifications.has(order.id)) {
-              processedNotifications.add(order.id);
+            const alreadyNotified = processedOrders.has(order.id);
+            processedOrders.add(order.id);
 
-              sendNativeDeviceNotification("📦 Novo pedido recebido!", {
-                body: "Acesse o app para aceitar e começar a preparar",
-                tag: `order-${order.id}`,
-              });
+            // Se ainda não foi notificado e NÃO estiver rodando via FCM nativo em app fechado/background, dispara notificação nativa com tag única
+            if (!alreadyNotified) {
+              if (!Capacitor.isNativePlatform()) {
+                sendNativeDeviceNotification("📦 Novo pedido recebido!", {
+                  body: "Acesse o app para aceitar e começar a preparar",
+                  tag: `order-${order.id}`,
+                });
+              }
 
               toast.success("📦 Novo pedido recebido!", {
                 description: "Acesse o app para aceitar e começar a preparar.",
