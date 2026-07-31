@@ -298,33 +298,20 @@ export default function BusinessOrdersPage() {
           const deliveryStatus = (o.delivery_id ? deliveryStatusMap[o.delivery_id] : null) || deliveryStatusMap[o.id] || null;
           let computedStatus = o.status;
 
-          // 🔥 RESILIÊNCIA: Se a entrega já foi concluída, o pedido TEM que constar como concluído
-          // Isso evita que pedidos fiquem "presos" em Prontos se houver falha de sincronia com o banco.
+          // 🔥 RESILIÊNCIA E CORREÇÃO DAS ABAS (Prontos vs Em Rota):
+          // - Se a entrega já foi concluída, o pedido é "delivered".
+          // - Se a entrega está em trânsito/rua ("in_route", "in_transit"), o pedido é "in_route".
+          // - Se a entrega foi criada/aceita/em coleta ("pending", "draft", "broadcasted", "accepted", "collecting"), o pedido é "ready" (Pronto aguardando coleta).
           if (deliveryStatus === "completed" || deliveryStatus === "delivered") {
             computedStatus = "delivered";
+          } else if (deliveryStatus === "in_route" || deliveryStatus === "in_transit") {
+            computedStatus = "in_route";
+          } else if (deliveryStatus && ["pending", "draft", "broadcasted", "accepted", "collecting"].includes(deliveryStatus)) {
+            computedStatus = "ready";
           } else if (deliveryStatus === "cancelled") {
-            // Se a entrega foi cancelada, o pedido VOLTA para Pronto para que o lojista
-            // possa chamar outro motoboy. Não volta para Novo.
             if (["pending", "accepted", "preparing", "in_route"].includes(computedStatus)) {
               computedStatus = "ready";
             }
-          }
-
-          // 🔥 PREVENÇÃO CONTRA REGRESSÃO AVANÇADA (Kanban Loop Bug)
-          // Se o pedido possui uma entrega vinculada (motoboy chamado), ele NÃO PODE voltar
-          // para Em Preparo ou Novo, pois a chamada do motoboy só ocorre na fase "Pronto".
-          
-          // Se a entrega já está ativa na rua (ou aguardando entregador)
-          // Jogamos para "Em Rota" visualmente para o Lojista saber que o entregador foi chamado.
-          const activeDeliveryStatuses = ["pending", "draft", "broadcasted", "accepted", "in_route", "in_transit", "collecting"];
-          if (deliveryStatus && activeDeliveryStatuses.includes(deliveryStatus) && computedStatus !== "delivered") {
-            computedStatus = "in_route";
-          } 
-          // Se a entrega existe (foi chamada) mas ainda não saiu
-          else if (deliveryStatus && computedStatus !== "delivered" && deliveryStatus !== "cancelled") {
-             if (["pending", "accepted", "preparing"].includes(computedStatus)) {
-                computedStatus = "ready";
-             }
           }
 
           return {
