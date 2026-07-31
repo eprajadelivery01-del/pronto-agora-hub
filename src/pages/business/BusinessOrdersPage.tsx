@@ -448,7 +448,7 @@ export default function BusinessOrdersPage() {
         .update({ status: newStatus })
         .eq("id", orderId)
         .eq("status", expectedStatus)
-        .select("id, status")
+        .select("id, status, customer_id, user_id")
         .maybeSingle();
 
       if (error || !data) {
@@ -457,21 +457,31 @@ export default function BusinessOrdersPage() {
         return false;
       }
 
+      const targetCustomerId = data?.customer_id || currentOrder?.customer_id || (currentOrder as any)?.user_id;
+      const targetUserId = data?.user_id || (currentOrder as any)?.user_id || data?.customer_id || currentOrder?.customer_id;
+
+      console.log(`[notify-customer] ENVIANDO PUSH PARA O PEDIDO #${orderId.slice(0, 6).toUpperCase()} | customer_id: ${targetCustomerId} | status: ${newStatus}`);
+
       // Dispara notificação de status diretamente para o celular do cliente
       supabase.functions.invoke('notify-customer', {
         body: {
           orderId: orderId,
+          order_id: orderId,
           status: newStatus,
           deliveryStatus: newStatus,
+          customer_id: targetCustomerId,
+          user_id: targetUserId,
           record: {
             id: orderId,
             status: newStatus,
-            customer_id: currentOrder.customer_id,
-            user_id: (currentOrder as any).user_id
+            customer_id: targetCustomerId,
+            user_id: targetUserId
           },
           old_record: { status: expectedStatus }
         }
-      }).catch(e => console.warn('[notify-customer] erro ao notificar cliente:', e));
+      }).then(res => {
+        console.log(`[notify-customer] PUSH ENTREGUE PELO FIREBASE PARA O PEDIDO #${orderId.slice(0, 6).toUpperCase()}:`, res);
+      }).catch(e => console.warn(`[notify-customer] erro ao notificar cliente para o pedido #${orderId.slice(0, 6).toUpperCase()}:`, e));
 
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
       fetchOrders();
