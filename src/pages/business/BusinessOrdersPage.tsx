@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, isJwtExpiredError, refreshSessionSafely } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
