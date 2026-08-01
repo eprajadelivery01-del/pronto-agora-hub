@@ -49,3 +49,24 @@ export const resetLocalAuthSession = async () => {
   await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   clearSupabaseAuthStorage();
 };
+
+/** Detecta erros de token expirado/inválido vindos do PostgREST/GoTrue. */
+export const isJwtExpiredError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  return e.code === "PGRST303" || /jwt expired|invalid jwt|token is expired/i.test(e.message ?? "");
+};
+
+/**
+ * Tenta renovar a sessão atual. Retorna true se conseguiu renovar.
+ * Se o refresh token também estiver inválido, limpa a sessão local.
+ */
+export const refreshSessionSafely = async (): Promise<boolean> => {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data.session) {
+    await resetLocalAuthSession();
+    return false;
+  }
+  return true;
+};
+
