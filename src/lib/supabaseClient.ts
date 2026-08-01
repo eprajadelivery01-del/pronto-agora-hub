@@ -57,16 +57,49 @@ export const isJwtExpiredError = (error: unknown): boolean => {
   return e.code === "PGRST303" || /jwt expired|invalid jwt|token is expired/i.test(e.message ?? "");
 };
 
+type SupabaseResultWithError = { error: unknown | null };
+let sessionRefreshPromise: Promise<boolean> | null = null;
+
 /**
  * Tenta renovar a sessão atual. Retorna true se conseguiu renovar.
  * Se o refresh token também estiver inválido, limpa a sessão local.
  */
 export const refreshSessionSafely = async (): Promise<boolean> => {
-  const { data, error } = await supabase.auth.refreshSession();
-  if (error || !data.session) {
-    await resetLocalAuthSession();
-    return false;
-  }
-  return true;
+  // Polling, foco da janela e Realtime podem detectar o mesmo token expirado
+  // simultaneamente. Uma única renovação evita que refresh tokens rotativos sejam
+  // consumidos em paralelo e invalidados entre abas/consultas concorrentes.
+  if (sessionRefreshPromise) return sessionRefreshPromise;
+
+  sessionRefreshPromise = (async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session?.access_token) {
+        await resetLocalAuthSession();
+        return false;
+      }
+      return true;
+    } catch {
+      await resetLocalAuthSession();
+      return false;
+    } finally {
+      sessionRefreshPromise = null;
+    }
+  })();
+
+  return sessionRefreshPromise;
+};
+
+/** Executa uma operação e, somente para JWT expirado, renova uma vez e repete. */
+export const withSessionRetry = async <T extends SupabaseResultWithError>(
+  operation: () => PromiseLike<T>,
+): Promise<T> => {
+  let result = await operation();
+  if (!isJwtExpiredError(result.error)) return result;
+
+  const refreshed = await refreshSessionSafely();
+  if (!refreshed) return result;
+
+  result = await operation();
+  return result;
 };
 
