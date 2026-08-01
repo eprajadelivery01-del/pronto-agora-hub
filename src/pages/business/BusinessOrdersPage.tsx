@@ -299,10 +299,13 @@ export default function BusinessOrdersPage() {
           let computedStatus = o.status;
 
           // 🔥 RESILIÊNCIA E CORREÇÃO DAS ABAS (Prontos vs Em Rota):
+          // - Se o pedido no banco for "cancelled", MANTÉM "cancelled" e remove do Kanban do Lojista.
           // - Se a entrega já foi concluída, o pedido é "delivered".
           // - Se a entrega está em trânsito/rua ("in_route", "in_transit"), o pedido é "in_route".
           // - Se a entrega foi criada/aceita/em coleta ("pending", "draft", "broadcasted", "accepted", "collecting"), o pedido é "ready" (Pronto aguardando coleta).
-          if (deliveryStatus === "completed" || deliveryStatus === "delivered") {
+          if (o.status === "cancelled") {
+            computedStatus = "cancelled";
+          } else if (deliveryStatus === "completed" || deliveryStatus === "delivered") {
             computedStatus = "delivered";
           } else if (deliveryStatus === "in_route" || deliveryStatus === "in_transit") {
             computedStatus = "in_route";
