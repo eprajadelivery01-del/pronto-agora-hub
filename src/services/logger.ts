@@ -8,6 +8,11 @@ export interface ErrorPayload {
 }
 
 let isReporting = false;
+const recentlyReported = new Map<string, number>();
+const REPORT_DEDUP_WINDOW_MS = 60_000;
+
+const isExpectedAuthLifecycleError = (message: string) =>
+  /pgrst303|jwt expired|invalid jwt|token is expired|invalid refresh token|refresh token not found/i.test(message);
 
 export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Painel Lojista") {
   if (isReporting) return;
@@ -19,7 +24,12 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
   }
 
   // Ignore specific harmless user-facing errors
-  const msg = payload.error_message?.toLowerCase() || "";
+  const rawMessage = `${payload.error_message || ""} ${JSON.stringify(payload.additional_info || {})}`;
+  const msg = rawMessage.toLowerCase();
+  // Expiração/renovação de sessão faz parte do ciclo normal de autenticação.
+  // A UI tenta renovar e, se necessário, redireciona ao login; não é incidente sistêmico.
+  if (isExpectedAuthLifecycleError(rawMessage)) return;
+
   if (
     msg.includes("corrida já foi aceita") || 
     msg.includes("senha") || 
@@ -34,6 +44,16 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
     msg.includes("network request failed")
   ) {
     return;
+  }
+
+  const dedupKey = `${appName}:${payload.error_message}`.slice(0, 1200);
+  const now = Date.now();
+  const lastReportedAt = recentlyReported.get(dedupKey) ?? 0;
+  if (now - lastReportedAt < REPORT_DEDUP_WINDOW_MS) return;
+  recentlyReported.set(dedupKey, now);
+
+  for (const [key, timestamp] of recentlyReported) {
+    if (now - timestamp > REPORT_DEDUP_WINDOW_MS) recentlyReported.delete(key);
   }
   
   isReporting = true;
@@ -87,6 +107,8 @@ export function initializeGlobalErrorHandlers(appName: string) {
     const reason = event.reason;
     const reasonMsg = reason?.message || String(reason);
 
+    if (isExpectedAuthLifecycleError(reasonMsg)) return;
+
     reportErrorToTelegram({
       error_message: `Unhandled Rejection: ${reason?.message || reason}`,
       stack_trace: reason?.stack || "No stack trace available",
@@ -110,7 +132,7 @@ export function initializeGlobalErrorHandlers(appName: string) {
     originalConsoleError.apply(console, args);
 
     // Skip nested reporting to prevent loops
-    if (isReporting) return;
+    if (isReporting || isExpectedAuthLifecycleError(msg)) return;
 
     reportErrorToTelegram({
       error_message: `[Console Error] ${msg.slice(0, 1000)}`,
