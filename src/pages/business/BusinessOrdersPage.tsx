@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { supabase, isJwtExpiredError, refreshSessionSafely } from "@/lib/supabaseClient";
+import { supabase, isJwtExpiredError, withSessionRetry } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCreateDeliveryRequest } from "@/services/deliveries";
 import { calculateDeliveryFee } from "@/utils/freight";
@@ -153,35 +153,26 @@ export default function BusinessOrdersPage() {
           .order("created_at", { ascending: false });
 
       // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
-      let { data, error } = await runOrdersQuery();
+      let { data, error } = await withSessionRetry(runOrdersQuery);
 
-      // Token expirado: renova a sessão silenciosamente e tenta de novo
+      // Expiração de sessão não é falha de banco e nunca deve acionar a RPC.
       if (error && isJwtExpiredError(error)) {
-        const refreshed = await refreshSessionSafely();
-        if (!refreshed) {
-          toast.error("Sua sessão expirou. Faça login novamente.");
-          window.location.href = "/login";
-          return;
-        }
-        ({ data, error } = await runOrdersQuery());
+        toast.error("Sua sessão expirou. Faça login novamente.");
+        window.location.replace("/login");
+        return;
       }
 
       if (error) {
         console.warn("[Painel] Query direta falhou, tentando CHAVE MESTRA (RPC)...", error.message);
         
         // Tentativa via RPC (Função de Banco que pula o RLS quebrado)
-        let { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_business_orders_v2', { p_company_id: companyId });
+        let { data: rpcData, error: rpcError } = await withSessionRetry(() => supabase
+          .rpc('get_business_orders_v2', { p_company_id: companyId }));
 
         if (rpcError && isJwtExpiredError(rpcError)) {
-          const refreshed = await refreshSessionSafely();
-          if (!refreshed) {
-            toast.error("Sua sessão expirou. Faça login novamente.");
-            window.location.href = "/login";
-            return;
-          }
-          ({ data: rpcData, error: rpcError } = await supabase
-            .rpc('get_business_orders_v2', { p_company_id: companyId }));
+          toast.error("Sua sessão expirou. Faça login novamente.");
+          window.location.replace("/login");
+          return;
         }
 
         if (rpcError) {
