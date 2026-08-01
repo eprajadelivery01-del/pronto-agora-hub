@@ -134,11 +134,8 @@ export default function BusinessOrdersPage() {
 
     try {
       // setLoading(true); removido para evitar travamento da UI via Realtime
-      
-      // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
-      let { data, error } = await supabase
-        .from("orders")
-        .select(`
+
+      const ORDERS_SELECT = `
           id, status, total, delivery_fee, created_at, customer_id, delivery_id,
           delivery_address, payment_method, notes, region_id,
           regions ( id, delivery_fee, price ),
@@ -146,17 +143,47 @@ export default function BusinessOrdersPage() {
             id, quantity, price, notes,
             products (id, name, image_url, description)
           )
-        `)
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: false });
+        `;
+
+      const runOrdersQuery = () =>
+        supabase
+          .from("orders")
+          .select(ORDERS_SELECT)
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false });
+
+      // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
+      let { data, error } = await runOrdersQuery();
+
+      // Token expirado: renova a sessão silenciosamente e tenta de novo
+      if (error && isJwtExpiredError(error)) {
+        const refreshed = await refreshSessionSafely();
+        if (!refreshed) {
+          toast.error("Sua sessão expirou. Faça login novamente.");
+          window.location.href = "/login";
+          return;
+        }
+        ({ data, error } = await runOrdersQuery());
+      }
 
       if (error) {
         console.warn("[Painel] Query direta falhou, tentando CHAVE MESTRA (RPC)...", error.message);
         
         // Tentativa via RPC (Função de Banco que pula o RLS quebrado)
-        const { data: rpcData, error: rpcError } = await supabase
+        let { data: rpcData, error: rpcError } = await supabase
           .rpc('get_business_orders_v2', { p_company_id: companyId });
-          
+
+        if (rpcError && isJwtExpiredError(rpcError)) {
+          const refreshed = await refreshSessionSafely();
+          if (!refreshed) {
+            toast.error("Sua sessão expirou. Faça login novamente.");
+            window.location.href = "/login";
+            return;
+          }
+          ({ data: rpcData, error: rpcError } = await supabase
+            .rpc('get_business_orders_v2', { p_company_id: companyId }));
+        }
+
         if (rpcError) {
           console.error("[Painel] Falha catastrófica: Nem a RPC funcionou.", rpcError);
           toast.error("Erro crítico de banco de dados. Contate o suporte.");
@@ -165,6 +192,7 @@ export default function BusinessOrdersPage() {
         
         data = rpcData;
       }
+
 
 
       if (data && data.length > 0) {
