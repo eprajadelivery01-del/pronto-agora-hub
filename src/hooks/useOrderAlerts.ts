@@ -197,6 +197,7 @@ export function useOrderAlerts() {
           }
           qc.invalidateQueries({ queryKey: ["orders-alert-check", companyId] });
           qc.invalidateQueries({ queryKey: ["orders"] });
+          window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
         }
       )
       .on(
@@ -205,6 +206,7 @@ export function useOrderAlerts() {
         async (payload) => {
           qc.invalidateQueries({ queryKey: ["orders-alert-check", companyId] });
           qc.invalidateQueries({ queryKey: ["orders"] });
+          window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
           
           if (payload.new.status !== "pending") {
             const { count } = await supabase

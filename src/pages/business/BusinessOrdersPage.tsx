@@ -381,23 +381,42 @@ export default function BusinessOrdersPage() {
   useEffect(() => {
     if (companyId) {
       fetchOrders();
+
+      // 1. Ouve os disparos de alerta/som para atualizar a tela no exato instante da notificação
+      const handleAlertRefresh = () => {
+        fetchOrders();
+      };
+      window.addEventListener('epraja-order-alert-triggered', handleAlertRefresh);
+
+      // 2. Atualiza ao voltar o foco para a aba
+      window.addEventListener('focus', handleAlertRefresh);
+
+      // 3. Polling de resiliência a cada 8s para garantir sincronia do Kanban sem refresh manual
+      const interval = setInterval(() => {
+        fetchOrders();
+      }, 8000);
+
+      return () => {
+        window.removeEventListener('epraja-order-alert-triggered', handleAlertRefresh);
+        window.removeEventListener('focus', handleAlertRefresh);
+        clearInterval(interval);
+      };
     } else if (!companyLoading) {
       // Sem empresa vinculada — encerra o skeleton imediatamente
       setLoading(false);
     }
   }, [companyId, companyLoading, fetchOrders]);
 
-
-
   const handleMute = () => {
     stopLoop();
   };
 
-  // Realtime subscription with visual Ping & Native Notification
+  // Realtime subscription com resiliência total para orders e deliveries
   useEffect(() => {
     if (!companyId) return;
+    const channelName = `business-orders-${companyId}-${Math.random().toString(36).substring(2, 7)}`;
     const channel = supabase
-      .channel(`business-orders-${companyId}`)
+      .channel(channelName)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
           if (payload.eventType === "INSERT") {
@@ -406,6 +425,11 @@ export default function BusinessOrdersPage() {
               tag: `order-${payload.new?.id || Date.now()}`,
             });
           }
+          fetchOrders();
+        }
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" },
+        () => {
           fetchOrders();
         }
       )

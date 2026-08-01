@@ -167,6 +167,7 @@ export function useAudioAlert() {
       });
     }
     triggerDeviceVibration();
+    window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
   }, []);
 
   const startLoop = useCallback(() => {
@@ -185,6 +186,7 @@ export function useAudioAlert() {
         triggerDeviceVibration();
       }, 3500);
     }
+    window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
   }, []);
 
   const stopLoop = useCallback(() => {
