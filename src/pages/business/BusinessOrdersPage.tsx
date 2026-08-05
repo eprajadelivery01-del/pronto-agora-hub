@@ -508,26 +508,51 @@ export default function BusinessOrdersPage() {
 
       console.log(`[notify-customer] ENVIANDO PUSH PARA O PEDIDO #${orderId.slice(0, 6).toUpperCase()} | customer_id: ${targetCustomerId} | status: ${newStatus}`);
 
-      // Dispara notificação de status diretamente para o celular do cliente
-      supabase.functions.invoke('notify-customer', {
-        body: {
-          orderId: orderId,
-          order_id: orderId,
-          status: newStatus,
-          deliveryStatus: newStatus,
-          customer_id: targetCustomerId,
-          user_id: targetUserId,
-          record: {
-            id: orderId,
+      // Dispara notificação de status diretamente para o celular do cliente (send-push e notify-customer)
+      const statusTitleMap: Record<string, string> = {
+        confirmed: '✅ Pedido confirmado!',
+        preparing: '👨‍🍳 Preparando seu pedido',
+        ready: '📦 Pedido pronto!',
+        accepted: '🛵 Entregador a caminho!',
+        delivering: '🛵 Saiu para entrega!',
+        in_route: '🛵 Saiu para entrega!',
+        delivered: '🎉 Pedido entregue!',
+        cancelled: '❌ Pedido cancelado'
+      };
+      const notifTitle = statusTitleMap[newStatus] || `Atualização no Pedido`;
+      const notifBody = `Seu pedido #${orderId.slice(0, 8).toUpperCase()} foi atualizado: ${STATUS_LABELS[newStatus] || newStatus}`;
+
+      Promise.allSettled([
+        supabase.functions.invoke('send-push', {
+          body: {
+            orderId: orderId,
             status: newStatus,
+            title: notifTitle,
+            body: notifBody,
+            customerId: targetCustomerId,
+            userId: targetUserId
+          }
+        }),
+        supabase.functions.invoke('notify-customer', {
+          body: {
+            orderId: orderId,
+            order_id: orderId,
+            status: newStatus,
+            deliveryStatus: newStatus,
             customer_id: targetCustomerId,
-            user_id: targetUserId
-          },
-          old_record: { status: expectedStatus }
-        }
-      }).then(res => {
-        console.log(`[notify-customer] PUSH ENTREGUE PELO FIREBASE PARA O PEDIDO #${orderId.slice(0, 6).toUpperCase()}:`, res);
-      }).catch(e => console.warn(`[notify-customer] erro ao notificar cliente para o pedido #${orderId.slice(0, 6).toUpperCase()}:`, e));
+            user_id: targetUserId,
+            record: {
+              id: orderId,
+              status: newStatus,
+              customer_id: targetCustomerId,
+              user_id: targetUserId
+            },
+            old_record: { status: expectedStatus }
+          }
+        })
+      ]).then(results => {
+        console.log(`[push-notification] Notificações disparadas para o pedido #${orderId.slice(0, 6).toUpperCase()}:`, results);
+      }).catch(e => console.warn(`[push-notification] Erro ao notificar cliente:`, e));
 
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
       fetchOrders();
