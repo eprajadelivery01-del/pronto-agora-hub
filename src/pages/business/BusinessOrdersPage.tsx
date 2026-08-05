@@ -522,6 +522,9 @@ export default function BusinessOrdersPage() {
       const notifTitle = statusTitleMap[newStatus] || `Atualização no Pedido`;
       const notifBody = `Seu pedido #${orderId.slice(0, 8).toUpperCase()} foi atualizado: ${STATUS_LABELS[newStatus] || newStatus}`;
 
+      // Notificação de status gerenciada automaticamente pelo banco via Trigger tr_order_update_push_notification.
+      // Desativamos a chamada manual frontend para evitar duplicidade na central de notificações.
+      /*
       Promise.allSettled([
         supabase.functions.invoke('send-push', {
           body: {
@@ -553,6 +556,7 @@ export default function BusinessOrdersPage() {
       ]).then(results => {
         console.log(`[push-notification] Notificações disparadas para o pedido #${orderId.slice(0, 6).toUpperCase()}:`, results);
       }).catch(e => console.warn(`[push-notification] Erro ao notificar cliente:`, e));
+      */
 
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
       fetchOrders();
