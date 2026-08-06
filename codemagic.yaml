@@ -32,10 +32,8 @@ workflows:
 
       - name: Fetch and set up signing profile
         script: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp epraja_dist.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || true
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create 2>/dev/null || true
-          xcode-project use-profiles --warn-only
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          xcode-project use-profiles
 
       - name: Increment build number
         script: |
@@ -53,8 +51,7 @@ workflows:
         script: |
           xcode-project build-ipa \
             --project "ios/App/$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --archive-flags="-allowProvisioningUpdates"
+            --scheme "$XCODE_SCHEME"
 
     artifacts:
       - build/ios/ipa/*.ipa
