@@ -8,6 +8,9 @@ workflows:
       app_store_connect: Codemagic
 
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: br.com.epraja.lojista
       vars:
         XCODE_PROJECT: "App.xcodeproj"
         XCODE_SCHEME: "App"
@@ -23,17 +26,6 @@ workflows:
 
       - name: Capacitor sync iOS
         script: npx cap sync ios
-
-      - name: Set up keychain
-        script: keychain initialize
-
-      - name: Install manual certificate
-        script: keychain add-certificates --certificate ios_distribution.p12 --certificate-password "epraja2026"
-
-      - name: Install manual provisioning profile
-        script: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp epraja_dist.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
 
       - name: Set up code signing settings on Xcode project
         script: xcode-project use-profiles
