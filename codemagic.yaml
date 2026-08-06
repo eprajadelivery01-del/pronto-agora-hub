@@ -1,0 +1,106 @@
+workflows:
+  ios-release:
+    name: iOS Release (App Store)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: Codemagic
+
+    environment:
+      vars:
+        XCODE_PROJECT: "App.xcodeproj"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "br.com.epraja.lojista"
+      node: v22.0.0
+
+    scripts:
+      - name: Install Node dependencies
+        script: npm ci
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Capacitor sync iOS
+        script: npx cap sync ios
+
+      - name: Set up keychain
+        script: keychain initialize
+
+      - name: Install manual certificate
+        script: keychain add-certificates --certificate ios_distribution.p12 --certificate-password "epraja2026"
+
+      - name: Install manual provisioning profile
+        script: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp epraja_dist.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+
+      - name: Increment build number
+        script: |
+          cd ios/App
+          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo "")
+          if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" -ge 1 ]; then
+            TARGET_BUILD=$(($LATEST_BUILD + 1))
+          else
+            TARGET_BUILD=${BUILD_NUMBER:-7}
+          fi
+          echo "Disparando build número: $TARGET_BUILD"
+          agvtool new-version -all $TARGET_BUILD
+
+      - name: Build iOS IPA
+        script: |
+          xcode-project build-ipa \
+            --project "ios/App/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
+
+  android-release:
+    name: Android Release (Google Play)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      android_signing:
+        - epraja_keystore
+      vars:
+        PACKAGE_NAME: "com.eprajalojista"
+      node: v22.0.0
+      java: 21
+
+    scripts:
+      - name: Install Node dependencies
+        script: npm ci
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Capacitor sync Android
+        script: npx cap sync android
+
+      - name: Build Android AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease
+
+    artifacts:
+      - android/app/build/outputs/bundle/**/*.aab
+      - android/app/build/outputs/apk/**/*.apk
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
