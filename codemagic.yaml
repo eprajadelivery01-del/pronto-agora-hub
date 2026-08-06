@@ -27,11 +27,16 @@ workflows:
       - name: Set up keychain
         script: keychain initialize
 
-      - name: Fetch and set up signing profile
+      - name: Install manual certificate
+        script: keychain add-certificates --certificate ios_distribution.p12 --certificate-password "epraja2026"
+
+      - name: Install manual provisioning profile
         script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
-          xcode-project use-profiles
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp epraja_dist.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles --warn-only
 
       - name: Increment build number
         script: |
