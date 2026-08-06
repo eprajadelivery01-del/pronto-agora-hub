@@ -11,7 +11,7 @@ workflows:
       vars:
         XCODE_PROJECT: "App.xcodeproj"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "br.com.epraja.lojista"
+        BUNDLE_ID: "br.com.epraja.appFma"
       node: v22.0.0
 
     scripts:
@@ -36,7 +36,7 @@ workflows:
           cp epraja_dist.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
 
       - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles --warn-only
+        script: xcode-project use-profiles
 
       - name: Increment build number
         script: |
@@ -45,7 +45,7 @@ workflows:
           if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" -ge 1 ]; then
             TARGET_BUILD=$(($LATEST_BUILD + 1))
           else
-            TARGET_BUILD=${BUILD_NUMBER:-5}
+            TARGET_BUILD=${BUILD_NUMBER:-29}
           fi
           echo "Disparando build número: $TARGET_BUILD"
           agvtool new-version -all $TARGET_BUILD
