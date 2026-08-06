@@ -8,9 +8,6 @@ workflows:
       app_store_connect: Codemagic
 
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: br.com.epraja.lojista
       vars:
         XCODE_PROJECT: "App.xcodeproj"
         XCODE_SCHEME: "App"
@@ -27,8 +24,14 @@ workflows:
       - name: Capacitor sync iOS
         script: npx cap sync ios
 
-      - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
+      - name: Set up keychain
+        script: keychain initialize
+
+      - name: Fetch signing files from App Store Connect
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Increment build number
         script: |
