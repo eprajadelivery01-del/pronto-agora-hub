@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, withSessionRetry, isJwtExpiredError } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
