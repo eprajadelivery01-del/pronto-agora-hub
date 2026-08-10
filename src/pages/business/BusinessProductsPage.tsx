@@ -120,14 +120,41 @@ export default function BusinessProductsPage() {
 
   const deleteProduct = async (id: string) => {
     if (!confirm("Deseja realmente remover este produto?")) return;
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) {
-      toast.error("Erro ao remover produto");
-    } else {
+
+    const { error } = await withSessionRetry(() =>
+      supabase.from("products").delete().eq("id", id)
+    );
+
+    if (!error) {
       toast.success("Produto removido");
       fetchCompanyAndProducts();
+      return;
     }
+
+    const err = error as { code?: string; message?: string };
+
+    // Produto já usado em pedidos: não pode ser apagado (FK). Desativamos.
+    if (err.code === "23503") {
+      const { error: deactivateError } = await withSessionRetry(() =>
+        (supabase as any).from("products").update({ is_active: false }).eq("id", id)
+      );
+      if (deactivateError) {
+        toast.error("Não foi possível remover nem desativar este produto.");
+        return;
+      }
+      toast.success("Produto já usado em pedidos: foi desativado e não aparece mais no app.");
+      fetchCompanyAndProducts();
+      return;
+    }
+
+    if (isJwtExpiredError(error)) {
+      toast.error("Sua sessão expirou. Faça login novamente.");
+      return;
+    }
+
+    toast.error(`Erro ao remover produto: ${err.message || "erro desconhecido"}`);
   };
+
 
   // ── Drag & Drop handlers ──────────────────────────────────────────────────────
   const handleDragStart = useCallback((id: string, category: string) => {
