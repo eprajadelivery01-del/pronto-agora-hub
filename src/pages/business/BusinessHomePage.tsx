@@ -13,6 +13,14 @@ import type { DeliveryStatus, Delivery } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DeliveryFiltersBar,
+  DEFAULT_DELIVERY_FILTERS,
+  matchesDeliveryFilters,
+  sortDeliveries,
+  type DeliveryFilters,
+} from "@/components/business/DeliveryFiltersBar";
+
 
 const NewDeliveryForm = React.lazy(() => import("@/components/business/NewDeliveryForm"));
 const OrderDetailModal = React.lazy(() => import("@/components/business/OrderDetailModal"));
@@ -55,6 +63,8 @@ export default function BusinessHomePage() {
   const [detailDelivery, setDetailDelivery] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [optimisticManualDeliveries, setOptimisticManualDeliveries] = useState<DeliveryWithRelations[]>([]);
+  const [deliveryFilters, setDeliveryFilters] = useState<DeliveryFilters>(DEFAULT_DELIVERY_FILTERS);
+
   const qc = useQueryClient();
   
   const getDeliveryPaymentMethod = (delivery: any) => {
@@ -293,6 +303,39 @@ export default function BusinessHomePage() {
     o.delivery_id && !marketplaceDeliveriesWithOrders.some(m => m.id === o.id)
   );
 
+  const filteredMarketplaceDeliveries = useMemo(() => {
+    const filtered = marketplaceDeliveriesWithOrders.filter((order) =>
+      matchesDeliveryFilters(
+        {
+          status: order.deliveryInfo?.status || order.status,
+          created_at: order.deliveryInfo?.created_at || order.created_at,
+          customer_name:
+            (order.customers as any)?.name ||
+            (order.customers as any)?.[0]?.name ||
+            order.deliveryInfo?.customer_name,
+          address: order.delivery_address || order.deliveryInfo?.address,
+        },
+        deliveryFilters
+      )
+    );
+    return sortDeliveries(
+      filtered.map((o) => ({ ...o, created_at: o.deliveryInfo?.created_at || o.created_at })),
+      deliveryFilters.sort,
+      (o) => Number(o.total ?? 0)
+    );
+  }, [marketplaceDeliveriesWithOrders, deliveryFilters]);
+
+  const filteredManualDeliveries = useMemo(
+    () =>
+      sortDeliveries(
+        manualDeliveries.filter((d) => matchesDeliveryFilters(d as any, deliveryFilters)),
+        deliveryFilters.sort,
+        (d) => getDeliveryTotalToCollect(d)
+      ),
+    [manualDeliveries, deliveryFilters]
+  );
+
+
   // Atualização agora depende do cache do React Query e de Webhooks em tempo real
   useEffect(() => {
     if (!companyId) return;
@@ -526,6 +569,12 @@ export default function BusinessHomePage() {
               </div>
             )}
 
+            <DeliveryFiltersBar
+              filters={deliveryFilters}
+              onChange={setDeliveryFilters}
+              resultCount={filteredMarketplaceDeliveries.length + filteredManualDeliveries.length}
+            />
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Aguardando Coleta" />
@@ -538,14 +587,14 @@ export default function BusinessHomePage() {
               <div className="flex items-center gap-3 px-2">
                 <div className="w-2 h-6 bg-primary rounded-full shadow-lg shadow-primary/20" />
                 <h3 className="text-xl font-black text-foreground tracking-tight">Entregas do Marketplace</h3>
-                <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{marketplaceDeliveriesWithOrders.length}</span>
+                <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{filteredMarketplaceDeliveries.length}</span>
               </div>
 
               {isLoadingMarketplace ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : marketplaceDeliveriesWithOrders.length > 0 ? (
+              ) : filteredMarketplaceDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {marketplaceDeliveriesWithOrders.map((order) => (
+                  {filteredMarketplaceDeliveries.map((order) => (
                     <div
                       key={order.id}
                       onClick={() => setSelectedOrder({ ...order, customer: { name: (order.customers as any)?.name || (order.customers as any)?.[0]?.name || order.deliveryInfo?.customer_name, address: order.delivery_address }, items: order.order_items || [] })}
@@ -605,14 +654,14 @@ export default function BusinessHomePage() {
               <div className="flex items-center gap-3 px-2">
                 <div className="w-2 h-6 bg-warning rounded-full shadow-lg shadow-warning/20" />
                 <h3 className="text-xl font-black text-foreground tracking-tight">Entregas Manuais (Loja)</h3>
-                <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{manualDeliveries.length}</span>
+                <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{filteredManualDeliveries.length}</span>
               </div>
 
               {isLoadingDeliveries || isLoadingOpenStoreDeliveries || isLoadingOpenStoreDeliveriesByName || isLoadingVisibleDeliveriesFallback ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : manualDeliveries.length > 0 ? (
+              ) : filteredManualDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {manualDeliveries.map((delivery) => (
+                  {filteredManualDeliveries.map((delivery) => (
                     <div
                       key={delivery.id}
                       className="bg-card border border-border/50 rounded-[2.5rem] p-6 hover:border-warning/30 hover:shadow-2xl transition-all duration-300 group relative overflow-hidden"
