@@ -237,8 +237,6 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
         id: deliveryId,
         company_id: cId,
         city_id: resolvedCityId,
-        company_name: storeTitle,
-        store_name: storeTitle,
         customer_name: customerName,
         customer_phone: customerPhone.replace(/\D/g, ""),
         customer_cpf: customerCpf.replace(/\D/g, ""),
