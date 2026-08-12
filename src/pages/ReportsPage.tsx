@@ -317,7 +317,11 @@ export default function ReportsPage() {
     }).join("");
 
     // Delivery detail rows (ALL records, no limit)
-    const deliveryRows = deliveries.map(d => `
+    const deliveryRows = deliveries.map(d => {
+      const drObj = (drivers ?? []).find(dr => dr.id === d.driver_id);
+      const rowComm = drObj?.commission_rate !== undefined && drObj?.commission_rate !== null
+        ? Number(drObj.commission_rate) : 0.40;
+      return `
       <tr>
         <td>${format(new Date(d.created_at), "dd/MM/yyyy HH:mm")}</td>
         <td>${d.customer_name || "—"}</td>
@@ -325,8 +329,9 @@ export default function ReportsPage() {
         <td style="max-width:200px;overflow:hidden">${d.address || "—"}</td>
         <td style="text-align:center">${STATUS_LABELS[d.status as keyof typeof STATUS_LABELS] || d.status}</td>
         <td style="text-align:right;font-weight:700">R$ ${formatDeliveryValue(d)}</td>
-        <td style="text-align:right">R$ ${Number((d as any).commission ?? 0).toFixed(2)}</td>
-      </tr>`).join("");
+        <td style="text-align:right">R$ ${rowComm.toFixed(2).replace(".", ",")}</td>
+      </tr>`;
+    }).join("");
 
     const totalCompanyDue = companyBreakdown.reduce((s, c) => {
       const co = (companies ?? []).find(x => x.id === c.companyId);
