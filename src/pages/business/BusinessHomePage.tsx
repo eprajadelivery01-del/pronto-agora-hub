@@ -293,6 +293,39 @@ export default function BusinessHomePage() {
     o.delivery_id && !marketplaceDeliveriesWithOrders.some(m => m.id === o.id)
   );
 
+  const filteredMarketplaceDeliveries = useMemo(() => {
+    const filtered = marketplaceDeliveriesWithOrders.filter((order) =>
+      matchesDeliveryFilters(
+        {
+          status: order.deliveryInfo?.status || order.status,
+          created_at: order.deliveryInfo?.created_at || order.created_at,
+          customer_name:
+            (order.customers as any)?.name ||
+            (order.customers as any)?.[0]?.name ||
+            order.deliveryInfo?.customer_name,
+          address: order.delivery_address || order.deliveryInfo?.address,
+        },
+        deliveryFilters
+      )
+    );
+    return sortDeliveries(
+      filtered.map((o) => ({ ...o, created_at: o.deliveryInfo?.created_at || o.created_at })),
+      deliveryFilters.sort,
+      (o) => Number(o.total ?? 0)
+    );
+  }, [marketplaceDeliveriesWithOrders, deliveryFilters]);
+
+  const filteredManualDeliveries = useMemo(
+    () =>
+      sortDeliveries(
+        manualDeliveries.filter((d) => matchesDeliveryFilters(d as any, deliveryFilters)),
+        deliveryFilters.sort,
+        (d) => getDeliveryTotalToCollect(d)
+      ),
+    [manualDeliveries, deliveryFilters]
+  );
+
+
   // Atualização agora depende do cache do React Query e de Webhooks em tempo real
   useEffect(() => {
     if (!companyId) return;
