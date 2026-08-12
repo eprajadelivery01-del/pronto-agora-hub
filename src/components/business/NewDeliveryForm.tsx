@@ -232,9 +232,11 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
       const now = new Date().toISOString();
       const deliveryId = initialData?.id || crypto.randomUUID();
       const storeTitle = currentCompany?.trade_name || currentCompany?.name || "Loja Parceira";
+      const resolvedCityId = currentCompany?.city_id || selectedCity?.id || initialData?.city_id || null;
       const payload: any = {
         id: deliveryId,
         company_id: cId,
+        city_id: resolvedCityId,
         company_name: storeTitle,
         store_name: storeTitle,
         customer_name: customerName,
