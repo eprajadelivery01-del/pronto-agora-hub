@@ -569,6 +569,12 @@ export default function BusinessHomePage() {
               </div>
             )}
 
+            <DeliveryFiltersBar
+              filters={deliveryFilters}
+              onChange={setDeliveryFilters}
+              resultCount={filteredMarketplaceDeliveries.length + filteredManualDeliveries.length}
+            />
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatCard label="Pendentes" value={stats.pending} icon={Clock} color="warning" subtitle="Aguardando Coleta" />
@@ -581,14 +587,14 @@ export default function BusinessHomePage() {
               <div className="flex items-center gap-3 px-2">
                 <div className="w-2 h-6 bg-primary rounded-full shadow-lg shadow-primary/20" />
                 <h3 className="text-xl font-black text-foreground tracking-tight">Entregas do Marketplace</h3>
-                <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{marketplaceDeliveriesWithOrders.length}</span>
+                <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-xs font-black uppercase">{filteredMarketplaceDeliveries.length}</span>
               </div>
 
               {isLoadingMarketplace ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : marketplaceDeliveriesWithOrders.length > 0 ? (
+              ) : filteredMarketplaceDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {marketplaceDeliveriesWithOrders.map((order) => (
+                  {filteredMarketplaceDeliveries.map((order) => (
                     <div
                       key={order.id}
                       onClick={() => setSelectedOrder({ ...order, customer: { name: (order.customers as any)?.name || (order.customers as any)?.[0]?.name || order.deliveryInfo?.customer_name, address: order.delivery_address }, items: order.order_items || [] })}
@@ -648,14 +654,14 @@ export default function BusinessHomePage() {
               <div className="flex items-center gap-3 px-2">
                 <div className="w-2 h-6 bg-warning rounded-full shadow-lg shadow-warning/20" />
                 <h3 className="text-xl font-black text-foreground tracking-tight">Entregas Manuais (Loja)</h3>
-                <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{manualDeliveries.length}</span>
+                <span className="bg-warning/10 text-warning px-3 py-1 rounded-xl text-xs font-black uppercase">{filteredManualDeliveries.length}</span>
               </div>
 
               {isLoadingDeliveries || isLoadingOpenStoreDeliveries || isLoadingOpenStoreDeliveriesByName || isLoadingVisibleDeliveriesFallback ? (
                 <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : manualDeliveries.length > 0 ? (
+              ) : filteredManualDeliveries.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {manualDeliveries.map((delivery) => (
+                  {filteredManualDeliveries.map((delivery) => (
                     <div
                       key={delivery.id}
                       className="bg-card border border-border/50 rounded-[2.5rem] p-6 hover:border-warning/30 hover:shadow-2xl transition-all duration-300 group relative overflow-hidden"
