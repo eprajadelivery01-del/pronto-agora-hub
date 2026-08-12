@@ -71,7 +71,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
             total,
             order_items(quantity, price, products(name))
           ),
-          companies!deliveries_company_id_fkey(name, phone),
+          companies(name, phone),
           delivery_drivers(id, user_id, full_name, phone, vehicle_type, vehicle_plate)
         `, { count: "exact" })
         .order("created_at", { ascending: false })
