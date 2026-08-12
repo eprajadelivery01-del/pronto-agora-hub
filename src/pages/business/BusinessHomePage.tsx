@@ -63,6 +63,8 @@ export default function BusinessHomePage() {
   const [detailDelivery, setDetailDelivery] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [optimisticManualDeliveries, setOptimisticManualDeliveries] = useState<DeliveryWithRelations[]>([]);
+  const [deliveryFilters, setDeliveryFilters] = useState<DeliveryFilters>(DEFAULT_DELIVERY_FILTERS);
+
   const qc = useQueryClient();
   
   const getDeliveryPaymentMethod = (delivery: any) => {
