@@ -26,13 +26,8 @@ export function useCurrentCompany(): CurrentCompanyResult {
     queryFn: async () => {
       if (!userId) return null;
       const company = await fetchCompanyByUserId(userId, email);
-      console.info("[Lojista] companyId resolvido:", {
-        userId,
-        email,
-        companyId: company?.id ?? null,
-        companyName: company?.name ?? null,
-      });
       return company;
+
     },
     enabled: !!userId,
     staleTime: 60_000,

@@ -13,10 +13,18 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  esbuild: {
+    drop: mode === "development" ? [] : ["debugger"],
+    pure:
+      mode === "development"
+        ? []
+        : ["console.log", "console.info", "console.debug", "console.trace", "console.warn", "console.table", "console.dir"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
+
 }));
