@@ -311,6 +311,30 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       .update({ delivery_id: existingDelivery.id, status: 'delivering' } as any)
       .eq("id", orderId);
 
+    // DISPARO EXPLÍCITO DE FCM PUSH PARA OS ENTREGADORES ONLINE
+    const storeName = order.company_name || order.store_name || "É Pra Já Delivery";
+    const feeVal = customValue !== undefined && customValue !== null ? customValue : (existingDelivery.value || 0);
+    const detailsStr = `🏬 Loja: ${storeName}\n📍 Coleta: ${companyData?.address || existingDelivery.pickup_address || 'Retirada na Loja'}\n🏁 Entrega: ${dropoff}\n💰 Ganhos: R$ ${Number(feeVal).toFixed(2).replace('.', ',')}`;
+
+    supabase.functions.invoke("send-push", {
+      body: {
+        type: "INSERT",
+        table: "deliveries",
+        schema: "public",
+        record: {
+          id: existingDelivery.id,
+          status: "pending",
+          store_name: storeName,
+          company_name: storeName,
+          details: detailsStr,
+          address: detailsStr,
+          pickup_address: companyData?.address || existingDelivery.pickup_address || "Retirada na Loja",
+          delivery_address: dropoff,
+          delivery_fee: feeVal,
+        }
+      }
+    }).catch(err => console.warn("[Deliveries] Erro ao disparar send-push:", err));
+
     return existingDelivery;
   }
 
@@ -369,6 +393,29 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   }
 
   console.log(`[Deliveries] Entrega criada com ID: ${delivery.id}. Vinculando ao pedido...`);
+
+  // DISPARO EXPLÍCITO DE FCM PUSH PARA OS ENTREGADORES ONLINE
+  const storeName = order.company_name || order.store_name || "É Pra Já Delivery";
+  const detailsStr = `🏬 Loja: ${storeName}\n📍 Coleta: ${companyData?.address || 'Retirada na Loja'}\n🏁 Entrega: ${dropoff}\n💰 Ganhos: R$ ${Number(driverFee).toFixed(2).replace('.', ',')}`;
+
+  supabase.functions.invoke("send-push", {
+    body: {
+      type: "INSERT",
+      table: "deliveries",
+      schema: "public",
+      record: {
+        id: delivery.id,
+        status: "pending",
+        store_name: storeName,
+        company_name: storeName,
+        details: detailsStr,
+        address: detailsStr,
+        pickup_address: companyData?.address || "Retirada na Loja",
+        delivery_address: dropoff,
+        delivery_fee: driverFee,
+      }
+    }
+  }).catch(err => console.warn("[Deliveries] Erro ao disparar send-push:", err));
 
   // 3. Associa a delivery_id ao pedido e marca status do pedido como delivering (Saiu para entrega)
   const { error: updateError } = await supabase
