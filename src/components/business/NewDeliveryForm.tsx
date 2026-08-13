@@ -229,13 +229,13 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
         finalNotes = `[RECEBER: ${paymentMethod}] ${finalNotes}`.trim();
       }
 
+      const storeTitle = currentCompany?.trade_name || currentCompany?.name || "Loja Parceira";
       if (storeTitle && storeTitle !== "Loja Parceira") {
         finalNotes = `[LOJA: ${storeTitle}] ${finalNotes}`.trim();
       }
 
       const now = new Date().toISOString();
       const deliveryId = initialData?.id || crypto.randomUUID();
-      const storeTitle = currentCompany?.trade_name || currentCompany?.name || "Loja Parceira";
       const resolvedCityId = currentCompany?.city_id || selectedCity || initialData?.city_id || null;
       const payload: any = {
         id: deliveryId,
