@@ -276,8 +276,8 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
 
       // DISPARO EXPLÍCITO DA EDGE FUNCTION SEND-PUSH PARA ENTREGADORES ONLINE
       if (!initialData || payload.status === "pending") {
-        const storeName = company?.trade_name || company?.name || "É Pra Já Delivery";
-        const feeVal = payload.value || 0;
+        const storeName = currentCompany?.trade_name || currentCompany?.name || (propCompanyData as any)?.trade_name || (propCompanyData as any)?.name || "É Pra Já Delivery";
+        const feeVal = payload.price || 0;
         const detailsStr = `🏬 Loja: ${storeName}\n📍 Coleta: ${payload.pickup_address || 'Retirada na Loja'}\n🏁 Entrega: ${payload.delivery_address || payload.address || ''}\n💰 Ganhos: R$ ${Number(feeVal).toFixed(2).replace('.', ',')}`;
 
         supabase.functions.invoke("send-push", {
@@ -295,8 +295,11 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
               pickup_address: payload.pickup_address || "Retirada na Loja",
               delivery_address: payload.delivery_address || payload.address || "",
               delivery_fee: feeVal,
+              price: feeVal,
             }
           }
+        }).then(res => {
+          console.log("[NewDeliveryForm] Push disparado com sucesso via client invoke:", res);
         }).catch(err => console.warn("[NewDeliveryForm] Erro ao disparar send-push:", err));
       }
 
