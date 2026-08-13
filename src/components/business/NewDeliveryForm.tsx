@@ -260,8 +260,8 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
       console.log("[NewDeliveryForm] enviando payload", payload);
 
       const deliveryWrite = initialData
-        ? await supabase.from("deliveries").update(payload).eq("id", initialData.id)
-        : await supabase.from("deliveries").insert([payload]);
+        ? await supabase.from("deliveries").update(payload).eq("id", initialData.id).select()
+        : await supabase.from("deliveries").insert([payload]).select();
 
       if (deliveryWrite.error) {
         const error = deliveryWrite.error;
@@ -272,7 +272,34 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
         throw new Error(`${error.message}${error.details ? ` — ${error.details}` : ""}`);
       }
 
-      const savedDelivery = deliveryWrite.data || (initialData ? { ...initialData, ...payload } : payload);
+      const savedDelivery = (deliveryWrite.data && deliveryWrite.data[0]) || (initialData ? { ...initialData, ...payload } : payload);
+
+      // DISPARO EXPLÍCITO DA EDGE FUNCTION SEND-PUSH PARA ENTREGADORES ONLINE
+      if (!initialData || payload.status === "pending") {
+        const storeName = company?.trade_name || company?.name || "É Pra Já Delivery";
+        const feeVal = payload.value || 0;
+        const detailsStr = `🏬 Loja: ${storeName}\n📍 Coleta: ${payload.pickup_address || 'Retirada na Loja'}\n🏁 Entrega: ${payload.delivery_address || payload.address || ''}\n💰 Ganhos: R$ ${Number(feeVal).toFixed(2).replace('.', ',')}`;
+
+        supabase.functions.invoke("send-push", {
+          body: {
+            type: "INSERT",
+            table: "deliveries",
+            schema: "public",
+            record: {
+              id: savedDelivery?.id || payload.id,
+              status: "pending",
+              store_name: storeName,
+              company_name: storeName,
+              details: detailsStr,
+              address: detailsStr,
+              pickup_address: payload.pickup_address || "Retirada na Loja",
+              delivery_address: payload.delivery_address || payload.address || "",
+              delivery_fee: feeVal,
+            }
+          }
+        }).catch(err => console.warn("[NewDeliveryForm] Erro ao disparar send-push:", err));
+      }
+
       onSaved?.(savedDelivery);
       qc.invalidateQueries({ queryKey: ["deliveries"] });
       qc.invalidateQueries({ queryKey: ["delivery-stats"] });
