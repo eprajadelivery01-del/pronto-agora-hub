@@ -25,7 +25,6 @@ serve(async (req) => {
 
   try {
     // Autenticação: exige um JWT válido do Supabase (usuário autenticado ou service role).
-    // Um simples header Bearer não basta — validamos o token de verdade.
     const authHeader = req.headers.get('Authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
     if (!token) {
@@ -38,7 +37,6 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
     const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
-    // Aceita chamadas internas com a service role key; caso contrário valida o JWT do usuário.
     let isAuthorized = SERVICE_ROLE_KEY.length > 0 && token === SERVICE_ROLE_KEY
     if (!isAuthorized) {
       if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
@@ -58,7 +56,6 @@ serve(async (req) => {
       }
       isAuthorized = true
     }
-
 
     const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
     const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
@@ -119,7 +116,43 @@ ${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
       const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload as Record<string, any>
       
       const msgLower = (error_message || "").toLowerCase()
-      if (msgLower.includes("deliveryoverlay is not defined") || msgLower.includes("permissão de sobreposição")) {
+      const additionalStr = JSON.stringify(additional_info || {}).toLowerCase()
+      const combined = `${msgLower} ${additionalStr}`
+
+      const ignoreKeywords = [
+        "aps-environment",
+        "código de autorização",
+        "codigo de autorizacao",
+        "nenhum código de autorização",
+        "nenhum codigo de autorizacao",
+        "authorization",
+        "apns",
+        "erro no registro de push",
+        "falha ao registrar push",
+        "deliveryoverlay is not defined",
+        "permissão de sobreposição",
+        "permissao de sobreposicao",
+        "corrida já foi aceita",
+        "corrida ja foi aceita",
+        "esta corrida ja foi aceita",
+        "esta corrida já foi aceita",
+        "ops! já foi aceita",
+        "ops! ja foi aceita",
+        "esta corrida ja pertence a outro entregador",
+        "esta corrida já pertence a outro entregador",
+        "erro na entrega",
+        "senha",
+        "inválida",
+        "invalida",
+        "credenciais",
+        "offline",
+        "não encontrada",
+        "nao encontrada",
+        "acesso negado",
+        "exclusivo para entregadores"
+      ];
+
+      if (ignoreKeywords.some(keyword => combined.includes(keyword))) {
         return new Response(JSON.stringify({ success: true, ignored: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
