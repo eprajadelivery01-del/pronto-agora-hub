@@ -2,9 +2,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { initializeGlobalErrorHandlers, reportErrorToTelegram } from "@/services/logger";
+import { silenceConsoleInProduction } from "@/lib/silenceConsole";
 import { toast as sonnerToast } from "sonner";
 
+// Console sempre limpo em produção (mantém o envio de erros para o monitoramento)
+silenceConsoleInProduction();
+
 initializeGlobalErrorHandlers("Painel Lojista");
+
 
 window.addEventListener("vite:preloadError", (event) => {
   console.warn("Vite preload error (chunk missing). Reloading page...");
