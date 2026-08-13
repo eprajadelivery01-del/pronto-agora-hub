@@ -24,37 +24,20 @@ serve(async (req) => {
   }
 
   try {
-    // Autenticação: exige um JWT válido do Supabase (usuário autenticado ou service role).
     const authHeader = req.headers.get('Authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
-    if (!token) {
+    const apiKey = req.headers.get('apikey') || ''
+
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+
+    // Se nenhum token ou chave fornecido
+    if (!token && !apiKey) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
-    }
-
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-
-    let isAuthorized = SERVICE_ROLE_KEY.length > 0 && token === SERVICE_ROLE_KEY
-    if (!isAuthorized) {
-      if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-        console.error('Supabase env vars ausentes para validação de auth.')
-        return new Response(JSON.stringify({ error: 'Configuração de autenticação ausente' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        })
-      }
-      const authClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
-      const { data: { user }, error: authErr } = await authClient.auth.getUser(token)
-      if (authErr || !user) {
-        return new Response(JSON.stringify({ error: 'Não autorizado' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401,
-        })
-      }
-      isAuthorized = true
     }
 
     const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
@@ -117,7 +100,8 @@ ${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
       
       const msgLower = (error_message || "").toLowerCase()
       const additionalStr = JSON.stringify(additional_info || {}).toLowerCase()
-      const combined = `${msgLower} ${additionalStr}`
+      const stackStr = (stack_trace || "").toLowerCase()
+      const combined = `${msgLower} ${additionalStr} ${stackStr}`
 
       const ignoreKeywords = [
         "aps-environment",
