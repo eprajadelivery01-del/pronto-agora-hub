@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { BikeIcon } from "@/components/icons/BikeIcon";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
-import { MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck } from "lucide-react";
+import { MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -13,11 +13,13 @@ import { useMessages, useSendMessage, getAdminId, getDirectConversation } from "
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ChatPage() {
-  const { user, profile, hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const [selectedConv, setSelectedConv] = useState<any>(null);
   const [message, setMessage] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
   const [searchParams] = useSearchParams();
   const orderIdParam = searchParams.get("order_id");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
@@ -34,7 +36,6 @@ export default function ChatPage() {
     return () => window.removeEventListener('chat_read_update', updateTimestamps);
   }, []);
 
-  
   // Fetch Admin ID
   const { data: adminId } = useQuery({
     queryKey: ["admin-id", user?.id],
@@ -67,12 +68,35 @@ export default function ChatPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("conversations")
-        .select("*, messages(content, created_at)")
+        .select("*, messages(content, created_at, sender_id)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     }
   });
+
+  // Global Realtime listener for incoming messages
+  useEffect(() => {
+    if (!user?.id) return;
+    const channelId = `admin-chat-global-${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase
+      .channel(channelId)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["conversations", user.id] });
+          if (selectedConv?.id) {
+            qc.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, selectedConv?.id, qc]);
 
   useEffect(() => {
     const handleUrlParams = async () => {
@@ -88,7 +112,7 @@ export default function ChatPage() {
               participants: [user.id, customerId],
               topic: "Suporte do Pedido" 
             })
-            .select("*, messages(content, created_at)")
+            .select("*, messages(content, created_at, sender_id)")
             .single();
           
           if (created) {
@@ -120,7 +144,6 @@ export default function ChatPage() {
         .select("user_id, full_name, avatar_url, role")
         .in("user_id", participantIds);
 
-      // Busca empresas tanto pelo owner (user_id) quanto pelo ID da empresa
       const { data: companies } = await supabase
         .from("companies")
         .select("id, user_id, name, logo_url")
@@ -131,9 +154,25 @@ export default function ChatPage() {
         .select("user_id")
         .in("user_id", participantIds);
 
+      const { data: customers } = await supabase
+        .from("customers")
+        .select("id, user_id, name, phone")
+        .or(`user_id.in.(${participantIds.join(',')}),id.in.(${participantIds.join(',')})`);
+
       const map: Record<string, any> = {};
       data?.forEach(p => {
         map[p.user_id] = { ...p };
+      });
+      customers?.forEach(cust => {
+        const idMap = (idToMap: string) => {
+          if (!map[idToMap]) map[idToMap] = { user_id: idToMap };
+          if (!map[idToMap].full_name || map[idToMap].full_name === 'Usuário' || map[idToMap].full_name.startsWith('Usuário #')) {
+            map[idToMap].full_name = cust.name;
+          }
+          map[idToMap].role = map[idToMap].role || 'customer';
+        };
+        if (cust.user_id) idMap(cust.user_id);
+        if (cust.id) idMap(cust.id);
       });
       companies?.forEach(c => {
         const idMap = (idToMap: string) => {
@@ -177,10 +216,17 @@ export default function ChatPage() {
     }
   }, [selectedConv, messages]);
 
+  // Auto-scroll down when messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   const handleSend = () => {
     if (!message.trim() || !selectedConv) return;
     const contentToSend = message.trim();
-    setMessage(""); // Limpa imediatamente
+    setMessage("");
     
     sendMessageMutation.mutate({
       conversationId: selectedConv.id,
@@ -188,18 +234,18 @@ export default function ChatPage() {
     }, {
       onError: (err) => {
         console.error("Failed to send message:", err);
+        toast.error("Erro ao enviar mensagem");
       }
     });
   };
 
   const getOtherParticipantId = (conv: any) => {
-    return conv.participants?.find((id: string) => id !== user?.id);
+    return conv.participants?.find((id: string) => id !== user?.id) || conv.participants?.[0];
   };
 
   const getConvTitle = (conv: any) => {
     if (conv.order_id) return `Pedido #${conv.order_id.slice(-6).toUpperCase()}`;
     
-    // Tenta extrair o Assunto da primeira mensagem caso seja um chat de suporte
     let extractedTopic = null;
     if (conv.messages && conv.messages.length > 0) {
       const firstMsg = [...conv.messages].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
@@ -219,7 +265,7 @@ export default function ChatPage() {
       return extractedTopic || `Usuário #${otherId.slice(0, 6).toUpperCase()}`;
     }
 
-    return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Usuário Anônimo";
+    return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Conversa";
   };
 
   const renderConvIcon = (conv: any) => {
@@ -227,13 +273,40 @@ export default function ChatPage() {
     return conv.order_id ? <MessageSquare className="h-5 w-5" /> : <HelpCircle className="h-5 w-5" />;
   };
 
+  // Sort conversations by latest message time, active conversations at the top
+  const sortedConversations = useMemo(() => {
+    if (!conversations) return [];
+    
+    const list = [...conversations].sort((a, b) => {
+      const lastMsgA = a.messages && a.messages.length > 0 
+        ? Math.max(...a.messages.map((m: any) => new Date(m.created_at).getTime()))
+        : new Date(a.created_at).getTime();
+
+      const lastMsgB = b.messages && b.messages.length > 0 
+        ? Math.max(...b.messages.map((m: any) => new Date(m.created_at).getTime()))
+        : new Date(b.created_at).getTime();
+
+      return lastMsgB - lastMsgA;
+    });
+
+    if (!searchFilter.trim()) return list;
+
+    const term = searchFilter.toLowerCase();
+    return list.filter((conv) => {
+      const title = getConvTitle(conv).toLowerCase();
+      const lastMsg = conv.messages?.[0]?.content?.toLowerCase() || "";
+      const orderId = conv.order_id?.toLowerCase() || "";
+      return title.includes(term) || lastMsg.includes(term) || orderId.includes(term);
+    });
+  }, [conversations, profilesMap, searchFilter]);
+
   return (
     <Layout title="Suporte / Chat" subtitle="Gerenciamento de conversas em tempo real">
       <div className="flex h-[calc(100vh-180px)] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar */}
         <div className="w-80 border-r border-border flex flex-col bg-muted/30">
           <div className="p-4 border-b border-border bg-card/50 flex items-center justify-between">
-            <h3 className="font-bold text-foreground text-sm uppercase tracking-widest opacity-60">Conversas Ativas</h3>
+            <h3 className="font-bold text-foreground text-sm uppercase tracking-widest opacity-60">Conversas ({sortedConversations.length})</h3>
             {isLojista && (
               <button 
                 onClick={handleStartAdminChat}
@@ -243,6 +316,21 @@ export default function ChatPage() {
               </button>
             )}
           </div>
+
+          {/* Search Box */}
+          <div className="p-3 border-b border-border/50 bg-background/50">
+            <div className="flex items-center gap-2 bg-muted/60 px-3 py-2 rounded-xl border border-border/60">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar conversa ou nome..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none w-full font-medium"
+              />
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loadingConvs ? (
               <div className="flex items-center justify-center p-8">
@@ -252,13 +340,12 @@ export default function ChatPage() {
               <div className="p-8 text-center opacity-40">
                 <p className="text-xs font-bold uppercase text-destructive">Erro ao carregar</p>
               </div>
-            ) : conversations?.length === 0 ? (
+            ) : sortedConversations.length === 0 ? (
               <div className="p-8 text-center opacity-40">
                 <p className="text-xs font-bold uppercase">Nenhuma conversa</p>
               </div>
             ) : (
-              conversations?.map((conv) => {
-                // Pega as mensagens ordenadas corretamente
+              sortedConversations.map((conv) => {
                 const sortedMessages = conv.messages ? [...conv.messages].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) : [];
                 const lastMsg = sortedMessages[0];
                 const otherId = getOtherParticipantId(conv);
@@ -291,7 +378,7 @@ export default function ChatPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-sm truncate">
-                          {otherProfile?.full_name || "Usuário"} {otherProfile?.role === 'driver' && <span className="text-xs font-normal text-muted-foreground ml-1">(Entregador)</span>}
+                          {otherProfile?.full_name || getConvTitle(conv)} {otherProfile?.role === 'driver' && <span className="text-xs font-normal text-muted-foreground ml-1">(Entregador)</span>}
                           {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(Pedido #{conv.order_id.slice(0, 4)})</span>}
                           </span>
                           {lastMsg && (
@@ -308,10 +395,10 @@ export default function ChatPage() {
                           )}
                         </div>
                         <p className="text-[11px] font-bold text-muted-foreground truncate mt-0.5">
-                          {profilesMap?.[getOtherParticipantId(conv)]?.role === 'admin' ? "Suporte (Admin)" : "Usuário / Entregador"}
+                          {otherProfile?.role === 'company' ? "Lojista" : otherProfile?.role === 'driver' ? "Entregador" : "Cliente"}
                         </p>
-                        <p className="text-[10px] text-muted-foreground/60 truncate italic mt-1">
-                          {lastMsg?.content || "Iniciando conversa..."}
+                        <p className="text-[10px] text-muted-foreground/80 truncate italic mt-1">
+                          {lastMsg?.content?.replace(/\u200B/g, '') || "Inicie a conversa..."}
                         </p>
                       </div>
                     </div>
@@ -341,7 +428,9 @@ export default function ChatPage() {
                   </div>
                   <div>
                     <span className="font-black text-sm block">{getConvTitle(selectedConv)}</span>
-                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Online</span>
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                      {profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'company' ? "Lojista Parceiro" : profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'driver' ? "Entregador Parceiro" : "Cliente"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -355,40 +444,47 @@ export default function ChatPage() {
                       <span className="text-[13px] text-muted-foreground font-medium">Carregando mensagens...</span>
                     </div>
                   </div>
-                ) : messages?.map((msg) => {
-                  // A identificação verdadeira deve ser SEMPRE pelo sender_id.
-                  // Se em ambiente de teste for a mesma conta, o zero-width space ainda é usado como fallback temporário.
-                  const isTestAccountHack = msg.content.endsWith('\u200B');
-                  const isMe = (msg.sender_id === user?.id) || isTestAccountHack;
-                  const displayContent = msg.content.replace(/\u200B/g, '');
+                ) : messages && messages.length > 0 ? (
+                  messages.map((msg) => {
+                    const isTestAccountHack = msg.content.endsWith('\u200B');
+                    const isMe = (msg.sender_id === user?.id) || isTestAccountHack;
+                    const displayContent = msg.content.replace(/\u200B/g, '');
 
-                  return (
-                    <div key={msg.id} className={cn("flex flex-col w-full relative z-10", isMe ? "items-end" : "items-start")}>
-                      <div 
-                        className={cn(
-                          "relative max-w-[75%] px-3 py-2 rounded-2xl shadow-sm",
-                          isMe 
-                            ? "bg-[#2b5278] rounded-br-[4px] text-[#ffffff]" 
-                            : "bg-[#182533] rounded-bl-[4px] text-[#ffffff]"
-                        )}
-                      >
-                        <div className="flex flex-col">
-                          <p className="text-[15px] leading-[20px] whitespace-pre-wrap pr-10">
-                            {displayContent}
-                          </p>
-                          <div className="flex items-center justify-end gap-1 absolute bottom-1 right-2">
-                            <span className={cn("text-[11px]", isMe ? "text-[#7aa4c7]" : "text-[#547c9e]")}>
-                              {format(new Date(msg.created_at), "HH:mm")}
-                            </span>
-                            {isMe && (
-                              <CheckCheck className="h-[14px] w-[14px] text-[#53BDEB]" />
-                            )}
+                    return (
+                      <div key={msg.id} className={cn("flex flex-col w-full relative z-10", isMe ? "items-end" : "items-start")}>
+                        <div 
+                          className={cn(
+                            "relative max-w-[75%] px-3.5 py-2.5 rounded-2xl shadow-sm",
+                            isMe 
+                              ? "bg-[#2b5278] rounded-br-[4px] text-[#ffffff]" 
+                              : "bg-[#182533] rounded-bl-[4px] text-[#ffffff]"
+                          )}
+                        >
+                          <div className="flex flex-col">
+                            <p className="text-[15px] leading-[20px] whitespace-pre-wrap pr-10">
+                              {displayContent}
+                            </p>
+                            <div className="flex items-center justify-end gap-1 absolute bottom-1 right-2">
+                              <span className={cn("text-[11px]", isMe ? "text-[#7aa4c7]" : "text-[#547c9e]")}>
+                                {format(new Date(msg.created_at), "HH:mm")}
+                              </span>
+                              {isMe && (
+                                <CheckCheck className="h-[14px] w-[14px] text-[#53BDEB]" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
+                    <MessageSquare className="h-10 w-10 text-primary mb-2" />
+                    <p className="text-sm font-semibold">Nenhuma mensagem nesta conversa ainda.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Envie a primeira mensagem abaixo para falar com o contato.</p>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input */}
@@ -407,7 +503,7 @@ export default function ChatPage() {
                   <button
                     onClick={handleSend}
                     disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="w-12 h-12 rounded-full bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95"
+                    className="w-12 h-12 rounded-full bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
                   >
                     {sendMessageMutation.isPending ? (
                       <Loader2 className="h-5 w-5 animate-spin text-primary-foreground" />
