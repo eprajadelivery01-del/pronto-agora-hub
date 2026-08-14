@@ -5,11 +5,11 @@ import { BikeIcon } from "@/components/icons/BikeIcon";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
-import { MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck, Search } from "lucide-react";
+import { MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck, Search, Trash2, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useMessages, useSendMessage, getAdminId, getDirectConversation } from "@/services/chat";
+import { useMessages, useSendMessage, useDeleteConversation, getAdminId, getDirectConversation } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ChatPage() {
@@ -17,6 +17,7 @@ export default function ChatPage() {
   const [selectedConv, setSelectedConv] = useState<any>(null);
   const [message, setMessage] = useState("");
   const [searchFilter, setSearchFilter] = useState("");
+  const [isClearingEmpty, setIsClearingEmpty] = useState(false);
   const [searchParams] = useSearchParams();
   const orderIdParam = searchParams.get("order_id");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,6 +90,13 @@ export default function ChatPage() {
           if (selectedConv?.id) {
             qc.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "conversations" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["conversations", user.id] });
         }
       )
       .subscribe();
@@ -206,6 +214,7 @@ export default function ChatPage() {
 
   const { data: messages, isLoading: loadingMessages } = useMessages(selectedConv?.id);
   const sendMessageMutation = useSendMessage();
+  const deleteConversationMutation = useDeleteConversation();
 
   useEffect(() => {
     if (selectedConv) {
@@ -237,6 +246,48 @@ export default function ChatPage() {
         toast.error("Erro ao enviar mensagem");
       }
     });
+  };
+
+  const handleDeleteConversation = async (convId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm("Tem certeza que deseja apagar esta conversa e todo o seu histórico?")) return;
+
+    try {
+      await deleteConversationMutation.mutateAsync(convId);
+      toast.success("Conversa apagada com sucesso!");
+      if (selectedConv?.id === convId) {
+        setSelectedConv(null);
+      }
+    } catch (err: any) {
+      console.error("Erro ao apagar conversa:", err);
+      toast.error("Erro ao apagar conversa: " + (err.message || "Tente novamente"));
+    }
+  };
+
+  const handleClearEmptyConversations = async () => {
+    const emptyConvs = (conversations || []).filter((c: any) => !c.messages || c.messages.length === 0);
+    if (emptyConvs.length === 0) {
+      toast.info("Não há conversas vazias para limpar.");
+      return;
+    }
+
+    if (!window.confirm(`Deseja apagar todas as ${emptyConvs.length} conversas vazias (sem mensagens)?`)) return;
+
+    setIsClearingEmpty(true);
+    try {
+      const ids = emptyConvs.map((c: any) => c.id);
+      await supabase.from("conversations").delete().in("id", ids);
+      qc.invalidateQueries({ queryKey: ["conversations", user?.id] });
+      toast.success(`${emptyConvs.length} conversas vazias apagadas!`);
+      if (selectedConv && ids.includes(selectedConv.id)) {
+        setSelectedConv(null);
+      }
+    } catch (err: any) {
+      console.error("Erro ao limpar conversas vazias:", err);
+      toast.error("Erro ao limpar conversas vazias");
+    } finally {
+      setIsClearingEmpty(false);
+    }
   };
 
   const getOtherParticipantId = (conv: any) => {
@@ -305,16 +356,29 @@ export default function ChatPage() {
       <div className="flex h-[calc(100vh-180px)] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar */}
         <div className="w-80 border-r border-border flex flex-col bg-muted/30">
-          <div className="p-4 border-b border-border bg-card/50 flex items-center justify-between">
+          <div className="p-4 border-b border-border bg-card/50 flex items-center justify-between gap-2">
             <h3 className="font-bold text-foreground text-sm uppercase tracking-widest opacity-60">Conversas ({sortedConversations.length})</h3>
-            {isLojista && (
-              <button 
-                onClick={handleStartAdminChat}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
-              >
-                Falar com o Admin
-              </button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!isLojista && (
+                <button
+                  onClick={handleClearEmptyConversations}
+                  disabled={isClearingEmpty}
+                  title="Limpar todas as conversas vazias"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-destructive/10 text-destructive text-[0.65rem] font-bold uppercase tracking-wider hover:bg-destructive/20 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isClearingEmpty ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eraser className="h-3 w-3" />}
+                  <span>Limpar Vazias</span>
+                </button>
+              )}
+              {isLojista && (
+                <button 
+                  onClick={handleStartAdminChat}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
+                >
+                  Falar com o Admin
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Search Box */}
@@ -360,15 +424,15 @@ export default function ChatPage() {
                 }).length;
                 
                 return (
-                  <button
+                  <div
                     key={conv.id}
                     onClick={() => setSelectedConv(conv)}
                     className={cn(
-                      "w-full p-4 text-left transition-all border-b border-border/40 relative group",
+                      "w-full p-4 text-left transition-all border-b border-border/40 relative group cursor-pointer flex items-center justify-between",
                       selectedConv?.id === conv.id ? "bg-card shadow-sm z-10" : "hover:bg-muted/50"
                     )}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                       <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
                         conv.topic === 'driver_application' ? "bg-orange-500/10 text-orange-500" : "bg-primary/10 text-primary"
@@ -402,10 +466,20 @@ export default function ChatPage() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Botão de Excluir Conversa Individual na Lista */}
+                    <button
+                      onClick={(e) => handleDeleteConversation(conv.id, e)}
+                      title="Apagar conversa"
+                      className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+
                     {selectedConv?.id === conv.id && (
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                     )}
-                  </button>
+                  </div>
                 );
               })
             )}
@@ -433,6 +507,16 @@ export default function ChatPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Botão de Apagar Conversa Aberta */}
+                <button
+                  onClick={() => handleDeleteConversation(selectedConv.id)}
+                  title="Apagar esta conversa e mensagens"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Apagar Chat</span>
+                </button>
               </div>
 
               {/* Messages */}
@@ -481,7 +565,7 @@ export default function ChatPage() {
                   <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
                     <MessageSquare className="h-10 w-10 text-primary mb-2" />
                     <p className="text-sm font-semibold">Nenhuma mensagem nesta conversa ainda.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Envie a primeira mensagem abaixo para falar com o contato.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Envie uma mensagem abaixo para falar com o contato.</p>
                   </div>
                 )}
                 <div ref={messagesEndRef} />

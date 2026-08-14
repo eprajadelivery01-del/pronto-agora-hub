@@ -184,12 +184,33 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) => {
       if (!user?.id) throw new Error("Usuário não autenticado");
-      // Adiciona um zero-width space invisível no final da mensagem para identificar que foi enviada pelo admin
-      // Isso permite que o usuário teste com a MESMA CONTA no marketplace e no admin panel sem quebrar os lados dos balões.
       return sendMessage(conversationId, user.id, content + '\u200B');
     },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["messages", variables.conversationId] });
+      qc.invalidateQueries({ queryKey: ["conversations", user?.id] });
     },
   });
 }
+
+export async function deleteConversation(conversationId: string) {
+  // 1. Deletar mensagens da conversa
+  await supabase.from("messages").delete().eq("conversation_id", conversationId);
+  // 2. Deletar a conversa
+  const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
+  if (error) throw error;
+  return true;
+}
+
+export function useDeleteConversation() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: (conversationId: string) => deleteConversation(conversationId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["conversations", user?.id] });
+    },
+  });
+}
+
