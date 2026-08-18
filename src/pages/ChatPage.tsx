@@ -353,9 +353,9 @@ export default function ChatPage() {
 
   return (
     <Layout title="Suporte / Chat" subtitle="Gerenciamento de conversas em tempo real">
-      <div className="flex h-[calc(100vh-180px)] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+      <div className="flex h-full w-full min-w-0 min-h-0 min-h-[500px] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar */}
-        <div className="w-80 border-r border-border flex flex-col bg-muted/30">
+        <div className="w-80 shrink-0 border-r border-border flex flex-col bg-muted/30 min-w-0 overflow-hidden">
           <div className="p-4 border-b border-border bg-card/50 flex items-center justify-between gap-2">
             <h3 className="font-bold text-foreground text-sm uppercase tracking-widest opacity-60">Conversas ({sortedConversations.length})</h3>
             <div className="flex items-center gap-1.5">
