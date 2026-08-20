@@ -79,9 +79,64 @@ serve(async (req) => {
 
     let message = "";
 
+    const normalizeText = (text: string) => {
+      return (text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    const ignoreKeywords = [
+      "aps environment",
+      "codigo de autorizacao",
+      "nenhum codigo de autorizacao",
+      "authorization",
+      "apns",
+      "erro no registro de push",
+      "falha ao registrar push",
+      "deliveryoverlay is not defined",
+      "deliveryoverlay",
+      "driverrecord is not defined",
+      "driverrecord",
+      "permissao de sobreposicao",
+      "corrida ja foi aceita",
+      "esta corrida ja foi aceita",
+      "ja foi aceita por outro",
+      "ja foi aceita",
+      "ops ja foi aceita",
+      "esta corrida ja pertence a outro entregador",
+      "esta corrida ja pertence",
+      "ja pertence a outro entregador",
+      "ja pertence a outro",
+      "pertence a outro entregador",
+      "pertence a outro",
+      "outro entregador",
+      "erro na entrega",
+      "erro ao atualizar entrega",
+      "erro ao atualizar",
+      "senha",
+      "invalida",
+      "credenciais",
+      "offline",
+      "nao encontrada",
+      "acesso negado",
+      "exclusivo para entregadores"
+    ];
+
     // Check if it is a Supabase Database Webhook payload (from system_alerts)
     if (payload.type === 'INSERT' && payload.table === 'system_alerts') {
       const record = (payload.record ?? {}) as Record<string, any>;
+      const recordNorm = normalizeText(`${record.message || ''} ${JSON.stringify(record.details || {})}`);
+      if (ignoreKeywords.some(keyword => recordNorm.includes(keyword))) {
+        return new Response(JSON.stringify({ success: true, ignored: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+
       const title = "🚨 ALERTA DO SISTEMA (Sentinela) 🚨";
       message = `
 ${title}
@@ -98,45 +153,9 @@ ${JSON.stringify(record.details || {}, null, 2).substring(0, 500)}
     } else {
       const { app_name, error_message, stack_trace, user_id, user_email, url, additional_info, is_attack } = payload as Record<string, any>
       
-      const msgLower = (error_message || "").toLowerCase()
-      const additionalStr = JSON.stringify(additional_info || {}).toLowerCase()
-      const stackStr = (stack_trace || "").toLowerCase()
-      const combined = `${msgLower} ${additionalStr} ${stackStr}`
+      const combinedNorm = normalizeText(`${error_message || ''} ${stack_trace || ''} ${JSON.stringify(additional_info || {})}`);
 
-      const ignoreKeywords = [
-        "aps-environment",
-        "código de autorização",
-        "codigo de autorizacao",
-        "nenhum código de autorização",
-        "nenhum codigo de autorizacao",
-        "authorization",
-        "apns",
-        "erro no registro de push",
-        "falha ao registrar push",
-        "deliveryoverlay is not defined",
-        "permissão de sobreposição",
-        "permissao de sobreposicao",
-        "corrida já foi aceita",
-        "corrida ja foi aceita",
-        "esta corrida ja foi aceita",
-        "esta corrida já foi aceita",
-        "ops! já foi aceita",
-        "ops! ja foi aceita",
-        "esta corrida ja pertence a outro entregador",
-        "esta corrida já pertence a outro entregador",
-        "erro na entrega",
-        "senha",
-        "inválida",
-        "invalida",
-        "credenciais",
-        "offline",
-        "não encontrada",
-        "nao encontrada",
-        "acesso negado",
-        "exclusivo para entregadores"
-      ];
-
-      if (ignoreKeywords.some(keyword => combined.includes(keyword))) {
+      if (ignoreKeywords.some(keyword => combinedNorm.includes(keyword))) {
         return new Response(JSON.stringify({ success: true, ignored: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
