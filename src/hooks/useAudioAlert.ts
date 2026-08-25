@@ -42,7 +42,10 @@ if (typeof window !== "undefined") {
  * Dispara vibração física no dispositivo do usuário (Haptics)
  */
 export function triggerDeviceVibration(pattern: number[] = [500, 200, 500, 200, 800]) {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+  // Apenas vibra se estiver rodando nativo ou se o usuário já interagiu para destravar áudio/vibração,
+  // evitando logs de intervenção do Chrome ("Intervention: Blocked call to navigator.vibrate...") em iframes (Lovable)
+  const canVibrate = Capacitor.isNativePlatform() || isUnlocked;
+  if (canVibrate && typeof navigator !== "undefined" && "vibrate" in navigator) {
     try {
       navigator.vibrate(pattern);
     } catch (e) {
