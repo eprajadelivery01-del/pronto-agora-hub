@@ -150,6 +150,7 @@ export default function BusinessOrdersPage() {
           .from("orders")
           .select(ORDERS_SELECT)
           .eq("company_id", companyId)
+          .neq("status", "cancelled")
           .order("created_at", { ascending: false });
 
       // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
