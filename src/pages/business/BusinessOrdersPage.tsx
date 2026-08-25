@@ -102,7 +102,7 @@ export default function BusinessOrdersPage() {
     open_total: 0,
     in_route_total: 0
   });
-  const { stopLoop } = useAudioAlert();
+  const { playAlert, startLoop, stopLoop } = useAudioAlert();
   const createDeliveryMut = useCreateDeliveryRequest();
   
   // Controle Transacional Rigoroso
@@ -439,9 +439,15 @@ export default function BusinessOrdersPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
         (payload) => {
           if (payload.eventType === "INSERT") {
+            playAlert();
+            startLoop();
             sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
               body: `Novo pedido no marketplace! Acesse o painel para aceitar.`,
               tag: `order-${payload.new?.id || Date.now()}`,
+            });
+            toast.success("📦 NOVO PEDIDO RECEBIDO!", {
+              description: "Novo pedido recebido no marketplace. Acesse para aceitar.",
+              duration: 10000
             });
           }
           fetchOrders();
