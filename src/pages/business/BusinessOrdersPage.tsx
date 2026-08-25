@@ -338,6 +338,7 @@ export default function BusinessOrdersPage() {
           return {
             ...o,
             status: computedStatus,
+            deliveryStatus: deliveryStatus,
             customer: {
               name: finalName,
               phone: finalPhone,
@@ -873,6 +874,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
   const [isModalOpen, setIsModalOpen] = useState(false);
   const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
   const isPending = order.status === "pending";
+  const isDeliveryActive = !!(order.delivery_id && (order as any).deliveryStatus && (order as any).deliveryStatus !== "cancelled");
 
   return (
     <>
@@ -991,7 +993,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 <XCircle className="h-4 w-4" />
               </button>
             )}
-            {order.status === "ready" && !order.delivery_id && (
+            {order.status === "ready" && !isDeliveryActive && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onDispatch(); }}
@@ -1002,7 +1004,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 {!isProcessing && <Truck className="h-3 w-3" />}
               </button>
             )}
-            {action && (!order.delivery_id || action.next !== "delivered") && (
+            {action && (!isDeliveryActive || action.next !== "delivered") && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onAdvance(); }}
