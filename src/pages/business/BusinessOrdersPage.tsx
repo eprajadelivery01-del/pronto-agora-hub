@@ -69,6 +69,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 const ALLOWED_MANUAL_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
   pending: "preparing",
   preparing: "ready",
+  ready: "in_route",
   in_route: "delivered",
 };
 
@@ -76,6 +77,7 @@ const getNextActions = (status: OrderStatus) => {
   const actions: Record<string, { label: string, next: OrderStatus }> = {
     pending: { label: "Aceitar Pedido", next: "preparing" },
     preparing: { label: "Marcar Pronto", next: "ready" },
+    ready: { label: "Despachar", next: "in_route" },
     in_route: { label: "Finalizar", next: "delivered" },
   };
   return actions[status];
@@ -1000,7 +1002,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 {!isProcessing && <Truck className="h-3 w-3" />}
               </button>
             )}
-            {action && (!order.delivery_id || action.next !== "delivered") && (
+            {action && (!order.delivery_id || (action.next !== "delivered" && action.next !== "in_route")) && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onAdvance(); }}
