@@ -161,7 +161,6 @@ export function useDeliveryStats(params?: { companyId?: string; dateFrom?: strin
         todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + (Number((d as any).value) || Number((d as any).price) || 0), 0),
       };
     },
-    refetchInterval: 30000,
   });
 }
 
