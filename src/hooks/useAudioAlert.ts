@@ -15,17 +15,22 @@ if (typeof window !== "undefined") {
   globalAudio.src = ALERT_SOUND_URL + "?v=" + Date.now();
   globalAudio.load();
 
+  let isUnlocking = false;
   const unlockGlobalAudio = () => {
-    if (isUnlocked || !globalAudio) return;
+    if (isUnlocked || isUnlocking || !globalAudio) return;
+    isUnlocking = true;
     globalAudio.volume = 0;
     globalAudio.play()
       .then(() => {
         isUnlocked = true;
+        isUnlocking = false;
         window.removeEventListener("click", unlockGlobalAudio);
         window.removeEventListener("touchstart", unlockGlobalAudio);
         window.removeEventListener("keydown", unlockGlobalAudio);
       })
-      .catch(() => {});
+      .catch(() => {
+        isUnlocking = false;
+      });
   };
 
   window.addEventListener("click", unlockGlobalAudio);
