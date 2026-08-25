@@ -142,9 +142,10 @@ async function sendToToken(
   data: Record<string, string>,
 ): Promise<SendResult> {
   const isDriverDelivery = data.type === "delivery";
-  const channelId = isDriverDelivery ? "delivery-incoming-v9" : "marketplace_orders_v2";
+  const channelId = isDriverDelivery ? "delivery-incoming-v9" : "marketplace_orders";
+  const soundName = isDriverDelivery ? "ring" : "default";
   
-  // Estrutura Padrão Profissional FCM HTTP v1: notification + data + android.priority HIGH + channel_id marketplace_orders_v2
+  // Estrutura Padrão Profissional FCM HTTP v1: notification + data + android.priority HIGH + channel_id
     const notifTag = data.deliveryId 
       ? `delivery-${data.deliveryId}` 
       : (data.orderId 
@@ -160,8 +161,8 @@ async function sendToToken(
           priority: "HIGH",
           collapse_key: notifTag,
           notification: {
-            channel_id: "marketplace_orders_v2",
-            sound: "ring",
+            channel_id: channelId,
+            sound: soundName,
             default_vibrate_timings: true,
             notification_priority: "PRIORITY_MAX",
             visibility: "PUBLIC",
@@ -170,7 +171,7 @@ async function sendToToken(
         },
       apns: {
         headers: { "apns-priority": "10", "apns-push-type": "alert" },
-        payload: { aps: { alert: { title, body }, sound: "default", badge: 1, "mutable-content": 1 } },
+        payload: { aps: { alert: { title, body }, sound: isDriverDelivery ? "ring.caf" : "default", badge: 1, "mutable-content": 1 } },
       },
     },
   };
