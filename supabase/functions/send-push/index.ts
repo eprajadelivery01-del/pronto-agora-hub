@@ -143,7 +143,7 @@ async function sendToToken(
 ): Promise<SendResult> {
   const isDriverDelivery = data.type === "delivery";
   const channelId = isDriverDelivery ? "delivery-incoming-v9" : "marketplace_orders";
-  const soundName = isDriverDelivery ? "ring" : "default";
+  const soundName = isDriverDelivery ? "notification_sound" : "default";
   
   // Estrutura Padrão Profissional FCM HTTP v1: notification + data + android.priority HIGH + channel_id
     const notifTag = data.deliveryId 
