@@ -11,7 +11,8 @@ let vibrationInterval: any = null;
 let activeNotification: Notification | null = null;
 
 if (typeof window !== "undefined") {
-  globalAudio = new Audio(ALERT_SOUND_URL);
+  globalAudio = new Audio();
+  globalAudio.src = ALERT_SOUND_URL + "?v=" + Date.now();
   globalAudio.load();
 
   const unlockGlobalAudio = () => {
