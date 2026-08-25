@@ -66,11 +66,11 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const ALLOWED_MANUAL_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending: "preparing",
-  preparing: "ready",
-  ready: "in_route",
-  in_route: "delivered",
+const ALLOWED_MANUAL_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  pending: ["preparing", "cancelled"],
+  preparing: ["ready", "pending", "cancelled"],
+  ready: ["in_route", "preparing", "cancelled"],
+  in_route: ["delivered", "ready", "cancelled"],
 };
 
 const getNextActions = (status: OrderStatus) => {
@@ -338,6 +338,7 @@ export default function BusinessOrdersPage() {
           return {
             ...o,
             status: computedStatus,
+            rawStatus: o.status,
             deliveryStatus: deliveryStatus,
             customer: {
               name: finalName,
@@ -478,10 +479,11 @@ export default function BusinessOrdersPage() {
     }
 
     const expectedStatus = currentOrder.status;
-    const allowedNextStatus = ALLOWED_MANUAL_TRANSITIONS[expectedStatus];
+    const dbStatus = (currentOrder as any).rawStatus || expectedStatus;
+    const allowedStatuses = ALLOWED_MANUAL_TRANSITIONS[expectedStatus] || [];
 
     // CAMADA 1: Whitelist (Impede Pulo Lógico)
-    if (newStatus !== "cancelled" && (!allowedNextStatus || allowedNextStatus !== newStatus)) {
+    if (newStatus !== "cancelled" && !allowedStatuses.includes(newStatus)) {
       console.error("[KANBAN] Transição bloqueada:", {
         orderId,
         expectedStatus,
@@ -490,6 +492,7 @@ export default function BusinessOrdersPage() {
 
       toast.error(`Transição de pedido não permitida: ${STATUS_LABELS[expectedStatus] || expectedStatus} → ${STATUS_LABELS[newStatus] || newStatus}`);
       fetchOrders();
+      releaseLock(orderId);
       return false;
     }
 
@@ -499,13 +502,14 @@ export default function BusinessOrdersPage() {
         .from("orders")
         .update({ status: newStatus })
         .eq("id", orderId)
-        .eq("status", expectedStatus)
+        .eq("status", dbStatus)
         .select("id, status, customer_id, user_id")
         .maybeSingle();
 
       if (error || !data) {
         toast.warning("O status deste pedido foi atualizado em outra sessão. A lista foi sincronizada.");
         fetchOrders();
+        releaseLock(orderId);
         return false;
       }
 
