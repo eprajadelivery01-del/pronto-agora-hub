@@ -98,7 +98,6 @@ export function sendNativeDeviceNotification(
             title: title || "Chegou um novo pedido!",
             body: options?.body || "Acesse o app para aceitar e começar a preparar",
             id: Math.floor(Math.random() * 100000),
-            schedule: { at: new Date(Date.now() + 100) },
             channelId: "lojista_orders_v2",
             sound: "notification_sound.mp3",
             extra: {
