@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 
 // Singleton instances to be used globally outside React lifecycle
-const ALERT_SOUND_URL = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+const ALERT_SOUND_URL = "/notification_sound.mp3";
 
 let globalAudio: HTMLAudioElement | null = null;
 let isUnlocked = false;
@@ -52,13 +52,15 @@ export function requestNotificationPermission() {
   if (Capacitor.isNativePlatform()) {
     LocalNotifications.requestPermissions().then((res) => {
       if (res.display === "granted") {
+        LocalNotifications.deleteChannel({ id: "default" }).catch(() => {});
         LocalNotifications.createChannel({
-          id: "default",
+          id: "lojista_orders_v2",
           name: "Notificações do Lojista",
           description: "Avisos de novos pedidos e mensagens dos clientes",
-          importance: 4,
+          importance: 5,
           visibility: 1,
           vibration: true,
+          sound: "notification_sound.mp3",
         }).catch(() => {});
       }
     }).catch(() => {});
@@ -96,7 +98,8 @@ export function sendNativeDeviceNotification(
             body: options?.body || "Acesse o app para aceitar e começar a preparar",
             id: Math.floor(Math.random() * 100000),
             schedule: { at: new Date(Date.now() + 100) },
-            channelId: "default",
+            channelId: "lojista_orders_v2",
+            sound: "notification_sound.mp3",
             extra: {
               tag: options?.tag || "epraja-new-order"
             }
