@@ -9,6 +9,7 @@ let globalAudio: HTMLAudioElement | null = null;
 let isUnlocked = false;
 let vibrationInterval: any = null;
 let activeNotification: Notification | null = null;
+let lastPlayPromise: Promise<void> | null = null;
 
 if (typeof window !== "undefined") {
   globalAudio = new Audio();
@@ -20,15 +21,23 @@ if (typeof window !== "undefined") {
     if (isUnlocked || isUnlocking || !globalAudio) return;
     isUnlocking = true;
     globalAudio.volume = 0;
-    globalAudio.play()
+    const playPromise = globalAudio.play();
+    lastPlayPromise = playPromise;
+    playPromise
       .then(() => {
         isUnlocked = true;
         isUnlocking = false;
+        if (lastPlayPromise === playPromise) {
+          lastPlayPromise = null;
+        }
         window.removeEventListener("click", unlockGlobalAudio);
         window.removeEventListener("touchstart", unlockGlobalAudio);
         window.removeEventListener("keydown", unlockGlobalAudio);
       })
       .catch(() => {
+        if (lastPlayPromise === playPromise) {
+          lastPlayPromise = null;
+        }
         isUnlocking = false;
       });
   };
@@ -161,9 +170,18 @@ export function useAudioAlert() {
     requestNotificationPermission();
     if (globalAudio) {
       globalAudio.volume = 0; // Silent playback to unlock context
-      globalAudio.play()
-        .then(() => {})
+      const playPromise = globalAudio.play();
+      lastPlayPromise = playPromise;
+      playPromise
+        .then(() => {
+          if (lastPlayPromise === playPromise) {
+            lastPlayPromise = null;
+          }
+        })
         .catch((e) => {
+          if (lastPlayPromise === playPromise) {
+            lastPlayPromise = null;
+          }
           if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao destravar áudio:", e);
         });
     }
@@ -173,9 +191,20 @@ export function useAudioAlert() {
     if (globalAudio) {
       globalAudio.currentTime = 0;
       globalAudio.volume = 1.0;
-      globalAudio.play().catch((e) => {
-        console.warn("[AudioAlert] Falha ao tocar alerta sonoro:", e);
-      });
+      const playPromise = globalAudio.play();
+      lastPlayPromise = playPromise;
+      playPromise
+        .then(() => {
+          if (lastPlayPromise === playPromise) {
+            lastPlayPromise = null;
+          }
+        })
+        .catch((e) => {
+          if (lastPlayPromise === playPromise) {
+            lastPlayPromise = null;
+          }
+          console.warn("[AudioAlert] Falha ao tocar alerta sonoro:", e);
+        });
     }
     triggerDeviceVibration();
     window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
@@ -185,9 +214,20 @@ export function useAudioAlert() {
     if (globalAudio) {
       globalAudio.loop = true;
       globalAudio.volume = 1.0;
-      globalAudio.play().catch((e) => {
-        console.warn("[AudioAlert] Falha ao tocar alerta sonoro em loop:", e);
-      });
+      const playPromise = globalAudio.play();
+      lastPlayPromise = playPromise;
+      playPromise
+        .then(() => {
+          if (lastPlayPromise === playPromise) {
+            lastPlayPromise = null;
+          }
+        })
+        .catch((e) => {
+          if (lastPlayPromise === playPromise) {
+            lastPlayPromise = null;
+          }
+          console.warn("[AudioAlert] Falha ao tocar alerta sonoro em loop:", e);
+        });
     }
 
     // Inicia repetição de vibração no celular enquanto o pedido estritamente pendente persistir
@@ -202,9 +242,22 @@ export function useAudioAlert() {
 
   const stopLoop = useCallback(() => {
     if (globalAudio) {
-      globalAudio.pause();
-      globalAudio.currentTime = 0;
-      globalAudio.loop = false;
+      const performPause = () => {
+        try {
+          globalAudio.pause();
+          globalAudio.currentTime = 0;
+          globalAudio.loop = false;
+        } catch (e) {
+          console.warn("[AudioAlert] Falha ao parar áudio:", e);
+        }
+      };
+
+      if (lastPlayPromise) {
+        lastPlayPromise.then(performPause).catch(performPause);
+        lastPlayPromise = null;
+      } else {
+        performPause();
+      }
     }
 
     if (vibrationInterval) {
