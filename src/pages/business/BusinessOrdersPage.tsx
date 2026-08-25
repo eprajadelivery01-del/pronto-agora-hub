@@ -330,10 +330,6 @@ export default function BusinessOrdersPage() {
             computedStatus = "in_route";
           } else if (deliveryStatus && ["pending", "draft", "broadcasted", "accepted", "collecting"].includes(deliveryStatus)) {
             computedStatus = "ready";
-          } else if (deliveryStatus === "cancelled") {
-            if (["pending", "accepted", "preparing", "in_route"].includes(computedStatus)) {
-              computedStatus = "ready";
-            }
           }
 
           return {
