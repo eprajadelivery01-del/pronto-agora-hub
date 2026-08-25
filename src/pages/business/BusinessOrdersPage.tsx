@@ -1004,7 +1004,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 {!isProcessing && <Truck className="h-3 w-3" />}
               </button>
             )}
-            {action && (!isDeliveryActive || action.next !== "delivered") && (
+            {action && (order.status !== "ready" || isDeliveryActive) && (!isDeliveryActive || action.next !== "delivered") && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onAdvance(); }}
