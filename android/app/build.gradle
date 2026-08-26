@@ -96,13 +96,7 @@ tasks.whenTaskAdded { task ->
                     include "**/*.aab"
                     rename { "epraja-lojista.aab" }
                 }
-                copy {
-                    from "${buildDir}/outputs/bundle/release/"
-                    into fixedOutputDir
-                    include "**/*.aab"
-                    rename { "app-lojista-v${android.defaultConfig.versionCode}-v${android.defaultConfig.versionName}.aab" }
-                }
-                println "✅ AAB LOJISTA copiado para: ${fixedOutputDir}/epraja-lojista.aab e app-lojista-v${android.defaultConfig.versionCode}-v${android.defaultConfig.versionName}.aab"
+                println "✅ AAB LOJISTA copiado para: ${fixedOutputDir}/epraja-lojista.aab"
             }
         }
     }
