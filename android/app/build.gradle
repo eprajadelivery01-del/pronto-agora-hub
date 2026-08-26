@@ -7,8 +7,8 @@ android {
         applicationId "com.eprajalojista"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "4.3"
+        versionCode 8
+        versionName "4.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -71,7 +71,7 @@ try {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
 
-// Copia o APK gerado (debug ou release) SEMPRE para a mesma pasta fixa na raiz do projeto
+// Copia o APK gerado (debug ou release) e o AAB SEMPRE para a mesma pasta fixa na raiz do projeto
 def fixedOutputDir = file("${rootDir}/../../apk-output")
 
 tasks.whenTaskAdded { task ->
@@ -87,6 +87,22 @@ tasks.whenTaskAdded { task ->
                     rename { "epraja-lojista.apk" }
                 }
                 println "✅ APK LOJISTA copiado para: ${fixedOutputDir}/epraja-lojista.apk"
+            }
+
+            if (task.name == 'bundleRelease') {
+                copy {
+                    from "${buildDir}/outputs/bundle/release/"
+                    into fixedOutputDir
+                    include "**/*.aab"
+                    rename { "epraja-lojista.aab" }
+                }
+                copy {
+                    from "${buildDir}/outputs/bundle/release/"
+                    into fixedOutputDir
+                    include "**/*.aab"
+                    rename { "app-lojista-v${android.defaultConfig.versionCode}-v${android.defaultConfig.versionName}.aab" }
+                }
+                println "✅ AAB LOJISTA copiado para: ${fixedOutputDir}/epraja-lojista.aab e app-lojista-v${android.defaultConfig.versionCode}-v${android.defaultConfig.versionName}.aab"
             }
         }
     }
