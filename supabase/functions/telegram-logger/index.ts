@@ -26,19 +26,48 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
-    const apiKey = req.headers.get('apikey') || ''
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
     const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const WEBHOOK_SECRET = Deno.env.get('TELEGRAM_LOGGER_WEBHOOK_SECRET') ?? ''
 
-    // Se nenhum token ou chave fornecido
-    if (!token && !apiKey) {
+    if (!token) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
+
+    // Trusted server-to-server callers (database webhooks / internal jobs)
+    const webhookHeader = req.headers.get('x-webhook-secret') ?? ''
+    const isTrustedServer =
+      (SERVICE_ROLE_KEY.length > 0 && token === SERVICE_ROLE_KEY) ||
+      (WEBHOOK_SECRET.length > 0 && webhookHeader === WEBHOOK_SECRET)
+
+    if (!isTrustedServer) {
+      // Anon key alone is NOT sufficient: require a valid end-user JWT
+      if (!SUPABASE_URL || !ANON_KEY || token === ANON_KEY) {
+        return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        })
+      }
+
+      const authClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+
+      const { data: userData, error: userError } = await authClient.auth.getUser()
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        })
+      }
+    }
+
 
     const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
     const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
