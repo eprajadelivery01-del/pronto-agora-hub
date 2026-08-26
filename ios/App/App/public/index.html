@@ -18,6 +18,27 @@
     <meta name="twitter:image" content="/logo.png?v=7">
     
     <link rel="icon" type="image/png" href="/favicon.png?v=7">
+
+    <script>
+      // Polyfill precoce para crypto.randomUUID (compatibilidade com Android 11 e WebViews antigas)
+      if (typeof window !== "undefined") {
+        if (!window.crypto) window.crypto = {};
+        if (typeof window.crypto.randomUUID !== "function") {
+          window.crypto.randomUUID = function () {
+            if (typeof window.crypto.getRandomValues === "function") {
+              return ("" + 1e7 + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, function (c) {
+                return (c ^ (window.crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16);
+              });
+            }
+            return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+              var r = (Math.random() * 16) | 0;
+              var v = c === "x" ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            });
+          };
+        }
+      }
+    </script>
     
     <style>
       #splash-screen {
@@ -54,6 +75,37 @@
       #splash-screen.hidden {
         display: none !important;
       }
+      .splash-fallback {
+        display: none;
+        max-width: 280px;
+        margin-top: 22px;
+        text-align: center;
+        font-family: sans-serif;
+      }
+      #splash-screen.recovery .splash-fallback {
+        display: block;
+      }
+      #splash-screen.recovery .splash-loading-text,
+      #splash-screen.recovery .splash-spinner {
+        display: none !important;
+      }
+      .splash-fallback button {
+        width: 100%;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-top: 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .splash-reload-btn {
+        background: #2563EB;
+        color: white;
+      }
+      .splash-clear-btn {
+        background: #F3F4F6;
+        color: #374151;
+      }
     </style>
     <meta name="theme-color" content="#FF7A00">
     <link rel="manifest" href="/manifest.json">
@@ -65,41 +117,92 @@
   <meta name="twitter:title" content="&Eacute; Pra J&aacute; - Lojista">
   <meta property="og:description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
   <meta name="twitter:description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
-  <script type="module" crossorigin src="/assets/index-BMqwq1JD.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DJvBN3pa.css">
+  <script type="module" crossorigin src="/assets/index-2aMscvpV.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DmA3UeSL.css">
 </head>
 
   <body>
     <div id="root"></div>
     <div id="splash-screen">
       <img src="/logo.png?v=7" alt="&Eacute; Pra J&aacute;" class="splash-logo" style="border-radius: 20px;">
-      <div style="width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #F97316; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      <p style="margin-top: 20px; font-family: sans-serif; font-weight: bold; color: #666; font-size: 14px; letter-spacing: 2px;">CARREGANDO</p>
+      <div class="splash-spinner" style="width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #F97316; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p class="splash-loading-text" style="margin-top: 20px; font-family: sans-serif; font-weight: bold; color: #666; font-size: 14px; letter-spacing: 2px;">CARREGANDO</p>
+      <div class="splash-fallback">
+        <p style="margin: 0 0 4px; color: #111827; font-size: 15px; font-weight: 800;">Falha ao abrir o painel</p>
+        <p style="margin: 0; color: #6B7280; font-size: 12px; line-height: 1.4;">Isso geralmente é cache antigo ou sessão expirada neste aparelho.</p>
+        <button type="button" class="splash-reload-btn" onclick="window.location.reload()">Recarregar</button>
+        <button type="button" class="splash-clear-btn" onclick="window.__EPJ_CLEAR_AND_RELOAD__ && window.__EPJ_CLEAR_AND_RELOAD__()">Limpar sessão e entrar</button>
+      </div>
     </div>
     <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
     
     <script>
-      // Garantir que o splash screen desapareÃ§a quando o app carregar
-      const splashObserver = new MutationObserver(() => {
+      window.__EPJ_CLEAR_AND_RELOAD__ = function () {
+        try {
+          var shouldRemove = function (key) {
+            return key === 'epj-lojista-auth' ||
+              key.indexOf('epj-lojista-auth-') === 0 ||
+              key === 'sb-nptkxlrhrlssdsevpgqe-auth-token' ||
+              key.indexOf('sb-nptkxlrhrlssdsevpgqe-auth-token-') === 0;
+          };
+          [window.localStorage, window.sessionStorage].forEach(function (storage) {
+            Object.keys(storage).forEach(function (key) {
+              if (shouldRemove(key)) storage.removeItem(key);
+            });
+          });
+          if ('caches' in window) {
+            caches.keys().then(function (keys) {
+              keys.forEach(function (key) { caches.delete(key); });
+            }).finally(function () {
+              window.location.href = '/login?fresh=' + Date.now();
+            });
+            return;
+          }
+        } catch (error) {}
+        window.location.href = '/login?fresh=' + Date.now();
+      };
+
+      // Garantir que o splash screen desapareça quando o app carregar
+      const hideSplash = () => {
         const root = document.getElementById('root');
         const splash = document.getElementById('splash-screen');
+        if (!splash) return true;
         if (root && root.children.length > 0 && splash) {
+          try { sessionStorage.removeItem('epj-splash-retry-v3'); } catch (error) {}
           splash.classList.add('hidden');
           splash.style.opacity = '0';
           splash.style.pointerEvents = 'none';
           setTimeout(() => { if (splash.parentNode) splash.remove(); }, 500);
-          splashObserver.disconnect();
+          return true;
         }
+        return false;
+      };
+
+      const splashObserver = new MutationObserver(() => {
+        if (hideSplash()) splashObserver.disconnect();
       });
       const rootEl = document.getElementById('root');
       if (rootEl) {
         if (rootEl.children.length > 0) {
-          const s = document.getElementById('splash-screen');
-          if (s) s.classList.add('hidden');
+          hideSplash();
         } else {
           splashObserver.observe(rootEl, { childList: true });
         }
       }
+
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (hideSplash()) return;
+          var alreadyRetried = sessionStorage.getItem('epj-splash-retry-v3') === '1';
+          if (!alreadyRetried) {
+            sessionStorage.setItem('epj-splash-retry-v3', '1');
+            window.location.replace(window.location.pathname + (window.location.search ? window.location.search + '&' : '?') + 'fresh=' + Date.now());
+            return;
+          }
+          var splash = document.getElementById('splash-screen');
+          if (splash) splash.classList.add('recovery');
+        }, 7000);
+      });
     </script>
     
     <script>
@@ -108,7 +211,7 @@
         anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wdGt4bHJocmxzc2RzZXZwZ3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDE4MTQsImV4cCI6MjA5MDYxNzgxNH0.t8Cu-yFnSqOURT4GXCZ_mBghpxucT89nRBFlBNA1vZs"
       };
     </script>
-
+
   </body>
 </html>
 
