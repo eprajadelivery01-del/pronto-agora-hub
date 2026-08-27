@@ -33,10 +33,11 @@ DROP POLICY IF EXISTS "deliveries_select_stable" ON public.deliveries;
 CREATE POLICY "deliveries_select_stable" ON public.deliveries
   FOR SELECT TO authenticated
   USING (
-    motoboy_id = auth.uid() OR
+    driver_id = auth.uid() OR
     status = 'pending' OR
     company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid()) OR
-    public.has_role(auth.uid(), 'admin')
+    public.has_role(auth.uid(), 'admin') OR
+    public.has_role(auth.uid(), 'driver')
   );
 
 -- 4. Secure CUSTOMERS table
@@ -44,9 +45,10 @@ DROP POLICY IF EXISTS "customers_select_stable" ON public.customers;
 CREATE POLICY "customers_select_stable" ON public.customers
   FOR SELECT TO authenticated
   USING (
-    id IN (SELECT customer_id FROM public.orders WHERE user_id = auth.uid()) OR
+    user_id = auth.uid() OR
     public.has_role(auth.uid(), 'company') OR
-    public.has_role(auth.uid(), 'admin')
+    public.has_role(auth.uid(), 'admin') OR
+    public.has_role(auth.uid(), 'driver')
   );
 
 -- 5. Secure USER_ROLES table
