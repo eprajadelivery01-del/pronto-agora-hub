@@ -4,19 +4,24 @@
 BEGIN;
 
 -- 1. Lock down 'orders' table
+DROP POLICY IF EXISTS "orders_select_secure" ON public.orders;
+DROP POLICY IF EXISTS "orders_insert_secure" ON public.orders;
+DROP POLICY IF EXISTS "orders_update_secure" ON public.orders;
+DROP POLICY IF EXISTS "orders_delete_secure" ON public.orders;
 DROP POLICY IF EXISTS "orders_select_stable" ON public.orders;
 DROP POLICY IF EXISTS "orders_manage_stable" ON public.orders;
 
--- SELECT: Admins can see all, Companies can see their own, Customers can see their own
+-- SELECT: Admins can see all, Companies can see their own, Customers can see their own, Drivers can see available/assigned
 CREATE POLICY "orders_select_secure" ON public.orders
   FOR SELECT TO authenticated
   USING (
-    public.has_role(auth.uid(), 'admin') OR
+    user_id = auth.uid() OR
     company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid()) OR
-    customer_id IN (SELECT id FROM public.customers WHERE user_id = auth.uid())
+    public.has_role(auth.uid(), 'admin') OR
+    public.has_role(auth.uid(), 'driver')
   );
 
--- INSERT: Only Admins or Companies can insert directly (Customers use RPC create_order_v3)
+-- INSERT: Only Admins or Companies can insert directly (Customers use RPC/Edge Function)
 CREATE POLICY "orders_insert_secure" ON public.orders
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -46,6 +51,10 @@ CREATE POLICY "orders_delete_secure" ON public.orders
 
 
 -- 2. Lock down 'order_items' table
+DROP POLICY IF EXISTS "order_items_select_secure" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_insert_secure" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_update_secure" ON public.order_items;
+DROP POLICY IF EXISTS "order_items_delete_secure" ON public.order_items;
 DROP POLICY IF EXISTS "order_items_select_stable" ON public.order_items;
 DROP POLICY IF EXISTS "order_items_manage_stable" ON public.order_items;
 
@@ -55,9 +64,10 @@ CREATE POLICY "order_items_select_secure" ON public.order_items
   USING (
     order_id IN (
       SELECT id FROM public.orders WHERE
-        public.has_role(auth.uid(), 'admin') OR
+        user_id = auth.uid() OR
         company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid()) OR
-        customer_id IN (SELECT id FROM public.customers WHERE user_id = auth.uid())
+        public.has_role(auth.uid(), 'admin') OR
+        public.has_role(auth.uid(), 'driver')
     )
   );
 
@@ -102,3 +112,4 @@ CREATE POLICY "order_items_delete_secure" ON public.order_items
   );
 
 COMMIT;
+
