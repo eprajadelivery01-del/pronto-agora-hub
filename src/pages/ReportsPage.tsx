@@ -1,13 +1,18 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useDeliveries } from "@/services/deliveries";
 import { useCompanies } from "@/services/companies";
 import { useDrivers } from "@/services/drivers";
 import { useRegions } from "@/services/regions";
-import { BarChart3, Download, Loader2, Filter, Search, Printer } from "lucide-react";
+import { BarChart3, Download, Loader2, Filter, Search, Printer, FileText } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { format, startOfDay, endOfDay, subDays, eachDayOfInterval, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { getDeliveryValue, formatDeliveryValue } from "@/lib/delivery";
+import { filterDeliveriesByLocalParams, getValidDeliveries, calculateReportsTotals } from "@/lib/reports";
+import { useFinancialTotals } from "@/hooks/useFinancialTotals";
 import { useMemo } from "react";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -19,7 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
   assigned: "Atribuída",
   in_transit: "Em Rota",
   delivered: "Finalizada",
-  completed: "Finalizada (Marketplace)",
+  completed: "Finalizada",
   cancelled: "Cancelada",
 };
 
@@ -62,6 +67,8 @@ function SummaryCard({ label, value, icon, subValue, trend }: { label: string, v
   );
 }
 
+
+
 const getOrderTotal = (d: any) => {
   if (d.orders) {
     if (Array.isArray(d.orders) && d.orders.length > 0 && d.orders[0].total != null) {
@@ -74,6 +81,10 @@ const getOrderTotal = (d: any) => {
   // Try to use estimated_value if available and > 0
   if (d.estimated_value != null && Number(d.estimated_value) > 0) {
     return Number(d.estimated_value);
+  }
+  // Manual orders often store the total in 'value'
+  if (d.value != null && Number(d.value) > 0) {
+    return Number(d.value);
   }
   return 0;
 };
@@ -95,8 +106,9 @@ export default function ReportsPage() {
   const { data: drivers } = useDrivers();
   const { data: regions } = useRegions();
 
-  const { data, isLoading } = useDeliveries({
-    status: statusFilter,
+  const { data, isLoading, isError, error } = useDeliveries({
+    // 'delivered' inclui também 'completed' — filtramos localmente para não perder linhas
+    status: statusFilter === "delivered" ? "all" : statusFilter,
     companyId: companyFilter || undefined,
     driverId: driverFilter || undefined,
     dateFrom: dateFrom || undefined,
@@ -105,22 +117,26 @@ export default function ReportsPage() {
     pageSize: 1000,
   });
 
-  const rawDeliveries = data?.data ?? [];
+  const rawDeliveries = useMemo(() => data?.data ?? [], [data?.data]);
+  const trueTotalCount = data?.count ?? 0;
+  
   const deliveries = useMemo(() => {
-    return rawDeliveries.filter((d) => {
-      if (regionFilter && d.region_id !== regionFilter) return false;
-      if (paymentFilter && d.payment_method !== paymentFilter) return false;
-      if (minVal && getDeliveryValue(d) < Number(minVal)) return false;
-      if (maxVal && getDeliveryValue(d) > Number(maxVal)) return false;
-      return true;
+    return filterDeliveriesByLocalParams(rawDeliveries, {
+      regionFilter,
+      paymentFilter,
+      minVal,
+      maxVal,
+      statusFilter
     });
-  }, [rawDeliveries, regionFilter, paymentFilter, minVal, maxVal]);
+  }, [rawDeliveries, regionFilter, paymentFilter, minVal, maxVal, statusFilter]);
 
-  const validDeliveries = useMemo(() => deliveries.filter(d => d.status === "delivered" || d.status === "completed"), [deliveries]);
+  const hasLocalFilters = Boolean(regionFilter || paymentFilter || minVal || maxVal || statusFilter === "delivered");
+  const displayTotalCount = hasLocalFilters ? deliveries.length : (trueTotalCount > deliveries.length ? trueTotalCount : deliveries.length);
 
-  const totalValue = validDeliveries.reduce((s, d) => s + getOrderTotal(d), 0);
-  const totalCommission = validDeliveries.reduce((s, d) => s + Number((d as any).commission ?? 0), 0);
-  const completedCount = validDeliveries.length;
+  const validDeliveries = useMemo(() => getValidDeliveries(deliveries), [deliveries]);
+
+  const { totalValue, totalCommission, completedCount, enrichedDeliveries } = useFinancialTotals(validDeliveries, drivers ?? []);
+  
   const successRate = deliveries.length > 0 ? (completedCount / deliveries.length) * 100 : 0;
   const ticketMedio = completedCount > 0 ? totalValue / completedCount : 0;
 
@@ -141,25 +157,24 @@ export default function ReportsPage() {
           count: 0 
         };
       }
-      const isCompleted = d.status === "delivered" || d.status === "completed";
+      const isCompleted = d.status === "delivered" || (d.status as string) === "completed";
       if (isCompleted) {
-        groups[dateStr].total += getOrderTotal(d);
-        groups[dateStr].commission += Number((d as any).commission ?? 0);
+        groups[dateStr].total += getDeliveryValue(d);
+        groups[dateStr].commission += Number(d.commission ?? 0);
       }
       groups[dateStr].count += 1;
     });
 
     return Object.values(groups).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime());
   }, [deliveries]);
-
-  const companyBreakdown = useMemo(() => {
+  const companyBillingBreakdown = useMemo(() => {
     const map: Record<string, { name: string; companyId: string; revenue: number; count: number }> = {};
     deliveries.forEach(d => {
-      const isCompleted = d.status === "delivered" || d.status === "completed";
+      const isCompleted = d.status === "delivered" || (d.status as string) === "completed";
       if (!isCompleted) return;
 
       const cId = d.company_id || "unknown";
-      const cName = (d as any).companies?.name || "Sem empresa";
+      const cName = d.companies?.name || "Sem empresa";
       if (!map[cId]) map[cId] = { name: cName, companyId: cId, revenue: 0, count: 0 };
       map[cId].revenue += getOrderTotal(d);
       map[cId].count += 1;
@@ -168,25 +183,28 @@ export default function ReportsPage() {
   }, [deliveries]);
 
   const driverBreakdown = useMemo(() => {
-    const map: Record<string, { name: string; driverId: string; revenue: number; count: number }> = {};
-    deliveries.forEach(d => {
-      const isCompleted = d.status === "delivered" || d.status === "completed";
+    const map: Record<string, { name: string; driverId: string; revenue: number; count: number; totalCommission: number }> = {};
+    enrichedDeliveries.forEach(d => {
+      const isCompleted = d.status === "delivered" || (d.status as string) === "completed";
       if (!isCompleted) return;
 
       if (!d.driver_id) return;
       const driver = (drivers ?? []).find(dr => dr.id === d.driver_id);
       const name = driver?.full_name || `Motorista ${d.driver_id.slice(0, 6)}`;
-      if (!map[d.driver_id]) map[d.driver_id] = { name, driverId: d.driver_id, revenue: 0, count: 0 };
-      map[d.driver_id].revenue += getDeliveryValue(d);
+      if (!map[d.driver_id]) map[d.driver_id] = { name, driverId: d.driver_id, revenue: 0, count: 0, totalCommission: 0 };
+      map[d.driver_id].revenue += d.calculatedValue;
+      map[d.driver_id].totalCommission += d.calculatedCommission;
       map[d.driver_id].count += 1;
     });
     return Object.values(map).sort((a, b) => b.count - a.count);
-  }, [deliveries, drivers]);
+  }, [enrichedDeliveries, drivers]);
 
   const statusData = useMemo(() => {
     const stats: Record<string, number> = {};
     deliveries.forEach(d => {
-      stats[d.status] = (stats[d.status] || 0) + 1;
+      // Unifica 'completed' dentro de 'delivered' para evitar duplicação visual
+      const key = (d.status as string) === "completed" ? "delivered" : d.status;
+      stats[key] = (stats[key] || 0) + 1;
     });
     return Object.entries(stats).map(([name, value]) => ({ name, value }));
   }, [deliveries]);
@@ -232,20 +250,49 @@ export default function ReportsPage() {
   };
 
   const handleExport = () => {
-    if (deliveries.length === 0) {
-      toast({ title: "Nenhum dado para exportar", variant: "destructive" });
+    if (enrichedDeliveries.length === 0) {
+      toast({ title: "Nenhum dado válido para exportar", variant: "destructive" });
       return;
     }
-    const headers = ["Data", "Cliente", "Empresa", "Endereço", "Status", "Valor", "Comissão"];
-    const rows = deliveries.map((d) => [
+
+    const sumRowsValue = enrichedDeliveries.reduce((acc, curr) => acc + curr.calculatedValue, 0);
+    const sumRowsCommission = enrichedDeliveries.reduce((acc, curr) => acc + curr.calculatedCommission, 0);
+
+    if (
+      Math.abs(sumRowsValue - totalValue) > 0.01 || 
+      Math.abs(sumRowsCommission - totalCommission) > 0.01 || 
+      enrichedDeliveries.length !== completedCount
+    ) {
+      toast({
+         title: "Erro de Validação Financeira",
+         description: "Inconsistência detectada: a soma das corridas detalhadas não bate com o faturamento total calculado. Exportação abortada.",
+         variant: "destructive"
+      });
+      return;
+    }
+
+    const headers = ["Data / Hora", "Cliente", "Empresa", "Endereço", "Status", "Valor", "Comissão"];
+    const rows = enrichedDeliveries.map((d) => [
       format(new Date(d.created_at), "dd/MM/yyyy HH:mm"),
-      d.customer_name,
-      (d as any).companies?.name || "",
-      d.address,
-      d.status,
-      formatDeliveryValue(d),
-      Number((d as any).commission ?? 0).toFixed(2),
+      d.customer_name || "—",
+      d.companies?.name || "Marketplace",
+      d.address || "—",
+      STATUS_LABELS[d.status as keyof typeof STATUS_LABELS] || d.status,
+      d.calculatedValue.toFixed(2).replace(".", ","),
+      d.calculatedCommission.toFixed(2).replace(".", ","),
     ]);
+    
+    // Add total row at the end
+    rows.push([
+      "TOTAIS",
+      "",
+      "",
+      "",
+      "",
+      totalValue.toFixed(2).replace(".", ","),
+      totalCommission.toFixed(2).replace(".", ",")
+    ]);
+
     const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -255,6 +302,127 @@ export default function ReportsPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: "Relatório exportado!" });
+  };
+
+  const handleExportPDF = () => {
+    if (enrichedDeliveries.length === 0) {
+      toast({ title: "Nenhum dado válido para exportar", variant: "destructive" });
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const now = format(new Date(), "dd/MM/yyyy HH:mm");
+    const periodLabel = `Periodo: ${dateFrom || "—"} a ${dateTo || "—"}  |  Gerado em ${now}`;
+
+    const brl = (n: number) =>
+      n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    // Cabeçalho + rodapé desenhados a cada página (repetição automática)
+    const drawPageChrome = () => {
+      doc.setFillColor(255, 133, 27);
+      doc.rect(0, 0, pageWidth, 6, "F");
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+      doc.text("Relatorio Financeiro", 40, 32);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(110);
+      doc.text(periodLabel, 40, 48);
+
+      const pageNumber = (doc as any).internal.getCurrentPageInfo().pageNumber;
+      doc.setFontSize(8);
+      doc.setTextColor(140);
+      doc.text("É Pra Já Delivery", 40, pageHeight - 18);
+      doc.text(
+        `Pagina ${pageNumber} de {total_pages}`,
+        pageWidth - 40,
+        pageHeight - 18,
+        { align: "right" },
+      );
+    };
+
+    // KPIs (só na primeira página)
+    const kpis = [
+      ["Faturamento Total", brl(totalValue)],
+      ["Devido a Plataforma", brl(totalCommission)],
+      ["Corridas Finalizadas", String(completedCount)],
+    ];
+    autoTable(doc, {
+      startY: 64,
+      head: [kpis.map((k) => k[0])],
+      body: [kpis.map((k) => k[1])],
+      theme: "grid",
+      headStyles: { fillColor: [255, 133, 27], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 10, halign: "center" },
+      margin: { left: 40, right: 40, top: 60, bottom: 32 },
+      didDrawPage: drawPageChrome,
+    });
+
+    // Tabela principal com paginação automática + cabeçalho repetido
+    const headers = [
+      "Data / Hora",
+      "Cliente",
+      "Empresa",
+      "Endereco",
+      "Status",
+      "Valor",
+      "Comissao",
+    ];
+    const body = enrichedDeliveries.map((d) => [
+      format(new Date(d.created_at), "dd/MM/yyyy HH:mm"),
+      d.customer_name || "—",
+      d.companies?.name || "Marketplace",
+      d.address || "—",
+      STATUS_LABELS[d.status as keyof typeof STATUS_LABELS] || d.status,
+      brl(d.calculatedValue),
+      brl(d.calculatedCommission),
+    ]);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 16,
+      head: [headers],
+      body,
+      foot: [[
+        "TOTAIS", "", "", "", "",
+        brl(totalValue),
+        brl(totalCommission),
+      ]],
+      theme: "striped",
+      headStyles: {
+        fillColor: [30, 30, 30],
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "left",
+      },
+      footStyles: { fillColor: [255, 133, 27], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak", valign: "middle" },
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 110 },
+        2: { cellWidth: 110 },
+        3: { cellWidth: "auto" },
+        4: { cellWidth: 70 },
+        5: { cellWidth: 70, halign: "right" },
+        6: { cellWidth: 70, halign: "right" },
+      },
+      margin: { left: 40, right: 40, top: 60, bottom: 32 },
+      showHead: "everyPage",
+      showFoot: "lastPage",
+      rowPageBreak: "avoid",
+      pageBreak: "auto",
+      didDrawPage: drawPageChrome,
+    });
+
+    // Substitui marcador pelo total real de páginas
+    if (typeof (doc as any).putTotalPages === "function") {
+      (doc as any).putTotalPages("{total_pages}");
+    }
+
+    doc.save(`relatorio_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    toast({ title: "PDF exportado!" });
   };
 
   const handlePrint = () => {
@@ -285,7 +453,7 @@ export default function ReportsPage() {
     if (searchQuery) filterLines.push(`Busca: "${searchQuery}"`);
 
     // Company billing rows
-    const companyBillingRows = companyBreakdown.map(c => {
+    const companyBillingRows = companyBillingBreakdown.map(c => {
       const companyObj = (companies ?? []).find(co => co.id === c.companyId);
       const commPct = companyObj?.commission_percentage !== undefined && companyObj?.commission_percentage !== null
         ? Number(companyObj.commission_percentage) : 10.00;
@@ -294,9 +462,9 @@ export default function ReportsPage() {
         <tr>
           <td>${c.name}</td>
           <td style="text-align:center">${c.count}</td>
-          <td style="text-align:right">R$ ${c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right">R$ ${c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td style="text-align:center">${commPct.toFixed(1)}%</td>
-          <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         </tr>`;
     }).join("");
 
@@ -305,47 +473,62 @@ export default function ReportsPage() {
       const driverObj = (drivers ?? []).find(dr => dr.id === d.driverId);
       const commRate = driverObj?.commission_rate !== undefined && driverObj?.commission_rate !== null
         ? Number(driverObj.commission_rate) : 0.40;
-      const totalDue = d.count * commRate;
+      const totalDue = d.totalCommission;
       return `
         <tr>
           <td>${d.name}</td>
           <td style="text-align:center">${d.count}</td>
-          <td style="text-align:right">R$ ${d.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right">R$ ${d.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td style="text-align:right">R$ ${commRate.toFixed(2).replace(".", ",")}</td>
-          <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         </tr>`;
     }).join("");
 
-    // Delivery detail rows (ALL records, no limit)
-    const deliveryRows = deliveries.map(d => {
-      const drObj = (drivers ?? []).find(dr => dr.id === d.driver_id);
-      const rowComm = drObj?.commission_rate !== undefined && drObj?.commission_rate !== null
-        ? Number(drObj.commission_rate) : 0.40;
-      return `
+    // Delivery detail rows (only valid deliveries)
+    const deliveryRows = enrichedDeliveries.map(d => `
       <tr>
-        <td>${format(new Date(d.created_at), "dd/MM/yyyy HH:mm")}</td>
-        <td>${d.customer_name || "—"}</td>
-        <td>${(d as any).companies?.name || "Marketplace"}</td>
+        <td>
+          <div style="font-weight:700">${format(new Date(d.created_at), "dd/MM/yyyy HH:mm")}</div>
+          <div style="font-family:monospace;font-size:10px;color:#64748b">#${d.id.split("-")[0]}</div>
+        </td>
+        <td>
+          <div style="font-weight:700">${d.customer_name || "Cliente Final"}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:2px">${d.companies?.name || "Marketplace"}</div>
+        </td>
         <td style="max-width:200px;overflow:hidden">${d.address || "—"}</td>
         <td style="text-align:center">${STATUS_LABELS[d.status as keyof typeof STATUS_LABELS] || d.status}</td>
-        <td style="text-align:right;font-weight:700">R$ ${formatDeliveryValue(d)}</td>
-        <td style="text-align:right">R$ ${rowComm.toFixed(2).replace(".", ",")}</td>
-      </tr>`;
-    }).join("");
+        <td style="text-align:right;font-weight:700">R$ ${d.calculatedValue.toFixed(2).replace(".", ",")}</td>
+        <td style="text-align:right">R$ ${d.calculatedCommission.toFixed(2).replace(".", ",")}</td>
+      </tr>`).join("");
 
-    const totalCompanyDue = companyBreakdown.reduce((s, c) => {
+    const totalCompanyDue = companyBillingBreakdown.reduce((s, c) => {
       const co = (companies ?? []).find(x => x.id === c.companyId);
       const pct = (co?.commission_percentage !== undefined && co?.commission_percentage !== null)
         ? Number(co.commission_percentage) : 10.00;
       return s + c.revenue * (pct / 100);
     }, 0);
+    const totalCompanyOrders = companyBillingBreakdown.reduce((s, c) => s + c.count, 0);
+    const totalCompanyRevenue = companyBillingBreakdown.reduce((s, c) => s + c.revenue, 0);
 
-    const totalDriverDue = driverBreakdown.reduce((s, d) => {
-      const dr = (drivers ?? []).find(x => x.id === d.driverId);
-      const rate = (dr?.commission_rate !== undefined && dr?.commission_rate !== null)
-        ? Number(dr.commission_rate) : 0.40;
-      return s + d.count * rate;
-    }, 0);
+    const totalDriverDue = driverBreakdown.reduce((s, d) => s + d.totalCommission, 0);
+    const totalDriverCount = driverBreakdown.reduce((s, d) => s + d.count, 0);
+    const totalDriverRevenue = driverBreakdown.reduce((s, d) => s + d.revenue, 0);
+
+    let kpiComissaoLabel = "Comissões Plataforma";
+    let kpiComissaoValue = totalCompanyDue + totalDriverDue;
+    let kpiComissaoSub = `Lojistas (R$ ${totalCompanyDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) + Entregadores (R$ ${totalDriverDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+
+    if (driverFilter) {
+      const dr = (drivers ?? []).find(d => d.id === driverFilter);
+      kpiComissaoLabel = "Comissão Plataforma (Entregador)";
+      kpiComissaoValue = totalDriverDue;
+      kpiComissaoSub = dr?.full_name ? `Entregador: ${dr.full_name}` : "Taxa por entrega realizada";
+    } else if (companyFilter) {
+      const co = (companies ?? []).find(c => c.id === companyFilter);
+      kpiComissaoLabel = "Comissão Plataforma (Lojista)";
+      kpiComissaoValue = totalCompanyDue;
+      kpiComissaoSub = co?.name ? `Empresa: ${co.name}` : "Comissão sobre vendas";
+    }
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -385,6 +568,7 @@ export default function ReportsPage() {
     tfoot td { padding: 8px 10px; font-weight: 900; font-size: 10px; }
     
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .one-col { display: block; }
     
     .footer { margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; color: #94a3b8; font-size: 9px; }
     
@@ -419,27 +603,28 @@ export default function ReportsPage() {
   <div class="kpis">
     <div class="kpi">
       <div class="kpi-label">Total de Corridas</div>
-      <div class="kpi-value">${deliveries.length}</div>
-      <div class="kpi-sub">${completedCount} finalizadas (${successRate.toFixed(1)}% sucesso)</div>
+      <div class="kpi-value">${completedCount}</div>
+      <div class="kpi-sub">${deliveries.length} registros (${successRate.toFixed(1)}% sucesso)</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Faturamento Total</div>
-      <div class="kpi-value">R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+      <div class="kpi-value">R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
       <div class="kpi-sub">Receita bruta processada</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Comissões Plataforma</div>
-      <div class="kpi-value">R$ ${totalDriverDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-      <div class="kpi-sub">Entregadores</div>
+      <div class="kpi-label">${kpiComissaoLabel}</div>
+      <div class="kpi-value">R$ ${kpiComissaoValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+      <div class="kpi-sub">${kpiComissaoSub}</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Ticket Médio</div>
-      <div class="kpi-value">R$ ${ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+      <div class="kpi-value">R$ ${ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
       <div class="kpi-sub">Valor médio por entrega</div>
     </div>
   </div>
 
-  <div class="two-col">
+  <div class="${driverFilter || companyFilter ? 'one-col' : 'two-col'}">
+    ${!driverFilter ? `
     <div class="section">
       <div class="section-title">🏢 Cobrança de Lojistas</div>
       <table>
@@ -455,13 +640,17 @@ export default function ReportsPage() {
         <tbody>${companyBillingRows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">Sem dados</td></tr>'}</tbody>
         <tfoot>
           <tr>
-            <td colspan="4">TOTAL DEVIDO (Lojistas)</td>
-            <td style="text-align:right">R$ ${totalCompanyDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+            <td style="font-weight:900">TOTAL</td>
+            <td style="text-align:center;font-weight:900">${totalCompanyOrders}</td>
+            <td style="text-align:right;font-weight:900">R$ ${totalCompanyRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="text-align:center;font-weight:900">—</td>
+            <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalCompanyDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         </tfoot>
       </table>
-    </div>
+    </div>` : ''}
 
+    ${!companyFilter ? `
     <div class="section">
       <div class="section-title">🏍️ Cobrança de Entregadores</div>
       <table>
@@ -477,12 +666,15 @@ export default function ReportsPage() {
         <tbody>${driverBillingRows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">Sem dados</td></tr>'}</tbody>
         <tfoot>
           <tr>
-            <td colspan="4">TOTAL DEVIDO (Entregadores)</td>
-            <td style="text-align:right">R$ ${totalDriverDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+            <td style="font-weight:900">TOTAL</td>
+            <td style="text-align:center;font-weight:900">${totalDriverCount}</td>
+            <td style="text-align:right;font-weight:900">R$ ${totalDriverRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="text-align:right;font-weight:900">—</td>
+            <td style="text-align:right;font-weight:900;color:#6366f1">R$ ${totalDriverDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         </tfoot>
       </table>
-    </div>
+    </div>` : ''}
   </div>
 
   <div class="section" style="margin-top: 8px">
@@ -503,8 +695,8 @@ export default function ReportsPage() {
       <tfoot>
         <tr>
           <td colspan="5">TOTAIS</td>
-          <td style="text-align:right">R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-          <td style="text-align:right">R$ ${totalCommission.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+          <td style="text-align:right">R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="text-align:right">R$ ${totalCommission.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         </tr>
       </tfoot>
     </table>
@@ -635,9 +827,6 @@ export default function ReportsPage() {
                 <option value="">Todas as Formas</option>
                 <option value="pix">Pix</option>
                 <option value="card">Cartão</option>
-                <option value="credit_card">Cartão de Crédito</option>
-                <option value="debit_card">Cartão de Débito</option>
-                <option value="money">Dinheiro</option>
                 <option value="cash">Dinheiro</option>
               </select>
             </div>
@@ -659,28 +848,27 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 mt-4">
         <SummaryCard 
           label="Total de Corridas" 
-          value={deliveries.length} 
+          value={isLoading ? "--" : displayTotalCount} 
+          subValue={isLoading ? "Carregando..." : `${completedCount} finalizadas`}
+          trend={isLoading ? undefined : `${successRate.toFixed(1)}% taxa de sucesso`}
           icon={<div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><BarChart3 className="h-6 w-6" /></div>}
-          subValue={`${completedCount} finalizadas`}
-          trend={`${successRate.toFixed(1)}% taxa de sucesso`}
         />
         <SummaryCard 
           label="Faturamento Total" 
-          value={`R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} 
-          icon={<div className="w-12 h-12 rounded-2xl bg-success/10 flex items-center justify-center text-success shadow-inner"><Download className="h-6 w-6 rotate-180" /></div>}
+          value={isLoading ? "--" : `R$ ${totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
           subValue="Receita bruta processada"
-          trend="+5.2% vs período anterior"
+          icon={<div className="w-12 h-12 rounded-2xl bg-success/10 flex items-center justify-center text-success shadow-inner"><Download className="h-6 w-6 rotate-180" /></div>}
         />
         <SummaryCard 
           label="Comissões Estimadas" 
-          value={`R$ ${totalCommission.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} 
+          value={`R$ ${totalCommission.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
           icon={<div className="w-12 h-12 rounded-2xl bg-warning/10 flex items-center justify-center text-warning shadow-inner"><Download className="h-6 w-6" /></div>}
-          subValue="Lucro operacional líquido"
-          trend="8.5% do faturamento"
+          subValue="Comissões pagas aos entregadores"
+          trend={totalValue > 0 ? `${((totalCommission / totalValue) * 100).toFixed(1)}% do faturamento` : undefined}
         />
         <SummaryCard 
           label="Ticket Médio" 
-          value={`R$ ${ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} 
+          value={`R$ ${ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
           icon={<div className="w-12 h-12 rounded-2xl bg-info/10 flex items-center justify-center text-info shadow-inner"><Filter className="h-6 w-6" /></div>}
           subValue="Valor médio por entrega"
         />
@@ -751,7 +939,7 @@ export default function ReportsPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-3xl font-black text-foreground">{deliveries.length}</span>
+              <span className="text-3xl font-black text-foreground">{displayTotalCount}</span>
               <span className="text-[10px] font-bold text-muted-foreground uppercase">Total</span>
             </div>
           </div>
@@ -782,10 +970,10 @@ export default function ReportsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">Receita e volume por empresa</p>
             </div>
           </div>
-          {companyBreakdown.length > 0 ? (
+          {companyBillingBreakdown.length > 0 ? (
             <div className="space-y-3 max-h-[360px] overflow-y-auto scrollbar-thin">
-              {companyBreakdown.map((c, i) => {
-                const maxRev = companyBreakdown[0].revenue;
+              {companyBillingBreakdown.map((c, i) => {
+                const maxRev = companyBillingBreakdown[0].revenue;
                 const pct = maxRev > 0 ? (c.revenue / maxRev) * 100 : 0;
                 return (
                   <div key={c.companyId || i} className="group">
@@ -796,7 +984,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="flex items-center gap-4 shrink-0 ml-2">
                         <span className="text-xs text-muted-foreground font-semibold">{c.count} entregas</span>
-                        <span className="text-sm font-black text-foreground">R$ {c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        <span className="text-sm font-black text-foreground">R$ {c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                     <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
@@ -836,7 +1024,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="flex items-center gap-4 shrink-0 ml-2">
                         <span className="text-xs text-muted-foreground font-semibold">{d.count} entregas</span>
-                        <span className="text-sm font-black text-foreground">R$ {d.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                        <span className="text-sm font-black text-foreground">R$ {d.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                     <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
@@ -864,70 +1052,74 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className={`grid grid-cols-1 ${driverFilter || companyFilter ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-8`}>
           {/* Lojistas (Merchants) */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 text-left">
-              🏢 Cobrança de Lojistas (% sobre Vendas)
-            </h4>
-            <div className="border border-border rounded-2xl overflow-hidden bg-background/50 divide-y divide-border">
-              {companyBreakdown.length > 0 ? (
-                companyBreakdown.map((c: any) => {
-                  const companyObj = (companies ?? []).find(co => co.id === c.companyId);
-                  const commPct = companyObj?.commission_percentage !== undefined && companyObj?.commission_percentage !== null ? Number(companyObj.commission_percentage) : 10.00;
-                  const totalDue = c.revenue * (commPct / 100);
-                  return (
-                    <div key={c.companyId} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-foreground">{c.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
-                          Vendas: R$ {c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} • Taxa: {commPct.toFixed(1)}%
-                        </p>
+          {!driverFilter && (
+            <div className="space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 text-left">
+                🏢 Cobrança de Lojistas (% sobre Vendas)
+              </h4>
+              <div className="border border-border rounded-2xl overflow-hidden bg-background/50 divide-y divide-border">
+                {companyBillingBreakdown.length > 0 ? (
+                  companyBillingBreakdown.map((c: any) => {
+                    const companyObj = (companies ?? []).find(co => co.id === c.companyId);
+                    const commPct = companyObj?.commission_percentage !== undefined && companyObj?.commission_percentage !== null ? Number(companyObj.commission_percentage) : 10.00;
+                    const totalDue = c.revenue * (commPct / 100);
+                    return (
+                      <div key={c.companyId} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
+                        <div className="text-left">
+                          <p className="text-sm font-bold text-foreground">{c.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                            Vendas: R$ {c.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • Taxa: {commPct.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devido</p>
+                          <p className="text-sm font-black text-primary">R$ {totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devido</p>
-                        <p className="text-sm font-black text-primary">R$ {totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-6 text-center text-xs text-muted-foreground">Nenhum lojista com movimentação</div>
-              )}
+                    );
+                  })
+                ) : (
+                  <div className="p-6 text-center text-xs text-muted-foreground">Nenhum lojista com movimentação</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Entregadores (Drivers) */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 text-left">
-              🏍️ Cobrança de Entregadores (Taxa por Entrega)
-            </h4>
-            <div className="border border-border rounded-2xl overflow-hidden bg-background/50 divide-y divide-border">
-              {driverBreakdown.length > 0 ? (
-                driverBreakdown.map((d: any) => {
-                  const driverObj = (drivers ?? []).find(dr => dr.id === d.driverId);
-                  const commRate = driverObj?.commission_rate !== undefined && driverObj?.commission_rate !== null ? Number(driverObj.commission_rate) : 0.40;
-                  const totalDue = d.count * commRate;
-                  return (
-                    <div key={d.driverId} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-foreground">{d.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
-                          Corridas: {d.count} • Taxa por entrega: R$ {commRate.toFixed(2).replace('.', ',')}
-                        </p>
+          {!companyFilter && (
+            <div className="space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2 text-left">
+                🏍️ Cobrança de Entregadores (Taxa por Entrega)
+              </h4>
+              <div className="border border-border rounded-2xl overflow-hidden bg-background/50 divide-y divide-border">
+                {driverBreakdown.length > 0 ? (
+                  driverBreakdown.map((d: any) => {
+                    const driverObj = (drivers ?? []).find(dr => dr.id === d.driverId);
+                    const commRate = driverObj?.commission_rate !== undefined && driverObj?.commission_rate !== null ? Number(driverObj.commission_rate) : 0.40;
+                    const totalDue = d.count * commRate;
+                    return (
+                      <div key={d.driverId} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
+                        <div className="text-left">
+                          <p className="text-sm font-bold text-foreground">{d.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                            Corridas: {d.count} • Taxa por entrega: R$ {commRate.toFixed(2).replace('.', ',')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devido</p>
+                          <p className="text-sm font-black text-primary">R$ {totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Devido</p>
-                        <p className="text-sm font-black text-primary">R$ {totalDue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-6 text-center text-xs text-muted-foreground">Nenhum entregador com movimentação</div>
-              )}
+                    );
+                  })
+                ) : (
+                  <div className="p-6 text-center text-xs text-muted-foreground">Nenhum entregador com movimentação</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -939,7 +1131,7 @@ export default function ReportsPage() {
              </div>
              <div>
                 <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Detalhamento Financeiro</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{deliveries.length} registros encontrados</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{validDeliveries.length} registros válidos</p>
              </div>
           </div>
           <div className="flex items-center gap-3">
@@ -948,6 +1140,12 @@ export default function ReportsPage() {
               className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-foreground text-background text-sm font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
             >
               <Printer className="h-4 w-4" /> Imprimir Relatório
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-3 px-6 py-2.5 rounded-2xl bg-destructive text-destructive-foreground text-sm font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
+            >
+              <FileText className="h-4 w-4" /> Exportar PDF
             </button>
             <button
               onClick={handleExport}
@@ -962,6 +1160,11 @@ export default function ReportsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Carregando dados...</p>
           </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center p-20 gap-4 text-destructive">
+            <p className="font-bold">ERRO AO CARREGAR OS DADOS</p>
+            <p className="text-sm font-mono opacity-80">{error instanceof Error ? error.message : JSON.stringify(error)}</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -971,36 +1174,47 @@ export default function ReportsPage() {
                   <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Cliente &amp; Empresa</th>
                   <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6 hidden lg:table-cell">Endereço de Entrega</th>
                   <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Status</th>
-                  <th className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Financeiro</th>
+                  <th className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Valor</th>
+                  <th className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] p-6">Comissão</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {deliveries.slice(0, 50).map((d) => (
+                {enrichedDeliveries.map((d) => (
                   <tr key={d.id} className="hover:bg-primary/5 transition-colors group">
                     <td className="p-6">
-                      <p className="text-xs font-bold text-foreground">{format(new Date(d.created_at), "dd/MM/yyyy")}</p>
+                      <p className="text-xs font-bold text-foreground">{format(new Date(d.created_at), "dd/MM/yyyy HH:mm")}</p>
                       <p className="text-[10px] text-muted-foreground font-mono mt-1 opacity-60">#{d.id.split("-")[0]}</p>
                     </td>
                     <td className="p-6">
                       <div className="flex items-center gap-3">
                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-foreground leading-tight">{d.customer_name}</span>
-                            <span className="text-[11px] font-medium text-primary mt-0.5">{(d as any).companies?.name || "Marketplace"}</span>
+                            <span className="text-sm font-bold text-foreground leading-tight">{d.customer_name || "—"}</span>
+                            <span className="text-[11px] font-medium text-primary mt-0.5">{d.companies?.name || "Marketplace"}</span>
                          </div>
                       </div>
                     </td>
                     <td className="p-6 hidden lg:table-cell">
-                       <p className="text-xs text-muted-foreground max-w-[200px] truncate leading-relaxed">{d.address}</p>
+                       <p className="text-xs text-muted-foreground max-w-[200px] truncate leading-relaxed">{d.address || "—"}</p>
                     </td>
                     <td className="p-6">
                        <StatusBadge status={d.status} />
                     </td>
                     <td className="p-6 text-right">
-                      <p className="text-sm font-black text-foreground">R$ {formatDeliveryValue(d)}</p>
+                      <p className="text-sm font-black text-foreground">R$ {d.calculatedValue.toFixed(2).replace(".", ",")}</p>
+                    </td>
+                    <td className="p-6 text-right">
+                      <p className="text-sm font-black text-primary">R$ {d.calculatedCommission.toFixed(2).replace(".", ",")}</p>
                     </td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="bg-muted/50 border-t border-white/10">
+                <tr>
+                  <td colSpan={4} className="p-6 text-right font-black uppercase text-xs tracking-widest text-muted-foreground">TOTAIS</td>
+                  <td className="p-6 text-right font-black text-sm text-foreground">R$ {totalValue.toFixed(2).replace(".", ",")}</td>
+                  <td className="p-6 text-right font-black text-sm text-primary">R$ {totalCommission.toFixed(2).replace(".", ",")}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}

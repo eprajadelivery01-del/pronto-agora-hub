@@ -49,14 +49,10 @@ export function getDeliveryValue(d: any): number {
     return orderFee;
   }
   
-  // Para envios manuais (Lojista via Kanban ou Admin) a ordem pode não ter taxa 
-  // e o valor estar gravado em 'value', 'price' ou 'delivery_fee'. 
-  // Pegamos o maior valor preenchido nestas colunas.
-  const maxDeliveryValue = Math.max(v, p, df);
-  
-  if (maxDeliveryValue > 0) {
-    return maxDeliveryValue;
-  }
+  // Ordem autoritativa: value -> price -> delivery_fee
+  if (v > 0) return v;
+  if (p > 0) return p;
+  if (df > 0) return df;
   
   // Se todos forem 0, então é de fato um Frete Grátis (0.00)
   return 0;
