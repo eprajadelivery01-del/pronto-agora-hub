@@ -87,6 +87,57 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
   }
 }
 
+/**
+ * Reporta um erro exibido inline na UI (fora de toasts/console),
+ * para que o monitoramento capture também mensagens renderizadas em componentes.
+ */
+export function reportUserFacingError(message: string, source = "InlineUI") {
+  if (!message || message.length < 4) return;
+  reportErrorToTelegram({
+    error_message: `Erro exibido na tela: ${message.slice(0, 800)}`,
+    stack_trace: `Capturado via ${source}.`,
+    url: typeof window !== "undefined" ? window.location.href : "",
+    additional_info: { isInlineUserFacingError: true, source }
+  }, "Painel Lojista").catch(() => {});
+}
+
+const INLINE_ERROR_KEYWORDS = /erro|falha|inválid|não foi possível|indisponív|expirad/i;
+
+/**
+ * Observa o DOM e reporta textos de erro renderizados inline
+ * (ex: elementos com role="alert" ou classes de erro do design system).
+ */
+export function initializeInlineErrorMonitor() {
+  if (typeof window === "undefined" || typeof MutationObserver === "undefined") return;
+
+  const seen = new Set<string>();
+  const checkNode = (node: Node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const candidates: HTMLElement[] = [];
+    if (node.matches('[role="alert"], .text-destructive, [data-error]')) candidates.push(node);
+    node.querySelectorAll?.('[role="alert"], [data-error]').forEach((el) => {
+      if (el instanceof HTMLElement) candidates.push(el);
+    });
+    for (const el of candidates) {
+      const text = (el.textContent || "").trim();
+      if (text.length < 8 || text.length > 1000) continue;
+      if (!INLINE_ERROR_KEYWORDS.test(text)) continue;
+      const key = text.slice(0, 300);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (seen.size > 200) seen.clear();
+      reportUserFacingError(text, "InlineErrorMonitor");
+    }
+  };
+
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      m.addedNodes.forEach(checkNode);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 export function initializeGlobalErrorHandlers(appName: string) {
   if (typeof window === "undefined") return;
 
