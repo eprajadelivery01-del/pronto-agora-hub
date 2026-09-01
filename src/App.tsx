@@ -1,5 +1,5 @@
 // Build trigger: 2026-04-13 13:12 - Autocomplete and Address Memory Final
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -36,6 +36,7 @@ import { GlobalScrapingListener } from "@/hooks/useScrapingAlert";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
 import { SoundEnabler } from "@/components/shared/SoundEnabler";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { reportErrorToTelegram } from "@/services/logger";
 
 // Admin Panel Pages (Missing in this App.tsx)
 import DashboardPage from "./pages/DashboardPage";
@@ -72,7 +73,25 @@ const RootRedirect = () => {
   return <Navigate to={user ? "/business" : "/login"} replace />;
 };
 
-const queryClient = new QueryClient();
+const reportQueryError = (error: unknown, kind: string) => {
+  const err = error as any;
+  const msg = err?.message || String(error);
+  reportErrorToTelegram({
+    error_message: `[React Query ${kind}] ${msg}`.slice(0, 900),
+    stack_trace: err?.stack || "Sem stack trace",
+    url: window.location.href,
+    additional_info: { isReactQueryError: true, kind }
+  }, "Painel Lojista").catch(() => {});
+};
+
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => reportQueryError(error, "Query"),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => reportQueryError(error, "Mutation"),
+  }),
+});
 
 const App = () => (
   <GlobalErrorBoundary>
