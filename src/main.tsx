@@ -22,7 +22,7 @@ if (typeof window !== "undefined") {
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { initializeGlobalErrorHandlers, reportErrorToTelegram } from "@/services/logger";
+import { initializeGlobalErrorHandlers, initializeInlineErrorMonitor, reportErrorToTelegram } from "@/services/logger";
 import { silenceConsoleInProduction } from "@/lib/silenceConsole";
 import { toast as sonnerToast } from "sonner";
 
@@ -30,6 +30,7 @@ import { toast as sonnerToast } from "sonner";
 silenceConsoleInProduction();
 
 initializeGlobalErrorHandlers("Painel Lojista");
+initializeInlineErrorMonitor();
 
 
 window.addEventListener("vite:preloadError", (event) => {
