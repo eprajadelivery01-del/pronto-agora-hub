@@ -73,8 +73,6 @@ const RootRedirect = () => {
   return <Navigate to={user ? "/business" : "/login"} replace />;
 };
 
-import { reportErrorToTelegram } from "@/services/logger";
-
 const reportQueryError = (error: unknown, kind: string) => {
   const err = error as any;
   const msg = err?.message || String(error);
