@@ -60,4 +60,25 @@ sonnerToast.error = function (message: any, options: any) {
   return originalError.apply(this, arguments as any);
 };
 
+// Também captura toast.warning e toast.message quando contêm texto de erro
+const ERROR_KEYWORDS = /erro|falha|inválid|não foi possível|indisponív/i;
+const patchToastMethod = (method: "warning" | "message") => {
+  const original = sonnerToast[method];
+  if (typeof original !== "function") return;
+  (sonnerToast as any)[method] = function (msg: any, opts: any) {
+    const text = typeof msg === "string" ? msg : JSON.stringify(msg);
+    if (!text.includes("offline") && ERROR_KEYWORDS.test(text)) {
+      reportErrorToTelegram({
+        error_message: `Alerta para o Usuário (${method}): ${text}`,
+        stack_trace: `Sonner toast.${method} exibido na tela do lojista.`,
+        url: window.location.href,
+        additional_info: { isUserFacingAlert: true, toastMethod: method, options: opts ? JSON.stringify(opts) : "" }
+      }, "Painel Lojista").catch(() => {});
+    }
+    return (original as any).apply(this, arguments as any);
+  };
+};
+patchToastMethod("warning");
+patchToastMethod("message");
+
 createRoot(document.getElementById("root")!).render(<App />);
