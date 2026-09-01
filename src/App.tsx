@@ -36,6 +36,7 @@ import { GlobalScrapingListener } from "@/hooks/useScrapingAlert";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
 import { SoundEnabler } from "@/components/shared/SoundEnabler";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { reportErrorToTelegram } from "@/services/logger";
 
 // Admin Panel Pages (Missing in this App.tsx)
 import DashboardPage from "./pages/DashboardPage";
