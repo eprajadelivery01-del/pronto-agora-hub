@@ -870,17 +870,6 @@ export default function ChatPage() {
                         <span className="font-bold text-[11px] bg-muted px-2.5 py-0.5 rounded-full">{autoMessageText.length} caracteres</span>
                       </div>
                     </div>
-
-                    {/* Dica de Boas Práticas */}
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border border-primary/15 flex items-start gap-3">
-                      <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-foreground">Disparo Automático e Seguro</p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Assim que você clica em <strong>"Aceitar Pedido"</strong>, a mensagem é entregue no chat do cliente sem bloquear a tela do seu painel e sem risco de duplicidade.
-                        </p>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Coluna Direita: Simulador Mobile Fiel e Proporcional */}
