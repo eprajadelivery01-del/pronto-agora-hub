@@ -397,7 +397,10 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 bg-muted/20 min-h-0">
         {/* Header */}
-        <header className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4 flex items-center justify-between gap-4 relative z-30">
+        <header 
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.85rem)' }}
+          className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-6 pb-4 flex items-center justify-between gap-4 relative z-30"
+        >
           <div className="flex items-center gap-4">
             <button
               className="lg:hidden p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors"

@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 
 type Theme = 'light' | 'dark';
 
@@ -23,6 +25,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.toggle('dark', theme === 'dark');
     root.classList.toggle('light', theme === 'light');
     localStorage.setItem('theme', theme);
+
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+      if (theme === 'dark') {
+        StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#0D0D0D' }).catch(() => {});
+      } else {
+        StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#FFFFFF' }).catch(() => {});
+      }
+    }
   }, [theme]);
 
   const setTheme = (t: Theme) => setThemeState(t);
