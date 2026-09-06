@@ -214,11 +214,10 @@ export function useDeleteConversation() {
   });
 }
 
-export const DEFAULT_AUTO_MESSAGE = `Olá! 😁✨
-Seu pedido já chegou até a gente e está sendo preparado com todo cuidado.
-Obrigado por escolher a gente! 💛
+export const DEFAULT_AUTO_MESSAGE = `Olá! Pedido confirmado com sucesso! 🚀✨
+Nossa equipe já iniciou o preparo com todo capricho e atenção aos detalhes.
 
-Já já você vai poder aproveitar essa delícia! 🍔`;
+Qualquer dúvida ou observação sobre seu pedido, estamos à sua disposição aqui pelo chat. Bom apetite! 🍽️🛵`;
 
 export async function getStoreAutoMessageConfig(companyId: string) {
   if (!companyId) return { auto_message_enabled: true, auto_message: DEFAULT_AUTO_MESSAGE };

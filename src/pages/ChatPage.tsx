@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { 
   MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck, Search, Trash2, Eraser,
   Bot, Sparkles, CheckCircle2, RotateCcw, Clock, ShieldCheck, ChevronLeft, Store, Save,
-  Zap, MessageCircle
+  Zap, MessageCircle, Smartphone, Smile, Heart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -40,6 +40,10 @@ export default function ChatPage() {
   const [isSavingAutoMessage, setIsSavingAutoMessage] = useState(false);
   const [isLoadingAutoMessage, setIsLoadingAutoMessage] = useState(true);
   const [autoMessageSaveSuccess, setAutoMessageSaveSuccess] = useState(false);
+
+  const handleInsertEmoji = (emoji: string) => {
+    setAutoMessageText((prev) => prev + (prev.endsWith(" ") || prev.length === 0 ? "" : " ") + emoji);
+  };
 
   useEffect(() => {
     if (companyData?.id) {
@@ -408,15 +412,47 @@ export default function ChatPage() {
       const orderId = conv.order_id?.toLowerCase() || "";
       return title.includes(term) || lastMsg.includes(term) || orderId.includes(term);
     });
-  }, [conversations, profilesMap, searchFilter]);
+  }, [conversations, profilesMap]);
+
+  // Modelos prontos de mensagem originais do É Pra Já
+  const MESSAGE_TEMPLATES = [
+    {
+      id: "padrao",
+      label: "Padrão É Pra Já",
+      icon: "🚀",
+      badge: "Recomendado",
+      text: `Olá! Pedido confirmado com sucesso! 🚀✨\nNossa equipe já iniciou o preparo com todo capricho e atenção aos detalhes.\n\nQualquer dúvida ou observação sobre seu pedido, estamos à sua disposição aqui pelo chat. Bom apetite! 🍽️🛵`
+    },
+    {
+      id: "express",
+      label: "Cozinha Express",
+      icon: "⚡",
+      badge: "Ágil",
+      text: `Olá! Seu pedido já entrou na linha de preparo! 👨‍🍳🔥\nAssim que os itens estiverem prontos e saírem com o entregador, você poderá acompanhar tudo em tempo real por aqui.\n\nObrigado pela preferência e confiança! ✨`
+    },
+    {
+      id: "artesanal",
+      label: "Gourmet & Artesanal",
+      icon: "💛",
+      badge: "Especial",
+      text: `Seja muito bem-vindo! Recebemos seu pedido e cada item está sendo elaborado com muito cuidado e carinho. 💛✨\n\nFique à vontade para mandar mensagens por aqui se precisar de algo a mais. Bom apetite! 🍕🥤`
+    }
+  ];
 
   return (
     <Layout title="Chat" subtitle="Central de atendimento e mensagens automáticas">
-      <div className="flex h-full w-full min-w-0 min-h-0 min-h-[500px] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-80 shrink-0 border-r border-border flex flex-col bg-muted/30 min-w-0 overflow-hidden">
-          <div className="p-4 border-b border-border bg-card/50 flex items-center justify-between gap-2">
-            <h3 className="font-bold text-foreground text-sm uppercase tracking-widest opacity-60">Conversas ({sortedConversations.length})</h3>
+      <div className="flex h-full w-full min-w-0 min-h-0 min-h-[550px] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+        {/* Sidebar de Conversas e Navegação */}
+        <div className="w-80 shrink-0 border-r border-border flex flex-col bg-muted/20 min-w-0 overflow-hidden">
+          {/* Topo da Sidebar: Título e Ação Secundária */}
+          <div className="p-4 border-b border-border bg-card flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-foreground text-xs uppercase tracking-wider">Conversas</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-muted text-muted-foreground">
+                {sortedConversations.length}
+              </span>
+            </div>
+            
             <div className="flex items-center gap-1.5">
               {!isLojista && (
                 <button
@@ -426,42 +462,66 @@ export default function ChatPage() {
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-destructive/10 text-destructive text-[0.65rem] font-bold uppercase tracking-wider hover:bg-destructive/20 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {isClearingEmpty ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eraser className="h-3 w-3" />}
-                  <span>Limpar Vazias</span>
+                  <span>Limpar</span>
                 </button>
               )}
               {isLojista && (
-                <>
-                  <button 
-                    onClick={() => setSelectedConv(null)}
-                    className={cn(
-                      "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[0.65rem] font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer",
-                      !selectedConv
-                        ? "bg-primary text-primary-foreground shadow-md"
-                        : "bg-primary/10 text-primary hover:bg-primary/20"
-                    )}
-                    title="Configurar mensagem automática enviada ao aceitar pedido"
-                  >
-                    <Bot className="h-3.5 w-3.5" />
-                    <span>Msg Auto</span>
-                  </button>
-                  <button 
-                    onClick={handleStartAdminChat}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
-                  >
-                    Admin
-                  </button>
-                </>
+                <button 
+                  onClick={handleStartAdminChat}
+                  title="Falar com o Suporte Geral do Aplicativo"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-[0.65rem] font-bold uppercase tracking-wider transition-colors border border-border cursor-pointer shadow-2xs"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  <span>Admin</span>
+                </button>
               )}
             </div>
           </div>
 
-          {/* Search Box */}
-          <div className="p-3 border-b border-border/50 bg-background/50">
-            <div className="flex items-center gap-2 bg-muted/60 px-3 py-2 rounded-xl border border-border/60">
-              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+          {/* Atalho Destacado: Mensagem Automática (Para Lojista) */}
+          {isLojista && (
+            <div className="p-3 border-b border-border/70 bg-background/60">
+              <button 
+                onClick={() => setSelectedConv(null)}
+                className={cn(
+                  "w-full p-3 rounded-xl transition-all flex items-center gap-3 text-left border cursor-pointer relative group",
+                  !selectedConv
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card hover:bg-muted/50 border-border/80 text-foreground"
+                )}
+              >
+                <div className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                  !selectedConv ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                )}>
+                  <Bot className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-bold text-xs truncate">Mensagem Automática</span>
+                    <span className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      autoMessageEnabled ? "bg-emerald-400 animate-pulse" : "bg-zinc-400"
+                    )} />
+                  </div>
+                  <p className={cn(
+                    "text-[10px] truncate mt-0.5",
+                    !selectedConv ? "text-primary-foreground/80" : "text-muted-foreground"
+                  )}>
+                    {autoMessageEnabled ? "Ativa ao aceitar pedidos" : "Envio desativado"}
+                  </p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Campo de Busca */}
+          <div className="p-3 border-b border-border/50 bg-background/40">
+            <div className="flex items-center gap-2 bg-muted/60 px-3 py-2 rounded-xl border border-border/60 focus-within:border-primary/50 transition-colors">
+              <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"
-                placeholder="Buscar conversa ou nome..."
+                placeholder="Buscar conversa ou pedido..."
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none w-full font-medium"
@@ -469,6 +529,7 @@ export default function ChatPage() {
             </div>
           </div>
 
+          {/* Lista de Conversas */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loadingConvs ? (
               <div className="flex items-center justify-center p-8">
@@ -502,52 +563,48 @@ export default function ChatPage() {
                     key={conv.id}
                     onClick={() => setSelectedConv(conv)}
                     className={cn(
-                      "w-full p-4 text-left transition-all border-b border-border/40 relative group cursor-pointer flex items-center justify-between",
-                      selectedConv?.id === conv.id ? "bg-card shadow-sm z-10" : "hover:bg-muted/50"
+                      "w-full p-3.5 text-left transition-all border-b border-border/40 relative group cursor-pointer flex items-center justify-between",
+                      selectedConv?.id === conv.id ? "bg-card shadow-sm z-10" : "hover:bg-muted/40"
                     )}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                       <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs",
                         conv.topic === 'driver_application' ? "bg-orange-500/10 text-orange-500" : "bg-primary/10 text-primary"
                       )}>
                         {renderConvIcon(conv)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-sm truncate">
-                          {otherProfile?.full_name || getConvTitle(conv)} {otherProfile?.role === 'driver' && <span className="text-xs font-normal text-muted-foreground ml-1">(Entregador)</span>}
-                          {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(Pedido #{conv.order_id.slice(0, 4)})</span>}
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-semibold text-xs truncate">
+                            {otherProfile?.full_name || getConvTitle(conv)} {otherProfile?.role === 'driver' && <span className="text-[10px] font-normal text-muted-foreground ml-1">(Entregador)</span>}
+                            {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(#{conv.order_id.slice(0, 4)})</span>}
                           </span>
                           {lastMsg && (
-                            <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                {format(new Date(lastMsg.created_at), "HH:mm")}
-                              </span>
-                              {unreadCount > 0 && selectedConv?.id !== conv.id && (
-                                <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
-                                  {unreadCount > 99 ? '99+' : unreadCount}
-                                </span>
-                              )}
-                            </div>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 ml-1">
+                              {format(new Date(lastMsg.created_at), "HH:mm")}
+                            </span>
                           )}
                         </div>
-                        <p className="text-[11px] font-bold text-muted-foreground truncate mt-0.5">
-                          {otherProfile?.role === 'company' ? "Lojista" : otherProfile?.role === 'driver' ? "Entregador" : "Cliente"}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/80 truncate italic mt-1">
-                          {lastMsg?.content?.replace(/\u200B/g, '') || "Inicie a conversa..."}
-                        </p>
+                        <div className="flex items-center justify-between gap-1 mt-0.5">
+                          <p className="text-[10px] text-muted-foreground truncate italic">
+                            {lastMsg?.content?.replace(/\u200B/g, '') || "Inicie a conversa..."}
+                          </p>
+                          {unreadCount > 0 && selectedConv?.id !== conv.id && (
+                            <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[9px] font-bold px-1.5 py-0.2 rounded-full shrink-0">
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Botão de Excluir Conversa Individual na Lista */}
                     <button
                       onClick={(e) => handleDeleteConversation(conv.id, e)}
                       title="Apagar conversa"
-                      className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
 
                     {selectedConv?.id === conv.id && (
@@ -560,11 +617,11 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Chat window */}
-        <div className="flex-1 flex flex-col bg-background relative">
+        {/* Área Central / Janela Principal */}
+        <div className="flex-1 flex flex-col bg-background relative min-w-0">
           {selectedConv ? (
             <>
-              {/* Header */}
+              {/* Header da Conversa Ativa */}
               <div className="p-4 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
@@ -587,173 +644,182 @@ export default function ChatPage() {
                     <button
                       onClick={() => setSelectedConv(null)}
                       title="Configurar Mensagem Automática"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold transition-all cursor-pointer mr-1"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold transition-all cursor-pointer mr-1"
                     >
                       <Bot className="h-4 w-4" />
-                      <span className="hidden md:inline">Mensagem Auto</span>
+                      <span className="hidden sm:inline">Msg Automática</span>
                     </button>
                   )}
-                  {/* Botão de Apagar Conversa Aberta */}
                   <button
                     onClick={() => handleDeleteConversation(selectedConv.id)}
-                    title="Apagar esta conversa e mensagens"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-bold transition-all cursor-pointer"
+                    title="Apagar esta conversa"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
-                    <span>Apagar Chat</span>
                   </button>
                 </div>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-muted/20 relative z-0">
+              {/* Lista de Mensagens */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                 {loadingMessages ? (
-                  <div className="flex items-center justify-center h-full relative z-10">
-                    <div className="bg-card border border-border px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      <span className="text-[13px] text-muted-foreground font-medium">Carregando mensagens...</span>
-                    </div>
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : messages && messages.length > 0 ? (
-                  messages.map((msg) => {
-                    const isTestAccountHack = msg.content.endsWith('\u200B');
-                    const isMe = (msg.sender_id === user?.id) || isTestAccountHack;
-                    const displayContent = msg.content.replace(/\u200B/g, '');
-
+                  messages.map((msg: any) => {
+                    const isMe = (msg.sender_id === user?.id && msg.content?.endsWith('\u200B')) || msg.sender_id === user?.id;
+                    const cleanContent = msg.content ? msg.content.replace(/\u200B/g, '') : '';
+                    
                     return (
-                      <div key={msg.id} className={cn("flex flex-col w-full relative z-10", isMe ? "items-end" : "items-start")}>
-                        <div 
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          "flex flex-col max-w-[80%] md:max-w-[70%]",
+                          isMe ? "ml-auto items-end" : "mr-auto items-start"
+                        )}
+                      >
+                        <div
                           className={cn(
-                            "relative max-w-[75%] px-3.5 py-2.5 rounded-2xl shadow-sm",
-                            isMe 
-                              ? "bg-[#2b5278] rounded-br-[4px] text-[#ffffff]" 
-                              : "bg-[#182533] rounded-bl-[4px] text-[#ffffff]"
+                            "rounded-2xl p-4 shadow-2xs whitespace-pre-wrap break-words leading-relaxed text-sm",
+                            isMe
+                              ? "bg-primary text-primary-foreground rounded-br-xs"
+                              : "bg-muted/80 text-foreground rounded-bl-xs border border-border/40"
                           )}
                         >
-                          <div className="flex flex-col">
-                            <p className="text-[15px] leading-[20px] whitespace-pre-wrap pr-10">
-                              {displayContent}
-                            </p>
-                            <div className="flex items-center justify-end gap-1 absolute bottom-1 right-2">
-                              <span className={cn("text-[11px]", isMe ? "text-[#7aa4c7]" : "text-[#547c9e]")}>
-                                {format(new Date(msg.created_at), "HH:mm")}
-                              </span>
-                              {isMe && (
-                                <CheckCheck className="h-[14px] w-[14px] text-[#53BDEB]" />
-                              )}
-                            </div>
-                          </div>
+                          {cleanContent}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1 px-1">
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {format(new Date(msg.created_at), "HH:mm")}
+                          </span>
+                          {isMe && <CheckCheck className="h-3.5 w-3.5 text-primary/70" />}
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
-                    <MessageSquare className="h-10 w-10 text-primary mb-2" />
-                    <p className="text-sm font-semibold">Nenhuma mensagem nesta conversa ainda.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Envie uma mensagem abaixo para falar com o contato.</p>
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <MessageSquare className="h-10 w-10 stroke-1 mb-2 opacity-30" />
+                    <p className="text-sm font-medium">Nenhuma mensagem ainda</p>
+                    <p className="text-xs text-muted-foreground/60">Envie a primeira mensagem para iniciar a conversa.</p>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
-              <div className="p-3 bg-card border-t border-border z-10">
-                <div className="flex items-center gap-2 max-w-4xl mx-auto">
-                  <div className="flex-1 bg-muted/50 border border-border rounded-full flex items-center px-4 h-12 shadow-sm">
-                    <input
-                      type="text"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                      placeholder="Digite uma mensagem..."
-                      className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSend}
-                    disabled={!message.trim() || sendMessageMutation.isPending}
-                    className="w-12 h-12 rounded-full bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
-                  >
-                    {sendMessageMutation.isPending ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-primary-foreground" />
-                    ) : (
-                      <Send className="h-5 w-5 text-primary-foreground ml-1" />
-                    )}
-                  </button>
-                </div>
+              {/* Barra de Envio */}
+              <div className="p-3 border-t border-border bg-card/50 flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Digite sua resposta..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  className="flex-1 bg-muted/60 text-foreground placeholder:text-muted-foreground rounded-xl px-4 py-2.5 text-sm outline-none border border-border/60 focus:border-primary/50 transition-colors"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!message.trim() || sendMessageMutation.isPending}
+                  className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 cursor-pointer shadow-xs"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
               </div>
             </>
           ) : isLojista ? (
-            /* Região de Mensagem Automática do Lojista */
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-muted/10">
-              <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
-                {/* Cabeçalho da Seção */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border p-6 rounded-3xl shadow-sm">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 text-primary">
-                      <Bot className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-lg font-black text-foreground tracking-tight">Mensagem Automática de Aceite</h2>
-                        <span className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5",
-                          autoMessageEnabled ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-muted text-muted-foreground border border-border"
-                        )}>
-                          <span className={cn("w-1.5 h-1.5 rounded-full", autoMessageEnabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
-                          {autoMessageEnabled ? "Disparo Ativo" : "Disparo Pausado"}
-                        </span>
+            /* ========================================================================= */
+            /* Região de Mensagem Automática de Aceite - Design Ultra Premium & Moderno   */
+            /* ========================================================================= */
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-gradient-to-b from-background via-background to-muted/20">
+              <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-300">
+                
+                {/* Header Banner com Glassmorphism e Efeito de Iluminação */}
+                <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-28 -mt-28" />
+                  
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 text-white shrink-0">
+                        <Bot className="h-6 w-6" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Esta mensagem é disparada automaticamente no chat com o cliente assim que você clica em <strong>"Aceitar Pedido"</strong>.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleSaveAutoMessage}
-                    disabled={isSavingAutoMessage || isLoadingAutoMessage}
-                    className="self-start sm:self-center px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isSavingAutoMessage ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Salvando...</span>
-                      </>
-                    ) : autoMessageSaveSuccess ? (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                        <span>Salvo!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        <span>Salvar Mensagem</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Grid: Configuração à Esquerda e Simulador do Cliente à Direita */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  {/* Painel de Edição (7 colunas) */}
-                  <div className="lg:col-span-7 space-y-6">
-                    {/* Toggle de ativação */}
-                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm flex items-center justify-between gap-4">
                       <div className="space-y-1">
-                        <span className="text-sm font-bold text-foreground block">Ativar Envio Automático</span>
-                        <p className="text-xs text-muted-foreground">
-                          Ao clicar em "Aceitar Pedido" no painel, a conversa será iniciada e esta mensagem será entregue no celular do cliente.
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight">
+                            Mensagem Automática de Aceite
+                          </h2>
+                          <span className={cn(
+                            "px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-colors border",
+                            autoMessageEnabled 
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                              : "bg-muted text-muted-foreground border-border"
+                          )}>
+                            <span className={cn(
+                              "w-2 h-2 rounded-full",
+                              autoMessageEnabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
+                            )} />
+                            {autoMessageEnabled ? "Envio Ativado" : "Envio Desativado"}
+                          </span>
+                        </div>
+                        <p className="text-xs md:text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                          Saudação enviada automaticamente para o celular do cliente assim que você clica em <strong>"Aceitar Pedido"</strong>. Agiliza seu atendimento e deixa seu cliente seguro.
                         </p>
                       </div>
+                    </div>
+
+                    <button
+                      onClick={handleSaveAutoMessage}
+                      disabled={isSavingAutoMessage || isLoadingAutoMessage}
+                      className="shrink-0 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-95 active:scale-98 transition-all shadow-md shadow-primary/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingAutoMessage ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Salvando...</span>
+                        </>
+                      ) : autoMessageSaveSuccess ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-white" />
+                          <span>Salvo com Sucesso!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          <span>Salvar Configuração</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Grid 2 Colunas: Configuração (7 colunas) + Simulador Idêntico ao Print (5 colunas) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* Coluna Esquerda: Controles, Modelos e Editor */}
+                  <div className="lg:col-span-7 space-y-5">
+                    
+                    {/* Switch de Ativação Rápida */}
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex items-center justify-between gap-4">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4 text-amber-500" />
+                          <span className="text-sm font-bold text-foreground">Disparar ao Aceitar Pedido</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {autoMessageEnabled 
+                            ? "Ao aceitar um pedido no painel, este recado chega imediatamente no chat do cliente."
+                            : "O disparo está pausado. Nenhuma mensagem automática será enviada ao aceitar pedidos."}
+                        </p>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => setAutoMessageEnabled(!autoMessageEnabled)}
                         className={cn(
-                          "relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-sm",
-                          autoMessageEnabled ? "bg-emerald-500" : "bg-muted-foreground/40"
+                          "relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-inner",
+                          autoMessageEnabled ? "bg-emerald-500" : "bg-muted-foreground/30"
                         )}
-                        title={autoMessageEnabled ? "Clique para desativar" : "Clique para ativar"}
+                        title={autoMessageEnabled ? "Clique para pausar" : "Clique para ativar"}
                       >
                         <span
                           className={cn(
@@ -764,16 +830,53 @@ export default function ChatPage() {
                       </button>
                     </div>
 
-                    {/* Campo de Texto */}
-                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm space-y-3">
+                    {/* Modelos Prontos de Mensagem (Templates Rápidos) */}
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-                          Texto da Mensagem de Boas-vindas
-                        </label>
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Modelos Prontos de Boas-Vindas
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">Clique para aplicar</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {MESSAGE_TEMPLATES.map((tmpl) => (
+                          <button
+                            key={tmpl.id}
+                            type="button"
+                            onClick={() => setAutoMessageText(tmpl.text)}
+                            className="p-3 rounded-xl border border-border/80 bg-muted/30 hover:bg-primary/5 hover:border-primary/40 text-left transition-all group cursor-pointer flex flex-col justify-between"
+                          >
+                            <div className="flex items-center justify-between w-full mb-1">
+                              <span className="text-lg">{tmpl.icon}</span>
+                              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-background border border-border/60 text-muted-foreground group-hover:text-primary group-hover:border-primary/30 transition-colors">
+                                {tmpl.badge}
+                              </span>
+                            </div>
+                            <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors block">
+                              {tmpl.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Editor de Texto com Emojis */}
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4 text-primary" />
+                          <label className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Texto da Mensagem
+                          </label>
+                        </div>
                         <button
                           type="button"
                           onClick={() => setAutoMessageText(DEFAULT_AUTO_MESSAGE)}
-                          className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                          className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer bg-primary/5 hover:bg-primary/10 px-2.5 py-1 rounded-lg transition-colors"
                           title="Restaurar o modelo padrão de boas-vindas"
                         >
                           <RotateCcw className="h-3 w-3" />
@@ -781,145 +884,223 @@ export default function ChatPage() {
                         </button>
                       </div>
 
+                      {/* Emojis Rápidos */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                        <span className="text-[10px] font-bold text-muted-foreground shrink-0 mr-1">Inserir:</span>
+                        {[
+                          { emoji: "😁", label: "Sorriso" },
+                          { emoji: "✨", label: "Brilho" },
+                          { emoji: "💛", label: "Coração" },
+                          { emoji: "🍔", label: "Hambúrguer" },
+                          { emoji: "🍟", label: "Batata" },
+                          { emoji: "🛵", label: "Moto" },
+                          { emoji: "🍕", label: "Pizza" },
+                          { emoji: "🥤", label: "Refrigerante" },
+                          { emoji: "😋", label: "Delícia" },
+                          { emoji: "👨‍🍳", label: "Chef" },
+                          { emoji: "📦", label: "Pacote" },
+                          { emoji: "🚀", label: "Rápido" }
+                        ].map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => handleInsertEmoji(item.emoji)}
+                            className="shrink-0 px-2 py-1 rounded-lg bg-muted hover:bg-primary/15 hover:text-primary text-xs transition-all border border-border/60 hover:border-primary/40 active:scale-95 cursor-pointer"
+                            title={`Inserir ${item.label}`}
+                          >
+                            {item.emoji}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Textarea */}
                       <textarea
                         value={autoMessageText}
                         onChange={(e) => setAutoMessageText(e.target.value)}
-                        rows={8}
-                        placeholder="Escreva a mensagem automática que seu cliente vai receber..."
-                        className="w-full p-4 rounded-2xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none transition-all font-medium leading-relaxed"
+                        rows={7}
+                        placeholder="Escreva aqui a mensagem que seu cliente receberá..."
+                        className="w-full p-4 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-3 focus:ring-primary/10 outline-none resize-none transition-all font-medium leading-relaxed"
                       />
 
-                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                        <span>💡 O cliente receberá no chat exatamente com essa formatação.</span>
-                        <span className="font-bold">{autoMessageText.length} caracteres</span>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
+                        <span className="text-[11px]">As quebras de linha digitadas serão mantidas no balão do cliente.</span>
+                        <span className="font-bold text-[11px] bg-muted px-2.5 py-0.5 rounded-full">{autoMessageText.length} caracteres</span>
                       </div>
                     </div>
 
-                    {/* Dica operacional */}
-                    <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-start gap-3">
-                      <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        <strong>Transparência e Confiança:</strong> O envio imediato tranquiliza o cliente, confirmando que seu estabelecimento já está preparando a comida e reduzindo cancelamentos ou dúvidas no chat.
-                      </p>
+                    {/* Dica de Boas Práticas */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border border-primary/15 flex items-start gap-3">
+                      <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-foreground">Disparo Seguro e Sem Duplicidade</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          O sistema valida se a mensagem de boas-vindas já foi entregue para aquele pedido. Mesmo se você recarregar a tela ou alterar o status novamente, o cliente nunca receberá a mensagem duplicada.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Simulador Visual do Celular do Cliente (5 colunas) */}
+                  {/* Coluna Direita: Simulador Fiel ao Print do Bahamas Lanches */}
                   <div className="lg:col-span-5 flex flex-col items-center">
-                    <div className="w-full text-center mb-3">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                        📱 Como o cliente vê no celular
+                    <div className="w-full flex items-center justify-between px-2 mb-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <Smartphone className="h-4 w-4 text-primary" />
+                        <span>Simulador do Cliente</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        Ao Vivo
                       </span>
                     </div>
 
-                    {/* Moldura do Celular */}
-                    <div className="w-full max-w-[340px] rounded-[2.5rem] border-4 border-muted-foreground/20 bg-background shadow-2xl overflow-hidden flex flex-col min-h-[540px]">
-                      {/* Top Bar Simulada */}
-                      <div className="px-5 pt-3 pb-2 flex items-center justify-between text-[11px] font-bold text-muted-foreground select-none border-b border-border/20">
-                        <span>19:51</span>
-                        <div className="flex items-center gap-1.5 text-[10px]">
-                          <span>4G</span>
-                          <span>📶</span>
-                          <span>🔋81%</span>
-                        </div>
-                      </div>
-
-                      {/* Header da Loja (igual print) */}
-                      <div className="px-4 py-3 border-b border-border/50 flex items-center gap-3 bg-card/60">
-                        <ChevronLeft className="h-5 w-5 text-rose-500 shrink-0" />
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border shrink-0">
-                          {companyData?.logo_url ? (
-                            <img src={companyData.logo_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <Store className="h-4 w-4 text-primary" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-black text-foreground truncate leading-tight">
-                            {companyData?.name || "Sua Loja Delivery"}
-                          </p>
-                          <p className="text-[10px] font-bold text-muted-foreground">Loja</p>
-                        </div>
-                      </div>
-
-                      {/* Conteúdo do Chat no Celular */}
-                      <div className="flex-1 p-4 bg-muted/20 space-y-4 overflow-y-auto custom-scrollbar flex flex-col justify-between">
-                        <div className="space-y-3">
-                          {/* Resposta rápida (igual print) */}
-                          <div className="text-center space-y-2 pt-2">
-                            <div className="text-2xl">⭐</div>
-                            <p className="text-[11px] font-semibold text-muted-foreground">
-                              Geralmente, essa loja responde rápido
-                            </p>
-                            <div className="flex items-center justify-center gap-2 flex-wrap text-[9px] font-bold">
-                              <span className="bg-card border border-border/60 px-2.5 py-1 rounded-full text-muted-foreground flex items-center gap-1 shadow-xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                responde em média de 2 min
-                              </span>
-                              <span className="bg-card border border-border/60 px-2.5 py-1 rounded-full text-muted-foreground flex items-center gap-1 shadow-xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                responde 98% das vezes
-                              </span>
+                    {/* Chassi do Celular Estilo Samsung/Android */}
+                    <div className="w-full max-w-[345px] rounded-[2.75rem] p-3 bg-zinc-900 border-[4px] border-zinc-700/80 shadow-[0_20px_50px_rgba(0,0,0,0.35)] flex flex-col select-none">
+                      
+                      {/* Tela Interna Branca Clean */}
+                      <div className="rounded-[2.2rem] overflow-hidden bg-white text-zinc-900 flex flex-col min-h-[580px] shadow-inner">
+                        
+                        {/* 1. Barra de Status Android (Idêntica ao print: 19:51 | 4G 4G 🔋81) */}
+                        <div className="px-5 pt-2.5 pb-1 flex items-center justify-between text-[11px] font-bold text-zinc-800">
+                          <span>19:51</span>
+                          <div className="flex items-center gap-1.5 text-[10px]">
+                            <span className="text-[10px]">📍</span>
+                            <span className="text-[10px]">📶</span>
+                            <span className="font-semibold text-[9px]">4G</span>
+                            <span className="font-semibold text-[9px]">4G</span>
+                            <div className="flex items-center gap-0.5 bg-zinc-800 text-white text-[8px] font-bold px-1 py-0.2 rounded-sm ml-0.5">
+                              <span>81</span>
                             </div>
                           </div>
+                        </div>
 
-                          {/* Data */}
-                          <div className="text-center my-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 bg-muted/50 px-2 py-0.5 rounded-full">
-                              HOJE
-                            </span>
+                        {/* 2. Topbar do Estabelecimento (Seta Vermelha < + Logo Redondo + Nome + "Loja") */}
+                        <div className="px-3 py-2 border-b border-zinc-100 flex items-center gap-2.5 bg-white">
+                          <button type="button" className="text-[#ea1d2c] font-bold p-1 hover:opacity-80">
+                            <ChevronLeft className="h-5 w-5 stroke-[2.5]" />
+                          </button>
+                          <div className="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center overflow-hidden border border-zinc-200 shrink-0 shadow-2xs">
+                            {companyData?.logo_url ? (
+                              <img src={companyData.logo_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Store className="h-4.5 w-4.5 text-zinc-700" />
+                            )}
                           </div>
-
-                          {/* Caixa de Aviso de Segurança (idêntico ao print) */}
-                          <div className="bg-card border border-border/70 rounded-2xl p-3 text-center space-y-1 shadow-xs">
-                            <p className="text-[11px] font-black text-foreground">Mensagem automática</p>
-                            <p className="text-[10px] text-muted-foreground leading-relaxed">
-                              Não aceite cobrança na entrega se o pedido foi pago pelo app e nunca compartilhe dados pessoais em conversas de chat ou telefone.
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-bold text-zinc-900 truncate leading-tight">
+                              {companyData?.name || "Sua Loja no É Pra Já"}
                             </p>
+                            <p className="text-[11px] text-zinc-400 font-normal leading-none mt-0.5">Estabelecimento Parceiro</p>
                           </div>
+                        </div>
 
-                          {/* Balão da Mensagem Automática digitada */}
-                          <div className="flex items-start gap-2 pt-1">
-                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border shrink-0 mt-1">
-                              {companyData?.logo_url ? (
-                                <img src={companyData.logo_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <Store className="h-3.5 w-3.5 text-primary" />
-                              )}
-                            </div>
-                            <div className="flex-1 bg-card border border-border/80 rounded-2xl rounded-tl-xs p-3 shadow-sm text-foreground max-w-[85%] relative">
-                              <p className="text-[11px] leading-relaxed whitespace-pre-wrap font-medium">
-                                {autoMessageText || "Olá! Seu pedido já chegou até a gente..."}
+                        {/* 3. Área Central do Chat */}
+                        <div className="flex-1 p-3.5 bg-white flex flex-col justify-between space-y-4 overflow-y-auto custom-scrollbar">
+                          <div className="space-y-3.5">
+                            
+                            {/* Estrela Dourada + Resposta Rápida */}
+                            <div className="text-center space-y-1 pt-1">
+                              <div className="text-2xl leading-none">⭐</div>
+                              <p className="text-[12px] font-medium text-zinc-700">
+                                Geralmente, essa loja responde rápido
                               </p>
-                              <span className="text-[9px] text-muted-foreground/70 block text-right mt-1">
-                                {format(new Date(), "HH:mm")}
+
+                              {/* Colunas lado a lado com divisória central */}
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100/80 max-w-[280px] mx-auto">
+                                <div className="flex items-center gap-1.5 justify-center pr-2 border-r border-zinc-200">
+                                  <div className="relative">
+                                    <Clock className="h-4 w-4 text-zinc-700" />
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white" />
+                                  </div>
+                                  <div className="text-left text-[9px] text-zinc-600 font-medium leading-tight">
+                                    <span>responde em média</span>
+                                    <br />
+                                    <span className="font-bold text-zinc-800">de 2 min</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 justify-center pl-1">
+                                  <div className="relative">
+                                    <MessageCircle className="h-4 w-4 text-zinc-700" />
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white" />
+                                  </div>
+                                  <div className="text-left text-[9px] text-zinc-600 font-medium leading-tight">
+                                    <span>responde</span>
+                                    <br />
+                                    <span className="font-bold text-zinc-800">98% das vezes</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Separador de Data Centralizado */}
+                            <div className="text-center my-1">
+                              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                                HOJE
                               </span>
+                            </div>
+
+                            {/* Cartão Informativo de Atendimento É Pra Já */}
+                            <div className="bg-[#f8f9fa] border border-zinc-200/80 rounded-2xl p-3.5 text-center space-y-1 shadow-2xs">
+                              <p className="text-[11.5px] font-bold text-zinc-900 flex items-center justify-center gap-1">
+                                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                                <span>Atendimento Oficial É Pra Já</span>
+                              </p>
+                              <p className="text-[10.5px] text-zinc-500 leading-snug">
+                                Esta é uma mensagem de boas-vindas do estabelecimento. Você pode tirar dúvidas ou combinar detalhes do seu pedido respondendo diretamente por aqui.
+                              </p>
+                            </div>
+
+                            {/* Balão da Mensagem Automática do Estabelecimento */}
+                            <div className="flex items-end gap-2 pt-1">
+                              <div className="w-6 h-6 rounded-full bg-zinc-200 flex items-center justify-center overflow-hidden border border-zinc-200 shrink-0 mb-1">
+                                {companyData?.logo_url ? (
+                                  <img src={companyData.logo_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <Store className="h-3 w-3 text-zinc-700" />
+                                )}
+                              </div>
+
+                              <div className="bg-[#f0f2f5] rounded-2xl rounded-bl-xs p-3.5 shadow-2xs border border-zinc-200/50 text-zinc-900 max-w-[85%] relative space-y-1.5">
+                                <p className="text-[11.5px] leading-relaxed whitespace-pre-line font-normal text-zinc-800">
+                                  {autoMessageText || DEFAULT_AUTO_MESSAGE}
+                                </p>
+                                <span className="text-[9.5px] text-zinc-400 block text-right font-medium">
+                                  19:48
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 4. Campo de Digitação Inferior */}
+                          <div className="pt-2 flex items-center gap-2">
+                            <div className="flex-1 bg-[#f0f2f5] rounded-full px-4 py-2.5 text-zinc-400 text-xs flex items-center">
+                              <span className="text-[11.5px]">Mensagem...</span>
+                            </div>
+                            <div className="w-9 h-9 rounded-full bg-[#eaecf0] flex items-center justify-center text-zinc-500 shrink-0 shadow-2xs">
+                              <Send className="h-4 w-4 -rotate-12 translate-x-0.5" />
                             </div>
                           </div>
                         </div>
 
-                        {/* Barra inferior simulada de digitação */}
-                        <div className="pt-2">
-                          <div className="bg-card border border-border rounded-full px-3 py-2 flex items-center justify-between text-muted-foreground text-xs shadow-xs">
-                            <span className="text-[11px]">Mensagem...</span>
-                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                              <Send className="h-3 w-3" />
-                            </div>
-                          </div>
+                        {/* 5. Barra de Navegação Android Samsung (|||  ◯  <) */}
+                        <div className="py-2 px-8 flex items-center justify-between text-zinc-400 text-xs border-t border-zinc-100 bg-white">
+                          <span className="font-bold text-sm tracking-widest leading-none">|||</span>
+                          <div className="w-3.5 h-3.5 rounded-full border-[1.5px] border-zinc-400" />
+                          <ChevronLeft className="h-4 w-4 stroke-[2]" />
                         </div>
                       </div>
                     </div>
                   </div>
+
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-muted/20">
-              <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center mb-6 animate-bounce duration-[3s]">
-                <MessageSquare className="h-10 w-10 text-primary" />
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <MessageSquare className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-black text-foreground mb-2">Central de Atendimento</h3>
-              <p className="text-sm text-muted-foreground max-w-xs font-medium">Selecione uma conversa ao lado para começar a responder seus clientes e futuros entregadores.</p>
+              <h3 className="text-lg font-bold text-foreground mb-1">Central de Atendimento</h3>
+              <p className="text-xs text-muted-foreground max-w-xs">Selecione uma conversa ao lado para responder seus clientes e entregadores.</p>
             </div>
           )}
         </div>
