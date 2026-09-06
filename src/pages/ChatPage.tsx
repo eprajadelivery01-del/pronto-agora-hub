@@ -5,12 +5,20 @@ import { BikeIcon } from "@/components/icons/BikeIcon";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
-import { MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck, Search, Trash2, Eraser } from "lucide-react";
+import { 
+  MessageSquare, User, Loader2, Send, HelpCircle, CheckCheck, Search, Trash2, Eraser,
+  Bot, Sparkles, CheckCircle2, RotateCcw, Clock, ShieldCheck, ChevronLeft, Store, Save,
+  Zap, MessageCircle
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useMessages, useSendMessage, useDeleteConversation, getAdminId, getDirectConversation } from "@/services/chat";
+import { 
+  useMessages, useSendMessage, useDeleteConversation, getAdminId, getDirectConversation,
+  DEFAULT_AUTO_MESSAGE, getStoreAutoMessageConfig, saveStoreAutoMessageConfig
+} from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/services/companies";
 
 export default function ChatPage() {
   const { user, hasRole } = useAuth();
@@ -25,6 +33,57 @@ export default function ChatPage() {
   const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
   const qc = useQueryClient();
+
+  const { data: companyData } = useCompany(user?.id, user?.email);
+  const [autoMessageEnabled, setAutoMessageEnabled] = useState(true);
+  const [autoMessageText, setAutoMessageText] = useState(DEFAULT_AUTO_MESSAGE);
+  const [isSavingAutoMessage, setIsSavingAutoMessage] = useState(false);
+  const [isLoadingAutoMessage, setIsLoadingAutoMessage] = useState(true);
+  const [autoMessageSaveSuccess, setAutoMessageSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (companyData?.id) {
+      setIsLoadingAutoMessage(true);
+      getStoreAutoMessageConfig(companyData.id)
+        .then((cfg) => {
+          setAutoMessageEnabled(cfg.auto_message_enabled);
+          setAutoMessageText(cfg.auto_message || DEFAULT_AUTO_MESSAGE);
+        })
+        .catch((err) => {
+          console.error("Erro ao carregar configuração de mensagem automática:", err);
+        })
+        .finally(() => {
+          setIsLoadingAutoMessage(false);
+        });
+    }
+  }, [companyData?.id]);
+
+  const handleSaveAutoMessage = async () => {
+    if (!companyData?.id) {
+      toast.error("Loja não encontrada. Verifique suas credenciais.");
+      return;
+    }
+    setIsSavingAutoMessage(true);
+    try {
+      await saveStoreAutoMessageConfig(companyData.id, {
+        auto_message_enabled: autoMessageEnabled,
+        auto_message: autoMessageText.trim() || DEFAULT_AUTO_MESSAGE,
+      });
+      setAutoMessageSaveSuccess(true);
+      setTimeout(() => setAutoMessageSaveSuccess(false), 3000);
+      qc.invalidateQueries({ queryKey: ["company", user?.id, user?.email] });
+      toast.success("Configurações de mensagem automática salvas com sucesso!", {
+        description: autoMessageEnabled 
+          ? "Esta mensagem será enviada no chat sempre que você aceitar um pedido." 
+          : "O disparo automático foi desativado.",
+      });
+    } catch (err: any) {
+      console.error("Erro ao salvar mensagem automática:", err);
+      toast.error("Erro ao salvar: " + (err?.message || "Tente novamente"));
+    } finally {
+      setIsSavingAutoMessage(false);
+    }
+  };
 
   const [readTimestamps, setReadTimestamps] = useState<Record<string, string>>({});
 
@@ -352,7 +411,7 @@ export default function ChatPage() {
   }, [conversations, profilesMap, searchFilter]);
 
   return (
-    <Layout title="Suporte / Chat" subtitle="Gerenciamento de conversas em tempo real">
+    <Layout title="Chat" subtitle="Central de atendimento e mensagens automáticas">
       <div className="flex h-full w-full min-w-0 min-h-0 min-h-[500px] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar */}
         <div className="w-80 shrink-0 border-r border-border flex flex-col bg-muted/30 min-w-0 overflow-hidden">
@@ -371,12 +430,27 @@ export default function ChatPage() {
                 </button>
               )}
               {isLojista && (
-                <button 
-                  onClick={handleStartAdminChat}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
-                >
-                  Falar com o Admin
-                </button>
+                <>
+                  <button 
+                    onClick={() => setSelectedConv(null)}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[0.65rem] font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer",
+                      !selectedConv
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                    )}
+                    title="Configurar mensagem automática enviada ao aceitar pedido"
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                    <span>Msg Auto</span>
+                  </button>
+                  <button 
+                    onClick={handleStartAdminChat}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-[0.65rem] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
+                  >
+                    Admin
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -508,15 +582,27 @@ export default function ChatPage() {
                   </div>
                 </div>
 
-                {/* Botão de Apagar Conversa Aberta */}
-                <button
-                  onClick={() => handleDeleteConversation(selectedConv.id)}
-                  title="Apagar esta conversa e mensagens"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-bold transition-all cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Apagar Chat</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {isLojista && (
+                    <button
+                      onClick={() => setSelectedConv(null)}
+                      title="Configurar Mensagem Automática"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold transition-all cursor-pointer mr-1"
+                    >
+                      <Bot className="h-4 w-4" />
+                      <span className="hidden md:inline">Mensagem Auto</span>
+                    </button>
+                  )}
+                  {/* Botão de Apagar Conversa Aberta */}
+                  <button
+                    onClick={() => handleDeleteConversation(selectedConv.id)}
+                    title="Apagar esta conversa e mensagens"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Apagar Chat</span>
+                  </button>
+                </div>
               </div>
 
               {/* Messages */}
@@ -598,6 +684,235 @@ export default function ChatPage() {
                 </div>
               </div>
             </>
+          ) : isLojista ? (
+            /* Região de Mensagem Automática do Lojista */
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-muted/10">
+              <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+                {/* Cabeçalho da Seção */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border p-6 rounded-3xl shadow-sm">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 text-primary">
+                      <Bot className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-black text-foreground tracking-tight">Mensagem Automática de Aceite</h2>
+                        <span className={cn(
+                          "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5",
+                          autoMessageEnabled ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-muted text-muted-foreground border border-border"
+                        )}>
+                          <span className={cn("w-1.5 h-1.5 rounded-full", autoMessageEnabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
+                          {autoMessageEnabled ? "Disparo Ativo" : "Disparo Pausado"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Esta mensagem é disparada automaticamente no chat com o cliente assim que você clica em <strong>"Aceitar Pedido"</strong>.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSaveAutoMessage}
+                    disabled={isSavingAutoMessage || isLoadingAutoMessage}
+                    className="self-start sm:self-center px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingAutoMessage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : autoMessageSaveSuccess ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                        <span>Salvo!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        <span>Salvar Mensagem</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Grid: Configuração à Esquerda e Simulador do Cliente à Direita */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* Painel de Edição (7 colunas) */}
+                  <div className="lg:col-span-7 space-y-6">
+                    {/* Toggle de ativação */}
+                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <span className="text-sm font-bold text-foreground block">Ativar Envio Automático</span>
+                        <p className="text-xs text-muted-foreground">
+                          Ao clicar em "Aceitar Pedido" no painel, a conversa será iniciada e esta mensagem será entregue no celular do cliente.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAutoMessageEnabled(!autoMessageEnabled)}
+                        className={cn(
+                          "relative inline-flex h-7 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-sm",
+                          autoMessageEnabled ? "bg-emerald-500" : "bg-muted-foreground/40"
+                        )}
+                        title={autoMessageEnabled ? "Clique para desativar" : "Clique para ativar"}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                            autoMessageEnabled ? "translate-x-7" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Campo de Texto */}
+                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                          Texto da Mensagem de Boas-vindas
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setAutoMessageText(DEFAULT_AUTO_MESSAGE)}
+                          className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                          title="Restaurar o modelo padrão de boas-vindas"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          <span>Restaurar Padrão</span>
+                        </button>
+                      </div>
+
+                      <textarea
+                        value={autoMessageText}
+                        onChange={(e) => setAutoMessageText(e.target.value)}
+                        rows={8}
+                        placeholder="Escreva a mensagem automática que seu cliente vai receber..."
+                        className="w-full p-4 rounded-2xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none transition-all font-medium leading-relaxed"
+                      />
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                        <span>💡 O cliente receberá no chat exatamente com essa formatação.</span>
+                        <span className="font-bold">{autoMessageText.length} caracteres</span>
+                      </div>
+                    </div>
+
+                    {/* Dica operacional */}
+                    <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-start gap-3">
+                      <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        <strong>Transparência e Confiança:</strong> O envio imediato tranquiliza o cliente, confirmando que seu estabelecimento já está preparando a comida e reduzindo cancelamentos ou dúvidas no chat.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Simulador Visual do Celular do Cliente (5 colunas) */}
+                  <div className="lg:col-span-5 flex flex-col items-center">
+                    <div className="w-full text-center mb-3">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                        📱 Como o cliente vê no celular
+                      </span>
+                    </div>
+
+                    {/* Moldura do Celular */}
+                    <div className="w-full max-w-[340px] rounded-[2.5rem] border-4 border-muted-foreground/20 bg-background shadow-2xl overflow-hidden flex flex-col min-h-[540px]">
+                      {/* Top Bar Simulada */}
+                      <div className="px-5 pt-3 pb-2 flex items-center justify-between text-[11px] font-bold text-muted-foreground select-none border-b border-border/20">
+                        <span>19:51</span>
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <span>4G</span>
+                          <span>📶</span>
+                          <span>🔋81%</span>
+                        </div>
+                      </div>
+
+                      {/* Header da Loja (igual print) */}
+                      <div className="px-4 py-3 border-b border-border/50 flex items-center gap-3 bg-card/60">
+                        <ChevronLeft className="h-5 w-5 text-rose-500 shrink-0" />
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border shrink-0">
+                          {companyData?.logo_url ? (
+                            <img src={companyData.logo_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Store className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black text-foreground truncate leading-tight">
+                            {companyData?.name || "Sua Loja Delivery"}
+                          </p>
+                          <p className="text-[10px] font-bold text-muted-foreground">Loja</p>
+                        </div>
+                      </div>
+
+                      {/* Conteúdo do Chat no Celular */}
+                      <div className="flex-1 p-4 bg-muted/20 space-y-4 overflow-y-auto custom-scrollbar flex flex-col justify-between">
+                        <div className="space-y-3">
+                          {/* Resposta rápida (igual print) */}
+                          <div className="text-center space-y-2 pt-2">
+                            <div className="text-2xl">⭐</div>
+                            <p className="text-[11px] font-semibold text-muted-foreground">
+                              Geralmente, essa loja responde rápido
+                            </p>
+                            <div className="flex items-center justify-center gap-2 flex-wrap text-[9px] font-bold">
+                              <span className="bg-card border border-border/60 px-2.5 py-1 rounded-full text-muted-foreground flex items-center gap-1 shadow-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                responde em média de 2 min
+                              </span>
+                              <span className="bg-card border border-border/60 px-2.5 py-1 rounded-full text-muted-foreground flex items-center gap-1 shadow-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                responde 98% das vezes
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Data */}
+                          <div className="text-center my-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 bg-muted/50 px-2 py-0.5 rounded-full">
+                              HOJE
+                            </span>
+                          </div>
+
+                          {/* Caixa de Aviso de Segurança (idêntico ao print) */}
+                          <div className="bg-card border border-border/70 rounded-2xl p-3 text-center space-y-1 shadow-xs">
+                            <p className="text-[11px] font-black text-foreground">Mensagem automática</p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">
+                              Não aceite cobrança na entrega se o pedido foi pago pelo app e nunca compartilhe dados pessoais em conversas de chat ou telefone.
+                            </p>
+                          </div>
+
+                          {/* Balão da Mensagem Automática digitada */}
+                          <div className="flex items-start gap-2 pt-1">
+                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border shrink-0 mt-1">
+                              {companyData?.logo_url ? (
+                                <img src={companyData.logo_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <Store className="h-3.5 w-3.5 text-primary" />
+                              )}
+                            </div>
+                            <div className="flex-1 bg-card border border-border/80 rounded-2xl rounded-tl-xs p-3 shadow-sm text-foreground max-w-[85%] relative">
+                              <p className="text-[11px] leading-relaxed whitespace-pre-wrap font-medium">
+                                {autoMessageText || "Olá! Seu pedido já chegou até a gente..."}
+                              </p>
+                              <span className="text-[9px] text-muted-foreground/70 block text-right mt-1">
+                                {format(new Date(), "HH:mm")}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Barra inferior simulada de digitação */}
+                        <div className="pt-2">
+                          <div className="bg-card border border-border rounded-full px-3 py-2 flex items-center justify-between text-muted-foreground text-xs shadow-xs">
+                            <span className="text-[11px]">Mensagem...</span>
+                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                              <Send className="h-3 w-3" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-muted/20">
               <div className="w-20 h-20 rounded-[2rem] bg-primary/10 flex items-center justify-center mb-6 animate-bounce duration-[3s]">

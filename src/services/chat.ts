@@ -214,3 +214,194 @@ export function useDeleteConversation() {
   });
 }
 
+export const DEFAULT_AUTO_MESSAGE = `Olá! 😁✨
+Seu pedido já chegou até a gente e está sendo preparado com todo cuidado.
+Obrigado por escolher a gente! 💛
+
+Já já você vai poder aproveitar essa delícia! 🍔`;
+
+export async function getStoreAutoMessageConfig(companyId: string) {
+  if (!companyId) return { auto_message_enabled: true, auto_message: DEFAULT_AUTO_MESSAGE };
+  try {
+    const { data, error } = await supabase
+      .from("companies")
+      .select("opening_hours")
+      .eq("id", companyId)
+      .maybeSingle();
+
+    if (error) throw error;
+    const hours = typeof data?.opening_hours === "string" 
+      ? JSON.parse(data.opening_hours) 
+      : (data?.opening_hours || {});
+
+    return {
+      auto_message_enabled: hours.auto_message_enabled !== false,
+      auto_message: typeof hours.auto_message === "string" ? hours.auto_message : DEFAULT_AUTO_MESSAGE,
+    };
+  } catch (e) {
+    console.error("Erro ao buscar configuração de mensagem automática:", e);
+    return { auto_message_enabled: true, auto_message: DEFAULT_AUTO_MESSAGE };
+  }
+}
+
+export async function saveStoreAutoMessageConfig(
+  companyId: string, 
+  config: { auto_message_enabled: boolean; auto_message: string }
+) {
+  if (!companyId) throw new Error("ID da empresa não informado");
+  
+  const { data } = await supabase
+    .from("companies")
+    .select("opening_hours")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const currentHours = typeof data?.opening_hours === "string"
+    ? JSON.parse(data.opening_hours)
+    : (data?.opening_hours || {});
+
+  const updatedHours = {
+    ...currentHours,
+    auto_message_enabled: config.auto_message_enabled,
+    auto_message: config.auto_message,
+  };
+
+  const { error } = await supabase
+    .from("companies")
+    .update({ opening_hours: updatedHours })
+    .eq("id", companyId);
+
+  if (error) throw error;
+  return updatedHours;
+}
+
+export async function sendOrderAutoWelcomeMessage(
+  orderId: string, 
+  companyId?: string, 
+  customerId?: string
+) {
+  try {
+    if (!orderId) return;
+
+    // 1. Obter dados da loja para verificar se a mensagem automática está ativa
+    let company: any = null;
+    if (companyId) {
+      const { data } = await supabase
+        .from("companies")
+        .select("id, user_id, opening_hours")
+        .eq("id", companyId)
+        .maybeSingle();
+      company = data;
+    }
+
+    let orderInfo: any = null;
+    if (!company || !customerId) {
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("id, company_id, customer_id, user_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      orderInfo = orderData;
+
+      if (!company && orderData?.company_id) {
+        const { data } = await supabase
+          .from("companies")
+          .select("id, user_id, opening_hours")
+          .eq("id", orderData.company_id)
+          .maybeSingle();
+        company = data;
+      }
+    }
+
+    if (!company) return;
+
+    const openingHours = typeof company.opening_hours === "string"
+      ? JSON.parse(company.opening_hours)
+      : (company.opening_hours || {});
+
+    // Se a mensagem automática estiver desabilitada explicitamente pelo lojista, não envia
+    if (openingHours.auto_message_enabled === false) {
+      return;
+    }
+
+    const messageText = (openingHours.auto_message || DEFAULT_AUTO_MESSAGE).trim();
+    if (!messageText) return;
+
+    const senderUserId = company.user_id;
+    if (!senderUserId) return;
+
+    const targetCustomer = customerId || orderInfo?.user_id || orderInfo?.customer_id;
+
+    // 2. Localizar ou criar a conversa do pedido
+    let { data: conversation } = await supabase
+      .from("conversations")
+      .select("id, participants")
+      .eq("order_id", orderId)
+      .maybeSingle();
+
+    if (!conversation) {
+      const participants = Array.from(new Set([
+        senderUserId,
+        targetCustomer,
+        orderInfo?.user_id,
+        orderInfo?.customer_id
+      ].filter(Boolean)));
+
+      const { data: newConv, error: convErr } = await supabase
+        .from("conversations")
+        .insert({
+          order_id: orderId,
+          participants: participants.length > 0 ? participants : [senderUserId],
+          topic: "Suporte do Pedido"
+        })
+        .select()
+        .single();
+
+      if (convErr) {
+        console.error("[AutoMessage] Erro ao criar conversa para o pedido:", convErr);
+        return;
+      }
+      conversation = newConv;
+    }
+
+    if (!conversation?.id) return;
+
+    // 3. Trava de Idempotência: verificar se a mensagem já foi enviada nesta conversa
+    const { data: existingMessages } = await supabase
+      .from("messages")
+      .select("id, content, sender_id")
+      .eq("conversation_id", conversation.id);
+
+    const cleanMsgText = messageText.replace(/\u200B/g, "").trim();
+    const alreadySent = existingMessages?.some(m => {
+      const c = (m.content || "").replace(/\u200B/g, "").trim();
+      return m.sender_id === senderUserId && (
+        c === cleanMsgText ||
+        c.includes("Seu pedido já chegou até a gente")
+      );
+    });
+
+    if (alreadySent) {
+      console.log(`[AutoMessage] Mensagem automática já enviada para o pedido #${orderId.slice(0, 6)}`);
+      return;
+    }
+
+    // 4. Inserir a mensagem automática no chat
+    const { error: msgErr } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversation.id,
+        sender_id: senderUserId,
+        content: messageText + "\u200B"
+      });
+
+    if (msgErr) {
+      console.error("[AutoMessage] Erro ao inserir mensagem automática:", msgErr);
+    } else {
+      console.log(`[AutoMessage] Mensagem automática enviada com sucesso para o pedido #${orderId.slice(0, 6).toUpperCase()}`);
+    }
+  } catch (err) {
+    console.error("[AutoMessage] Erro inesperado ao enviar mensagem de boas-vindas:", err);
+  }
+}
+

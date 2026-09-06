@@ -45,7 +45,7 @@ interface BusinessLayoutProps {
 const tabs = [
   { label: "Painel de Entregas", icon: LayoutDashboard, href: "/business", category: "Operacional" },
   { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
-  { label: "Suporte", icon: MessageCircle, href: "/business/chat", category: "Operacional" },
+  { label: "Chat", icon: MessageCircle, href: "/business/chat", category: "Operacional" },
   { label: "Marketplace", icon: Store, href: "DYNAMIC_MARKETPLACE", category: "Marketplace", external: true },
   { label: "Cardápio/Produtos", icon: Tag, href: "/business/products", category: "Marketplace" },
   { label: "Cupons de Desconto", icon: Percent, href: "/business/coupons", category: "Marketplace" },
@@ -314,7 +314,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                       >
                         <div className="relative shrink-0">
                           <tab.icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", active ? "text-primary-foreground" : "text-muted-foreground")} />
-                          {collapsed && tab.label === "Suporte" && unreadChatCount > 0 && (
+                          {collapsed && (tab.label === "Chat" || tab.label === "Suporte") && unreadChatCount > 0 && (
                             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full border border-card" />
                           )}
                           {collapsed && tab.label === "Novos Pedidos" && pendingOrders.length > 0 && (
@@ -324,7 +324,7 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
                         {!collapsed && (
                           <span className="flex-1 flex items-center justify-between animate-in fade-in slide-in-from-left-2 duration-300">
                             {tab.label}
-                            {tab.label === "Suporte" && unreadChatCount > 0 && (
+                            {(tab.label === "Chat" || tab.label === "Suporte") && unreadChatCount > 0 && (
                               <span className="ml-2 inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
                                 {unreadChatCount > 99 ? '99+' : unreadChatCount}
                               </span>

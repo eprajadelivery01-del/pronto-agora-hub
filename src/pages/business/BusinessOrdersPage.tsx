@@ -8,6 +8,7 @@ import { calculateDeliveryFee } from "@/utils/freight";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { useAudioAlert, sendNativeDeviceNotification, requestNotificationPermission } from "@/hooks/useAudioAlert";
 import { useCustomerPhone, formatPhoneNumber, cleanPhoneNumber } from "@/hooks/useCustomerPhone";
+import { sendOrderAutoWelcomeMessage } from "@/services/chat";
 
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
@@ -562,6 +563,14 @@ export default function BusinessOrdersPage() {
         console.log(`[push-notification] Notificações disparadas para o pedido #${orderId.slice(0, 6).toUpperCase()}:`, results);
       }).catch(e => console.warn(`[push-notification] Erro ao notificar cliente:`, e));
       */
+
+      if (newStatus === "preparing") {
+        sendOrderAutoWelcomeMessage(
+          orderId,
+          currentOrder?.company_id || companyId,
+          targetCustomerId || targetUserId
+        ).catch(e => console.warn("[AutoMessage] Falha silenciosa no envio:", e));
+      }
 
       toast.success(`Pedido movido para: ${STATUS_LABELS[newStatus]}`);
       fetchOrders();
