@@ -7,8 +7,8 @@ android {
         applicationId "com.eprajalojista"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10
-        versionName "4.6"
+        versionCode 11
+        versionName "4.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -79,9 +79,10 @@ tasks.whenTaskAdded { task ->
         task.doLast {
             fixedOutputDir.mkdirs()
 
-            if (task.name == 'assembleDebug') {
+            if (task.name == 'assembleDebug' || task.name == 'assembleRelease') {
+                def apkFolder = task.name == 'assembleDebug' ? "${buildDir}/outputs/apk/debug/" : "${buildDir}/outputs/apk/release/"
                 copy {
-                    from "${buildDir}/outputs/apk/debug/"
+                    from apkFolder
                     into fixedOutputDir
                     include "**/*.apk"
                     rename { "epraja-lojista.apk" }
