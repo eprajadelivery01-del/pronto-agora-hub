@@ -937,31 +937,15 @@ export default function ChatPage() {
                                 Geralmente, essa loja responde rápido
                               </p>
 
-                              {/* Colunas lado a lado com divisória central */}
-                              <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-zinc-100 max-w-[280px] mx-auto">
-                                <div className="flex items-center gap-1.5 justify-center pr-2 border-r border-zinc-200">
-                                  <div className="relative">
-                                    <Clock className="h-3.5 w-3.5 text-zinc-700" />
-                                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white" />
-                                  </div>
-                                  <div className="text-left text-[9px] text-zinc-600 font-medium leading-tight">
-                                    <span>responde em média</span>
-                                    <br />
-                                    <span className="font-bold text-zinc-800">de 2 min</span>
-                                  </div>
+                              {/* Tempo Médio de Resposta em Minutos */}
+                              <div className="flex items-center justify-center gap-1.5 pt-1.5 border-t border-zinc-100 max-w-[220px] mx-auto">
+                                <div className="relative">
+                                  <Clock className="h-3.5 w-3.5 text-zinc-700" />
+                                  <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white" />
                                 </div>
-
-                                <div className="flex items-center gap-1.5 justify-center pl-1">
-                                  <div className="relative">
-                                    <MessageCircle className="h-3.5 w-3.5 text-zinc-700" />
-                                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white" />
-                                  </div>
-                                  <div className="text-left text-[9px] text-zinc-600 font-medium leading-tight">
-                                    <span>responde</span>
-                                    <br />
-                                    <span className="font-bold text-zinc-800">98% das vezes</span>
-                                  </div>
-                                </div>
+                                <span className="text-[9.5px] text-zinc-600 font-medium">
+                                  responde em média <strong className="text-zinc-800 font-bold">de 2 min</strong>
+                                </span>
                               </div>
                             </div>
 
