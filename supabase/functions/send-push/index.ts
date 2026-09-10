@@ -146,6 +146,39 @@ async function sendToToken(
   const useOfficialSound = isDriverDelivery || isMerchantOrder;
   const channelId = isDriverDelivery ? "delivery-incoming-v9" : "marketplace_orders";
   const soundName = useOfficialSound ? "notification_sound" : "default";
+
+  let targetToken = token;
+  const isApnsHex = /^[0-9a-fA-F]{64}$/.test(token.trim());
+  if (isApnsHex) {
+    const bundleId = isDriverDelivery ? "br.com.epraja.entregador" : "br.com.epraja.lojista";
+    console.log(`[send-push:${reqId}] Token APNs bruto detectado (${token.slice(0, 10)}...). Convertendo via BatchImport para ${bundleId}...`);
+    for (const sandbox of [false, true]) {
+      try {
+        const importRes = await fetch("https://iid.googleapis.com/iid/v1:batchImport", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "access_token_auth": "true",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            application: bundleId,
+            sandbox: sandbox,
+            apns_tokens: [token.trim()]
+          })
+        });
+        const importData = await importRes.json();
+        const mapped = importData?.results?.[0];
+        if (mapped?.status === "OK" && mapped.registration_token) {
+          console.log(`[send-push:${reqId}] Token APNs convertido com sucesso para FCM token (sandbox=${sandbox}):`, mapped.registration_token.slice(0, 15) + "...");
+          targetToken = mapped.registration_token;
+          break;
+        }
+      } catch (errImport) {
+        console.warn(`[send-push:${reqId}] Erro BatchImport (sandbox=${sandbox}):`, errImport);
+      }
+    }
+  }
   
   // Estrutura Padrão Profissional FCM HTTP v1: notification + data + android.priority HIGH + channel_id
     const notifTag = data.deliveryId 
@@ -156,7 +189,7 @@ async function sendToToken(
 
     const payload: any = {
       message: {
-        token,
+        token: targetToken,
         notification: { title, body },
         data,
         android: {
@@ -173,7 +206,15 @@ async function sendToToken(
         },
       apns: {
         headers: { "apns-priority": "10", "apns-push-type": "alert" },
-        payload: { aps: { alert: { title, body }, sound: useOfficialSound ? "notification_sound.mp3" : "default", badge: 1, "mutable-content": 1 } },
+        payload: {
+          aps: {
+            alert: { title, body },
+            sound: useOfficialSound ? "notification_sound.mp3" : "default",
+            badge: 1,
+            "content-available": 1,
+            "mutable-content": 1
+          }
+        },
       },
     },
   };

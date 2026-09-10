@@ -37,7 +37,7 @@ export function useOrderAlerts() {
     let pushListener: any = null;
 
     PushNotifications.requestPermissions().then((result) => {
-      if (result.receive === "granted") {
+      if (result.receive === "granted" || (result as any).display === "granted") {
         PushNotifications.register().catch(e => 
           console.warn("[Push] Falha ao registrar push (safe):", e)
         );
