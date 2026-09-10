@@ -559,8 +559,8 @@ export default function ChatPage() {
 
 
   return (
-    <Layout title="Chat" subtitle="Central de atendimento e mensagens automáticas">
-      <div className="flex h-full w-full min-w-0 min-h-0 min-h-[550px] bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+    <Layout title="Chat" subtitle="Central de atendimento e mensagens automáticas" fullHeight>
+      <div className="flex h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-7.5rem)] min-h-[480px] w-full min-w-0 bg-card rounded-2xl shadow-card border border-border overflow-hidden">
         {/* Sidebar de Conversas e Navegação */}
         <div className="w-80 shrink-0 border-r border-border flex flex-col bg-muted/20 min-w-0 overflow-hidden">
           {/* Topo da Sidebar: Título e Ação Secundária */}
@@ -737,11 +737,11 @@ export default function ChatPage() {
         </div>
 
         {/* Área Central / Janela Principal */}
-        <div className="flex-1 flex flex-col bg-background relative min-w-0">
+        <div className="flex-1 flex flex-col bg-background relative min-w-0 min-h-0 h-full overflow-hidden">
           {selectedConv ? (
             <>
               {/* Header da Conversa Ativa */}
-              <div className="p-4 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
+              <div className="p-4 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
                     {profilesMap?.[getOtherParticipantId(selectedConv)]?.avatar_url ? (

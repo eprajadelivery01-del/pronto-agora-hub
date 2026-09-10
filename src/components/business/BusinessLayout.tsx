@@ -40,6 +40,8 @@ import {
 interface BusinessLayoutProps {
   children: ReactNode;
   title?: string;
+  subtitle?: string;
+  fullHeight?: boolean;
 }
 
 const tabs = [
@@ -55,7 +57,7 @@ const tabs = [
   { label: "Histórico", icon: History, href: "/business/history", category: "Gestão" },
 ];
 
-export function BusinessLayout({ children, title }: BusinessLayoutProps) {
+export function BusinessLayout({ children, title, subtitle, fullHeight }: BusinessLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
@@ -535,8 +537,16 @@ export function BusinessLayout({ children, title }: BusinessLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)]">
-          <div className="max-w-7xl mx-auto w-full space-y-6 flex-1">
+        <main className={cn(
+          "flex-1 flex flex-col min-h-0",
+          fullHeight 
+            ? "overflow-hidden p-3 lg:p-6 pb-4" 
+            : "overflow-y-auto custom-scrollbar p-4 lg:p-8 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)]"
+        )}>
+          <div className={cn(
+            "max-w-7xl mx-auto w-full flex-1 min-h-0",
+            fullHeight ? "flex flex-col h-full" : "space-y-6"
+          )}>
             {children}
           </div>
         </main>
