@@ -89,18 +89,50 @@ export function useLoginSecurityMonitor(options: LoginSecurityMonitorOptions = {
     if (lastIpDataRef.current) return lastIpDataRef.current;
 
     try {
-      const res = await fetch(
-        "https://ip-api.com/json/?fields=status,country,countryCode,proxy,hosting,query",
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (!res.ok) return null;
-      const data: IpApiResponse = await res.json();
-      if (data.status !== "success") return null;
-      lastIpDataRef.current = data;
-      return data;
-    } catch {
-      return null;
-    }
+      // 1. ipwho.is: Gratuito, HTTPS nativo e com suporte a detecção de proxy/VPN
+      const res = await fetch("https://ipwho.is/", {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success !== false) {
+          const formatted: IpApiResponse = {
+            status: "success",
+            country: data.country || "Desconhecido",
+            countryCode: data.country_code || "??",
+            proxy: Boolean(data.security?.proxy || data.security?.vpn || data.security?.tor),
+            hosting: Boolean(data.security?.hosting),
+            query: data.ip || "",
+          };
+          lastIpDataRef.current = formatted;
+          return formatted;
+        }
+      }
+    } catch { }
+
+    try {
+      // 2. Fallback para ipapi.co
+      const res = await fetch("https://ipapi.co/json/", {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && !data.error) {
+          const formatted: IpApiResponse = {
+            status: "success",
+            country: data.country_name || "Desconhecido",
+            countryCode: data.country_code || "??",
+            proxy: false,
+            hosting: false,
+            query: data.ip || "",
+          };
+          lastIpDataRef.current = formatted;
+          return formatted;
+        }
+      }
+    } catch { }
+
+    return null;
   }, []);
 
   /**
