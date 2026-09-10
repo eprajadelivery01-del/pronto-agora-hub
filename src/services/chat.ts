@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
@@ -11,10 +11,10 @@ export async function getConversation(orderId: string) {
     .from("conversations")
     .select("*")
     .eq("order_id", orderId)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  return data?.[0] || null;
 }
 
 export async function getDirectConversation(userId: string, targetUserId: string) {
@@ -24,9 +24,9 @@ export async function getDirectConversation(userId: string, targetUserId: string
     .select("*")
     .is("order_id", null)
     .contains("participants", [userId, targetUserId])
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
-  if (existing) return existing;
+  if (existing && existing.length > 0) return existing[0];
 
   // If not found, create one
   const { data, error } = await supabase
@@ -105,30 +105,55 @@ export async function getAdminId(currentUserId?: string) {
   return null;
 }
 
-export async function getMessages(conversationId: string) {
+export async function getMessages(conversationId: string | string[]) {
+  const ids = (Array.isArray(conversationId) ? conversationId : [conversationId]).filter(Boolean);
+  if (ids.length === 0) return [];
+
   const { data, error } = await supabase
     .from("messages")
     .select("*")
-    .eq("conversation_id", conversationId)
+    .in("conversation_id", ids)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return data;
+
+  // Deduplicar mensagens por ID ou por conteúdo e horário para evitar duplicações visuais
+  const seen = new Set<string>();
+  const unique = (data || []).filter((m) => {
+    const key = m.id || `${m.sender_id}_${m.content}_${m.created_at}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return unique;
 }
 
-export async function sendMessage(conversationId: string, senderId: string, content: string) {
-  const { data, error } = await supabase
-    .from("messages")
-    .insert({
-      conversation_id: conversationId,
-      sender_id: senderId,
-      content: content,
-    })
-    .select()
-    .single();
+export async function sendMessage(conversationIds: string | string[], senderId: string, content: string) {
+  const ids = (Array.isArray(conversationIds) ? conversationIds : [conversationIds]).filter(Boolean);
+  if (ids.length === 0) throw new Error("ID da conversa não informado");
 
-  if (error) throw error;
-  return data;
+  // Insere em todas as conversas vinculadas para que o cliente e o lojista
+  // sincronizem instantaneamente em tempo real independentemente de qual sala o app do cliente abriu
+  const promises = ids.map((id) =>
+    supabase
+      .from("messages")
+      .insert({
+        conversation_id: id,
+        sender_id: senderId,
+        content: content,
+      })
+      .select()
+      .single()
+  );
+
+  const results = await Promise.all(promises);
+  const success = results.find((r) => !r.error && r.data);
+  if (!success) {
+    const firstErr = results.find((r) => r.error)?.error;
+    if (firstErr) throw firstErr;
+  }
+  return success?.data;
 }
 
 /**
@@ -142,25 +167,34 @@ export function useChat(orderId: string) {
   });
 }
 
-export function useMessages(conversationId?: string) {
+export function useMessages(conversationId?: string | string[]) {
   const qc = useQueryClient();
+  const ids = useMemo(() => {
+    if (!conversationId) return [];
+    return (Array.isArray(conversationId) ? conversationId : [conversationId]).filter(Boolean);
+  }, [conversationId]);
+  
+  const idsKey = ids.slice().sort().join(",");
 
-  // Escuta Realtime para novas mensagens
+  // Escuta Realtime para novas mensagens em todas as salas vinculadas
   useEffect(() => {
-    if (!conversationId) return;
+    if (ids.length === 0) return;
 
+    const channelId = `chat-room-${Math.random().toString(36).substring(2, 8)}`;
     const channel = supabase
-      .channel(`chat:${conversationId}`)
+      .channel(channelId)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
         },
-        () => {
-          qc.invalidateQueries({ queryKey: ["messages", conversationId] });
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (newMsg && ids.includes(newMsg.conversation_id)) {
+            qc.invalidateQueries({ queryKey: ["messages", idsKey] });
+          }
         }
       )
       .subscribe();
@@ -168,12 +202,12 @@ export function useMessages(conversationId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, qc]);
+  }, [idsKey, qc]);
 
   return useQuery({
-    queryKey: ["messages", conversationId],
-    queryFn: () => (conversationId ? getMessages(conversationId) : null),
-    enabled: !!conversationId,
+    queryKey: ["messages", idsKey],
+    queryFn: () => (ids.length > 0 ? getMessages(ids) : null),
+    enabled: ids.length > 0,
   });
 }
 
@@ -182,22 +216,30 @@ export function useSendMessage() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) => {
+    mutationFn: ({ conversationId, content }: { conversationId: string | string[]; content: string }) => {
       if (!user?.id) throw new Error("Usuário não autenticado");
       return sendMessage(conversationId, user.id, content + '\u200B');
     },
     onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ["messages", variables.conversationId] });
+      const ids = (Array.isArray(variables.conversationId) ? variables.conversationId : [variables.conversationId]).filter(Boolean);
+      ids.forEach((id) => {
+        qc.invalidateQueries({ queryKey: ["messages", id] });
+      });
+      const idsKey = ids.slice().sort().join(",");
+      qc.invalidateQueries({ queryKey: ["messages", idsKey] });
       qc.invalidateQueries({ queryKey: ["conversations", user?.id] });
     },
   });
 }
 
-export async function deleteConversation(conversationId: string) {
+export async function deleteConversation(conversationIds: string | string[]) {
+  const ids = (Array.isArray(conversationIds) ? conversationIds : [conversationIds]).filter(Boolean);
+  if (ids.length === 0) return true;
+
   // 1. Deletar mensagens da conversa
-  await supabase.from("messages").delete().eq("conversation_id", conversationId);
+  await supabase.from("messages").delete().in("conversation_id", ids);
   // 2. Deletar a conversa
-  const { error } = await supabase.from("conversations").delete().eq("id", conversationId);
+  const { error } = await supabase.from("conversations").delete().in("id", ids);
   if (error) throw error;
   return true;
 }
@@ -207,7 +249,7 @@ export function useDeleteConversation() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: (conversationId: string) => deleteConversation(conversationId),
+    mutationFn: (conversationIds: string | string[]) => deleteConversation(conversationIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["conversations", user?.id] });
     },
@@ -332,11 +374,13 @@ export async function sendOrderAutoWelcomeMessage(
     const targetCustomer = customerId || orderInfo?.user_id || orderInfo?.customer_id;
 
     // 2. Localizar ou criar a conversa do pedido
-    let { data: conversation } = await supabase
+    const { data: existingConvs } = await supabase
       .from("conversations")
       .select("id, participants")
       .eq("order_id", orderId)
-      .maybeSingle();
+      .order("created_at", { ascending: true });
+
+    let conversation = existingConvs?.[0] || null;
 
     if (!conversation) {
       const participants = Array.from(new Set([

@@ -15,10 +15,11 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { 
   useMessages, useSendMessage, useDeleteConversation, getAdminId, getDirectConversation,
-  DEFAULT_AUTO_MESSAGE, getStoreAutoMessageConfig, saveStoreAutoMessageConfig
+  getConversation, DEFAULT_AUTO_MESSAGE, getStoreAutoMessageConfig, saveStoreAutoMessageConfig
 } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/services/companies";
+import { useAudioAlert } from "@/hooks/useAudioAlert";
 
 export default function ChatPage() {
   const { user, hasRole } = useAuth();
@@ -28,8 +29,11 @@ export default function ChatPage() {
   const [isClearingEmpty, setIsClearingEmpty] = useState(false);
   const [searchParams] = useSearchParams();
   const orderIdParam = searchParams.get("order_id");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isSendingRef = useRef(false);
+  const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
+  const { playAlert } = useAudioAlert();
+
   const isLojista = hasRole('company');
   const Layout = isLojista ? BusinessLayout : AdminLayout;
   const qc = useQueryClient();
@@ -40,6 +44,16 @@ export default function ChatPage() {
   const [isSavingAutoMessage, setIsSavingAutoMessage] = useState(false);
   const [isLoadingAutoMessage, setIsLoadingAutoMessage] = useState(true);
   const [autoMessageSaveSuccess, setAutoMessageSaveSuccess] = useState(false);
+
+  const LOJISTA_QUICK_REPLIES = [
+    { label: "Saiu p/ entrega", emoji: "🛵", text: "Seu pedido já saiu para entrega! Em breve estará com você." },
+    { label: "Em preparo", emoji: "👨‍🍳", text: "Olá! Seu pedido já está sendo preparado com todo carinho." },
+    { label: "Quase pronto", emoji: "⏱️", text: "Está quase pronto! Só mais 5 minutinhos e já estará a caminho." },
+    { label: "Talheres/Guardanapos", emoji: "🍽️", text: "Combinado! Já incluímos guardanapos e talheres no pacote." },
+    { label: "Tudo confirmado", emoji: "👍", text: "Perfeito! Tudo anotado e confirmado por aqui." },
+    { label: "Como posso ajudar?", emoji: "👋", text: "Olá! Como podemos te ajudar com o seu pedido?" },
+    { label: "Bom apetite!", emoji: "❤️", text: "Muito obrigado pela preferência! Bom apetite! 🍽️✨" },
+  ];
 
   const handleInsertEmoji = (emoji: string) => {
     setAutoMessageText((prev) => prev + (prev.endsWith(" ") || prev.length === 0 ? "" : " ") + emoji);
@@ -132,14 +146,14 @@ export default function ChatPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("conversations")
-        .select("*, messages(content, created_at, sender_id)")
+        .select("*, messages(id, content, created_at, sender_id)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     }
   });
 
-  // Global Realtime listener for incoming messages
+  // Global Realtime listener for incoming messages com aviso sonoro
   useEffect(() => {
     if (!user?.id) return;
     const channelId = `admin-chat-global-${Math.random().toString(36).substring(2, 7)}`;
@@ -148,10 +162,12 @@ export default function ChatPage() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        () => {
+        (payload) => {
           qc.invalidateQueries({ queryKey: ["conversations", user.id] });
-          if (selectedConv?.id) {
-            qc.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
+          qc.invalidateQueries({ queryKey: ["messages"] });
+          const newMsg = payload.new as any;
+          if (newMsg && newMsg.sender_id !== user.id && !newMsg.content?.endsWith('\u200B')) {
+            playAlert();
           }
         }
       )
@@ -167,38 +183,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, selectedConv?.id, qc]);
-
-  useEffect(() => {
-    const handleUrlParams = async () => {
-      if (conversations && orderIdParam && !selectedConv) {
-        let convForOrder = conversations.find((c: any) => c.order_id === orderIdParam);
-        
-        if (!convForOrder && searchParams.get("customer_id") && user) {
-          const customerId = searchParams.get("customer_id");
-          const { data: created } = await supabase
-            .from("conversations")
-            .insert({ 
-              order_id: orderIdParam, 
-              participants: [user.id, customerId],
-              topic: "Suporte do Pedido" 
-            })
-            .select("*, messages(content, created_at, sender_id)")
-            .single();
-          
-          if (created) {
-            convForOrder = created;
-            qc.invalidateQueries({ queryKey: ["conversations", user.id] });
-          }
-        }
-
-        if (convForOrder) {
-          setSelectedConv(convForOrder);
-        }
-      }
-    };
-    handleUrlParams();
-  }, [conversations, orderIdParam, selectedConv, searchParams, user, qc]);
+  }, [user?.id, qc, playAlert]);
 
   // Profiles map for conversation display
   const { data: profilesMap } = useQuery({
@@ -207,7 +192,7 @@ export default function ChatPage() {
     queryFn: async () => {
       if (!conversations) return {};
       const participantIds = Array.from(new Set(
-        conversations.flatMap(c => c.participants || [])
+        conversations.flatMap((c: any) => c.participants || [])
       ));
       
       const { data } = await supabase
@@ -275,15 +260,177 @@ export default function ChatPage() {
     },
   });
 
-  const { data: messages, isLoading: loadingMessages } = useMessages(selectedConv?.id);
+  const getOtherParticipantId = (conv: any) => {
+    return conv.participants?.find((id: string) => id !== user?.id) || conv.participants?.[0];
+  };
+
+  const getConvTitle = (conv: any) => {
+    const orderTag = conv.order_id ? `#${conv.order_id.slice(-6).toUpperCase()}` : null;
+
+    let extractedTopic = null;
+    if (conv.messages && conv.messages.length > 0) {
+      const firstMsg = [...conv.messages].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
+      if (firstMsg?.content?.startsWith('[Assunto:')) {
+        extractedTopic = firstMsg.content.replace('[Assunto:', '').replace(']', '').trim();
+      }
+    }
+
+    const otherId = getOtherParticipantId(conv);
+    const otherProfile = profilesMap?.[otherId];
+    const customerName = otherProfile?.full_name || (otherId ? `Cliente #${otherId.slice(0, 4).toUpperCase()}` : null);
+
+    if (orderTag) {
+      return customerName ? `${customerName} (${orderTag})` : `Pedido ${orderTag}`;
+    }
+
+    if (otherProfile?.full_name) {
+      return extractedTopic ? `${otherProfile.full_name} (${extractedTopic})` : otherProfile.full_name;
+    }
+
+    if (otherId) {
+      return extractedTopic || `Usuário #${otherId.slice(0, 6).toUpperCase()}`;
+    }
+
+    return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Conversa";
+  };
+
+  // Agrupa e deduplica todas as conversas que pertencem ao mesmo pedido (order_id)
+  const unifiedConversations = useMemo(() => {
+    if (!conversations) return [];
+
+    const orderGroups: Record<string, any[]> = {};
+    const directList: any[] = [];
+
+    conversations.forEach((conv: any) => {
+      if (conv.order_id) {
+        if (!orderGroups[conv.order_id]) orderGroups[conv.order_id] = [];
+        orderGroups[conv.order_id].push(conv);
+      } else {
+        directList.push(conv);
+      }
+    });
+
+    const mergedOrders = Object.values(orderGroups).map((group) => {
+      const sortedByDate = [...group].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const primary = sortedByDate[0];
+      const allIds = group.map((c) => c.id);
+      const allParticipants = Array.from(new Set(group.flatMap((c) => c.participants || [])));
+      const allMessages = group
+        .flatMap((c) => c.messages || [])
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+      // Deduplica mensagens
+      const seenMsg = new Set<string>();
+      const deduplicated = allMessages.filter((m) => {
+        const key = m.id || `${m.sender_id}_${m.content}_${m.created_at}`;
+        if (seenMsg.has(key)) return false;
+        seenMsg.add(key);
+        return true;
+      });
+
+      return {
+        ...primary,
+        id: primary.id,
+        all_ids: allIds,
+        participants: allParticipants,
+        messages: deduplicated,
+      };
+    });
+
+    const combined = [...mergedOrders, ...directList];
+
+    return combined.sort((a, b) => {
+      const lastMsgA = a.messages && a.messages.length > 0 
+        ? Math.max(...a.messages.map((m: any) => new Date(m.created_at).getTime()))
+        : new Date(a.created_at).getTime();
+
+      const lastMsgB = b.messages && b.messages.length > 0 
+        ? Math.max(...b.messages.map((m: any) => new Date(m.created_at).getTime()))
+        : new Date(b.created_at).getTime();
+
+      return lastMsgB - lastMsgA;
+    });
+  }, [conversations]);
+
+  useEffect(() => {
+    const handleUrlParams = async () => {
+      if (conversations && orderIdParam && !selectedConv) {
+        let convForOrder = unifiedConversations.find((c: any) => c.order_id === orderIdParam);
+        
+        if (!convForOrder && searchParams.get("customer_id") && user) {
+          const customerId = searchParams.get("customer_id");
+          const existing = await getConversation(orderIdParam);
+          if (existing) {
+            qc.invalidateQueries({ queryKey: ["conversations", user.id] });
+            setSelectedConv(existing);
+          } else {
+            const { data: created } = await supabase
+              .from("conversations")
+              .insert({ 
+                order_id: orderIdParam, 
+                participants: [user.id, customerId],
+                topic: "Suporte do Pedido" 
+              })
+              .select("*, messages(content, created_at, sender_id)")
+              .single();
+            
+            if (created) {
+              qc.invalidateQueries({ queryKey: ["conversations", user.id] });
+              setSelectedConv(created);
+            }
+          }
+        } else if (convForOrder) {
+          setSelectedConv(convForOrder);
+        }
+      }
+    };
+    handleUrlParams();
+  }, [conversations, orderIdParam, selectedConv, searchParams, user, qc, unifiedConversations]);
+
+  const activeConvIds = useMemo(() => {
+    if (!selectedConv) return undefined;
+    return selectedConv.all_ids || [selectedConv.id];
+  }, [selectedConv]);
+
+  const { data: messages, isLoading: loadingMessages } = useMessages(activeConvIds);
   const sendMessageMutation = useSendMessage();
   const deleteConversationMutation = useDeleteConversation();
 
+  // Limpa mensagens otimistas que já foram confirmadas pelo Supabase
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      setOptimisticMessages((prev) =>
+        prev.filter((opt) => !messages.some((m: any) => 
+          (m.id === opt.id) ||
+          (m.content?.replace(/\u200B/g, '') === opt.content?.replace(/\u200B/g, '') && m.sender_id === opt.sender_id)
+        ))
+      );
+    }
+  }, [messages]);
+
+  const displayMessages = useMemo(() => {
+    const list = messages ? [...messages] : [];
+    if (optimisticMessages.length > 0 && selectedConv) {
+      const targetIds = selectedConv.all_ids || [selectedConv.id];
+      const matchingOpts = optimisticMessages.filter((opt) => targetIds.includes(opt.conversation_id));
+      list.push(...matchingOpts);
+    }
+    return list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, [messages, optimisticMessages, selectedConv]);
+
   useEffect(() => {
     if (selectedConv) {
-      const readTimestamps = JSON.parse(localStorage.getItem('chat_read_timestamps') || '{}');
-      readTimestamps[selectedConv.id] = new Date().toISOString();
-      localStorage.setItem('chat_read_timestamps', JSON.stringify(readTimestamps));
+      const readMap = JSON.parse(localStorage.getItem('chat_read_timestamps') || '{}');
+      const now = new Date().toISOString();
+      readMap[selectedConv.id] = now;
+      if (selectedConv.all_ids && Array.isArray(selectedConv.all_ids)) {
+        selectedConv.all_ids.forEach((id: string) => {
+          readMap[id] = now;
+        });
+      }
+      localStorage.setItem('chat_read_timestamps', JSON.stringify(readMap));
       window.dispatchEvent(new Event('chat_read_update'));
     }
   }, [selectedConv, messages]);
@@ -293,32 +440,69 @@ export default function ChatPage() {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [displayMessages]);
 
-  const handleSend = () => {
-    if (!message.trim() || !selectedConv) return;
-    const contentToSend = message.trim();
+  const handleSelectConv = (conv: any) => {
+    setSelectedConv(conv);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 80);
+  };
+
+  const handleSend = (customText?: string) => {
+    const rawContent = (typeof customText === "string" ? customText : message).trim();
+    if (!rawContent || !selectedConv || isSendingRef.current) return;
+
+    isSendingRef.current = true;
     setMessage("");
-    
+
+    const targetIds = selectedConv.all_ids || [selectedConv.id];
+    const tempId = `optimistic-${Date.now()}`;
+
+    // Adiciona instantaneamente na interface para resposta WhatsApp em 0ms
+    const optMsg = {
+      id: tempId,
+      conversation_id: selectedConv.id,
+      sender_id: user?.id,
+      content: rawContent + '\u200B',
+      created_at: new Date().toISOString(),
+      pending: true,
+    };
+
+    setOptimisticMessages((prev) => [...prev, optMsg]);
+
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      inputRef.current?.focus();
+    }, 40);
+
     sendMessageMutation.mutate({
-      conversationId: selectedConv.id,
-      content: contentToSend
+      conversationId: targetIds,
+      content: rawContent
     }, {
       onError: (err) => {
-        console.error("Failed to send message:", err);
+        console.error("Falha ao enviar mensagem:", err);
         toast.error("Erro ao enviar mensagem");
+        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
+      },
+      onSettled: () => {
+        isSendingRef.current = false;
+        setTimeout(() => inputRef.current?.focus(), 60);
       }
     });
   };
 
-  const handleDeleteConversation = async (convId: string, e?: React.MouseEvent) => {
+  const handleDeleteConversation = async (conv: any, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const ids = conv?.all_ids || (typeof conv === 'string' ? [conv] : [conv?.id]);
+    if (!ids || ids.length === 0) return;
     if (!window.confirm("Tem certeza que deseja apagar esta conversa e todo o seu histórico?")) return;
 
     try {
-      await deleteConversationMutation.mutateAsync(convId);
+      await deleteConversationMutation.mutateAsync(ids);
       toast.success("Conversa apagada com sucesso!");
-      if (selectedConv?.id === convId) {
+      if (selectedConv && ids.includes(selectedConv.id)) {
         setSelectedConv(null);
       }
     } catch (err: any) {
@@ -353,66 +537,24 @@ export default function ChatPage() {
     }
   };
 
-  const getOtherParticipantId = (conv: any) => {
-    return conv.participants?.find((id: string) => id !== user?.id) || conv.participants?.[0];
-  };
-
-  const getConvTitle = (conv: any) => {
-    if (conv.order_id) return `Pedido #${conv.order_id.slice(-6).toUpperCase()}`;
-    
-    let extractedTopic = null;
-    if (conv.messages && conv.messages.length > 0) {
-      const firstMsg = [...conv.messages].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
-      if (firstMsg?.content?.startsWith('[Assunto:')) {
-        extractedTopic = firstMsg.content.replace('[Assunto:', '').replace(']', '').trim();
-      }
-    }
-
-    const otherId = getOtherParticipantId(conv);
-    const otherProfile = profilesMap?.[otherId];
-    
-    if (otherProfile?.full_name) {
-      return extractedTopic ? `${otherProfile.full_name} (${extractedTopic})` : otherProfile.full_name;
-    }
-
-    if (otherId) {
-      return extractedTopic || `Usuário #${otherId.slice(0, 6).toUpperCase()}`;
-    }
-
-    return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Conversa";
-  };
-
   const renderConvIcon = (conv: any) => {
     if (conv.topic === 'driver_application') return <BikeIcon className="h-5 w-5" />;
     return conv.order_id ? <MessageSquare className="h-5 w-5" /> : <HelpCircle className="h-5 w-5" />;
   };
 
-  // Sort conversations by latest message time, active conversations at the top
+  // Filtra as conversas unificadas por busca
   const sortedConversations = useMemo(() => {
-    if (!conversations) return [];
-    
-    const list = [...conversations].sort((a, b) => {
-      const lastMsgA = a.messages && a.messages.length > 0 
-        ? Math.max(...a.messages.map((m: any) => new Date(m.created_at).getTime()))
-        : new Date(a.created_at).getTime();
-
-      const lastMsgB = b.messages && b.messages.length > 0 
-        ? Math.max(...b.messages.map((m: any) => new Date(m.created_at).getTime()))
-        : new Date(b.created_at).getTime();
-
-      return lastMsgB - lastMsgA;
-    });
-
-    if (!searchFilter.trim()) return list;
+    if (!unifiedConversations) return [];
+    if (!searchFilter.trim()) return unifiedConversations;
 
     const term = searchFilter.toLowerCase();
-    return list.filter((conv) => {
+    return unifiedConversations.filter((conv) => {
       const title = getConvTitle(conv).toLowerCase();
-      const lastMsg = conv.messages?.[0]?.content?.toLowerCase() || "";
+      const lastMsg = conv.messages?.[conv.messages.length - 1]?.content?.toLowerCase() || "";
       const orderId = conv.order_id?.toLowerCase() || "";
       return title.includes(term) || lastMsg.includes(term) || orderId.includes(term);
     });
-  }, [conversations, profilesMap]);
+  }, [unifiedConversations, searchFilter, profilesMap]);
 
 
 
@@ -538,7 +680,7 @@ export default function ChatPage() {
                 return (
                   <div
                     key={conv.id}
-                    onClick={() => setSelectedConv(conv)}
+                    onClick={() => handleSelectConv(conv)}
                     className={cn(
                       "w-full p-3.5 text-left transition-all border-b border-border/40 relative group cursor-pointer flex items-center justify-between",
                       selectedConv?.id === conv.id ? "bg-card shadow-sm z-10" : "hover:bg-muted/40"
@@ -555,7 +697,7 @@ export default function ChatPage() {
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-semibold text-xs truncate">
                             {otherProfile?.full_name || getConvTitle(conv)} {otherProfile?.role === 'driver' && <span className="text-[10px] font-normal text-muted-foreground ml-1">(Entregador)</span>}
-                            {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(#{conv.order_id.slice(0, 4)})</span>}
+                            {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(#{conv.order_id.slice(-4)})</span>}
                           </span>
                           {lastMsg && (
                             <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 ml-1">
@@ -577,7 +719,7 @@ export default function ChatPage() {
                     </div>
 
                     <button
-                      onClick={(e) => handleDeleteConversation(conv.id, e)}
+                      onClick={(e) => handleDeleteConversation(conv, e)}
                       title="Apagar conversa"
                       className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
                     >
@@ -628,7 +770,7 @@ export default function ChatPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => handleDeleteConversation(selectedConv.id)}
+                    onClick={() => handleDeleteConversation(selectedConv)}
                     title="Apagar esta conversa"
                     className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
                   >
@@ -643,22 +785,23 @@ export default function ChatPage() {
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
-                ) : messages && messages.length > 0 ? (
-                  messages.map((msg: any) => {
+                ) : displayMessages && displayMessages.length > 0 ? (
+                  displayMessages.map((msg: any) => {
                     const isMe = (msg.sender_id === user?.id && msg.content?.endsWith('\u200B')) || msg.sender_id === user?.id;
                     const cleanContent = msg.content ? msg.content.replace(/\u200B/g, '') : '';
+                    const isPending = !!msg.pending;
                     
                     return (
                       <div
                         key={msg.id}
                         className={cn(
-                          "flex flex-col max-w-[80%] md:max-w-[70%]",
+                          "flex flex-col max-w-[85%] md:max-w-[70%]",
                           isMe ? "ml-auto items-end" : "mr-auto items-start"
                         )}
                       >
                         <div
                           className={cn(
-                            "rounded-2xl p-4 shadow-2xs whitespace-pre-wrap break-words leading-relaxed text-sm",
+                            "rounded-2xl p-4 shadow-2xs whitespace-pre-wrap break-words leading-relaxed text-sm transition-all",
                             isMe
                               ? "bg-primary text-primary-foreground rounded-br-xs"
                               : "bg-muted/80 text-foreground rounded-bl-xs border border-border/40"
@@ -666,11 +809,17 @@ export default function ChatPage() {
                         >
                           {cleanContent}
                         </div>
-                        <div className="flex items-center gap-1 mt-1 px-1">
+                        <div className="flex items-center gap-1.5 mt-1 px-1">
                           <span className="text-[10px] text-muted-foreground font-medium">
                             {format(new Date(msg.created_at), "HH:mm")}
                           </span>
-                          {isMe && <CheckCheck className="h-3.5 w-3.5 text-primary/70" />}
+                          {isMe && (
+                            isPending ? (
+                              <Clock className="h-3 w-3 text-muted-foreground/60 animate-pulse" />
+                            ) : (
+                              <CheckCheck className="h-3.5 w-3.5 text-primary/70" />
+                            )
+                          )}
                         </div>
                       </div>
                     );
@@ -685,24 +834,72 @@ export default function ChatPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Barra de Envio */}
-              <div className="p-3 border-t border-border bg-card/50 flex items-center gap-2">
+              {/* Barra de Respostas Rápidas (1 toque para responder) */}
+              <div className="px-3 py-2 border-t border-border/50 bg-card/70 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-500 uppercase tracking-wider shrink-0 bg-amber-500/10 px-2 py-1 rounded-lg">
+                  <Zap className="h-3 w-3" />
+                  <span>Rápidas</span>
+                </div>
+                {LOJISTA_QUICK_REPLIES.map((qr, idx) => (
+                  <div
+                    key={idx}
+                    className="inline-flex items-center rounded-full bg-muted/80 hover:bg-muted border border-border/80 text-xs font-medium text-foreground transition-all shrink-0 shadow-2xs overflow-hidden group"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage(qr.text);
+                        inputRef.current?.focus();
+                      }}
+                      title={`Inserir no campo: "${qr.text}"`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <span>{qr.emoji}</span>
+                      <span>{qr.label}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSend(qr.text)}
+                      title={`Enviar agora em 1 toque: "${qr.text}"`}
+                      className="px-2 py-1.5 bg-primary/10 group-hover:bg-primary text-primary group-hover:text-primary-foreground transition-all flex items-center justify-center cursor-pointer border-l border-border/60"
+                    >
+                      <Zap className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Barra de Envio com Form para suporte a Enter e Teclado Mobile */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSend();
+                }}
+                className="p-3 border-t border-border bg-card/80 flex items-center gap-2"
+              >
                 <input
+                  ref={inputRef}
                   type="text"
-                  placeholder="Digite sua resposta..."
+                  placeholder="Digite sua resposta e tecle Enter..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  className="flex-1 bg-muted/60 text-foreground placeholder:text-muted-foreground rounded-xl px-4 py-2.5 text-sm outline-none border border-border/60 focus:border-primary/50 transition-colors"
+                  className="flex-1 bg-muted/60 text-foreground placeholder:text-muted-foreground rounded-xl px-4 py-2.5 text-sm outline-none border border-border/60 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                 />
                 <button
-                  onClick={handleSend}
+                  type="submit"
                   disabled={!message.trim() || sendMessageMutation.isPending}
-                  className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 cursor-pointer shadow-xs"
+                  className="p-2.5 px-4 rounded-xl bg-primary text-primary-foreground hover:opacity-95 active:scale-95 disabled:opacity-40 transition-all shrink-0 cursor-pointer shadow-sm flex items-center gap-1.5 font-bold text-xs"
                 >
-                  <Send className="h-4 w-4" />
+                  {sendMessageMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Enviar</span>
+                      <Send className="h-3.5 w-3.5" />
+                    </>
+                  )}
                 </button>
-              </div>
+              </form>
             </>
           ) : isLojista ? (
             /* ========================================================================= */
