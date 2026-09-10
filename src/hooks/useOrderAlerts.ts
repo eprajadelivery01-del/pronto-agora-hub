@@ -35,38 +35,102 @@ export function useOrderAlerts() {
     let regListener: any = null;
     let errListener: any = null;
     let pushListener: any = null;
+    let actionListener: any = null;
 
-    PushNotifications.requestPermissions().then((result) => {
-      if (result.receive === "granted" || (result as any).display === "granted") {
-        PushNotifications.register().catch(e => 
-          console.warn("[Push] Falha ao registrar push (safe):", e)
-        );
+    // Solicita todas as permissões no iOS e Android (alert, badge, sound)
+    const initPush = async () => {
+      try {
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive !== "granted" && (permStatus as any).display !== "granted") {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+
+        if (permStatus.receive === "granted" || (permStatus as any).display === "granted") {
+          await PushNotifications.register();
+          console.log("[Push iOS/Android] Registrado no serviço de notificações nativas");
+        } else {
+          console.warn("[Push iOS/Android] Permissões não concedidas pelo usuário:", permStatus);
+        }
+      } catch (e) {
+        console.warn("[Push iOS/Android] Erro ao inicializar push nativo:", e);
       }
-    }).catch(e => console.warn("[Push] Falha ao pedir permissões de push:", e));
+    };
 
-    PushNotifications.addListener("registration", (token) => {
-      console.log("[Push] Token FCM registrado:", token.value);
-      supabase
-        .from("companies")
-        .update({ fcm_token: token.value })
-        .eq("id", companyId)
-        .then(({ error }) => {
-          if (error) console.error("[Push] Erro ao persistir fcm_token no banco:", error);
-          else console.log("[Push] fcm_token persistido com sucesso para a empresa:", companyId);
+    initPush();
+
+    PushNotifications.addListener("registration", async (token) => {
+      console.log("[Push Lojista] Token registrado:", token.value);
+      localStorage.setItem("@epraja_lojista_push_token", token.value);
+      localStorage.setItem("fcm_token", token.value);
+
+      // 1. Salva na empresa (companies.fcm_token)
+      try {
+        const { error: compErr } = await supabase
+          .from("companies")
+          .update({ fcm_token: token.value })
+          .eq("id", companyId);
+        if (compErr) console.error("[Push] Erro ao salvar token em companies:", compErr);
+        else console.log("[Push] Token salvo com sucesso na empresa:", companyId);
+      } catch (e) {
+        console.warn("[Push] Falha ao persistir em companies:", e);
+      }
+
+      // 2. Salva no perfil do usuário logado (profiles.fcm_token)
+      if (user?.id) {
+        try {
+          await supabase
+            .from("profiles")
+            .update({ fcm_token: token.value, updated_at: new Date().toISOString() })
+            .eq("id", user.id);
+        } catch (e) {
+          console.warn("[Push] Falha ao persistir em profiles:", e);
+        }
+      }
+
+      // 3. Registra na tabela device_tokens
+      try {
+        await supabase
+          .from("device_tokens")
+          .upsert(
+            {
+              token: token.value,
+              user_id: user?.id || null,
+              platform: Capacitor.getPlatform(),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "token" }
+          );
+      } catch (e) {
+        console.warn("[Push] Falha ao persistir em device_tokens:", e);
+      }
+
+      // 4. Registra via Edge Function send-push (para garantir sincronização no backend)
+      try {
+        await supabase.functions.invoke("send-push", {
+          body: {
+            action: "register_token",
+            token: token.value,
+            userId: user?.id,
+            companyId: companyId,
+            platform: Capacitor.getPlatform(),
+          },
         });
+      } catch (e) {
+        console.warn("[Push] Falha ao chamar edge function register_token:", e);
+      }
     }).then(listener => { regListener = listener; });
 
     PushNotifications.addListener("registrationError", (error: any) => {
-      console.error("[Push] Erro no registro de Push:", error);
+      console.error("[Push iOS/Android] Erro no registro de Push:", error);
     }).then(listener => { errListener = listener; });
 
-    // Ouvinte do FCM Push quando o app está aberto/foreground
+    // Ouvinte do Push quando o app está aberto/foreground
     PushNotifications.addListener("pushNotificationReceived", (notification) => {
       const orderId = notification.data?.order_id || notification.data?.orderId || notification.id;
-      console.log("[FCM]", orderId);
+      console.log("[Push Recebido em Foreground]", orderId, notification);
 
       if (orderId && processedOrders.has(orderId)) {
-        console.log("[FCM] Pedido já notificado previamente, ignorando duplicata nativa:", orderId);
+        console.log("[Push] Pedido já notificado previamente, ignorando duplicata nativa:", orderId);
         return;
       }
 
@@ -83,12 +147,23 @@ export function useOrderAlerts() {
       });
     }).then(listener => { pushListener = listener; });
 
+    // Ouvinte de clique na notificação na Central do iPhone/Android quando o app estava fechado ou em background
+    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      console.log("[Push Ação/Clique]", action);
+      stopLoop();
+      const targetRoute = action.notification.data?.route || "/business/orders";
+      if (window.location.pathname !== targetRoute) {
+        window.location.href = targetRoute;
+      }
+    }).then(listener => { actionListener = listener; });
+
     return () => {
       if (regListener) regListener.remove();
       if (errListener) errListener.remove();
       if (pushListener) pushListener.remove();
+      if (actionListener) actionListener.remove();
     };
-  }, [companyId, playAlert, startLoop]);
+  }, [companyId, user?.id, playAlert, startLoop, stopLoop]);
 
   // Admin Alerts (Toca uma vez só quando entra um novo pedido no sistema)
   useEffect(() => {

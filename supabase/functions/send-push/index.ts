@@ -142,9 +142,9 @@ async function sendToToken(
   data: Record<string, string>,
 ): Promise<SendResult> {
   const isDriverDelivery = data.type === "delivery";
-  const isMerchantOrder = Boolean(data.orderId || data.order_id || data.type === "new_order" || data.type === "order");
+  const isMerchantOrder = Boolean(data.companyId || data.type === "new_order" || data.target === "merchant" || data.orderId || data.order_id);
   const useOfficialSound = isDriverDelivery || isMerchantOrder;
-  const channelId = isDriverDelivery ? "delivery-incoming-v9" : "marketplace_orders";
+  const channelId = isDriverDelivery ? "delivery-incoming-v9" : (isMerchantOrder ? "lojista_orders_v2" : "marketplace_orders");
   const soundName = useOfficialSound ? "notification_sound" : "default";
 
   let targetToken = token;
@@ -350,6 +350,7 @@ Deno.serve(async (req) => {
 
       const userId = body.userId ? String(body.userId) : null;
       const customerId = body.customerId ? String(body.customerId) : null;
+      const companyId = body.companyId ? String(body.companyId) : null;
       const phone = body.phone ? String(body.phone) : null;
       const platform = body.platform ? String(body.platform) : "unknown";
       const now = new Date().toISOString();
@@ -374,6 +375,12 @@ Deno.serve(async (req) => {
       if (body.previousToken && String(body.previousToken) !== fcmToken) {
         const del = await supabase.from("device_tokens").delete().eq("token", String(body.previousToken));
         outcome.rotated = del.error ? `erro: ${del.error.message}` : "ok";
+      }
+
+      // Vínculo com Empresa / Lojista
+      if (companyId) {
+        const comp = await supabase.from("companies").update({ fcm_token: fcmToken, updated_at: now }).eq("id", companyId);
+        outcome.companies = comp.error ? `erro: ${comp.error.message}` : "ok";
       }
 
       if (userId) {
@@ -516,17 +523,23 @@ Deno.serve(async (req) => {
     if (tokens.length === 0) {
       let userId: string | null = body.userId ? String(body.userId) : null;
       let customerId: string | null = body.customerId ? String(body.customerId) : null;
+      let companyId: string | null = body.companyId ? String(body.companyId) : null;
+      let orderRecord: any = null;
 
-      if (!userId && !customerId && body.orderId) {
+      if (body.orderId) {
         const { data: order, error } = await supabase
           .from("orders")
-          .select("customer_id, user_id")
+          .select("id, customer_id, user_id, company_id, status, order_number, total_amount")
           .eq("id", String(body.orderId))
           .maybeSingle();
         if (error) console.error(`[send-push:${reqId}] erro ao buscar pedido:`, error.message);
-        customerId = (order as any)?.customer_id ?? null;
-        userId = (order as any)?.user_id ?? null;
-        console.log(`[send-push:${reqId}] pedido resolvido -> customerId=${customerId} userId=${userId}`);
+        if (order) {
+          orderRecord = order;
+          if (!customerId) customerId = order.customer_id ?? null;
+          if (!userId) userId = order.user_id ?? null;
+          if (!companyId) companyId = order.company_id ?? null;
+          console.log(`[send-push:${reqId}] pedido resolvido -> customerId=${customerId} userId=${userId} companyId=${companyId} status=${order.status}`);
+        }
       }
 
       const found = new Set<string>();
@@ -534,6 +547,48 @@ Deno.serve(async (req) => {
         (rows ?? []).forEach((r) => r?.[field] && found.add(r[field]));
         console.log(`[send-push:${reqId}] ${source}: ${rows?.length ?? 0} linha(s)`);
       };
+
+      const orderStatus = String(body.status || orderRecord?.status || "").toLowerCase();
+      const isPendingNewOrder = orderStatus === "pending" || body.type === "new_order" || body.isNewOrder;
+
+      // Se for novo pedido (status 'pending') ou direcionado ao lojista:
+      if (companyId && (isPendingNewOrder || body.target === "merchant" || body.forMerchant)) {
+        console.log(`[send-push:${reqId}] NOVO PEDIDO PARA LOJISTA detectado! Buscando tokens da empresa: ${companyId}`);
+        
+        // Customiza título e corpo para o lojista
+        title = `📦 NOVO PEDIDO RECEBIDO! 🛎️`;
+        const orderNum = orderRecord?.order_number ? `#${orderRecord.order_number}` : (orderRecord?.id ? `#${String(orderRecord.id).slice(0, 5).toUpperCase()}` : "");
+        message = `Você recebeu um novo pedido ${orderNum}! Toque para aceitar e começar a preparar.`;
+        extra.type = "new_order";
+        extra.route = "/business/orders";
+        extra.companyId = String(companyId);
+
+        // 1. Busca token direto de companies
+        const { data: comp } = await supabase
+          .from("companies")
+          .select("fcm_token")
+          .eq("id", companyId)
+          .maybeSingle();
+        if (comp?.fcm_token) {
+          collect([{ token: comp.fcm_token }], "token", "companies(lojista)");
+        }
+
+        // 2. Busca tokens dos profiles vinculados a esta empresa
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("fcm_token, id")
+          .eq("company_id", companyId)
+          .not("fcm_token", "is", null);
+        collect(profs as any[], "fcm_token", "profiles(company_id)");
+
+        // 3. Busca em device_tokens de usuários da empresa
+        if (profs && profs.length > 0) {
+          for (const p of profs) {
+            const { data: dTokens } = await selectTokens("user_id", p.id);
+            collect(dTokens as any[], "token", "device_tokens(lojista_user)");
+          }
+        }
+      }
 
       if (customerId) {
         const { data, error } = await selectTokens("customer_id", customerId);

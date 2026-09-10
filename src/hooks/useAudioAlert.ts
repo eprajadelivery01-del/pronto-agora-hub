@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { PushNotifications } from "@capacitor/push-notifications";
 
 // Singleton instances to be used globally outside React lifecycle
 const ALERT_SOUND_URL = "/notification_sound.mp3";
@@ -75,6 +76,12 @@ export function triggerDeviceVibration(pattern: number[] = [500, 200, 500, 200, 
  */
 export function requestNotificationPermission() {
   if (Capacitor.isNativePlatform()) {
+    PushNotifications.requestPermissions().then((perm) => {
+      if (perm.receive === "granted" || (perm as any).display === "granted") {
+        PushNotifications.register().catch(() => {});
+      }
+    }).catch(() => {});
+
     LocalNotifications.requestPermissions().then((res) => {
       if (res.display === "granted") {
         LocalNotifications.deleteChannel({ id: "default" }).catch(() => {});
