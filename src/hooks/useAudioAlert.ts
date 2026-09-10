@@ -20,11 +20,17 @@ if (typeof window !== "undefined") {
   const unlockGlobalAudio = () => {
     if (isUnlocked || isUnlocking || !globalAudio) return;
     isUnlocking = true;
+    globalAudio.muted = true;
     globalAudio.volume = 0;
     const playPromise = globalAudio.play();
     lastPlayPromise = playPromise;
     playPromise
       .then(() => {
+        try {
+          globalAudio!.pause();
+          globalAudio!.currentTime = 0;
+        } catch {}
+        globalAudio!.muted = false;
         isUnlocked = true;
         isUnlocking = false;
         if (lastPlayPromise === playPromise) {
@@ -35,6 +41,7 @@ if (typeof window !== "undefined") {
         window.removeEventListener("keydown", unlockGlobalAudio);
       })
       .catch(() => {
+        if (globalAudio) globalAudio.muted = false;
         if (lastPlayPromise === playPromise) {
           lastPlayPromise = null;
         }
@@ -168,23 +175,30 @@ export function sendNativeDeviceNotification(
 export function useAudioAlert() {
   const unlockAudio = useCallback(() => {
     requestNotificationPermission();
-    if (globalAudio) {
-      globalAudio.volume = 0; // Silent playback to unlock context
-      const playPromise = globalAudio.play();
-      lastPlayPromise = playPromise;
-      playPromise
-        .then(() => {
-          if (lastPlayPromise === playPromise) {
-            lastPlayPromise = null;
-          }
-        })
-        .catch((e) => {
-          if (lastPlayPromise === playPromise) {
-            lastPlayPromise = null;
-          }
-          if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao destravar áudio:", e);
-        });
-    }
+    if (isUnlocked || !globalAudio) return;
+    globalAudio.muted = true;
+    globalAudio.volume = 0; // Silent playback to unlock context
+    const playPromise = globalAudio.play();
+    lastPlayPromise = playPromise;
+    playPromise
+      .then(() => {
+        try {
+          globalAudio!.pause();
+          globalAudio!.currentTime = 0;
+        } catch {}
+        globalAudio!.muted = false;
+        isUnlocked = true;
+        if (lastPlayPromise === playPromise) {
+          lastPlayPromise = null;
+        }
+      })
+      .catch((e) => {
+        if (globalAudio) globalAudio.muted = false;
+        if (lastPlayPromise === playPromise) {
+          lastPlayPromise = null;
+        }
+        if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao destravar áudio:", e);
+      });
   }, []);
 
   const playAlert = useCallback(() => {
