@@ -15,7 +15,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { 
   useMessages, useSendMessage, useDeleteConversation, getAdminId, getDirectConversation,
-  getConversation, DEFAULT_AUTO_MESSAGE, getStoreAutoMessageConfig, saveStoreAutoMessageConfig
+  getConversation, DEFAULT_AUTO_MESSAGE, getStoreAutoMessageConfig, saveStoreAutoMessageConfig,
+  calculateUnreadCount
 } from "@/services/chat";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/services/companies";
@@ -557,7 +558,12 @@ export default function ChatPage() {
     });
   }, [unifiedConversations, searchFilter, profilesMap]);
 
-
+  // Contagem exata de conversas que possuem mensagens de clientes aguardando resposta
+  const totalUnreadConvs = useMemo(() => {
+    return sortedConversations.filter((conv) => {
+      return calculateUnreadCount(conv, user?.id, companyData?.id, readTimestamps) > 0;
+    }).length;
+  }, [sortedConversations, user?.id, companyData?.id, readTimestamps]);
 
   return (
     <Layout title="Chat" subtitle="Central de atendimento e mensagens automáticas" fullHeight>
@@ -571,6 +577,11 @@ export default function ChatPage() {
               <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-muted text-muted-foreground">
                 {sortedConversations.length}
               </span>
+              {totalUnreadConvs > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-destructive text-destructive-foreground animate-pulse">
+                  {totalUnreadConvs} {totalUnreadConvs === 1 ? 'não lida' : 'não lidas'}
+                </span>
+              )}
             </div>
             
             <div className="flex items-center gap-1.5">
@@ -670,13 +681,8 @@ export default function ChatPage() {
                 const otherId = getOtherParticipantId(conv);
                 const otherProfile = otherId ? profilesMap?.[otherId] : null;
                 
-                const convReadAt = readTimestamps[conv.id];
-                const unreadCount = sortedMessages.filter((m: any) => {
-                  const isMe = (m.sender_id === user?.id && m.content?.endsWith('\u200B')) || m.sender_id === user?.id;
-                  if (isMe) return false;
-                  if (!convReadAt) return true;
-                  return new Date(m.created_at) > new Date(convReadAt);
-                }).length;
+                const isSelected = selectedConv?.id === conv.id || (selectedConv?.all_ids && selectedConv.all_ids.includes(conv.id));
+                const unreadCount = calculateUnreadCount(conv, user?.id, companyData?.id, readTimestamps);
                 
                 return (
                   <div
@@ -684,7 +690,7 @@ export default function ChatPage() {
                     onClick={() => handleSelectConv(conv)}
                     className={cn(
                       "w-full p-3.5 text-left transition-all border-b border-border/40 relative group cursor-pointer flex items-center justify-between",
-                      selectedConv?.id === conv.id ? "bg-card shadow-sm z-10" : "hover:bg-muted/40"
+                      isSelected ? "bg-card shadow-sm z-10" : "hover:bg-muted/40"
                     )}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
@@ -710,8 +716,8 @@ export default function ChatPage() {
                           <p className="text-[10px] text-muted-foreground truncate italic">
                             {lastMsg?.content?.replace(/\u200B/g, '') || "Inicie a conversa..."}
                           </p>
-                          {unreadCount > 0 && selectedConv?.id !== conv.id && (
-                            <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[9px] font-bold px-1.5 py-0.2 rounded-full shrink-0">
+                          {unreadCount > 0 && !isSelected && (
+                            <span className="inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[9px] font-bold px-1.5 py-0.2 rounded-full shrink-0 animate-pulse">
                               {unreadCount > 99 ? '99+' : unreadCount}
                             </span>
                           )}

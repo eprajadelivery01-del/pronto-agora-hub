@@ -36,6 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 
 interface BusinessLayoutProps {
   children: ReactNode;
@@ -75,7 +76,7 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
 
   const categories = Array.from(new Set(tabs.map(t => t.category)));
 
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const unreadChatCount = useUnreadChatCount(companyData?.id);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -91,7 +92,7 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
       if (data) setIsOpen(data.is_open);
     };
 
-    const fetchPendingOrders = async (cId) => {
+    const fetchPendingOrders = async (cId: string) => {
       const targetId = cId || companyData?.id;
       if (!targetId) return;
 
@@ -127,48 +128,10 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
       }
     };
 
-    const checkUnreadChats = async () => {
-      const { data: convs } = await supabase
-        .from("conversations")
-        .select("id, messages(created_at, sender_id, content)")
-        .contains("participants", [user.id]);
-        
-      if (convs) {
-        let count = 0;
-        const readTimestamps = JSON.parse(localStorage.getItem('chat_read_timestamps') || '{}');
-        
-        for (const conv of convs) {
-          if (!conv.messages || conv.messages.length === 0) continue;
-          
-          const sorted = [...conv.messages].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          const lastMsg = sorted[0];
-          
-          // Se o last message foi enviado pelo proprio usuario (usando hack de \u200B) ou se é do próprio ID sem hack
-          const isMe = (lastMsg.sender_id === user.id && lastMsg.content?.endsWith('\u200B')) || lastMsg.sender_id === user.id; 
-          
-          if (!isMe) {
-            const lastRead = readTimestamps[conv.id];
-            if (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead)) {
-              count++;
-            }
-          }
-        }
-        setUnreadChatCount(count);
-      }
-    };
-
     if (companyData?.id) {
       fetchStatus();
       fetchPendingOrders(companyData.id);
     }
-    
-    checkUnreadChats();
-
-    const channel = supabase.channel('public:messages_layout')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-         checkUnreadChats();
-      })
-      .subscribe();
 
     const orderChannel = supabase.channel(`public:orders_layout_${companyData?.id || ''}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -178,20 +141,13 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
       })
       .subscribe();
 
-    const handleStorage = () => checkUnreadChats();
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('chat_read_update', handleStorage);
-
     const handleStatusSync = (e: any) => {
       setIsOpen(e.detail.isOpen);
     };
     window.addEventListener('store-status-changed', handleStatusSync);
 
     return () => {
-      supabase.removeChannel(channel);
       supabase.removeChannel(orderChannel);
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('chat_read_update', handleStorage);
       window.removeEventListener('store-status-changed', handleStatusSync);
     };
   }, [user?.id, companyData?.id]);

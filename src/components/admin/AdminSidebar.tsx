@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 
 
 const navItems = [
@@ -38,6 +39,7 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { profile, signOut } = useAuth();
+  const unreadChatCount = useUnreadChatCount();
 
   const toggleSidebar = () => {
     const newState = !collapsed;
@@ -114,7 +116,7 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
                 to={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -122,8 +124,22 @@ export function AdminSidebar({ onCollapsedChange }: AdminSidebarProps) {
                 )}
                 title={collapsed ? item.label : ""}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="animate-in fade-in slide-in-from-left-2 duration-300">{item.label}</span>}
+                <div className="relative shrink-0">
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {collapsed && item.href === "/admin/chat" && unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full border border-card" />
+                  )}
+                </div>
+                {!collapsed && (
+                  <span className="flex-1 flex items-center justify-between animate-in fade-in slide-in-from-left-2 duration-300">
+                    {item.label}
+                    {item.href === "/admin/chat" && unreadChatCount > 0 && (
+                      <span className="ml-2 inline-flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
+                        {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                      </span>
+                    )}
+                  </span>
+                )}
               </Link>
             );
           })}

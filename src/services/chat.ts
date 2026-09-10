@@ -448,3 +448,90 @@ export async function sendOrderAutoWelcomeMessage(
   }
 }
 
+/**
+ * Verifica se uma mensagem foi enviada pelo lojista/admin autenticado
+ */
+export function isMessageFromMe(msg: any, userId?: string, companyId?: string): boolean {
+  if (!msg) return false;
+  
+  // 1. Se o sender_id bater com o ID do usuário logado ou da empresa dele
+  if (userId && (msg.sender_id === userId || (companyId && msg.sender_id === companyId))) {
+    return true;
+  }
+  
+  // 2. Se a mensagem contém o caractere invisível oficial de envio do lojista/admin (\u200B)
+  if (typeof msg.content === "string" && msg.content.endsWith("\u200B")) {
+    return true;
+  }
+
+  // 3. Se o conteúdo bate com mensagens automáticas conhecidas da loja
+  const clean = typeof msg.content === "string" ? msg.content.replace(/\u200B/g, "").trim() : "";
+  if (
+    clean.startsWith("Olá! Pedido confirmado com sucesso") ||
+    clean.startsWith("Seu pedido já saiu para entrega") ||
+    clean.startsWith("Está quase pronto!") ||
+    clean.startsWith("Combinado! Já incluímos guardanapos") ||
+    clean.startsWith("Muito obrigado pela preferência!")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Calcula com precisão matemática o número de mensagens não lidas de uma conversa
+ */
+export function calculateUnreadCount(
+  conv: any,
+  userId?: string,
+  companyId?: string,
+  readTimestamps: Record<string, string> = {}
+): number {
+  if (!conv || !conv.messages || conv.messages.length === 0) return 0;
+
+  // Ordena do mais recente para o mais antigo
+  const sorted = [...conv.messages].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const lastMsg = sorted[0];
+  if (!lastMsg) return 0;
+
+  // Se a última mensagem foi enviada por MIM, a conversa não tem pendência de resposta
+  if (isMessageFromMe(lastMsg, userId, companyId)) {
+    return 0;
+  }
+
+  // Obter o maior timestamp de leitura entre todos os IDs da conversa unificada
+  const allIds: string[] = conv.all_ids || [conv.id];
+  let maxReadTime = 0;
+  for (const id of allIds) {
+    if (readTimestamps[id]) {
+      const t = new Date(readTimestamps[id]).getTime();
+      if (t > maxReadTime) maxReadTime = t;
+    }
+  }
+
+  // Se a conversa já foi lida após a última mensagem, contador é 0
+  const lastMsgTime = new Date(lastMsg.created_at).getTime();
+  if (maxReadTime > 0 && maxReadTime >= lastMsgTime) {
+    return 0;
+  }
+
+  // Conta apenas as mensagens consecutivas da outra pessoa desde a última mensagem enviada por mim
+  // (e que foram criadas após o último readTimestamp)
+  let count = 0;
+  for (const m of sorted) {
+    if (isMessageFromMe(m, userId, companyId)) {
+      break; // Interrompe ao encontrar a última resposta minha
+    }
+    if (maxReadTime > 0 && new Date(m.created_at).getTime() <= maxReadTime) {
+      break; // Interrompe se a mensagem é anterior ao momento em que visualizei
+    }
+    count++;
+  }
+
+  return count;
+}
+
