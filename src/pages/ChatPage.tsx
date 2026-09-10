@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [isClearingEmpty, setIsClearingEmpty] = useState(false);
   const [searchParams] = useSearchParams();
   const orderIdParam = searchParams.get("order_id");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSendingRef = useRef(false);
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
