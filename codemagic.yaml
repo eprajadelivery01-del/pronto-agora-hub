@@ -32,11 +32,29 @@ workflows:
 
       - name: Install manual provisioning profile
         script: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp epraja_lojista_dist.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          PROFILE_UUID="cce9da8b-3e04-45cf-b1c5-eb3fcd3c779e"
+          cp epraja_lojista_dist.mobileprovision "$PROFILES_DIR/$PROFILE_UUID.mobileprovision"
+          cp epraja_lojista_dist.mobileprovision "$PROFILES_DIR/epraja_lojista_dist.mobileprovision"
+
+      - name: Validate APNs provisioning profile
+        script: |
+          security cms -D -i epraja_lojista_dist.mobileprovision > /tmp/epraja_profile.plist
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/epraja_profile.plist)
+          PROFILE_APS=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:aps-environment" /tmp/epraja_profile.plist 2>/dev/null || true)
+          case "$PROFILE_APP_ID" in
+            *.$BUNDLE_ID) ;;
+            *) echo "Provisioning profile pertence a '$PROFILE_APP_ID', esperado '*.$BUNDLE_ID'."; exit 1 ;;
+          esac
+          if [ "$PROFILE_APS" != "production" ]; then
+            echo "Provisioning profile sem aps-environment=production. Gere um novo profile com Push Notifications ativo."
+            exit 1
+          fi
+          echo "Provisioning profile APNs válido para $BUNDLE_ID."
 
       - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
+        script: xcode-project use-profiles --project "ios/App/$XCODE_PROJECT"
 
       - name: Increment build number
         script: |
