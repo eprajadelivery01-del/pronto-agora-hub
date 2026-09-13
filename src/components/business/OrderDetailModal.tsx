@@ -306,9 +306,36 @@ export default function OrderDetailModal({
                                                 )}
 
                                                 {/* Detalhes/Ingredientes/Observações */}
-                                                {(item.choices || item.notes || item.observation) && (
-                                                  <div className="mt-2 space-y-1">
-                                                    {item.choices && (
+                                                {(item.options || item.choices || item.notes || item.observation) && (
+                                                  <div className="mt-2 space-y-1.5">
+                                                    {item.options && Array.isArray(item.options) && item.options.length > 0 && (
+                                                      <div className="bg-primary/5 border border-primary/20 rounded-xl p-2.5 space-y-1">
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-primary">
+                                                          Adicionais / Complementos:
+                                                        </p>
+                                                        <div className="space-y-0.5">
+                                                          {item.options.map((opt: any, optIdx: number) => {
+                                                            const optQty = opt.quantity || 1;
+                                                            return (
+                                                              <div key={optIdx} className="text-xs font-semibold text-foreground flex items-center justify-between">
+                                                                <span>
+                                                                  <span className="font-bold text-primary mr-1">{optQty}x</span>
+                                                                  {opt.name}
+                                                                  {opt.group_name && <span className="text-[10px] text-muted-foreground ml-1.5 font-normal">({opt.group_name})</span>}
+                                                                </span>
+                                                                {Number(opt.price || 0) > 0 && (
+                                                                  <span className="text-muted-foreground font-medium text-[11px]">
+                                                                    + R$ {(Number(opt.price) * optQty).toFixed(2).replace('.', ',')}
+                                                                  </span>
+                                                                )}
+                                                              </div>
+                                                            );
+                                                          })}
+                                                        </div>
+                                                      </div>
+                                                    )}
+
+                                                    {item.choices && !item.options && (
                                                       <p className="text-[10px] text-foreground/80 leading-snug bg-muted/50 px-2 py-1 rounded-md">
                                                         <span className="font-bold text-foreground/90">Opções:</span> {
                                                           typeof item.choices === 'string' ? item.choices : 
@@ -318,7 +345,7 @@ export default function OrderDetailModal({
                                                       </p>
                                                     )}
                                                     {(item.notes || item.observation) && (
-                                                      <p className="text-[10px] text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30 px-2 py-1 rounded-md inline-block leading-snug mt-1 font-medium">
+                                                      <p className="text-[10px] text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30 px-2 py-1 rounded-md inline-block leading-snug font-medium">
                                                         <span className="font-bold text-amber-800 dark:text-amber-200">Obs:</span> {item.notes || item.observation}
                                                       </p>
                                                     )}

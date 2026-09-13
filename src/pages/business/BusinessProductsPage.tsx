@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { BulkImportModal } from "@/components/business/BulkImportModal";
+import { ProductOptionGroupsManager, loadProductOptionGroups, saveProductOptionGroups, OptionGroupDraft } from "@/components/business/ProductOptionGroupsManager";
 
 interface Product {
   id: string;
@@ -499,6 +500,22 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   const isSubmittingRef = useRef(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [hasOptions, setHasOptions] = useState(false);
+  const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+
+  useEffect(() => {
+    if (product?.id) {
+      setLoadingOptions(true);
+      loadProductOptionGroups(product.id).then((grps) => {
+        if (grps && grps.length > 0) {
+          setHasOptions(true);
+          setOptionGroups(grps);
+        }
+        setLoadingOptions(false);
+      });
+    }
+  }, [product?.id]);
 
   const customCategoriesFromStore = (existingCategories || []).filter(
     (c) => c && typeof c === "string" && !GLOBAL_CATEGORIES.includes(c)
@@ -572,18 +589,29 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
         is_featured: isFeatured,
       };
 
+      let savedProductId = product?.id;
+
       if (product) {
         const { error } = await supabase.from("products").update(payload).eq("id", product.id);
         if (error) throw error;
         toast.success("Produto atualizado!");
       } else {
         payload.sort_order = categoryCount;
-        const { error } = await supabase
+        const { data: newProd, error } = await supabase
           .from("products")
-          .insert([{ ...payload, company_id: companyId, is_active: true }]);
+          .insert([{ ...payload, company_id: companyId, is_active: true }])
+          .select("id")
+          .single();
         if (error) throw error;
+        savedProductId = newProd?.id;
         toast.success("Produto publicado!");
       }
+
+      // Sincroniza grupos de adicionais e opções
+      if (savedProductId) {
+        await saveProductOptionGroups(savedProductId, hasOptions, optionGroups);
+      }
+
       onSaved();
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar");
@@ -739,6 +767,55 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                   rows={4}
                   className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-medium outline-none focus:border-primary resize-none transition-all placeholder:font-normal placeholder:opacity-60"
                 />
+              </div>
+
+              {/* Personalização / Adicionais */}
+              <div className="space-y-4 pt-4 border-t border-border/60">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">
+                    Personalização / Adicionais
+                  </label>
+                  <p className="text-xs font-semibold text-muted-foreground mt-0.5 ml-2">
+                    Este produto possui adicionais ou opções de personalização?
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setHasOptions(false)}
+                    className={cn(
+                      "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border shadow-sm",
+                      !hasOptions
+                        ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
+                    )}
+                  >
+                    Não
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHasOptions(true)}
+                    className={cn(
+                      "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border shadow-sm",
+                      hasOptions
+                        ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
+                    )}
+                  >
+                    Sim
+                  </button>
+                </div>
+
+                {hasOptions && (
+                  <div className="pt-2 animate-in fade-in duration-300">
+                    <ProductOptionGroupsManager
+                      productId={product?.id}
+                      groups={optionGroups}
+                      onChange={setOptionGroups}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
