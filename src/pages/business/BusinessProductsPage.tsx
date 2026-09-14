@@ -257,7 +257,6 @@ export default function BusinessProductsPage() {
 
   // ── Drag & Drop handlers — restaurados de e4519e3 ─────────────────────────────
   const handleDragStart = useCallback((id: string, category: string) => {
-    console.log("[PRODUCT DRAG] START", id);
     dragId.current = id;
     dragCategory.current = category;
   }, []);
@@ -265,7 +264,6 @@ export default function BusinessProductsPage() {
   const handleDrop = useCallback(async (targetId: string, targetCategory: string) => {
     const srcId = dragId.current;
     const srcCat = dragCategory.current;
-    console.log("[PRODUCT DRAG] DROP", targetId);
     if (!srcId || srcId === targetId || srcCat !== targetCategory) return;
 
     const catProducts = products.filter(p => (p.category || "Outros") === targetCategory);
@@ -299,7 +297,6 @@ export default function BusinessProductsPage() {
 
     dragId.current = null;
     dragCategory.current = null;
-    console.log("[PRODUCT DRAG] RESET", srcId);
   }, [products]);
 
   // ── Controle de Recolhimento de Categorias ────────────────────────────────────
@@ -769,11 +766,6 @@ function ProductCard({
   const images = parseImages(product.image_url);
   const mainImage = images[0];
 
-  useEffect(() => {
-    console.log("[PRODUCT CARD] MOUNT", product.id);
-    return () => console.log("[PRODUCT CARD] UNMOUNT", product.id);
-  }, [product.id]);
-
   // Contadores reais de personalização
   const groups = product.product_option_groups || [];
   const totalGroups = groups.length;
@@ -798,13 +790,11 @@ function ProductCard({
         onDragStart();
       }}
       onDragEnd={() => {
-        console.log("[PRODUCT DRAG] END", product.id);
         setIsDragging(false);
       }}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        console.log("[PRODUCT DRAG] OVER", product.id);
         setIsOver(true);
       }}
       onDragLeave={() => setIsOver(false)}
