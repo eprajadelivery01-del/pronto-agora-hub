@@ -8,7 +8,7 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, ShoppingCart,
-  GripVertical, Star, Upload
+  GripVertical, Star, Upload, Sliders
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
@@ -27,6 +27,14 @@ interface Product {
   created_at: string;
   sort_order: number;
   is_featured?: boolean | null;
+  product_option_groups?: {
+    id: string;
+    name: string;
+    min_options: number;
+    max_options: number;
+    required: boolean;
+    product_options?: { id: string; name: string; price: number; is_active: boolean }[];
+  }[];
 }
 
 const GLOBAL_CATEGORIES = [
@@ -77,7 +85,7 @@ export default function BusinessProductsPage() {
     try {
       const { data: prods } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_option_groups(id, name, min_options, max_options, required, product_options(id, name, price, is_active))")
         .eq("company_id", cId)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
@@ -227,7 +235,7 @@ export default function BusinessProductsPage() {
                 : 0
             }
             existingCategories={allCategories}
-            onClose={() => { setShowForm(false); setEditingProduct(null); }}
+            onClose={() => { setShowForm(false); setEditingProduct(null); fetchCompanyAndProducts(); }}
             onSaved={() => { setShowForm(false); setEditingProduct(null); fetchCompanyAndProducts(); }}
           />
         </div>
@@ -409,6 +417,11 @@ function ProductCard({
         )}
 
         <div className="absolute top-4 right-4 flex gap-2 flex-wrap justify-end max-w-[70%]">
+          {product.product_option_groups && product.product_option_groups.length > 0 && (
+            <div className="bg-primary text-primary-foreground text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
+              <Sliders className="h-2.5 w-2.5" /> Adicionais
+            </div>
+          )}
           {product.is_featured && (
             <div className="bg-amber-500 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1">
               <Star className="h-2.5 w-2.5 fill-current" /> Destaque
@@ -443,6 +456,18 @@ function ProductCard({
           <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium leading-relaxed">
             {product.description || "Sem descrição disponível"}
           </p>
+
+          {/* Tag de Grupos de Opções / Adicionais */}
+          {product.product_option_groups && product.product_option_groups.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-xl w-fit mt-2">
+              <Sliders className="h-3 w-3 shrink-0" />
+              <span className="truncate max-w-[200px]">
+                {product.product_option_groups.length}{" "}
+                {product.product_option_groups.length === 1 ? "grupo" : "grupos"} de adicionais (
+                {product.product_option_groups.map((g: any) => g.name).join(", ")})
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Actions Grid */}

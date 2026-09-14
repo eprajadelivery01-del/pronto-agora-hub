@@ -247,6 +247,8 @@ export function ProductOptionGroupsManager({
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<OptionGroupDraft | null>(null);
   const [deleteOptionTarget, setDeleteOptionTarget] = useState<{ groupId: string; option: OptionDraft } | null>(null);
 
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
+
   // ----------------------------------------------------
   // HANDLERS DE GRUPO
   // ----------------------------------------------------
@@ -270,7 +272,7 @@ export function ProductOptionGroupsManager({
     setGroupModalOpen(true);
   };
 
-  const handleSaveGroupModal = (e: React.FormEvent) => {
+  const handleSaveGroupModal = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = groupFormName.trim();
     if (!trimmed) {
@@ -283,18 +285,89 @@ export function ProductOptionGroupsManager({
     const req = groupFormRequired || min > 0;
 
     if (groupModalMode === "create") {
-      const newGroup: OptionGroupDraft = {
-        id: `temp_group_${Date.now()}`,
-        name: trimmed,
-        min_options: min,
-        max_options: max,
-        required: req,
-        options: [],
-        isNew: true,
-      };
-      onChange([...groups, newGroup]);
-      toast.success(`Grupo "${trimmed}" criado!`);
+      if (productId) {
+        setIsSavingGroup(true);
+        try {
+          const { data: insertedGroup, error: groupInsertError } = await supabase
+            .from("product_option_groups")
+            .insert({
+              product_id: productId,
+              name: trimmed,
+              min_options: min,
+              max_options: max,
+              required: req,
+            })
+            .select()
+            .single();
+
+          if (groupInsertError || !insertedGroup) {
+            console.error("Erro ao criar grupo no Supabase:", groupInsertError);
+            toast.error(`Erro ao criar grupo: ${groupInsertError?.message || "falha no banco"}`);
+            setIsSavingGroup(false);
+            return;
+          }
+
+          const createdGroup: OptionGroupDraft = {
+            id: insertedGroup.id,
+            name: insertedGroup.name,
+            min_options: insertedGroup.min_options ?? min,
+            max_options: insertedGroup.max_options ?? max,
+            required: insertedGroup.required ?? req,
+            options: [],
+            isNew: false,
+          };
+
+          onToggleHasOptions(true);
+          onChange([...groups, createdGroup]);
+          toast.success(`Grupo "${trimmed}" criado!`);
+        } catch (err: any) {
+          console.error("Exceção ao inserir grupo:", err);
+          toast.error("Erro ao criar grupo.");
+          setIsSavingGroup(false);
+          return;
+        } finally {
+          setIsSavingGroup(false);
+        }
+      } else {
+        const newGroup: OptionGroupDraft = {
+          id: `temp_group_${Date.now()}`,
+          name: trimmed,
+          min_options: min,
+          max_options: max,
+          required: req,
+          options: [],
+          isNew: true,
+        };
+        onToggleHasOptions(true);
+        onChange([...groups, newGroup]);
+        toast.success(`Grupo "${trimmed}" criado!`);
+      }
     } else if (targetGroupId) {
+      const isRealGroup = !targetGroupId.startsWith("temp_");
+      if (productId && isRealGroup) {
+        try {
+          const { error: groupUpdateError } = await supabase
+            .from("product_option_groups")
+            .update({
+              name: trimmed,
+              min_options: min,
+              max_options: max,
+              required: req,
+            })
+            .eq("id", targetGroupId);
+
+          if (groupUpdateError) {
+            console.error("Erro ao atualizar grupo no Supabase:", groupUpdateError);
+            toast.error(`Erro ao atualizar grupo: ${groupUpdateError.message}`);
+            return;
+          }
+        } catch (err: any) {
+          console.error("Exceção ao atualizar grupo:", err);
+          toast.error("Erro ao atualizar grupo.");
+          return;
+        }
+      }
+
       const updated = groups.map((g) =>
         g.id === targetGroupId
           ? {
@@ -313,10 +386,30 @@ export function ProductOptionGroupsManager({
     setGroupModalOpen(false);
   };
 
-  const handleConfirmDeleteGroup = () => {
+  const handleConfirmDeleteGroup = async () => {
     if (!deleteGroupTarget) return;
     const idToDelete = deleteGroupTarget.id;
     const name = deleteGroupTarget.name;
+
+    if (productId && !idToDelete.startsWith("temp_")) {
+      try {
+        const { error: delError } = await supabase
+          .from("product_option_groups")
+          .delete()
+          .eq("id", idToDelete);
+
+        if (delError) {
+          console.error("Erro ao remover grupo no Supabase:", delError);
+          toast.error(`Erro ao remover grupo: ${delError.message}`);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Exceção ao deletar grupo:", err);
+        toast.error("Erro ao remover grupo.");
+        return;
+      }
+    }
+
     onChange(groups.filter((g) => g.id !== idToDelete));
     setDeleteGroupTarget(null);
     toast.success(`Grupo "${name}" excluído.`);
@@ -614,7 +707,7 @@ export function ProductOptionGroupsManager({
     setEditOptionModalOpen(true);
   };
 
-  const handleSaveEditOption = (e: React.FormEvent) => {
+  const handleSaveEditOption = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = editOptionName.trim();
     if (!trimmedName) {
@@ -631,6 +724,29 @@ export function ProductOptionGroupsManager({
     }
 
     if (!editOptionGroupId || !editOptionId) return;
+
+    if (productId && !editOptionId.startsWith("temp_")) {
+      try {
+        const { error: optUpdateErr } = await supabase
+          .from("product_options")
+          .update({
+            name: trimmedName,
+            price: priceNum,
+            is_active: editOptionActive,
+          })
+          .eq("id", editOptionId);
+
+        if (optUpdateErr) {
+          console.error("Erro ao atualizar opção no Supabase:", optUpdateErr);
+          toast.error(`Erro ao atualizar opção: ${optUpdateErr.message}`);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Exceção ao atualizar opção:", err);
+        toast.error("Erro ao atualizar opção.");
+        return;
+      }
+    }
 
     const updated = groups.map((g) => {
       if (g.id === editOptionGroupId) {
@@ -656,13 +772,37 @@ export function ProductOptionGroupsManager({
     toast.success("Opção atualizada com sucesso!");
   };
 
-  const handleToggleOptionActive = (groupId: string, optionId: string) => {
+  const handleToggleOptionActive = async (groupId: string, optionId: string) => {
+    let newStatus = false;
+    const targetGroup = groups.find((g) => g.id === groupId);
+    const targetOpt = targetGroup?.options.find((o) => o.id === optionId);
+    if (!targetOpt) return;
+
+    newStatus = !targetOpt.is_active;
+
+    if (productId && !optionId.startsWith("temp_")) {
+      try {
+        const { error: toggleErr } = await supabase
+          .from("product_options")
+          .update({ is_active: newStatus })
+          .eq("id", optionId);
+
+        if (toggleErr) {
+          console.error("Erro ao alterar status da opção:", toggleErr);
+          toast.error("Erro ao atualizar status da opção.");
+          return;
+        }
+      } catch (err: any) {
+        console.error("Exceção ao alterar status da opção:", err);
+      }
+    }
+
     const updated = groups.map((g) => {
       if (g.id === groupId) {
         return {
           ...g,
           options: g.options.map((o) =>
-            o.id === optionId ? { ...o, is_active: !o.is_active } : o
+            o.id === optionId ? { ...o, is_active: newStatus } : o
           ),
         };
       }
@@ -672,9 +812,28 @@ export function ProductOptionGroupsManager({
     onChange(updated);
   };
 
-  const handleConfirmDeleteOption = () => {
+  const handleConfirmDeleteOption = async () => {
     if (!deleteOptionTarget) return;
     const { groupId, option } = deleteOptionTarget;
+
+    if (productId && !option.id.startsWith("temp_")) {
+      try {
+        const { error: delOptErr } = await supabase
+          .from("product_options")
+          .delete()
+          .eq("id", option.id);
+
+        if (delOptErr) {
+          console.error("Erro ao deletar opção no Supabase:", delOptErr);
+          toast.error(`Erro ao remover opção: ${delOptErr.message}`);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Exceção ao remover opção:", err);
+        toast.error("Erro ao remover opção.");
+        return;
+      }
+    }
 
     const updated = groups.map((g) => {
       if (g.id === groupId) {
@@ -1109,9 +1268,15 @@ export function ProductOptionGroupsManager({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-sm"
+                disabled={isSavingGroup}
+                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
               >
-                {groupModalMode === "create" ? "Criar grupo" : "Salvar alterações"}
+                {isSavingGroup && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {isSavingGroup
+                  ? "Salvando..."
+                  : groupModalMode === "create"
+                  ? "Criar grupo"
+                  : "Salvar alterações"}
               </button>
             </DialogFooter>
           </form>
