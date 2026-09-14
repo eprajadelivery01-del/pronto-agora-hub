@@ -272,6 +272,7 @@ export function ProductOptionGroupsManager({
   const [storeGroups, setStoreGroups] = useState<OptionGroupDraft[]>([]);
   const [loadingStoreGroups, setLoadingStoreGroups] = useState(false);
   const [storeGroupSearch, setStoreGroupSearch] = useState("");
+  const [assigningGroupId, setAssigningGroupId] = useState<string | null>(null);
 
   // Modal de Cadastro em Massa de Opções
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -466,7 +467,21 @@ export function ProductOptionGroupsManager({
   const handleOpenAddExistingModal = async () => {
     setAddExistingModalOpen(true);
     setStoreGroupSearch("");
-    if (!companyId) {
+
+    let activeCompanyId = companyId;
+    if (!activeCompanyId && productId) {
+      const { data: prodData } = await supabase
+        .from("products")
+        .select("company_id")
+        .eq("id", productId)
+        .maybeSingle();
+      if (prodData?.company_id) {
+        activeCompanyId = prodData.company_id;
+      }
+    }
+
+    if (!activeCompanyId) {
+      console.warn("[ProductOptionGroupsManager] companyId não disponível para buscar grupos da loja.");
       setStoreGroups([]);
       return;
     }
@@ -484,12 +499,12 @@ export function ProductOptionGroupsManager({
           company_id,
           product_options (id, name, price, is_active)
         `)
-        .eq("company_id", companyId)
+        .eq("company_id", activeCompanyId)
         .order("name");
 
       if (error) {
-        console.error("Erro ao buscar grupos da loja:", error);
-        toast.error("Não foi possível carregar os grupos da loja.");
+        console.error("[ProductOptionGroupsManager] Erro ao buscar grupos da loja:", error);
+        toast.error(`Erro ao carregar grupos da loja: ${error.message}`);
         setStoreGroups([]);
       } else {
         const loaded: OptionGroupDraft[] = (data || []).map((g: any) => {
@@ -513,7 +528,8 @@ export function ProductOptionGroupsManager({
         setStoreGroups(loaded);
       }
     } catch (err: any) {
-      console.error("Exceção ao carregar grupos da loja:", err);
+      console.error("[ProductOptionGroupsManager] Exceção ao carregar grupos da loja:", err);
+      toast.error("Erro inesperado ao carregar grupos da loja.");
     } finally {
       setLoadingStoreGroups(false);
     }
@@ -527,30 +543,60 @@ export function ProductOptionGroupsManager({
       return;
     }
 
-    if (productId && !groupToAssign.id.startsWith("temp_")) {
-      try {
-        const { error: assignErr } = await supabase
+    setAssigningGroupId(groupToAssign.id);
+
+    try {
+      if (productId && !groupToAssign.id.startsWith("temp_")) {
+        const { data, error: assignErr } = await supabase
           .from("product_option_group_assignments")
           .insert({
             product_id: productId,
             group_id: groupToAssign.id,
-          });
+          })
+          .select()
+          .single();
 
         if (assignErr) {
-          console.error("Erro ao associar grupo:", assignErr);
-          toast.error(`Erro ao associar grupo: ${assignErr.message}`);
-          return;
+          if (assignErr.code === "23505") {
+            console.log("[ProductOptionGroupsManager] Associação já existia no banco:", assignErr.message);
+          } else {
+            console.error("[ProductOptionGroupsManager] Erro ao associar grupo:", assignErr);
+            toast.error(`Erro ao associar grupo: ${assignErr.message}`);
+            setAssigningGroupId(null);
+            return;
+          }
         }
-      } catch (err: any) {
-        console.error("Exceção ao associar grupo:", err);
-        toast.error("Erro inesperado ao associar grupo.");
-        return;
       }
-    }
 
-    onToggleHasOptions(true);
-    onChange([...groups, groupToAssign]);
-    toast.success(`Grupo "${groupToAssign.name}" adicionado ao produto!`);
+      // 1. Fechar o modal imediatamente
+      setAddExistingModalOpen(false);
+
+      // 2. Ativar personalização
+      onToggleHasOptions(true);
+
+      // 3. Recarregar lista oficial do produto para sincronizar estado real
+      if (productId) {
+        try {
+          const fresh = await loadProductOptionGroups(productId);
+          if (fresh && fresh.length > 0) {
+            onChange(fresh);
+          } else {
+            onChange([...groups, groupToAssign]);
+          }
+        } catch {
+          onChange([...groups, groupToAssign]);
+        }
+      } else {
+        onChange([...groups, groupToAssign]);
+      }
+
+      toast.success(`Grupo "${groupToAssign.name}" adicionado ao produto!`);
+    } catch (err: any) {
+      console.error("[ProductOptionGroupsManager] Exceção ao associar grupo:", err);
+      toast.error(err.message || "Erro inesperado ao associar grupo.");
+    } finally {
+      setAssigningGroupId(null);
+    }
   };
 
   // ----------------------------------------------------
@@ -2012,6 +2058,12 @@ export function ProductOptionGroupsManager({
                 placeholder="Buscar grupo pelo nome..."
                 value={storeGroupSearch}
                 onChange={(e) => setStoreGroupSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }}
                 className="w-full h-10 px-4 rounded-xl bg-muted/40 border border-border text-xs font-medium text-foreground focus:outline-none focus:border-primary"
               />
             </div>
@@ -2077,10 +2129,20 @@ export function ProductOptionGroupsManager({
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleAssignExistingGroup(sg)}
-                            className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleAssignExistingGroup(sg);
+                            }}
+                            disabled={assigningGroupId === sg.id}
+                            className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                           >
-                            <Plus className="h-3.5 w-3.5" /> Adicionar
+                            {assigningGroupId === sg.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Plus className="h-3.5 w-3.5" />
+                            )}
+                            {assigningGroupId === sg.id ? "Adicionando..." : "Adicionar"}
                           </button>
                         )}
                       </div>
