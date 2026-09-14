@@ -620,71 +620,78 @@ export default function BusinessProductsPage() {
                   data-category-name={cat.value}
                   className="transition-all duration-200 rounded-3xl"
                 >
-                  {/* Cabeçalho da Categoria com área isolada de drop exclusivo de CATEGORIA (NÍVEL 1) */}
+                  {/* Cabeçalho da Categoria — handlers de drag só existem se CATEGORY_DRAG_ENABLED */}
                   <div
                     data-category-header={cat.value}
-                    onDragOver={(e) => {
-                      // NÍVEL 1: Só reage se for arrasto de CATEGORIA
-                      if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        if (dragOverCategory !== cat.value) {
-                          setDragOverCategory(cat.value);
+                    {...(CATEGORY_DRAG_ENABLED
+                      ? {
+                          onDragOver: (e: React.DragEvent) => {
+                            if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                              if (dragOverCategory !== cat.value) {
+                                setDragOverCategory(cat.value);
+                              }
+                            }
+                          },
+                          onDragLeave: (e: React.DragEvent) => {
+                            if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+                              if (dragOverCategory === cat.value) {
+                                setDragOverCategory(null);
+                              }
+                            }
+                          },
+                          onDrop: (e: React.DragEvent) => {
+                            if (dragCategoryRef.current) {
+                              e.preventDefault();
+                              const src = dragCategoryRef.current;
+                              dragCategoryRef.current = null;
+                              setDraggingCategory(null);
+                              setDragOverCategory(null);
+                              reorderCategories(src, cat.value);
+                            }
+                          },
                         }
-                      }
-                    }}
-                    onDragLeave={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        if (dragOverCategory === cat.value) {
-                          setDragOverCategory(null);
-                        }
-                      }
-                    }}
-                    onDrop={(e) => {
-                      // NÍVEL 1: Só reage se for soltura de CATEGORIA
-                      if (dragCategoryRef.current) {
-                        e.preventDefault();
-                        const src = dragCategoryRef.current;
-                        dragCategoryRef.current = null;
-                        setDraggingCategory(null);
-                        setDragOverCategory(null);
-                        reorderCategories(src, cat.value);
-                      }
-                    }}
+                      : {})}
                     className={cn(
                       "flex items-center justify-between gap-3 mb-5 px-3 py-2.5 rounded-2xl bg-card border border-border/50 shadow-sm transition-all select-none",
                       isDropTarget && "border-primary/60 shadow-md ring-2 ring-primary/40 bg-primary/5",
                       isDraggingThis && "opacity-40"
                     )}
                   >
-                    {/* Handle EXCLUSIVO para Drag da categoria (NÍVEL 1) */}
+                    {/* Handle de categoria (NÍVEL 1) — inerte durante o teste binário */}
                     <div
                       role="button"
                       tabIndex={0}
-                      draggable
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        e.dataTransfer.setData("application/x-category", cat.value);
-                        e.dataTransfer.effectAllowed = "move";
-                        dragCategoryRef.current = cat.value;
-                        setDraggingCategory(cat.value);
-                      }}
-                      onDragEnd={() => {
-                        dragCategoryRef.current = null;
-                        setDraggingCategory(null);
-                        setDragOverCategory(null);
-                      }}
-                      onPointerDown={(e) => handlePointerDownCategory(e, cat.value)}
-                      onPointerMove={handlePointerMoveCategory}
-                      onPointerUp={handlePointerUpCategory}
-                      onPointerCancel={handlePointerUpCategory}
+                      {...(CATEGORY_DRAG_ENABLED
+                        ? {
+                            draggable: true,
+                            onDragStart: (e: React.DragEvent) => {
+                              e.stopPropagation();
+                              e.dataTransfer.setData("application/x-category", cat.value);
+                              e.dataTransfer.effectAllowed = "move";
+                              dragCategoryRef.current = cat.value;
+                              setDraggingCategory(cat.value);
+                            },
+                            onDragEnd: () => {
+                              dragCategoryRef.current = null;
+                              setDraggingCategory(null);
+                              setDragOverCategory(null);
+                            },
+                            onPointerDown: (e: React.PointerEvent) => handlePointerDownCategory(e, cat.value),
+                            onPointerMove: handlePointerMoveCategory,
+                            onPointerUp: handlePointerUpCategory,
+                            onPointerCancel: handlePointerUpCategory,
+                          }
+                        : {})}
                       onClick={(e) => e.stopPropagation()}
-                      title="Segure e arraste este ícone para reordenar a categoria"
+                      title={CATEGORY_DRAG_ENABLED ? "Segure e arraste este ícone para reordenar a categoria" : "Reordenação de categoria temporariamente desativada"}
                       aria-label={`Arrastar para reordenar categoria ${cat.label}`}
                       className="cursor-grab active:cursor-grabbing p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/70 active:bg-primary/15 active:text-primary touch-none select-none transition-colors shrink-0"
                     >
                       <GripVertical className="h-5 w-5" />
                     </div>
+
 
                     {/* Botão de Título e Seta para Recolher / Expandir */}
                     <button
