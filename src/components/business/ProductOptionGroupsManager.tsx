@@ -1154,366 +1154,285 @@ export function ProductOptionGroupsManager({
   };
 
   // ----------------------------------------------------
-  // ESTADO DESATIVADO
-  // ----------------------------------------------------
-  if (!hasOptions) {
-    return (
-      <div className="rounded-3xl border border-border bg-card/60 p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
-        <div className="space-y-1">
-          <h4 className="text-sm font-black text-foreground uppercase tracking-wider">
-            Personalização
-          </h4>
-          <p className="text-xs text-muted-foreground font-medium">
-            Este produto não possui opções de personalização.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onToggleHasOptions(true)}
-          className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-md shrink-0"
-        >
-          Ativar
-        </button>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------
-  // ESTADO ATIVADO
+  // RENDER PRINCIPAL
   // ----------------------------------------------------
   return (
-    <div className="space-y-6">
-      {/* 1. Cabeçalho da Seção Ativada */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-        <div>
-          <h4 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-            <Sliders className="h-4 w-4 text-primary" />
-            PERSONALIZAÇÃO
-          </h4>
-          <p className="text-xs text-muted-foreground font-medium mt-0.5">
-            O cliente poderá escolher entre as opções configuradas abaixo.
+    <div className="space-y-4 w-full">
+      {/* 1. Bloco de Personalização (ON/OFF) */}
+      <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border/80 bg-card/60 transition-all">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
+              Personalização
+            </h4>
+            <span
+              className={cn(
+                "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors",
+                hasOptions
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  : "bg-muted text-muted-foreground border border-border/60"
+              )}
+            >
+              {hasOptions ? "Ativada" : "Desativada"}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground font-medium">
+            {hasOptions
+              ? "Permite que o cliente personalize este produto escolhendo adicionais."
+              : "Permita que o cliente personalize este produto."}
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => onToggleHasOptions(false)}
-          className="text-xs font-bold text-muted-foreground hover:text-destructive px-3 py-1.5 rounded-lg border border-border/60 hover:border-destructive/30 hover:bg-destructive/5 transition-all self-start sm:self-auto"
+          role="switch"
+          aria-checked={hasOptions}
+          onClick={() => onToggleHasOptions(!hasOptions)}
+          className={cn(
+            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            hasOptions ? "bg-primary" : "bg-muted-foreground/30"
+          )}
         >
-          Desativar
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+              hasOptions ? "translate-x-5" : "translate-x-0"
+            )}
+          />
         </button>
       </div>
 
-      {/* 2. Área de Grupos Reutilizáveis */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h5 className="text-xs font-black uppercase tracking-wider text-foreground">
-              GRUPOS DE ADICIONAIS
-            </h5>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Crie grupos reutilizáveis para sua loja ou adicione grupos já existentes a este produto.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {companyId && (
-              <button
-                type="button"
-                onClick={handleOpenAddExistingModal}
-                className="px-3.5 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-primary/10 active:scale-95 transition-all shadow-xs"
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar grupo existente
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleOpenCreateGroup}
-              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all shadow-sm"
-            >
-              <Plus className="h-4 w-4" />
-              Criar novo grupo
-            </button>
-          </div>
-        </div>
-
-        {/* Loading indicator */}
-        {loadingOptions && (
-          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground p-4 bg-muted/20 rounded-2xl border border-dashed border-border">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            Carregando grupos e opções...
-          </div>
-        )}
-
-        {/* Empty state de grupos */}
-        {!loadingOptions && groups.length === 0 && (
-          <div className="p-8 rounded-3xl border-2 border-dashed border-border/80 text-center bg-muted/20 space-y-3">
-            <Layers className="h-10 w-10 mx-auto text-muted-foreground/40" />
+      {/* 2. Seção de Grupos de Adicionais (visível apenas quando Personalização está ativa) */}
+      {hasOptions && (
+        <div className="space-y-4 pt-1">
+          {/* Cabeçalho da Seção */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-bold text-foreground">
-                Nenhum grupo de adicionais associado
-              </p>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-0.5 font-medium">
-                Crie um novo grupo para este produto ou reutilize um grupo já cadastrado na sua loja.
+              <h5 className="text-xs font-black uppercase tracking-wider text-foreground">
+                Grupos de adicionais
+              </h5>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">
+                Os grupos definem quais adicionais o cliente pode escolher.
               </p>
             </div>
-            <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
-              {companyId && (
+
+            <button
+              type="button"
+              onClick={handleOpenAddExistingModal}
+              className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all shadow-xs shrink-0 self-start sm:self-auto"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Adicionar grupo
+            </button>
+          </div>
+
+          {/* Loading indicator */}
+          {loadingOptions && (
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground p-3.5 bg-muted/20 rounded-2xl border border-dashed border-border">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Carregando grupos e opções...
+            </div>
+          )}
+
+          {/* Empty state limpo e centralizado */}
+          {!loadingOptions && groups.length === 0 && (
+            <div className="py-8 px-6 rounded-2xl border border-dashed border-border/80 text-center bg-muted/10 space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Nenhum grupo adicionado a este produto
+                </p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto font-medium">
+                  Adicione um grupo existente ou crie um novo para permitir que o cliente personalize este item.
+                </p>
+              </div>
+              <div className="pt-1">
                 <button
                   type="button"
                   onClick={handleOpenAddExistingModal}
-                  className="px-4 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold inline-flex items-center gap-1.5 hover:bg-primary/10 active:scale-95 transition-all"
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-xs hover:opacity-90 active:scale-95 transition-all"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Adicionar grupo existente
+                  <Plus className="h-3.5 w-3.5" /> Adicionar grupo
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={handleOpenCreateGroup}
-                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 transition-all"
-              >
-                <Plus className="h-3.5 w-3.5" /> Criar novo grupo
-              </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 3. Cards de Grupos Associados */}
-        <div className="space-y-5">
-          {groups.map((group) => {
-            const isSingleChoice = group.max_options === 1;
-            const isRequired = Boolean(group.required);
+          {/* Cards compactos dos Grupos */}
+          <div className="space-y-3.5">
+            {groups.map((group) => {
+              const isSingleChoice = group.max_options === 1;
+              const isRequired = Boolean(group.required);
 
-            let ruleSummary = "";
-            if (!isRequired) {
-              ruleSummary = isSingleChoice
-                ? "Até 1 opção"
-                : `Até ${group.max_options ?? 1} opções`;
-            } else {
-              const minOpt = group.min_options ?? 1;
-              const maxOpt = group.max_options ?? minOpt;
-              if (minOpt === 1 && maxOpt === 1) {
-                ruleSummary = "1 opção";
-              } else if (minOpt === maxOpt) {
-                ruleSummary = `${minOpt} opções`;
+              let ruleSubtitle = "";
+              if (!isRequired) {
+                ruleSubtitle = isSingleChoice
+                  ? "Opcional · até 1 escolha"
+                  : `Opcional · até ${group.max_options ?? 1} escolhas`;
               } else {
-                ruleSummary = `De ${minOpt} a ${maxOpt} opções`;
+                const minOpt = group.min_options ?? 1;
+                const maxOpt = group.max_options ?? minOpt;
+                if (minOpt === 1 && maxOpt === 1) {
+                  ruleSubtitle = "Obrigatório · escolha 1 opção";
+                } else if (minOpt === maxOpt) {
+                  ruleSubtitle = `Obrigatório · escolha ${minOpt} opções`;
+                } else {
+                  ruleSubtitle = `Obrigatório · de ${minOpt} a ${maxOpt} escolhas`;
+                }
               }
-            }
 
-            return (
-              <div
-                key={group.id}
-                className="rounded-3xl border border-border bg-card shadow-sm p-6 space-y-4 transition-all relative overflow-hidden"
-              >
-                {/* Cabeçalho do Card */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h4 className="text-base font-black text-foreground tracking-tight">
-                        {group.name}
-                      </h4>
-                      {isRequired ? (
-                        <span className="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-md border border-rose-500/20">
-                          Obrigatório
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/60">
-                          Opcional
-                        </span>
-                      )}
+              return (
+                <div
+                  key={group.id}
+                  className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-xs hover:border-border transition-all"
+                >
+                  {/* Cabeçalho do Card: Nome, Regra e Menu ⋯ */}
+                  <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-border/50">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm sm:text-base font-bold text-foreground tracking-tight truncate">
+                          {group.name}
+                        </h4>
+                        {isRequired && (
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20 shrink-0">
+                            Obrigatório
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {ruleSubtitle}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium flex-wrap">
-                      <span>{isRequired ? "Obrigatório" : "Opcional"}</span>
-                      <span>•</span>
-                      <span>{ruleSummary}</span>
-                      <span>•</span>
-                      <span>{group.options.length} {group.options.length === 1 ? "opção" : "opções"}</span>
-                    </div>
-                  </div>
 
-                  {/* Ações do Card: [Editar] [Remover do produto] + Mais Opções */}
-                  <div className="flex items-center gap-2 flex-wrap shrink-0 pt-1 sm:pt-0">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditGroup(group)}
-                      className="h-8 px-3 rounded-xl border border-border bg-background text-xs font-bold text-foreground hover:bg-muted transition-all inline-flex items-center gap-1.5 shadow-2xs"
-                    >
-                      <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUnlinkGroupTarget(group)}
-                      className="h-8 px-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-2xs"
-                      title="Desvincula o grupo deste produto sem apagar da loja"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Remover do produto
-                    </button>
+                    {/* Menu ⋯ do Grupo */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="h-8 w-8 rounded-xl border border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                          aria-label="Mais ações do grupo"
+                          className="h-7 w-7 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                          aria-label="Opções do grupo"
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreVertical className="h-3.5 w-3.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={() => handleOpenEditGroup(group)}>
-                          <Edit3 className="h-3.5 w-3.5 mr-2" /> Editar regras do grupo
+                          <Edit3 className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                          Editar grupo
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setUnlinkGroupTarget(group)}
                           className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
                         >
-                          <X className="h-3.5 w-3.5 mr-2" /> Remover deste produto
+                          <X className="h-3.5 w-3.5 mr-2" />
+                          Remover do produto
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleOpenDeleteStoreGroup(group)}
                           className="text-destructive focus:text-destructive focus:bg-destructive/10"
                         >
-                          <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir grupo da loja
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                          Excluir da loja
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </div>
-
-                {/* Separador */}
-                <div className="border-t border-border/50 pt-3 space-y-3">
-                  {/* Contador de Opções */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground">
-                      OPÇÕES ({group.options.length})
-                    </span>
-                  </div>
 
                   {/* Lista de Opções */}
                   {group.options.length === 0 ? (
-                    <div className="py-7 px-4 text-center bg-muted/20 rounded-2xl border border-dashed border-border/80 space-y-2.5">
-                      <div className="text-base text-primary/80 font-bold">✦</div>
-                      <p className="text-xs font-bold text-foreground">Nenhuma opção cadastrada</p>
-                      <p className="text-[11px] text-muted-foreground max-w-xs mx-auto font-medium">
-                        Adicione várias opções de uma vez para montar rapidamente a personalização deste produto.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenBulkAdd(group.id)}
-                        className="mt-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 transition-all"
-                      >
-                        <Plus className="h-3.5 w-3.5" /> Adicionar opções
-                      </button>
+                    <div className="py-3 text-center text-xs text-muted-foreground font-medium">
+                      Nenhuma opção cadastrada neste grupo.
                     </div>
                   ) : (
-                    <div className="border border-border/50 rounded-2xl overflow-hidden divide-y divide-border/40 bg-background/50">
+                    <div className="divide-y divide-border/30">
                       {group.options.map((opt) => (
                         <div
                           key={opt.id}
                           className={cn(
-                            "flex items-center justify-between px-4 py-3 text-sm transition-colors",
-                            !opt.is_active && "bg-muted/30"
+                            "group flex items-center justify-between py-1.5 px-2 text-xs transition-colors rounded-lg hover:bg-muted/40",
+                            !opt.is_active && "opacity-65"
                           )}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Marcador ○ */}
+                          <div className="flex items-center gap-2 min-w-0 pr-3">
                             <span
                               className={cn(
-                                "text-xs shrink-0 select-none",
-                                opt.is_active ? "text-muted-foreground" : "text-muted-foreground/40"
-                              )}
-                            >
-                              ○
-                            </span>
-
-                            <span
-                              className={cn(
-                                "font-semibold text-sm truncate",
+                                "font-medium text-xs sm:text-sm truncate",
                                 opt.is_active ? "text-foreground" : "text-muted-foreground line-through"
                               )}
                             >
                               {opt.name}
                             </span>
-
                             {!opt.is_active && (
-                              <span className="text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-md shrink-0 border border-amber-500/20">
-                                DESATIVADO
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0">
+                                Pausado
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-3 shrink-0">
+                          <div className="flex items-center gap-2 shrink-0">
                             <span
                               className={cn(
-                                "font-bold text-sm tracking-tight",
+                                "text-xs sm:text-sm font-semibold tracking-tight",
                                 opt.is_active ? "text-foreground" : "text-muted-foreground"
                               )}
                             >
-                              {formatBRL(opt.price)}
+                              {Number(opt.price) > 0 ? `+ ${formatBRL(opt.price)}` : "Grátis"}
                             </span>
 
-                            {/* Menu ⋮ da Opção */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                  aria-label="Ações da opção"
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem onClick={() => handleOpenEditOption(group.id, opt)}>
-                                  <Edit3 className="h-3.5 w-3.5 mr-2" /> Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleToggleOptionActive(group.id, opt.id)}>
-                                  {opt.is_active ? (
-                                    <>
-                                      <EyeOff className="h-3.5 w-3.5 mr-2 text-amber-600" /> Desativar
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Eye className="h-3.5 w-3.5 mr-2 text-emerald-600" /> Ativar
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setDeleteOptionTarget({ groupId: group.id, option: opt })}
-                                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            {/* Ações discretas no hover */}
+                            <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditOption(group.id, opt)}
+                                title="Editar opção"
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleOptionActive(group.id, opt.id)}
+                                title={opt.is_active ? "Pausar opção" : "Ativar opção"}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all"
+                              >
+                                {opt.is_active ? (
+                                  <EyeOff className="h-3.5 w-3.5 text-amber-600" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5 text-emerald-600" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteOptionTarget({ groupId: group.id, option: opt })}
+                                title="Excluir opção"
+                                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 active:scale-95 transition-all"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {/* Botão + Adicionar opções */}
-                  {group.options.length > 0 && (
+                  {/* + Adicionar opção */}
+                  <div className="pt-2 border-t border-border/40">
                     <button
                       type="button"
                       onClick={() => handleOpenBulkAdd(group.id)}
-                      className="w-full py-2.5 rounded-xl border border-dashed border-primary/40 text-primary hover:bg-primary/5 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                      className="w-full py-1.5 text-xs font-semibold text-primary hover:text-primary/80 hover:bg-primary/5 rounded-lg transition-all flex items-center justify-center gap-1"
                     >
-                      <Plus className="h-4 w-4" /> Adicionar opções
+                      <Plus className="h-3.5 w-3.5" />
+                      Adicionar opção
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ==================================================== */}
       {/* MODAL: CRIAR / EDITAR GRUPO DE OPÇÕES */}
@@ -2040,19 +1959,26 @@ export function ProductOptionGroupsManager({
         <DialogContent className="sm:max-w-lg rounded-3xl p-6 bg-background">
           <div className="space-y-4">
             <DialogHeader>
-              <div className="h-10 w-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-1">
-                <Layers className="h-5 w-5" />
-              </div>
               <DialogTitle className="text-lg font-black text-foreground">
-                Adicionar grupo de adicionais
+                Adicionar grupo
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Reutilize um grupo já cadastrado em outros produtos com todas as suas opções.
+              <DialogDescription className="text-xs text-muted-foreground font-medium">
+                Escolha entre reutilizar um grupo existente ou criar um novo conjunto de adicionais.
               </DialogDescription>
             </DialogHeader>
 
-            {/* Input de busca */}
-            <div>
+            {/* Seção 1: Reutilizar grupo existente */}
+            <div className="space-y-3">
+              <div>
+                <h5 className="text-xs font-bold text-foreground">
+                  Reutilizar grupo existente
+                </h5>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  Use um grupo que já existe na sua loja.
+                </p>
+              </div>
+
+              {/* Input de busca */}
               <input
                 type="text"
                 placeholder="Buscar grupo pelo nome..."
@@ -2064,90 +1990,123 @@ export function ProductOptionGroupsManager({
                     e.stopPropagation();
                   }
                 }}
-                className="w-full h-10 px-4 rounded-xl bg-muted/40 border border-border text-xs font-medium text-foreground focus:outline-none focus:border-primary"
+                className="w-full h-9 px-3 rounded-xl bg-muted/40 border border-border text-xs font-medium text-foreground focus:outline-none focus:border-primary"
               />
+
+              {/* Lista de Grupos */}
+              <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1">
+                {loadingStoreGroups && (
+                  <div className="p-6 text-center text-xs text-muted-foreground font-bold flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    Carregando grupos da loja...
+                  </div>
+                )}
+
+                {!loadingStoreGroups && storeGroups.length === 0 && (
+                  <div className="p-6 text-center text-xs text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border/80">
+                    Nenhum outro grupo cadastrado nesta loja ainda.
+                  </div>
+                )}
+
+                {!loadingStoreGroups &&
+                  storeGroups
+                    .filter((g) =>
+                      !storeGroupSearch.trim() ||
+                      g.name.toLowerCase().includes(storeGroupSearch.trim().toLowerCase())
+                    )
+                    .map((sg) => {
+                      const isAlreadyAdded = groups.some((g) => g.id === sg.id);
+                      const isReq = Boolean(sg.required);
+                      const ruleDesc = isReq
+                        ? (sg.min_options === sg.max_options ? `${sg.min_options} escolhas` : `De ${sg.min_options} a ${sg.max_options} escolhas`)
+                        : `Até ${sg.max_options} escolhas`;
+
+                      return (
+                        <div
+                          key={sg.id}
+                          className={cn(
+                            "p-3 rounded-xl border transition-all flex items-center justify-between gap-3",
+                            isAlreadyAdded
+                              ? "border-border/50 bg-muted/20 opacity-70"
+                              : "border-border bg-card hover:border-primary/40 shadow-2xs"
+                          )}
+                        >
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <h5 className="text-xs font-bold text-foreground tracking-tight truncate">
+                              {sg.name}
+                            </h5>
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium flex-wrap">
+                              <span>{sg.options.length} {sg.options.length === 1 ? "opção" : "opções"}</span>
+                              <span>·</span>
+                              <span className={isReq ? "text-rose-600 dark:text-rose-400 font-semibold" : ""}>
+                                {isReq ? "Obrigatório" : "Opcional"}
+                              </span>
+                              <span>·</span>
+                              <span>{ruleDesc}</span>
+                            </div>
+                          </div>
+
+                          {isAlreadyAdded ? (
+                            <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-muted border border-border/60">
+                              <Check className="h-3 w-3 text-emerald-600" />
+                              Já adicionado
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAssignExistingGroup(sg);
+                              }}
+                              disabled={assigningGroupId === sg.id}
+                              className="px-3 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-2xs flex items-center gap-1 disabled:opacity-50"
+                            >
+                              {assigningGroupId === sg.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
+                              {assigningGroupId === sg.id ? "Adicionando..." : "Adicionar"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+              </div>
             </div>
 
-            {/* Lista de Grupos */}
-            <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1">
-              {loadingStoreGroups && (
-                <div className="p-8 text-center text-xs text-muted-foreground font-bold flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Carregando grupos da loja...
-                </div>
-              )}
+            {/* Divisor */}
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
+                <span className="bg-background px-3 text-muted-foreground">ou</span>
+              </div>
+            </div>
 
-              {!loadingStoreGroups && storeGroups.length === 0 && (
-                <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border/80">
-                  Nenhum outro grupo cadastrado nesta loja ainda.
-                </div>
-              )}
-
-              {!loadingStoreGroups &&
-                storeGroups
-                  .filter((g) =>
-                    !storeGroupSearch.trim() ||
-                    g.name.toLowerCase().includes(storeGroupSearch.trim().toLowerCase())
-                  )
-                  .map((sg) => {
-                    const isAlreadyAdded = groups.some((g) => g.id === sg.id);
-                    const isReq = Boolean(sg.required);
-                    const ruleDesc = isReq
-                      ? (sg.min_options === sg.max_options ? `${sg.min_options} opções` : `De ${sg.min_options} a ${sg.max_options} opções`)
-                      : `Até ${sg.max_options} opções`;
-
-                    return (
-                      <div
-                        key={sg.id}
-                        className={cn(
-                          "p-4 rounded-2xl border transition-all flex items-center justify-between gap-3",
-                          isAlreadyAdded
-                            ? "border-border/50 bg-muted/20 opacity-70"
-                            : "border-border bg-card hover:border-primary/40 shadow-xs"
-                        )}
-                      >
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <h5 className="text-sm font-bold text-foreground tracking-tight">
-                            {sg.name}
-                          </h5>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium flex-wrap">
-                            <span>{sg.options.length} {sg.options.length === 1 ? "opção" : "opções"}</span>
-                            <span>•</span>
-                            <span className={isReq ? "text-rose-600 dark:text-rose-400 font-bold" : ""}>
-                              {isReq ? "Obrigatório" : "Opcional"}
-                            </span>
-                            <span>•</span>
-                            <span>{ruleDesc}</span>
-                          </div>
-                        </div>
-
-                        {isAlreadyAdded ? (
-                          <span className="text-xs font-bold text-muted-foreground flex items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl bg-muted border border-border/60">
-                            <Check className="h-3.5 w-3.5 text-emerald-600" />
-                            Já adicionado
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleAssignExistingGroup(sg);
-                            }}
-                            disabled={assigningGroupId === sg.id}
-                            className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-                          >
-                            {assigningGroupId === sg.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Plus className="h-3.5 w-3.5" />
-                            )}
-                            {assigningGroupId === sg.id ? "Adicionando..." : "Adicionar"}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+            {/* Seção 2: Criar novo grupo */}
+            <div className="p-3.5 rounded-2xl border border-dashed border-border bg-muted/20 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h5 className="text-xs font-bold text-foreground">
+                  Criar novo grupo
+                </h5>
+                <p className="text-[11px] text-muted-foreground font-medium truncate">
+                  Crie um novo conjunto de adicionais do zero.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddExistingModalOpen(false);
+                  handleOpenCreateGroup();
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Criar novo grupo
+              </button>
             </div>
 
             <DialogFooter className="pt-2 border-t border-border/50">
