@@ -55,7 +55,7 @@ export const isForbiddenCategory = (cat: string | null | undefined): boolean => 
 };
 
 // TESTE BINÁRIO: desliga por completo o drag de CATEGORIAS para isolar o drag de PRODUTOS.
-const CATEGORY_DRAG_ENABLED = true;
+const CATEGORY_DRAG_ENABLED = false;
 
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
@@ -255,82 +255,51 @@ export default function BusinessProductsPage() {
   };
 
 
-  // ── Drag & Drop handlers (NÍVEL 2 - PRODUTOS NATIVO) ──────────────────────────
+  // ── Drag & Drop handlers — restaurados de e4519e3 ─────────────────────────────
   const handleDragStart = useCallback((id: string, category: string) => {
-    console.log("[PRODUCT DRAG] dragstart registrado no pai:", id, "categoria:", category);
+    console.log("[PRODUCT DRAG] START", id);
     dragId.current = id;
     dragCategory.current = category;
-  }, []);
-
-  const handleDragEndProduct = useCallback((id: string) => {
-    console.log("[PRODUCT DRAG] dragend/reset no pai para:", id);
-    dragId.current = null;
-    dragCategory.current = null;
   }, []);
 
   const handleDrop = useCallback(async (targetId: string, targetCategory: string) => {
     const srcId = dragId.current;
     const srcCat = dragCategory.current;
-    console.log("[PRODUCT DRAG] drop recebido:", { srcId, targetId, srcCat, targetCategory });
+    console.log("[PRODUCT DRAG] DROP", targetId);
+    if (!srcId || srcId === targetId || srcCat !== targetCategory) return;
+
+    const catProducts = products.filter(p => (p.category || "Outros") === targetCategory);
+    const srcIdx = catProducts.findIndex(p => p.id === srcId);
+    const tgtIdx = catProducts.findIndex(p => p.id === targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+
+    const reordered = [...catProducts];
+    const [moved] = reordered.splice(srcIdx, 1);
+    reordered.splice(tgtIdx, 0, moved);
+    const updated = reordered.map((p, i) => ({ ...p, sort_order: i }));
+
+    setProducts(prev =>
+      prev.map(p => {
+        const found = updated.find(u => u.id === p.id);
+        return found ?? p;
+      })
+    );
 
     try {
-      if (!srcId || srcId === targetId || srcCat !== targetCategory) {
-        console.warn("[PRODUCT DRAG] drop cancelado (mesmo id ou categoria divergente):", { srcId, targetId, srcCat, targetCategory });
-        return;
-      }
-
-      // Filtra produtos usando a mesma regra uniforme do agrupamento visual
-      const catProducts = products.filter(p => {
-        const raw = p.category ? p.category.trim() : "Lanches";
-        const resolved = isForbiddenCategory(raw) ? "Lanches" : raw;
-        return resolved === targetCategory;
-      });
-
-      const srcIdx = catProducts.findIndex(p => p.id === srcId);
-      const tgtIdx = catProducts.findIndex(p => p.id === targetId);
-      if (srcIdx === -1 || tgtIdx === -1) {
-        console.warn("[PRODUCT DRAG] índices não localizados:", { srcIdx, tgtIdx });
-        return;
-      }
-
-      const reordered = [...catProducts];
-      const [moved] = reordered.splice(srcIdx, 1);
-      reordered.splice(tgtIdx, 0, moved);
-      const updated = reordered.map((p, i) => ({ ...p, sort_order: i }));
-
-      console.log("[PRODUCT DRAG] aplicando nova ordenação:", updated.map(p => `${p.name}: ${p.sort_order}`));
-
-      // Optimistic UI imediata
-      setProducts(prev =>
-        prev.map(p => {
-          const found = updated.find(u => u.id === p.id);
-          return found ?? p;
-        })
-      );
-
-      // Persistência no banco
-      const results = await Promise.all(
+      await Promise.all(
         updated.map(p =>
           supabase.from("products").update({ sort_order: p.sort_order }).eq("id", p.id)
         )
       );
-
-      const hasError = results.some(r => r.error);
-      if (hasError) {
-        console.error("[PRODUCT DRAG] erro retornado do Supabase:", results);
-        toast.error("Erro ao salvar ordem dos produtos");
-        fetchCompanyAndProducts();
-      } else {
-        toast.success("Ordem dos produtos salva!");
-      }
-    } catch (err) {
-      console.error("[PRODUCT DRAG] exceção durante persistência:", err);
-      toast.error("Erro ao salvar ordem dos produtos");
+      toast.success("Ordem salva!");
+    } catch {
+      toast.error("Erro ao salvar ordem");
       fetchCompanyAndProducts();
-    } finally {
-      dragId.current = null;
-      dragCategory.current = null;
     }
+
+    dragId.current = null;
+    dragCategory.current = null;
+    console.log("[PRODUCT DRAG] RESET", srcId);
   }, [products]);
 
   // ── Controle de Recolhimento de Categorias ────────────────────────────────────
@@ -687,7 +656,10 @@ export default function BusinessProductsPage() {
                       onClick={(e) => e.stopPropagation()}
                       title={CATEGORY_DRAG_ENABLED ? "Segure e arraste este ícone para reordenar a categoria" : "Reordenação de categoria temporariamente desativada"}
                       aria-label={`Arrastar para reordenar categoria ${cat.label}`}
-                      className="cursor-grab active:cursor-grabbing p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/70 active:bg-primary/15 active:text-primary touch-none select-none transition-colors shrink-0"
+                      className={cn(
+                        "p-2 rounded-xl text-muted-foreground transition-colors shrink-0",
+                        CATEGORY_DRAG_ENABLED && "cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-muted/70 active:bg-primary/15 active:text-primary touch-none select-none"
+                      )}
                     >
                       <GripVertical className="h-5 w-5" />
                     </div>
@@ -743,9 +715,8 @@ export default function BusinessProductsPage() {
                           onDelete={() => deleteProduct(product.id)}
                           onToggle={() => toggleActive(product)}
                           onToggleFeatured={() => toggleFeatured(product)}
-                          onDragStart={() => handleDragStart(product.id, cat.value)}
-                          onDragEnd={() => handleDragEndProduct(product.id)}
-                          onDrop={() => handleDrop(product.id, cat.value)}
+                          onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
+                          onDrop={() => handleDrop(product.id, product.category || "Outros")}
                         />
                       ))}
                     </div>
@@ -779,7 +750,6 @@ function ProductCard({
   onToggle,
   onToggleFeatured,
   onDragStart,
-  onDragEnd,
   onDrop,
 }: {
   product: Product;
@@ -788,7 +758,6 @@ function ProductCard({
   onToggle: () => void;
   onToggleFeatured: () => void;
   onDragStart: () => void;
-  onDragEnd: () => void;
   onDrop: () => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -799,6 +768,11 @@ function ProductCard({
   const [isOver, setIsOver] = useState(false);
   const images = parseImages(product.image_url);
   const mainImage = images[0];
+
+  useEffect(() => {
+    console.log("[PRODUCT CARD] MOUNT", product.id);
+    return () => console.log("[PRODUCT CARD] UNMOUNT", product.id);
+  }, [product.id]);
 
   // Contadores reais de personalização
   const groups = product.product_option_groups || [];
@@ -816,47 +790,34 @@ function ProductCard({
   return (
     <div
       data-product-id={product.id}
-      draggable={true}
+      draggable
       onDragStart={(e) => {
-        console.log("[PRODUCT DRAG] dragstart", product.id, product.name);
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", product.id);
         setIsDragging(true);
         onDragStart();
       }}
       onDragEnd={() => {
-        console.log("[PRODUCT DRAG] dragend", product.id, product.name);
+        console.log("[PRODUCT DRAG] END", product.id);
         setIsDragging(false);
-        setIsOver(false);
-        onDragEnd();
       }}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (!isOver) {
-          console.log("[PRODUCT DRAG] dragover target:", product.id, product.name);
-          setIsOver(true);
-        }
+        console.log("[PRODUCT DRAG] OVER", product.id);
+        setIsOver(true);
       }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          setIsOver(false);
-        }
-      }}
+      onDragLeave={() => setIsOver(false)}
       onDrop={(e) => {
         e.preventDefault();
-        console.log("[PRODUCT DRAG] drop target:", product.id, product.name);
         setIsOver(false);
-        setIsDragging(false);
         onDrop();
       }}
       className={cn(
-        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full select-none cursor-grab active:cursor-grabbing",
+        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full",
         !product.is_active && "opacity-75 grayscale-[0.3]",
-        // TESTE: nenhuma mudança de geometria/opacidade durante o dragstart
-        isDragging ? "ring-2 ring-primary/20" : "hover:shadow-xl hover:border-primary/25",
-        isOver ? "border-primary ring-4 ring-primary/40" : "border-border/60",
-
+        isDragging ? "cursor-grabbing" : "cursor-grab hover:shadow-xl hover:border-primary/25",
+        isOver ? "border-primary ring-2 ring-primary/30" : "border-border/60",
       )}
     >
       {/* Drag Handle — visível no hover com pointer-events-none para que qualquer clique/arraste nele acione o card diretamente */}
