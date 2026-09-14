@@ -103,100 +103,52 @@ export async function loadProductOptionGroups(productId: string): Promise<Option
 }
 
 /**
- * Sincroniza e persiste grupos e opções no banco de dados (product_option_groups e product_options)
+ * Sincroniza grupos e opções apenas para produtos NOVOS que acabaram de ser criados.
+ * NUNCA executa deleção em massa de product_option_groups para produtos existentes.
  */
 export async function saveProductOptionGroups(
   productId: string,
   hasOptions: boolean,
-  groups: OptionGroupDraft[]
+  groups: OptionGroupDraft[],
+  isNewProduct: boolean = false
 ) {
-  if (!hasOptions || groups.length === 0) {
-    await supabase.from("product_option_groups").delete().eq("product_id", productId);
+  // Se for edição de produto existente, NÃO fazemos sync em lote destrutivo.
+  // As alterações já foram persistidas em tempo real de forma granular e atômica.
+  if (!isNewProduct) {
     return;
   }
 
-  // 1. Busca grupos já existentes no banco para detectar exclusões
-  const { data: existingGroups } = await supabase
-    .from("product_option_groups")
-    .select("id, product_options(id)")
-    .eq("product_id", productId);
-
-  const existingGroupIds = (existingGroups || []).map((g: any) => g.id);
-  const currentGroupIds = groups.filter((g) => !g.isNew && !g.id.startsWith("temp_")).map((g) => g.id);
-
-  // Deleta grupos que foram removidos
-  const groupsToDelete = existingGroupIds.filter((id: string) => !currentGroupIds.includes(id));
-  if (groupsToDelete.length > 0) {
-    await supabase.from("product_option_groups").delete().in("id", groupsToDelete);
+  if (!hasOptions || !groups || groups.length === 0) {
+    return;
   }
 
-  // 2. Salva / Atualiza cada grupo
+  // Insere grupos e opções para o produto recém-criado
   for (const group of groups) {
-    let groupId = group.id;
-    const isNewGroup = group.isNew || groupId.startsWith("temp_");
+    const { data: insertedGroup, error: groupError } = await supabase
+      .from("product_option_groups")
+      .insert({
+        product_id: productId,
+        name: group.name,
+        min_options: group.min_options,
+        max_options: group.max_options,
+        required: group.required,
+      })
+      .select()
+      .single();
 
-    if (isNewGroup) {
-      const { data: insertedGroup, error: groupError } = await supabase
-        .from("product_option_groups")
-        .insert({
-          product_id: productId,
-          name: group.name,
-          min_options: group.min_options,
-          max_options: group.max_options,
-          required: group.required,
-        })
-        .select()
-        .single();
-
-      if (groupError || !insertedGroup) {
-        console.error("Erro ao inserir grupo:", groupError);
-        continue;
-      }
-      groupId = insertedGroup.id;
-    } else {
-      await supabase
-        .from("product_option_groups")
-        .update({
-          name: group.name,
-          min_options: group.min_options,
-          max_options: group.max_options,
-          required: group.required,
-        })
-        .eq("id", groupId);
+    if (groupError || !insertedGroup) {
+      console.error("Erro ao inserir grupo do novo produto:", groupError);
+      continue;
     }
 
-    // 3. Salva / Atualiza opções do grupo
-    const existingGroupRecord = (existingGroups || []).find((g: any) => g.id === groupId);
-    const existingOptionIds = (existingGroupRecord?.product_options || []).map((o: any) => o.id);
-    const currentOptionIds = group.options
-      .filter((o) => !o.isNew && !o.id.startsWith("temp_"))
-      .map((o) => o.id);
-
-    // Deleta opções removidas do grupo
-    const optionsToDelete = existingOptionIds.filter((id: string) => !currentOptionIds.includes(id));
-    if (optionsToDelete.length > 0) {
-      await supabase.from("product_options").delete().in("id", optionsToDelete);
-    }
-
-    for (const opt of group.options) {
-      const isNewOpt = opt.isNew || opt.id.startsWith("temp_");
-      if (isNewOpt) {
-        await supabase.from("product_options").insert({
-          group_id: groupId,
-          name: opt.name,
-          price: opt.price,
-          is_active: opt.is_active,
-        });
-      } else {
-        await supabase
-          .from("product_options")
-          .update({
-            name: opt.name,
-            price: opt.price,
-            is_active: opt.is_active,
-          })
-          .eq("id", opt.id);
-      }
+    if (group.options && group.options.length > 0) {
+      const optionsToInsert = group.options.map((opt) => ({
+        group_id: insertedGroup.id,
+        name: opt.name,
+        price: opt.price,
+        is_active: opt.is_active,
+      }));
+      await supabase.from("product_options").insert(optionsToInsert);
     }
   }
 }
@@ -272,8 +224,11 @@ export function ProductOptionGroupsManager({
     setGroupModalOpen(true);
   };
 
-  const handleSaveGroupModal = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveGroupModal = async (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const trimmed = groupFormName.trim();
     if (!trimmed) {
       toast.error("Informe o nome do grupo.");
@@ -300,9 +255,9 @@ export function ProductOptionGroupsManager({
             .select()
             .single();
 
-          if (groupInsertError || !insertedGroup) {
+          if (groupInsertError || !insertedGroup || !insertedGroup.id) {
             console.error("Erro ao criar grupo no Supabase:", groupInsertError);
-            toast.error(`Erro ao criar grupo: ${groupInsertError?.message || "falha no banco"}`);
+            toast.error(`Erro ao criar grupo: ${groupInsertError?.message || "falha ao salvar no banco"}`);
             setIsSavingGroup(false);
             return;
           }
@@ -319,12 +274,11 @@ export function ProductOptionGroupsManager({
 
           onToggleHasOptions(true);
           onChange([...groups, createdGroup]);
+          setGroupModalOpen(false);
           toast.success(`Grupo "${trimmed}" criado!`);
         } catch (err: any) {
           console.error("Exceção ao inserir grupo:", err);
-          toast.error("Erro ao criar grupo.");
-          setIsSavingGroup(false);
-          return;
+          toast.error("Erro inesperado ao criar grupo.");
         } finally {
           setIsSavingGroup(false);
         }
@@ -340,11 +294,13 @@ export function ProductOptionGroupsManager({
         };
         onToggleHasOptions(true);
         onChange([...groups, newGroup]);
+        setGroupModalOpen(false);
         toast.success(`Grupo "${trimmed}" criado!`);
       }
     } else if (targetGroupId) {
       const isRealGroup = !targetGroupId.startsWith("temp_");
       if (productId && isRealGroup) {
+        setIsSavingGroup(true);
         try {
           const { error: groupUpdateError } = await supabase
             .from("product_option_groups")
@@ -359,12 +315,16 @@ export function ProductOptionGroupsManager({
           if (groupUpdateError) {
             console.error("Erro ao atualizar grupo no Supabase:", groupUpdateError);
             toast.error(`Erro ao atualizar grupo: ${groupUpdateError.message}`);
+            setIsSavingGroup(false);
             return;
           }
         } catch (err: any) {
           console.error("Exceção ao atualizar grupo:", err);
           toast.error("Erro ao atualizar grupo.");
+          setIsSavingGroup(false);
           return;
+        } finally {
+          setIsSavingGroup(false);
         }
       }
 
@@ -380,10 +340,9 @@ export function ProductOptionGroupsManager({
           : g
       );
       onChange(updated);
+      setGroupModalOpen(false);
       toast.success("Grupo atualizado com sucesso!");
     }
-
-    setGroupModalOpen(false);
   };
 
   const handleConfirmDeleteGroup = async () => {
@@ -707,8 +666,11 @@ export function ProductOptionGroupsManager({
     setEditOptionModalOpen(true);
   };
 
-  const handleSaveEditOption = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEditOption = async (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const trimmedName = editOptionName.trim();
     if (!trimmedName) {
       toast.error("Informe o nome da opção.");
@@ -1159,7 +1121,7 @@ export function ProductOptionGroupsManager({
       {/* ==================================================== */}
       <Dialog open={groupModalOpen} onOpenChange={setGroupModalOpen}>
         <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-background">
-          <form onSubmit={handleSaveGroupModal} className="space-y-5">
+          <div className="space-y-5">
             <DialogHeader>
               <DialogTitle className="text-lg font-black text-foreground">
                 {groupModalMode === "create" ? "Novo grupo de opções" : "Editar grupo de opções"}
@@ -1178,6 +1140,13 @@ export function ProductOptionGroupsManager({
                   type="text"
                   value={groupFormName}
                   onChange={(e) => setGroupFormName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSaveGroupModal(e);
+                    }
+                  }}
                   placeholder="Ex: Turbine seu Lanche, Molhos, Bebidas..."
                   className="w-full h-11 px-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                   autoFocus
@@ -1195,6 +1164,13 @@ export function ProductOptionGroupsManager({
                     min="0"
                     value={groupFormMin}
                     onChange={(e) => setGroupFormMin(Math.max(0, parseInt(e.target.value) || 0))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSaveGroupModal(e);
+                      }
+                    }}
                     className="w-full h-11 px-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary"
                   />
                   <p className="text-[10px] text-muted-foreground mt-1 font-medium">
@@ -1211,6 +1187,13 @@ export function ProductOptionGroupsManager({
                     min="1"
                     value={groupFormMax}
                     onChange={(e) => setGroupFormMax(Math.max(1, parseInt(e.target.value) || 1))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSaveGroupModal(e);
+                      }
+                    }}
                     className="w-full h-11 px-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary"
                   />
                   <p className="text-[10px] text-muted-foreground mt-1 font-medium">
@@ -1267,7 +1250,8 @@ export function ProductOptionGroupsManager({
                 Cancelar
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={(e) => handleSaveGroupModal(e)}
                 disabled={isSavingGroup}
                 className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
               >
@@ -1279,7 +1263,7 @@ export function ProductOptionGroupsManager({
                   : "Salvar alterações"}
               </button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1513,7 +1497,7 @@ export function ProductOptionGroupsManager({
       {/* ==================================================== */}
       <Dialog open={editOptionModalOpen} onOpenChange={setEditOptionModalOpen}>
         <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-background">
-          <form onSubmit={handleSaveEditOption} className="space-y-5">
+          <div className="space-y-5">
             <DialogHeader>
               <DialogTitle className="text-lg font-black text-foreground">
                 Editar opção
@@ -1532,6 +1516,13 @@ export function ProductOptionGroupsManager({
                   type="text"
                   value={editOptionName}
                   onChange={(e) => setEditOptionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSaveEditOption(e);
+                    }
+                  }}
                   placeholder="Ex: Bacon, Cheddar, Barbecue..."
                   className="w-full h-11 px-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                   autoFocus
@@ -1551,6 +1542,13 @@ export function ProductOptionGroupsManager({
                     type="text"
                     value={editOptionPrice}
                     onChange={(e) => setEditOptionPrice(e.target.value.replace(/[^0-9.,]/g, ""))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSaveEditOption(e);
+                      }
+                    }}
                     placeholder="0,00"
                     className="w-full h-11 pl-11 pr-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary"
                   />
@@ -1609,13 +1607,14 @@ export function ProductOptionGroupsManager({
                 Cancelar
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={(e) => handleSaveEditOption(e)}
                 className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-sm"
               >
                 Salvar alterações
               </button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 

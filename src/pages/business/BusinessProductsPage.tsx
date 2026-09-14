@@ -280,6 +280,7 @@ export default function BusinessProductsPage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
+              type="button"
               onClick={() => setIsBulkImportOpen(true)}
               disabled={!companyId}
               className="px-6 py-4 rounded-[2rem] bg-secondary text-foreground font-black flex items-center justify-center gap-2 shadow-sm hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
@@ -288,6 +289,7 @@ export default function BusinessProductsPage() {
               Importar Lote
             </button>
             <button
+              type="button"
               onClick={() => setShowForm(true)}
               disabled={!companyId}
               className="px-8 py-4 rounded-[2rem] gradient-primary text-primary-foreground font-black flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
@@ -313,6 +315,7 @@ export default function BusinessProductsPage() {
               Adicione fotos apetitosas e descrições detalhadas para vender mais.
             </p>
             <button
+              type="button"
               onClick={() => setShowForm(true)}
               disabled={!companyId}
               className="px-10 py-4 rounded-2xl gradient-primary text-primary-foreground font-black text-lg shadow-xl disabled:opacity-50"
@@ -494,6 +497,7 @@ function ProductCard({
         {/* Actions Grid */}
         <div className="flex flex-col gap-2 pt-4 border-t border-border mt-auto">
           <button
+            type="button"
             onClick={onEdit}
             className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm"
           >
@@ -501,6 +505,7 @@ function ProductCard({
           </button>
           <div className="grid grid-cols-3 gap-2">
             <button
+              type="button"
               onClick={onToggleFeatured}
               className={cn("py-3 rounded-xl flex items-center justify-center transition-all active:scale-95", product.is_featured ? "bg-amber-500/15 text-amber-500 hover:bg-amber-500 hover:text-white" : "bg-muted text-muted-foreground hover:bg-muted/80")}
               title={product.is_featured ? "Remover Destaque" : "Destacar Produto"}
@@ -508,6 +513,7 @@ function ProductCard({
               <Star className={cn("h-4 w-4", product.is_featured && "fill-current")} />
             </button>
             <button
+              type="button"
               onClick={onToggle}
               className="py-3 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 flex items-center justify-center transition-all active:scale-95"
               title={product.is_active ? "Pausar Vendas" : "Ativar Vendas"}
@@ -515,6 +521,7 @@ function ProductCard({
               {product.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-emerald-500" />}
             </button>
             <button
+              type="button"
               onClick={onDelete}
               className="py-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-all active:scale-95"
             >
@@ -678,9 +685,10 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
         toast.success("Produto publicado!");
       }
 
-      // Sincroniza grupos de adicionais e opções
-      if (savedProductId) {
-        await saveProductOptionGroups(savedProductId, hasOptions, optionGroups);
+      // Sincroniza grupos de adicionais e opções apenas se for um novo produto
+      const isNewProduct = !product;
+      if (savedProductId && isNewProduct) {
+        await saveProductOptionGroups(savedProductId, hasOptions, optionGroups, true);
       }
 
       onSaved();
@@ -695,6 +703,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   return (
     <div className="space-y-6 animate-in slide-in-from-left-4 duration-500">
       <button
+        type="button"
         onClick={onClose}
         className="group flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-all"
       >
