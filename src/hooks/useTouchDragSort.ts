@@ -56,7 +56,7 @@ export function useTouchDragSort<T extends HTMLElement>({
     };
 
     const finish = () => {
-      console.log("[TOUCH FINISH]", selfId, active, targetId);
+      
       clearTimer();
       clearHighlight();
       if (active) {
