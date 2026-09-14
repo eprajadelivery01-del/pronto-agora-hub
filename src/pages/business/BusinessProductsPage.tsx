@@ -734,7 +734,7 @@ export default function BusinessProductsPage() {
 
                   {/* Grid de produtos (oculta visualmente quando a categoria estiver recolhida) */}
                   {!isCollapsed && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
                       {items.map(product => (
                         <ProductCard
                           key={product.id}
@@ -849,8 +849,10 @@ function ProductCard({
       className={cn(
         "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full select-none cursor-grab active:cursor-grabbing",
         !product.is_active && "opacity-75 grayscale-[0.3]",
-        isDragging ? "opacity-40 shadow-none ring-2 ring-primary/20" : "hover:shadow-xl hover:border-primary/25 hover:-translate-y-0.5",
-        isOver ? "border-primary ring-4 ring-primary/40 scale-[1.02]" : "border-border/60",
+        // TESTE: nenhuma mudança de geometria/opacidade durante o dragstart
+        isDragging ? "ring-2 ring-primary/20" : "hover:shadow-xl hover:border-primary/25",
+        isOver ? "border-primary ring-4 ring-primary/40" : "border-border/60",
+
       )}
     >
       {/* Drag Handle — visível no hover com pointer-events-none para que qualquer clique/arraste nele acione o card diretamente */}
