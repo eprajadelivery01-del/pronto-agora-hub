@@ -15,6 +15,61 @@ import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { BulkImportModal } from "@/components/business/BulkImportModal";
 import { ProductOptionGroupsManager, loadProductOptionGroups, saveProductOptionGroups, OptionGroupDraft } from "@/components/business/ProductOptionGroupsManager";
+import { useTouchDragSort } from "@/hooks/useTouchDragSort";
+
+// ── Handle de categoria: HTML5 nativo no desktop, touch events no mobile ───────
+function CategoryDragHandle({
+  category,
+  label,
+  onDragStartCategory,
+  onDragEndCategory,
+  onTouchDropCategory,
+}: {
+  category: string;
+  label: string;
+  onDragStartCategory: () => void;
+  onDragEndCategory: () => void;
+  onTouchDropCategory: (targetCategory: string) => void;
+}) {
+  const touchRef = useTouchDragSort<HTMLDivElement>({
+    selfId: category,
+    targetSelector: "[data-category-header]",
+    targetAttribute: "data-category-header",
+    enabled: CATEGORY_DRAG_ENABLED,
+    onStart: onDragStartCategory,
+    onEnd: onDragEndCategory,
+    onDrop: (targetCategory) => onTouchDropCategory(targetCategory),
+  });
+
+  return (
+    <div
+      ref={touchRef}
+      role="button"
+      tabIndex={0}
+      {...(CATEGORY_DRAG_ENABLED
+        ? {
+            draggable: true,
+            onDragStart: (e: React.DragEvent) => {
+              e.stopPropagation();
+              e.dataTransfer.setData("application/x-category", category);
+              e.dataTransfer.effectAllowed = "move";
+              onDragStartCategory();
+            },
+            onDragEnd: onDragEndCategory,
+          }
+        : {})}
+      onClick={(e) => e.stopPropagation()}
+      title="Segure e arraste este ícone para reordenar a categoria"
+      aria-label={`Arrastar para reordenar categoria ${label}`}
+      className={cn(
+        "p-2 rounded-xl text-muted-foreground transition-colors shrink-0",
+        CATEGORY_DRAG_ENABLED && "cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-muted/70 select-none touch-none"
+      )}
+    >
+      <GripVertical className="h-5 w-5" />
+    </div>
+  );
+}
 
 interface Product {
   id: string;
@@ -54,8 +109,8 @@ export const isForbiddenCategory = (cat: string | null | undefined): boolean => 
   return lower.includes("teste") || lower.includes("test");
 };
 
-// TESTE BINÁRIO: desliga por completo o drag de CATEGORIAS para isolar o drag de PRODUTOS.
-const CATEGORY_DRAG_ENABLED = false;
+// Drag de CATEGORIAS: mesmo padrão do produto (HTML5 nativo, sem pointer events).
+const CATEGORY_DRAG_ENABLED = true;
 
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
@@ -99,11 +154,8 @@ export default function BusinessProductsPage() {
   const [draggingCategory, setDraggingCategory] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
 
-  // Pointer Events para touch/mobile no handle da categoria
-  const pointerStartY = useRef<number>(0);
-  const pointerStartX = useRef<number>(0);
-  const isPointerDragging = useRef<boolean>(false);
-  const activePointerCategory = useRef<string | null>(null);
+  // (sem pointer events: categorias e produtos usam HTML5 nativo / touch events)
+
 
   // Sincroniza a ordem salva em company.category_order
   useEffect(() => {
@@ -299,6 +351,17 @@ export default function BusinessProductsPage() {
     dragCategory.current = null;
   }, [products]);
 
+  // Mesmo fluxo do desktop, acionado pelo arrasto por toque (mobile)
+  const handleTouchDropProduct = useCallback((sourceId: string, targetId: string) => {
+    const source = products.find(p => p.id === sourceId);
+    const target = products.find(p => p.id === targetId);
+    
+    if (!source || !target) return;
+    dragId.current = sourceId;
+    dragCategory.current = source.category || "Outros";
+    handleDrop(targetId, target.category || "Outros");
+  }, [products, handleDrop]);
+
   // ── Controle de Recolhimento de Categorias ────────────────────────────────────
   const toggleCategoryCollapse = (catValue: string) => {
     setCollapsedCategories(prev => {
@@ -388,67 +451,8 @@ export default function BusinessProductsPage() {
     });
   }, [companyId]);
 
-  // ── Pointer Events para o Handle da Categoria (Mouse, Touch e Pen) ─────────────
-  const handlePointerDownCategory = (e: React.PointerEvent, catValue: string) => {
-    if (e.pointerType === "mouse") return;
-    e.stopPropagation();
-    pointerStartY.current = e.clientY;
-    pointerStartX.current = e.clientX;
-    isPointerDragging.current = false;
-    activePointerCategory.current = catValue;
-  };
+  // Drag de categoria usa exclusivamente HTML5 nativo (sem pointer events).
 
-  const handlePointerMoveCategory = (e: React.PointerEvent) => {
-    if (!activePointerCategory.current) return;
-    const dy = Math.abs(e.clientY - pointerStartY.current);
-    const dx = Math.abs(e.clientX - pointerStartX.current);
-
-    // Ativa drag somente se o deslocamento vertical no handle for intencional (> 10px)
-    if (!isPointerDragging.current && dy > 10 && dy > dx) {
-      isPointerDragging.current = true;
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-      } catch {}
-      setDraggingCategory(activePointerCategory.current);
-    }
-
-    if (isPointerDragging.current) {
-      e.preventDefault();
-      // Localiza o cabeçalho de categoria sob o cursor ou dedo (NÍVEL 1 isolado)
-      const elem = document.elementFromPoint(e.clientX, e.clientY);
-      const header = elem?.closest("[data-category-header]");
-      const targetName = header?.getAttribute("data-category-header");
-      if (targetName && targetName !== activePointerCategory.current) {
-        setDragOverCategory(targetName);
-      } else if (!targetName) {
-        setDragOverCategory(null);
-      }
-    }
-  };
-
-  const handlePointerUpCategory = (e: React.PointerEvent) => {
-    if (!activePointerCategory.current) return;
-    const sourceCat = activePointerCategory.current;
-    const wasDragging = isPointerDragging.current;
-
-    try {
-      if ((e.currentTarget as HTMLElement).hasPointerCapture?.(e.pointerId)) {
-        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-      }
-    } catch {}
-
-    activePointerCategory.current = null;
-    isPointerDragging.current = false;
-    setDraggingCategory(null);
-
-    if (wasDragging && dragOverCategory && dragOverCategory !== sourceCat) {
-      const targetCat = dragOverCategory;
-      setDragOverCategory(null);
-      reorderCategories(sourceCat, targetCat);
-    } else {
-      setDragOverCategory(null);
-    }
-  };
 
   // Extrai todas as categorias únicas dos produtos cadastrados
   const rawCategories = Array.from(
@@ -620,46 +624,31 @@ export default function BusinessProductsPage() {
                         }
                       : {})}
                     className={cn(
-                      "flex items-center justify-between gap-3 mb-5 px-3 py-2.5 rounded-2xl bg-card border border-border/50 shadow-sm transition-all select-none",
-                      isDropTarget && "border-primary/60 shadow-md ring-2 ring-primary/40 bg-primary/5",
-                      isDraggingThis && "opacity-40"
+                      "flex items-center justify-between gap-3 mb-5 px-3 py-2.5 rounded-2xl bg-card border shadow-sm transition-colors select-none data-[drop-target=true]:border-primary data-[drop-target=true]:ring-2 data-[drop-target=true]:ring-primary/30",
+                      isDropTarget ? "border-primary ring-2 ring-primary/30" : "border-border/50",
+                      isDraggingThis && "cursor-grabbing"
                     )}
                   >
-                    {/* Handle de categoria (NÍVEL 1) — inerte durante o teste binário */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      {...(CATEGORY_DRAG_ENABLED
-                        ? {
-                            draggable: true,
-                            onDragStart: (e: React.DragEvent) => {
-                              e.stopPropagation();
-                              e.dataTransfer.setData("application/x-category", cat.value);
-                              e.dataTransfer.effectAllowed = "move";
-                              dragCategoryRef.current = cat.value;
-                              setDraggingCategory(cat.value);
-                            },
-                            onDragEnd: () => {
-                              dragCategoryRef.current = null;
-                              setDraggingCategory(null);
-                              setDragOverCategory(null);
-                            },
-                            onPointerDown: (e: React.PointerEvent) => handlePointerDownCategory(e, cat.value),
-                            onPointerMove: handlePointerMoveCategory,
-                            onPointerUp: handlePointerUpCategory,
-                            onPointerCancel: handlePointerUpCategory,
-                          }
-                        : {})}
-                      onClick={(e) => e.stopPropagation()}
-                      title={CATEGORY_DRAG_ENABLED ? "Segure e arraste este ícone para reordenar a categoria" : "Reordenação de categoria temporariamente desativada"}
-                      aria-label={`Arrastar para reordenar categoria ${cat.label}`}
-                      className={cn(
-                        "p-2 rounded-xl text-muted-foreground transition-colors shrink-0",
-                        CATEGORY_DRAG_ENABLED && "cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-muted/70 active:bg-primary/15 active:text-primary touch-none select-none"
-                      )}
-                    >
-                      <GripVertical className="h-5 w-5" />
-                    </div>
+                    {/* Handle de categoria (NÍVEL 1) — HTML5 nativo no desktop, touch no mobile */}
+                    <CategoryDragHandle
+                      category={cat.value}
+                      label={cat.label}
+                      onDragStartCategory={() => {
+                        dragCategoryRef.current = cat.value;
+                        setDraggingCategory(cat.value);
+                      }}
+                      onDragEndCategory={() => {
+                        dragCategoryRef.current = null;
+                        setDraggingCategory(null);
+                        setDragOverCategory(null);
+                      }}
+                      onTouchDropCategory={(targetCat) => {
+                        dragCategoryRef.current = null;
+                        setDraggingCategory(null);
+                        setDragOverCategory(null);
+                        reorderCategories(cat.value, targetCat);
+                      }}
+                    />
 
 
                     {/* Botão de Título e Seta para Recolher / Expandir */}
@@ -714,6 +703,7 @@ export default function BusinessProductsPage() {
                           onToggleFeatured={() => toggleFeatured(product)}
                           onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
                           onDrop={() => handleDrop(product.id, product.category || "Outros")}
+                          onTouchDropProduct={(targetId) => handleTouchDropProduct(product.id, targetId)}
                         />
                       ))}
                     </div>
@@ -748,6 +738,7 @@ function ProductCard({
   onToggleFeatured,
   onDragStart,
   onDrop,
+  onTouchDropProduct,
 }: {
   product: Product;
   onEdit: () => void;
@@ -756,13 +747,24 @@ function ProductCard({
   onToggleFeatured: () => void;
   onDragStart: () => void;
   onDrop: () => void;
+  onTouchDropProduct?: (targetId: string) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
-
-
-
-
   const [isOver, setIsOver] = useState(false);
+
+  // Arrasto por toque (mobile) — mesmo fluxo, sem pointer events
+  const touchRef = useTouchDragSort<HTMLDivElement>({
+    selfId: product.id,
+    targetSelector: "[data-product-id]",
+    targetAttribute: "data-product-id",
+    onStart: () => {
+      setIsDragging(true);
+      onDragStart();
+    },
+    onEnd: () => setIsDragging(false),
+    onDrop: (targetId) => onTouchDropProduct?.(targetId),
+  });
+
   const images = parseImages(product.image_url);
   const mainImage = images[0];
 
@@ -781,6 +783,7 @@ function ProductCard({
 
   return (
     <div
+      ref={touchRef}
       data-product-id={product.id}
       draggable
       onDragStart={(e) => {
@@ -804,7 +807,7 @@ function ProductCard({
         onDrop();
       }}
       className={cn(
-        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full",
+        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full data-[drop-target=true]:border-primary data-[drop-target=true]:ring-2 data-[drop-target=true]:ring-primary/30",
         !product.is_active && "opacity-75 grayscale-[0.3]",
         isDragging ? "cursor-grabbing" : "cursor-grab hover:shadow-xl hover:border-primary/25",
         isOver ? "border-primary ring-2 ring-primary/30" : "border-border/60",
