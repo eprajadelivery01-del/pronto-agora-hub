@@ -355,7 +355,7 @@ export default function BusinessProductsPage() {
   const handleTouchDropProduct = useCallback((sourceId: string, targetId: string) => {
     const source = products.find(p => p.id === sourceId);
     const target = products.find(p => p.id === targetId);
-    console.log("[TOUCH DROP]", sourceId, targetId, !!source, !!target);
+    
     if (!source || !target) return;
     dragId.current = sourceId;
     dragCategory.current = source.category || "Outros";
