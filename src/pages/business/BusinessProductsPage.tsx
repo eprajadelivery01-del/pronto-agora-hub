@@ -8,7 +8,8 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import {
   Plus, Trash2, Edit3, Loader2, ImagePlus, Package,
   DollarSign, X, Check, Eye, EyeOff, ArrowLeft, Layers, ShoppingCart,
-  GripVertical, Star, Upload, Sliders
+  GripVertical, Star, Upload, Sliders,
+  ChevronDown, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
@@ -66,7 +67,7 @@ function parseImages(imageUrl: string | null): string[] {
 
 export default function BusinessProductsPage() {
   const qc = useQueryClient();
-  const { companyId: linkedCompanyId, isLoading: companyLoading } = useCurrentCompany();
+  const { companyId: linkedCompanyId, company, isLoading: companyLoading } = useCurrentCompany();
   const companyId = linkedCompanyId;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,9 +75,46 @@ export default function BusinessProductsPage() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  // Drag state
+  // Ordem manual de categorias e estado de recolhimento
+  const [customCategoryOrder, setCustomCategoryOrder] = useState<string[]>([]);
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = localStorage.getItem(`@epraja_collapsed_cats_${linkedCompanyId || "default"}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Drag state para produtos (NÍVEL 2)
   const dragId = useRef<string | null>(null);
   const dragCategory = useRef<string | null>(null);
+
+  // Drag state para categorias (NÍVEL 1)
+  const dragCategoryRef = useRef<string | null>(null);
+  const [draggingCategory, setDraggingCategory] = useState<string | null>(null);
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+
+  // Pointer Events para touch/mobile no handle da categoria
+  const pointerStartY = useRef<number>(0);
+  const pointerStartX = useRef<number>(0);
+  const isPointerDragging = useRef<boolean>(false);
+  const activePointerCategory = useRef<string | null>(null);
+
+  // Sincroniza a ordem salva em company.category_order
+  useEffect(() => {
+    if (company?.category_order) {
+      if (Array.isArray(company.category_order)) {
+        setCustomCategoryOrder(company.category_order);
+      } else if (typeof company.category_order === "string") {
+        try {
+          const parsed = JSON.parse(company.category_order);
+          if (Array.isArray(parsed)) setCustomCategoryOrder(parsed);
+        } catch {}
+      }
+    }
+  }, [company?.category_order]);
 
   useEffect(() => {
     if (companyId) {
@@ -260,8 +298,159 @@ export default function BusinessProductsPage() {
     dragCategory.current = null;
   }, [products]);
 
-  // Extract all unique categories, expurgando termos de teste
-  const allCategories = Array.from(
+  // ── Controle de Recolhimento de Categorias ────────────────────────────────────
+  const toggleCategoryCollapse = (catValue: string) => {
+    setCollapsedCategories(prev => {
+      const next = { ...prev, [catValue]: !prev[catValue] };
+      try {
+        if (companyId) {
+          localStorage.setItem(`@epraja_collapsed_cats_${companyId}`, JSON.stringify(next));
+        }
+      } catch {}
+      return next;
+    });
+  };
+
+  // ── Persistência de Ordem das Categorias (com merge de concorrência e rollback) ─
+  const saveCategoryOrder = async (newOrder: string[], previousOrder: string[]) => {
+    setCustomCategoryOrder(newOrder);
+    if (!companyId) return;
+
+    try {
+      // 1. Busca estado remoto recente para preservar categorias novas criadas concorrentemente
+      let remoteCategories: string[] = [];
+      try {
+        const { data: compData } = await supabase
+          .from("companies")
+          .select("category_order")
+          .eq("id", companyId)
+          .maybeSingle();
+
+        if (compData?.category_order) {
+          if (Array.isArray(compData.category_order)) {
+            remoteCategories = compData.category_order;
+          } else if (typeof compData.category_order === "string") {
+            try { remoteCategories = JSON.parse(compData.category_order); } catch {}
+          }
+        }
+      } catch (fetchErr) {
+        console.warn("Aviso ao ler category_order remoto:", fetchErr);
+      }
+
+      // 2. Preserva quaisquer categorias remotas novas que não constem na nova ordem local
+      const mergedOrder = [
+        ...newOrder,
+        ...remoteCategories.filter(c => typeof c === "string" && !newOrder.includes(c))
+      ];
+
+      const { error } = await (supabase as any)
+        .from("companies")
+        .update({ category_order: mergedOrder })
+        .eq("id", companyId);
+
+      if (error) {
+        console.error("Erro ao salvar ordem das categorias:", error);
+        // Rollback para a ordem anterior em caso de erro
+        setCustomCategoryOrder(previousOrder);
+        if (error.message?.includes("category_order") || error.code === "42703") {
+          toast.info("Atenção: migration de category_order pendente no banco.");
+        } else {
+          toast.error("Não foi possível salvar a nova ordem. Ordem anterior restaurada.");
+        }
+      } else {
+        toast.success("Ordem das categorias salva!");
+        qc.invalidateQueries({ queryKey: ["current-company"] });
+      }
+    } catch (err) {
+      console.error("Exceção ao persistir category_order:", err);
+      setCustomCategoryOrder(previousOrder);
+      toast.error("Erro de conexão ao salvar a ordem das categorias.");
+    }
+  };
+
+  // ── Reordenação de Categorias ─────────────────────────────────────────────────
+  const reorderCategories = useCallback((sourceCat: string, targetCat: string) => {
+    if (!sourceCat || !targetCat || sourceCat === targetCat) return;
+
+    setCustomCategoryOrder(prev => {
+      const currentList = [...prev];
+      const srcIdx = currentList.indexOf(sourceCat);
+      const tgtIdx = currentList.indexOf(targetCat);
+      if (srcIdx === -1 || tgtIdx === -1) return prev;
+
+      const previousOrder = [...currentList];
+      const [moved] = currentList.splice(srcIdx, 1);
+      currentList.splice(tgtIdx, 0, moved);
+
+      saveCategoryOrder(currentList, previousOrder);
+      return currentList;
+    });
+  }, [companyId]);
+
+  // ── Pointer Events para o Handle da Categoria (Mouse, Touch e Pen) ─────────────
+  const handlePointerDownCategory = (e: React.PointerEvent, catValue: string) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    e.stopPropagation();
+    pointerStartY.current = e.clientY;
+    pointerStartX.current = e.clientX;
+    isPointerDragging.current = false;
+    activePointerCategory.current = catValue;
+  };
+
+  const handlePointerMoveCategory = (e: React.PointerEvent) => {
+    if (!activePointerCategory.current) return;
+    const dy = Math.abs(e.clientY - pointerStartY.current);
+    const dx = Math.abs(e.clientX - pointerStartX.current);
+
+    // Ativa drag somente se o deslocamento vertical no handle for intencional (> 8px)
+    if (!isPointerDragging.current && dy > 8 && dy > dx) {
+      isPointerDragging.current = true;
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      } catch {}
+      setDraggingCategory(activePointerCategory.current);
+    }
+
+    if (isPointerDragging.current) {
+      e.preventDefault();
+      // Localiza a seção de categoria sob o cursor ou dedo
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      const section = elem?.closest("[data-category-name]");
+      const targetName = section?.getAttribute("data-category-name");
+      if (targetName && targetName !== activePointerCategory.current) {
+        setDragOverCategory(targetName);
+      } else if (!targetName) {
+        setDragOverCategory(null);
+      }
+    }
+  };
+
+  const handlePointerUpCategory = (e: React.PointerEvent) => {
+    if (!activePointerCategory.current) return;
+    const sourceCat = activePointerCategory.current;
+    const wasDragging = isPointerDragging.current;
+
+    try {
+      if ((e.currentTarget as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+      }
+    } catch {}
+
+    activePointerCategory.current = null;
+    isPointerDragging.current = false;
+    setDraggingCategory(null);
+
+    if (wasDragging && dragOverCategory && dragOverCategory !== sourceCat) {
+      const targetCat = dragOverCategory;
+      setDragOverCategory(null);
+      reorderCategories(sourceCat, targetCat);
+    } else {
+      setDragOverCategory(null);
+    }
+  };
+
+  // Extrai todas as categorias únicas dos produtos cadastrados
+  const rawCategories = Array.from(
     new Set(
       products
         .map(p => {
@@ -271,8 +460,25 @@ export default function BusinessProductsPage() {
         .filter(Boolean)
     )
   );
+
+  // Aplica ordem manual de categorias configurada pelo lojista, com fallback natural
+  const allCategories = (() => {
+    if (customCategoryOrder && customCategoryOrder.length > 0) {
+      const ordered = customCategoryOrder.filter(c => rawCategories.includes(c));
+      const remaining = rawCategories.filter(c => !customCategoryOrder.includes(c));
+      return [...ordered, ...remaining];
+    }
+    return rawCategories;
+  })();
+
+  // Mantém customCategoryOrder sincronizado caso existam novas categorias
+  useEffect(() => {
+    if (allCategories.length > 0 && customCategoryOrder.length === 0) {
+      setCustomCategoryOrder(allCategories);
+    }
+  }, [allCategories.length]);
   
-  // Group products by their category, remapeando itens de teste para "Lanches"
+  // Agrupa produtos por categoria, preservando a ordem definida
   const grouped = allCategories.map(catValue => {
     return {
       cat: { value: catValue, label: catValue },
@@ -368,40 +574,138 @@ export default function BusinessProductsPage() {
           </div>
         ) : (
           <div className="space-y-12">
-            {grouped.map(({ cat, items }) => (
-              <section key={cat.value}>
-                {/* Category header */}
-                <div className="flex items-center gap-3 mb-5 px-2">
-                  <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Layers className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-xl tracking-tight">
-                      {cat.label}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {items.length} {items.length === 1 ? "item" : "itens"} · arraste para reordenar
-                    </p>
-                  </div>
-                  <div className="flex-1 border-b border-dashed border-border/60 ml-2" />
-                </div>
+            {grouped.map(({ cat, items }) => {
+              const isCollapsed = !!collapsedCategories[cat.value];
+              const isDraggingThis = draggingCategory === cat.value;
+              const isDropTarget = dragOverCategory === cat.value;
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
-                  {items.map(product => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onEdit={() => setEditingProduct(product)}
-                      onDelete={() => deleteProduct(product.id)}
-                      onToggle={() => toggleActive(product)}
-                      onToggleFeatured={() => toggleFeatured(product)}
-                      onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
-                      onDrop={() => handleDrop(product.id, product.category || "Outros")}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+              return (
+                <section
+                  key={cat.value}
+                  data-category-name={cat.value}
+                  onDragOver={(e) => {
+                    // NÍVEL 1: Só reage se for arrasto de categoria
+                    if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setDragOverCategory(cat.value);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverCategory === cat.value) setDragOverCategory(null);
+                  }}
+                  onDrop={(e) => {
+                    // NÍVEL 1: Só reage se for soltura de categoria
+                    if (dragCategoryRef.current) {
+                      e.preventDefault();
+                      const src = dragCategoryRef.current;
+                      dragCategoryRef.current = null;
+                      setDraggingCategory(null);
+                      setDragOverCategory(null);
+                      reorderCategories(src, cat.value);
+                    }
+                  }}
+                  className={cn(
+                    "transition-all duration-200 rounded-3xl",
+                    isDropTarget && "ring-2 ring-primary/50 bg-primary/5 p-2 rounded-[2.5rem]",
+                    isDraggingThis && "opacity-40"
+                  )}
+                >
+                  {/* Cabeçalho da Categoria com área isolada de interação */}
+                  <div
+                    className={cn(
+                      "flex items-center justify-between gap-3 mb-5 px-3 py-2.5 rounded-2xl bg-card border border-border/50 shadow-sm transition-all select-none",
+                      isDropTarget && "border-primary/60 shadow-md"
+                    )}
+                  >
+                    {/* Handle EXCLUSIVO para Drag da categoria (NÍVEL 1) */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      draggable
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        e.dataTransfer.setData("application/x-category", cat.value);
+                        e.dataTransfer.effectAllowed = "move";
+                        dragCategoryRef.current = cat.value;
+                        setDraggingCategory(cat.value);
+                      }}
+                      onDragEnd={() => {
+                        dragCategoryRef.current = null;
+                        setDraggingCategory(null);
+                        setDragOverCategory(null);
+                      }}
+                      onPointerDown={(e) => handlePointerDownCategory(e, cat.value)}
+                      onPointerMove={handlePointerMoveCategory}
+                      onPointerUp={handlePointerUpCategory}
+                      onPointerCancel={handlePointerUpCategory}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Segure e arraste este ícone para reordenar a categoria"
+                      aria-label={`Arrastar para reordenar categoria ${cat.label}`}
+                      className="cursor-grab active:cursor-grabbing p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/70 active:bg-primary/15 active:text-primary touch-none select-none transition-colors shrink-0"
+                    >
+                      <GripVertical className="h-5 w-5" />
+                    </div>
+
+                    {/* Botão de Título e Seta para Recolher / Expandir */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCategoryCollapse(cat.value)}
+                      aria-label={isCollapsed ? `Expandir categoria ${cat.label}` : `Recolher categoria ${cat.label}`}
+                      className="flex items-center gap-2.5 text-left min-w-0 flex-1 group/toggle py-1 cursor-pointer"
+                    >
+                      <span className="p-1 rounded-lg text-muted-foreground group-hover/toggle:text-foreground group-hover/toggle:bg-muted transition-colors shrink-0">
+                        {isCollapsed ? (
+                          <ChevronRight className="h-5 w-5 text-primary" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-primary" />
+                        )}
+                      </span>
+
+                      <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Layers className="h-4 w-4 text-primary" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-lg sm:text-xl tracking-tight text-foreground truncate group-hover/toggle:text-primary transition-colors">
+                            {cat.label}
+                          </h3>
+                          {isCollapsed && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
+                              Recolhida
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {items.length} {items.length === 1 ? "item" : "itens"} · toque para {isCollapsed ? "expandir" : "recolher"}
+                        </p>
+                      </div>
+                    </button>
+
+                    <div className="flex-1 border-b border-dashed border-border/60 ml-2 hidden sm:block" />
+                  </div>
+
+                  {/* Grid de produtos (oculta visualmente quando a categoria estiver recolhida) */}
+                  {!isCollapsed && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch animate-in fade-in duration-200">
+                      {items.map(product => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          onEdit={() => setEditingProduct(product)}
+                          onDelete={() => deleteProduct(product.id)}
+                          onToggle={() => toggleActive(product)}
+                          onToggleFeatured={() => toggleFeatured(product)}
+                          onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
+                          onDrop={() => handleDrop(product.id, product.category || "Outros")}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
@@ -454,6 +758,7 @@ function ProductCard({
     <div
       draggable
       onDragStart={(e) => {
+        e.stopPropagation();
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", product.id);
         setIsDragging(true);
@@ -462,12 +767,14 @@ function ProductCard({
       onDragEnd={() => setIsDragging(false)}
       onDragOver={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         e.dataTransfer.dropEffect = "move";
         setIsOver(true);
       }}
       onDragLeave={() => setIsOver(false)}
       onDrop={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         setIsOver(false);
         onDrop();
       }}
