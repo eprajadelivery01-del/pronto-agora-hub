@@ -54,6 +54,9 @@ export const isForbiddenCategory = (cat: string | null | undefined): boolean => 
   return lower.includes("teste") || lower.includes("test");
 };
 
+// TESTE BINÁRIO: desliga por completo o drag de CATEGORIAS para isolar o drag de PRODUTOS.
+const CATEGORY_DRAG_ENABLED = false;
+
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
   try {
