@@ -90,6 +90,12 @@ export default function BusinessProductsPage() {
   // Drag state para produtos (NÍVEL 2)
   const dragId = useRef<string | null>(null);
   const dragCategory = useRef<string | null>(null);
+  const productPointerStartY = useRef<number>(0);
+  const productPointerStartX = useRef<number>(0);
+  const isProductPointerDragging = useRef<boolean>(false);
+  const activePointerProduct = useRef<{ id: string; category: string } | null>(null);
+  const [touchDraggingProductId, setTouchDraggingProductId] = useState<string | null>(null);
+  const [touchDragOverProductId, setTouchDragOverProductId] = useState<string | null>(null);
 
   // Drag state para categorias (NÍVEL 1)
   const dragCategoryRef = useRef<string | null>(null);
@@ -252,18 +258,38 @@ export default function BusinessProductsPage() {
   };
 
 
-  // ── Drag & Drop handlers ──────────────────────────────────────────────────────
+  // ── Drag & Drop handlers (NÍVEL 2 - PRODUTOS) ──────────────────────────────────
   const handleDragStart = useCallback((id: string, category: string) => {
     dragId.current = id;
     dragCategory.current = category;
   }, []);
 
+  const handleDragEndProduct = useCallback(() => {
+    dragId.current = null;
+    dragCategory.current = null;
+    setTouchDraggingProductId(null);
+    setTouchDragOverProductId(null);
+  }, []);
+
   const handleDrop = useCallback(async (targetId: string, targetCategory: string) => {
     const srcId = dragId.current;
     const srcCat = dragCategory.current;
+
+    // Fail-safe: sempre limpa os refs de drag imediatamente para não travar próximos drags
+    dragId.current = null;
+    dragCategory.current = null;
+    setTouchDraggingProductId(null);
+    setTouchDragOverProductId(null);
+
     if (!srcId || srcId === targetId || srcCat !== targetCategory) return;
 
-    const catProducts = products.filter(p => (p.category || "Outros") === targetCategory);
+    // Filtra produtos usando a mesma regra uniforme do agrupamento visual
+    const catProducts = products.filter(p => {
+      const raw = p.category ? p.category.trim() : "Lanches";
+      const resolved = isForbiddenCategory(raw) ? "Lanches" : raw;
+      return resolved === targetCategory;
+    });
+
     const srcIdx = catProducts.findIndex(p => p.id === srcId);
     const tgtIdx = catProducts.findIndex(p => p.id === targetId);
     if (srcIdx === -1 || tgtIdx === -1) return;
@@ -273,7 +299,7 @@ export default function BusinessProductsPage() {
     reordered.splice(tgtIdx, 0, moved);
     const updated = reordered.map((p, i) => ({ ...p, sort_order: i }));
 
-    // Optimistic UI
+    // Optimistic UI imediata
     setProducts(prev =>
       prev.map(p => {
         const found = updated.find(u => u.id === p.id);
@@ -281,22 +307,84 @@ export default function BusinessProductsPage() {
       })
     );
 
-    // Persist
+    // Persistência no banco
     try {
       await Promise.all(
         updated.map(p =>
           supabase.from("products").update({ sort_order: p.sort_order }).eq("id", p.id)
         )
       );
-      toast.success("Ordem salva!");
+      toast.success("Ordem dos produtos salva!");
     } catch {
-      toast.error("Erro ao salvar ordem");
+      toast.error("Erro ao salvar ordem dos produtos");
       fetchCompanyAndProducts();
     }
-
-    dragId.current = null;
-    dragCategory.current = null;
   }, [products]);
+
+  // Pointer Events para touch/mobile no handle do produto (NÍVEL 2)
+  const handlePointerDownProduct = (e: React.PointerEvent, productId: string, catValue: string) => {
+    if (e.pointerType === "mouse") return;
+    productPointerStartY.current = e.clientY;
+    productPointerStartX.current = e.clientX;
+    isProductPointerDragging.current = false;
+    activePointerProduct.current = { id: productId, category: catValue };
+    dragId.current = productId;
+    dragCategory.current = catValue;
+  };
+
+  const handlePointerMoveProduct = (e: React.PointerEvent) => {
+    if (!activePointerProduct.current) return;
+    const dy = Math.abs(e.clientY - productPointerStartY.current);
+    const dx = Math.abs(e.clientX - productPointerStartX.current);
+
+    // Ativa drag somente se o deslocamento no handle for intencional (> 10px)
+    if (!isProductPointerDragging.current && (dy > 10 || dx > 10)) {
+      isProductPointerDragging.current = true;
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      } catch {}
+      setTouchDraggingProductId(activePointerProduct.current.id);
+    }
+
+    if (isProductPointerDragging.current) {
+      e.preventDefault();
+      const elem = document.elementFromPoint(e.clientX, e.clientY);
+      const card = elem?.closest("[data-product-id]");
+      const targetId = card?.getAttribute("data-product-id");
+      if (targetId && targetId !== activePointerProduct.current.id) {
+        setTouchDragOverProductId(targetId);
+      } else if (!targetId) {
+        setTouchDragOverProductId(null);
+      }
+    }
+  };
+
+  const handlePointerUpProduct = (e: React.PointerEvent) => {
+    if (!activePointerProduct.current) return;
+    const { id: sourceId, category: catVal } = activePointerProduct.current;
+    const wasDragging = isProductPointerDragging.current;
+
+    try {
+      if ((e.currentTarget as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+      }
+    } catch {}
+
+    const targetId = touchDragOverProductId;
+    activePointerProduct.current = null;
+    isProductPointerDragging.current = false;
+    setTouchDraggingProductId(null);
+    setTouchDragOverProductId(null);
+
+    if (wasDragging && targetId && targetId !== sourceId) {
+      dragId.current = sourceId;
+      dragCategory.current = catVal;
+      handleDrop(targetId, catVal);
+    } else {
+      dragId.current = null;
+      dragCategory.current = null;
+    }
+  };
 
   // ── Controle de Recolhimento de Categorias ────────────────────────────────────
   const toggleCategoryCollapse = (catValue: string) => {
@@ -368,7 +456,7 @@ export default function BusinessProductsPage() {
     }
   };
 
-  // ── Reordenação de Categorias ─────────────────────────────────────────────────
+  // ── Reordenação de Categorias (NÍVEL 1) ────────────────────────────────────────
   const reorderCategories = useCallback((sourceCat: string, targetCat: string) => {
     if (!sourceCat || !targetCat || sourceCat === targetCat) return;
 
@@ -389,7 +477,7 @@ export default function BusinessProductsPage() {
 
   // ── Pointer Events para o Handle da Categoria (Mouse, Touch e Pen) ─────────────
   const handlePointerDownCategory = (e: React.PointerEvent, catValue: string) => {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
+    if (e.pointerType === "mouse") return;
     e.stopPropagation();
     pointerStartY.current = e.clientY;
     pointerStartX.current = e.clientX;
@@ -402,8 +490,8 @@ export default function BusinessProductsPage() {
     const dy = Math.abs(e.clientY - pointerStartY.current);
     const dx = Math.abs(e.clientX - pointerStartX.current);
 
-    // Ativa drag somente se o deslocamento vertical no handle for intencional (> 8px)
-    if (!isPointerDragging.current && dy > 8 && dy > dx) {
+    // Ativa drag somente se o deslocamento vertical no handle for intencional (> 10px)
+    if (!isPointerDragging.current && dy > 10 && dy > dx) {
       isPointerDragging.current = true;
       try {
         (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -413,10 +501,10 @@ export default function BusinessProductsPage() {
 
     if (isPointerDragging.current) {
       e.preventDefault();
-      // Localiza a seção de categoria sob o cursor ou dedo
+      // Localiza o cabeçalho de categoria sob o cursor ou dedo (NÍVEL 1 isolado)
       const elem = document.elementFromPoint(e.clientX, e.clientY);
-      const section = elem?.closest("[data-category-name]");
-      const targetName = section?.getAttribute("data-category-name");
+      const header = elem?.closest("[data-category-header]");
+      const targetName = header?.getAttribute("data-category-header");
       if (targetName && targetName !== activePointerCategory.current) {
         setDragOverCategory(targetName);
       } else if (!targetName) {
@@ -583,39 +671,43 @@ export default function BusinessProductsPage() {
                 <section
                   key={cat.value}
                   data-category-name={cat.value}
-                  onDragOver={(e) => {
-                    // NÍVEL 1: Só reage se for arrasto de categoria
-                    if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                      setDragOverCategory(cat.value);
-                    }
-                  }}
-                  onDragLeave={() => {
-                    if (dragOverCategory === cat.value) setDragOverCategory(null);
-                  }}
-                  onDrop={(e) => {
-                    // NÍVEL 1: Só reage se for soltura de categoria
-                    if (dragCategoryRef.current) {
-                      e.preventDefault();
-                      const src = dragCategoryRef.current;
-                      dragCategoryRef.current = null;
-                      setDraggingCategory(null);
-                      setDragOverCategory(null);
-                      reorderCategories(src, cat.value);
-                    }
-                  }}
-                  className={cn(
-                    "transition-all duration-200 rounded-3xl",
-                    isDropTarget && "ring-2 ring-primary/50 bg-primary/5 p-2 rounded-[2.5rem]",
-                    isDraggingThis && "opacity-40"
-                  )}
+                  className="transition-all duration-200 rounded-3xl"
                 >
-                  {/* Cabeçalho da Categoria com área isolada de interação */}
+                  {/* Cabeçalho da Categoria com área isolada de drop exclusivo de CATEGORIA (NÍVEL 1) */}
                   <div
+                    data-category-header={cat.value}
+                    onDragOver={(e) => {
+                      // NÍVEL 1: Só reage se for arrasto de CATEGORIA
+                      if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (dragOverCategory !== cat.value) {
+                          setDragOverCategory(cat.value);
+                        }
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        if (dragOverCategory === cat.value) {
+                          setDragOverCategory(null);
+                        }
+                      }
+                    }}
+                    onDrop={(e) => {
+                      // NÍVEL 1: Só reage se for soltura de CATEGORIA
+                      if (dragCategoryRef.current) {
+                        e.preventDefault();
+                        const src = dragCategoryRef.current;
+                        dragCategoryRef.current = null;
+                        setDraggingCategory(null);
+                        setDragOverCategory(null);
+                        reorderCategories(src, cat.value);
+                      }
+                    }}
                     className={cn(
                       "flex items-center justify-between gap-3 mb-5 px-3 py-2.5 rounded-2xl bg-card border border-border/50 shadow-sm transition-all select-none",
-                      isDropTarget && "border-primary/60 shadow-md"
+                      isDropTarget && "border-primary/60 shadow-md ring-2 ring-primary/40 bg-primary/5",
+                      isDraggingThis && "opacity-40"
                     )}
                   >
                     {/* Handle EXCLUSIVO para Drag da categoria (NÍVEL 1) */}
@@ -693,12 +785,19 @@ export default function BusinessProductsPage() {
                         <ProductCard
                           key={product.id}
                           product={product}
+                          isTouchDragging={touchDraggingProductId === product.id}
+                          isTouchOver={touchDragOverProductId === product.id}
                           onEdit={() => setEditingProduct(product)}
                           onDelete={() => deleteProduct(product.id)}
                           onToggle={() => toggleActive(product)}
                           onToggleFeatured={() => toggleFeatured(product)}
-                          onDragStart={() => handleDragStart(product.id, product.category || "Outros")}
-                          onDrop={() => handleDrop(product.id, product.category || "Outros")}
+                          onDragStart={() => handleDragStart(product.id, cat.value)}
+                          onDragEnd={handleDragEndProduct}
+                          onDrop={() => handleDrop(product.id, cat.value)}
+                          onPointerDownHandle={(e) => handlePointerDownProduct(e, product.id, cat.value)}
+                          onPointerMoveHandle={handlePointerMoveProduct}
+                          onPointerUpHandle={handlePointerUpProduct}
+                          onPointerCancelHandle={handlePointerUpProduct}
                         />
                       ))}
                     </div>
@@ -724,22 +823,45 @@ export default function BusinessProductsPage() {
   );
 }
 
-// ── Product Card ──────────────────────────────────────────────────────────────
+// ── Product Card (NÍVEL 2 - PRODUTO) ──────────────────────────────────────────
 function ProductCard({
-  product, onEdit, onDelete, onToggle, onToggleFeatured, onDragStart, onDrop,
+  product,
+  isTouchDragging,
+  isTouchOver,
+  onEdit,
+  onDelete,
+  onToggle,
+  onToggleFeatured,
+  onDragStart,
+  onDragEnd,
+  onDrop,
+  onPointerDownHandle,
+  onPointerMoveHandle,
+  onPointerUpHandle,
+  onPointerCancelHandle,
 }: {
   product: Product;
+  isTouchDragging?: boolean;
+  isTouchOver?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
   onToggleFeatured: () => void;
   onDragStart: () => void;
+  onDragEnd: () => void;
   onDrop: () => void;
+  onPointerDownHandle?: (e: React.PointerEvent) => void;
+  onPointerMoveHandle?: (e: React.PointerEvent) => void;
+  onPointerUpHandle?: (e: React.PointerEvent) => void;
+  onPointerCancelHandle?: (e: React.PointerEvent) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isOver, setIsOver] = useState(false);
   const images = parseImages(product.image_url);
   const mainImage = images[0];
+
+  const effectivelyDragging = isDragging || !!isTouchDragging;
+  const effectivelyOver = isOver || !!isTouchOver;
 
   // Contadores reais de personalização
   const groups = product.product_option_groups || [];
@@ -756,38 +878,57 @@ function ProductCard({
 
   return (
     <div
+      data-product-id={product.id}
       draggable
       onDragStart={(e) => {
-        e.stopPropagation();
+        // NÍVEL 2: Drag do produto
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", product.id);
         setIsDragging(true);
         onDragStart();
       }}
-      onDragEnd={() => setIsDragging(false)}
+      onDragEnd={() => {
+        setIsDragging(false);
+        setIsOver(false);
+        onDragEnd();
+      }}
       onDragOver={(e) => {
         e.preventDefault();
-        e.stopPropagation();
         e.dataTransfer.dropEffect = "move";
-        setIsOver(true);
+        if (!isOver) setIsOver(true);
       }}
-      onDragLeave={() => setIsOver(false)}
+      onDragLeave={(e) => {
+        // Evita piscar quando o cursor passa sobre elementos filhos
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsOver(false);
+        }
+      }}
       onDrop={(e) => {
         e.preventDefault();
-        e.stopPropagation();
         setIsOver(false);
+        setIsDragging(false);
         onDrop();
       }}
       className={cn(
-        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full",
+        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full select-none",
         !product.is_active && "opacity-75 grayscale-[0.3]",
-        isDragging ? "opacity-40 scale-95 cursor-grabbing shadow-none" : "cursor-grab hover:shadow-xl hover:border-primary/25 hover:-translate-y-0.5",
-        isOver ? "border-primary ring-2 ring-primary/30 scale-[1.01]" : "border-border/60",
+        effectivelyDragging ? "opacity-40 scale-95 cursor-grabbing shadow-none" : "cursor-grab hover:shadow-xl hover:border-primary/25 hover:-translate-y-0.5",
+        effectivelyOver ? "border-primary ring-2 ring-primary/30 scale-[1.01]" : "border-border/60",
       )}
     >
-      {/* Drag Handle — visible on hover */}
-      <div className="absolute top-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
+      {/* Drag Handle — visível no hover no desktop e sempre ativo para touch no mobile */}
+      <div
+        role="button"
+        tabIndex={0}
+        onPointerDown={onPointerDownHandle}
+        onPointerMove={onPointerMoveHandle}
+        onPointerUp={onPointerUpHandle}
+        onPointerCancel={onPointerCancelHandle}
+        className="absolute top-3 left-3 z-20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none select-none"
+        title="Segure e arraste este ícone para reordenar o produto"
+        aria-label={`Arrastar produto ${product.name}`}
+      >
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
           <GripVertical className="h-3 w-3" />
           Arrastar
         </span>
