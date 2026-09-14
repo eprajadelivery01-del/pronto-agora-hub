@@ -47,6 +47,12 @@ const GLOBAL_CATEGORIES = [
   "Shopping"
 ];
 
+export const isForbiddenCategory = (cat: string | null | undefined): boolean => {
+  if (!cat || typeof cat !== "string") return true;
+  const lower = cat.trim().toLowerCase();
+  return lower.includes("teste") || lower.includes("test");
+};
+
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
   try {
@@ -211,14 +217,29 @@ export default function BusinessProductsPage() {
     dragCategory.current = null;
   }, [products]);
 
-  // Extract all unique categories
-  const allCategories = Array.from(new Set(products.map(p => p.category || "Outros")));
+  // Extract all unique categories, expurgando termos de teste
+  const allCategories = Array.from(
+    new Set(
+      products
+        .map(p => {
+          const raw = p.category ? p.category.trim() : "Lanches";
+          return isForbiddenCategory(raw) ? "Lanches" : raw;
+        })
+        .filter(Boolean)
+    )
+  );
   
-  // Group products by their custom category
+  // Group products by their category, remapeando itens de teste para "Lanches"
   const grouped = allCategories.map(catValue => {
     return {
       cat: { value: catValue, label: catValue },
-      items: products.filter(p => (p.category || "Outros") === catValue).sort((a, b) => a.sort_order - b.sort_order)
+      items: products
+        .filter(p => {
+          const raw = p.category ? p.category.trim() : "Lanches";
+          const resolved = isForbiddenCategory(raw) ? "Lanches" : raw;
+          return resolved === catValue;
+        })
+        .sort((a, b) => a.sort_order - b.sort_order)
     };
   });
 
@@ -515,9 +536,12 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const initialCategory = product?.category && !isForbiddenCategory(product.category)
+    ? product.category.trim()
+    : "Lanches";
   const [name, setName] = useState(product?.name || "");
   const [description, setDescription] = useState(product?.description || "");
-  const [category, setCategory] = useState(product?.category || "Lanches");
+  const [category, setCategory] = useState(initialCategory);
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_url ? parseImages(product.image_url) : []);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
@@ -528,6 +552,18 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   const [hasOptions, setHasOptions] = useState(false);
   const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+
+  useEffect(() => {
+    if (product) {
+      setName(product.name || "");
+      setDescription(product.description || "");
+      const safeCat = product.category && !isForbiddenCategory(product.category) ? product.category.trim() : "Lanches";
+      setCategory(safeCat);
+      setPrice(product.price?.toString() || "");
+      setImageUrls(product.image_url ? parseImages(product.image_url) : []);
+      setIsFeatured(product.is_featured || false);
+    }
+  }, [product]);
 
   useEffect(() => {
     if (product?.id) {
@@ -551,24 +587,25 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
   }, [product?.id]);
 
   const customCategoriesFromStore = (existingCategories || []).filter(
-    (c) => c && typeof c === "string" && !GLOBAL_CATEGORIES.includes(c)
+    (c) => c && typeof c === "string" && !GLOBAL_CATEGORIES.includes(c) && !isForbiddenCategory(c)
   );
 
   const currentTrimmedCategory = category ? category.trim() : "";
   const isCurrentCategoryNew =
     currentTrimmedCategory &&
     !GLOBAL_CATEGORIES.includes(currentTrimmedCategory) &&
+    !isForbiddenCategory(currentTrimmedCategory) &&
     !customCategoriesFromStore.includes(currentTrimmedCategory);
 
   const allCustomCategories = [
     ...customCategoriesFromStore,
     ...(isCurrentCategoryNew ? [currentTrimmedCategory] : []),
-  ];
+  ].filter(c => !isForbiddenCategory(c));
 
   const ALL_CHIPS = [
     ...GLOBAL_CATEGORIES.map((c) => ({ name: c, type: "global" })),
     ...allCustomCategories.map((c) => ({ name: c, type: "custom" })),
-  ];
+  ].filter(chip => !isForbiddenCategory(chip.name));
 
   const MAX_VISIBLE = ALL_CHIPS.length;
   const displayedChips = ALL_CHIPS;
@@ -613,10 +650,11 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
     setSaving(true);
     try {
       const imagePayload = JSON.stringify(imageUrls);
+      const safeCategory = isForbiddenCategory(category) ? "Lanches" : (category?.trim() || "Lanches");
       const payload: Record<string, unknown> = {
         name,
         description: description || null,
-        category,
+        category: safeCategory,
         price: parseFloat(price.replace(",", ".")),
         image_url: imagePayload,
         is_featured: isFeatured,
@@ -694,7 +732,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Categoria *</label>
                 <input
                   type="text"
-                  value={category}
+                  value={isForbiddenCategory(category) ? "Lanches" : category}
                   onChange={e => setCategory(e.target.value)}
                   placeholder="Ex: Lanches, Bebidas..."
                   className="w-full px-6 py-4 rounded-2xl border border-border bg-background/50 font-bold outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all text-base"
