@@ -792,6 +792,13 @@ function ProductCard({
   onDrop: () => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
+
+  // DIAGNÓSTICO: prova se o card é desmontado/remontado durante o arrasto
+  useEffect(() => {
+    console.log("[PRODUCT DRAG] MOUNT", product.id, product.name);
+    return () => console.log("[PRODUCT DRAG] UNMOUNT", product.id, product.name);
+  }, [product.id, product.name]);
+
   const [isOver, setIsOver] = useState(false);
   const images = parseImages(product.image_url);
   const mainImage = images[0];
