@@ -778,59 +778,15 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
               </div>
 
               {/* Personalização / Adicionais */}
-              <div className="space-y-4 pt-4 border-t border-border/60">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">
-                    Personalização / Adicionais
-                  </label>
-                  <p className="text-xs font-semibold text-muted-foreground mt-0.5 ml-2">
-                    Este produto possui adicionais ou opções de personalização?
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setHasOptions(false)}
-                    className={cn(
-                      "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border shadow-sm",
-                      !hasOptions
-                        ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
-                    )}
-                  >
-                    Não
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHasOptions(true)}
-                    className={cn(
-                      "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border shadow-sm",
-                      hasOptions
-                        ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80 border-border"
-                    )}
-                  >
-                    Sim
-                  </button>
-                </div>
-
-                {hasOptions && (
-                  <div className="pt-2 animate-in fade-in duration-300">
-                    {loadingOptions ? (
-                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground p-4 bg-muted/20 rounded-2xl border border-dashed border-border">
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        Carregando adicionais deste produto...
-                      </div>
-                    ) : (
-                      <ProductOptionGroupsManager
-                        productId={product?.id}
-                        groups={optionGroups}
-                        onChange={setOptionGroups}
-                      />
-                    )}
-                  </div>
-                )}
+              <div className="pt-4 border-t border-border/60">
+                <ProductOptionGroupsManager
+                  productId={product?.id}
+                  hasOptions={hasOptions}
+                  onToggleHasOptions={setHasOptions}
+                  groups={optionGroups}
+                  onChange={setOptionGroups}
+                  loadingOptions={loadingOptions}
+                />
               </div>
             </div>
 
