@@ -1,0 +1,124 @@
+-- ==============================================================================
+-- BACKUP DE SEGURANÇA: Políticas RLS Atuais (Pré-Migration Recursion Fix)
+-- Data: 2026-09-14
+-- ==============================================================================
+
+-- GRANTS ATUAIS
+-- GRANT SELECT ON public.product_option_group_assignments TO anon, authenticated;
+-- GRANT INSERT, DELETE ON public.product_option_group_assignments TO authenticated;
+-- GRANT SELECT ON public.product_option_groups TO anon;
+-- GRANT ALL ON public.product_option_groups TO authenticated;
+-- GRANT SELECT ON public.product_options TO anon;
+-- GRANT ALL ON public.product_options TO authenticated;
+
+-- 1. TABELA: product_option_group_assignments
+-- pog_assignments_select_anon
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_group_assignments.product_id
+--           AND p.is_active = true
+--           AND COALESCE(p.active, true) = true
+--           AND COALESCE(c.is_active, true) = true
+--     )
+-- );
+
+-- pog_assignments_select_authenticated
+-- USING (
+--     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_group_assignments.product_id
+--           AND c.user_id = auth.uid()
+--     )
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_group_assignments.product_id
+--           AND p.is_active = true
+--           AND COALESCE(p.active, true) = true
+--           AND COALESCE(c.is_active, true) = true
+--     )
+-- );
+
+-- pog_assignments_insert [CAUSA DO INFINITE RECURSION DEVIDO AO JOIN EM product_option_groups]
+-- WITH CHECK (
+--     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.product_option_groups g ON g.id = product_option_group_assignments.group_id
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_group_assignments.product_id
+--           AND p.company_id = g.company_id
+--           AND c.user_id = auth.uid()
+--     )
+-- );
+
+-- pog_assignments_delete
+-- USING (
+--     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_group_assignments.product_id
+--           AND c.user_id = auth.uid()
+--     )
+-- );
+
+-- 2. TABELA: product_option_groups
+-- pog_select_anon [CAUSA DA RECURSÃO INVERSA DEVIDO AO JOIN EM product_option_group_assignments]
+-- USING (
+--     EXISTS (
+--         SELECT 1 FROM public.product_option_group_assignments a
+--         JOIN public.products p ON p.id = a.product_id
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE a.group_id = product_option_groups.id
+--           AND p.is_active = true
+--           AND COALESCE(p.active, true) = true
+--           AND COALESCE(c.is_active, true) = true
+--     )
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_groups.product_id
+--           AND p.is_active = true
+--           AND COALESCE(p.active, true) = true
+--           AND COALESCE(c.is_active, true) = true
+--     )
+-- );
+
+-- pog_select_authenticated [CAUSA DA RECURSÃO INVERSA DEVIDO AO JOIN EM product_option_group_assignments]
+-- USING (
+--     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+--     OR
+--     company_id IN (SELECT c.id FROM public.companies c WHERE c.user_id = auth.uid())
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.product_option_group_assignments a
+--         JOIN public.products p ON p.id = a.product_id
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE a.group_id = product_option_groups.id
+--           AND p.is_active = true
+--           AND COALESCE(p.active, true) = true
+--           AND COALESCE(c.is_active, true) = true
+--     )
+--     OR
+--     EXISTS (
+--         SELECT 1 FROM public.products p
+--         JOIN public.companies c ON c.id = p.company_id
+--         WHERE p.id = product_option_groups.product_id
+--           AND p.is_active = true
+--           AND COALESCE(p.active, true) = true
+--           AND COALESCE(c.is_active, true) = true
+--     )
+-- );
+
+-- 3. TABELA: product_options
+-- po_select_anon / po_select_authenticated continham também a subconsulta redundante a assignments.
