@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_pog_assignments_group_id
 ALTER TABLE public.product_option_group_assignments ENABLE ROW LEVEL SECURITY;
 
 -- ------------------------------------------------------------------------------
--- 2. AJUSTAR TABELA product_option_groups: company_id E product_id LEGADO
+-- 2. AJUSTES EM product_option_groups: company_id E product_id LEGADO
 -- ------------------------------------------------------------------------------
 ALTER TABLE public.product_option_groups 
   ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE;
@@ -90,216 +90,402 @@ CREATE TRIGGER update_pog_assignments_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ------------------------------------------------------------------------------
--- 8. POLÍTICAS DE RLS: TABELA product_option_group_assignments
+-- 8. GRANTS
+-- ------------------------------------------------------------------------------
+GRANT SELECT ON public.product_option_group_assignments TO anon, authenticated;
+GRANT INSERT, DELETE ON public.product_option_group_assignments TO authenticated;
+
+GRANT SELECT ON public.product_option_groups TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.product_option_groups TO authenticated;
+
+GRANT SELECT ON public.product_options TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.product_options TO authenticated;
+
+-- ------------------------------------------------------------------------------
+-- 9. POLÍTICAS DE RLS: TABELA product_option_group_assignments
 -- ------------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Anyone can view option group assignments" ON public.product_option_group_assignments;
 DROP POLICY IF EXISTS "Store owners and admins can manage option group assignments" ON public.product_option_group_assignments;
 DROP POLICY IF EXISTS "pog_assignments_select" ON public.product_option_group_assignments;
+DROP POLICY IF EXISTS "pog_assignments_select_anon" ON public.product_option_group_assignments;
+DROP POLICY IF EXISTS "pog_assignments_select_authenticated" ON public.product_option_group_assignments;
 DROP POLICY IF EXISTS "pog_assignments_insert" ON public.product_option_group_assignments;
 DROP POLICY IF EXISTS "pog_assignments_delete" ON public.product_option_group_assignments;
 
--- SELECT: Anon/Marketplace somente produtos ativos; Lojista vê os seus; Admin vê tudo
-CREATE POLICY "pog_assignments_select" 
-  ON public.product_option_group_assignments
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    OR
+-- SELECT para Visitante / Marketplace (anon): avalia apenas se produto e empresa estão ativos (sem tocar em user_id)
+CREATE POLICY "pog_assignments_select_anon"
+ON public.product_option_group_assignments
+FOR SELECT
+TO anon
+USING (
     EXISTS (
-      SELECT 1 FROM public.products p
-      JOIN public.companies c ON c.id = p.company_id
-      WHERE p.id = product_option_group_assignments.product_id
-        AND c.user_id = auth.uid()
+        SELECT 1
+        FROM public.products p
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_group_assignments.product_id
+          AND p.is_active = true
+          AND COALESCE(p.active, true) = true
+          AND COALESCE(c.is_active, true) = true
+    )
+);
+
+-- SELECT para Usuários Logados (authenticated): Admin, Dono do Produto ou Marketplace
+CREATE POLICY "pog_assignments_select_authenticated"
+ON public.product_option_group_assignments
+FOR SELECT
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
     )
     OR
     EXISTS (
-      SELECT 1 FROM public.products p
-      WHERE p.id = product_option_group_assignments.product_id
-        AND p.is_active = true
+        SELECT 1 FROM public.products p
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_group_assignments.product_id
+          AND c.user_id = auth.uid()
     )
-  );
+    OR
+    EXISTS (
+        SELECT 1 FROM public.products p
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_group_assignments.product_id
+          AND p.is_active = true
+          AND COALESCE(p.active, true) = true
+          AND COALESCE(c.is_active, true) = true
+    )
+);
 
 -- INSERT: Dono só associa seu produto a grupo da SUA PRÓPRIA loja (bloqueio multi-empresa)
 CREATE POLICY "pog_assignments_insert"
-  ON public.product_option_group_assignments
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_option_group_assignments
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
     EXISTS (
-      SELECT 1 FROM public.products p
-      JOIN public.product_option_groups g ON g.id = product_option_group_assignments.group_id
-      JOIN public.companies c ON c.id = p.company_id
-      WHERE p.id = product_option_group_assignments.product_id
-        AND p.company_id = g.company_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.products p
+        JOIN public.product_option_groups g ON g.id = product_option_group_assignments.group_id
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_group_assignments.product_id
+          AND p.company_id = g.company_id
+          AND c.user_id = auth.uid()
     )
-  );
+);
 
 -- DELETE: Dono só remove associação dos seus próprios produtos
 CREATE POLICY "pog_assignments_delete"
-  ON public.product_option_group_assignments
-  FOR DELETE
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_option_group_assignments
+FOR DELETE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
     EXISTS (
-      SELECT 1 FROM public.products p
-      JOIN public.companies c ON c.id = p.company_id
-      WHERE p.id = product_option_group_assignments.product_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.products p
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_group_assignments.product_id
+          AND c.user_id = auth.uid()
     )
-  );
+);
 
 -- ------------------------------------------------------------------------------
--- 9. POLÍTICAS DE RLS: TABELA product_option_groups
+-- 10. POLÍTICAS DE RLS: TABELA product_option_groups
 -- ------------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Anyone can view product option groups" ON public.product_option_groups;
+DROP POLICY IF EXISTS "product_option_groups_select_public" ON public.product_option_groups;
 DROP POLICY IF EXISTS "Company owners can manage groups" ON public.product_option_groups;
 DROP POLICY IF EXISTS "Company owners and admins can manage groups" ON public.product_option_groups;
 DROP POLICY IF EXISTS "pog_select" ON public.product_option_groups;
+DROP POLICY IF EXISTS "pog_select_anon" ON public.product_option_groups;
+DROP POLICY IF EXISTS "pog_select_authenticated" ON public.product_option_groups;
 DROP POLICY IF EXISTS "pog_insert" ON public.product_option_groups;
 DROP POLICY IF EXISTS "pog_update" ON public.product_option_groups;
 DROP POLICY IF EXISTS "pog_delete" ON public.product_option_groups;
 
--- SELECT
-CREATE POLICY "pog_select"
-  ON public.product_option_groups
-  FOR SELECT
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    OR
-    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid())
-    OR
+-- SELECT anon: somente grupos vinculados a produtos/empresas ativos
+CREATE POLICY "pog_select_anon"
+ON public.product_option_groups
+FOR SELECT
+TO anon
+USING (
     EXISTS (
-      SELECT 1 FROM public.product_option_group_assignments a
-      JOIN public.products p ON p.id = a.product_id
-      WHERE a.group_id = product_option_groups.id
-        AND p.is_active = true
+        SELECT 1 FROM public.product_option_group_assignments a
+        JOIN public.products p ON p.id = a.product_id
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE a.group_id = product_option_groups.id
+          AND p.is_active = true
+          AND COALESCE(p.active, true) = true
+          AND COALESCE(c.is_active, true) = true
     )
     OR
     EXISTS (
-      SELECT 1 FROM public.products p
-      WHERE p.id = product_option_groups.product_id
-        AND p.is_active = true
+        SELECT 1 FROM public.products p
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_groups.product_id
+          AND p.is_active = true
+          AND COALESCE(p.active, true) = true
+          AND COALESCE(c.is_active, true) = true
     )
-  );
+);
+
+-- SELECT authenticated: Admin, Dono da Empresa ou Marketplace
+CREATE POLICY "pog_select_authenticated"
+ON public.product_option_groups
+FOR SELECT
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
+    OR
+    company_id IN (
+        SELECT c.id FROM public.companies c WHERE c.user_id = auth.uid()
+    )
+    OR
+    EXISTS (
+        SELECT 1 FROM public.product_option_group_assignments a
+        JOIN public.products p ON p.id = a.product_id
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE a.group_id = product_option_groups.id
+          AND p.is_active = true
+          AND COALESCE(p.active, true) = true
+          AND COALESCE(c.is_active, true) = true
+    )
+    OR
+    EXISTS (
+        SELECT 1 FROM public.products p
+        JOIN public.companies c ON c.id = p.company_id
+        WHERE p.id = product_option_groups.product_id
+          AND p.is_active = true
+          AND COALESCE(p.active, true) = true
+          AND COALESCE(c.is_active, true) = true
+    )
+);
 
 -- INSERT
 CREATE POLICY "pog_insert"
-  ON public.product_option_groups
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_option_groups
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
-    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid())
-  );
+    company_id IN (
+        SELECT c.id FROM public.companies c WHERE c.user_id = auth.uid()
+    )
+);
 
 -- UPDATE
 CREATE POLICY "pog_update"
-  ON public.product_option_groups
-  FOR UPDATE
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_option_groups
+FOR UPDATE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
-    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid())
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+    company_id IN (
+        SELECT c.id FROM public.companies c WHERE c.user_id = auth.uid()
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
-    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid())
-  );
+    company_id IN (
+        SELECT c.id FROM public.companies c WHERE c.user_id = auth.uid()
+    )
+);
 
 -- DELETE
 CREATE POLICY "pog_delete"
-  ON public.product_option_groups
-  FOR DELETE
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_option_groups
+FOR DELETE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
-    company_id IN (SELECT id FROM public.companies WHERE user_id = auth.uid())
-  );
+    company_id IN (
+        SELECT c.id FROM public.companies c WHERE c.user_id = auth.uid()
+    )
+);
 
 -- ------------------------------------------------------------------------------
--- 10. POLÍTICAS DE RLS: TABELA product_options
+-- 11. POLÍTICAS DE RLS: TABELA product_options
 -- ------------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Anyone can view product options" ON public.product_options;
+DROP POLICY IF EXISTS "product_options_select_public" ON public.product_options;
 DROP POLICY IF EXISTS "Company owners can manage options" ON public.product_options;
 DROP POLICY IF EXISTS "Company owners and admins can manage options" ON public.product_options;
 DROP POLICY IF EXISTS "po_select" ON public.product_options;
+DROP POLICY IF EXISTS "po_select_anon" ON public.product_options;
+DROP POLICY IF EXISTS "po_select_authenticated" ON public.product_options;
 DROP POLICY IF EXISTS "po_insert" ON public.product_options;
 DROP POLICY IF EXISTS "po_update" ON public.product_options;
 DROP POLICY IF EXISTS "po_delete" ON public.product_options;
 
--- SELECT
-CREATE POLICY "po_select"
-  ON public.product_options
-  FOR SELECT
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-    OR
+-- SELECT anon: somente opções ativas de produtos/empresas ativos
+CREATE POLICY "po_select_anon"
+ON public.product_options
+FOR SELECT
+TO anon
+USING (
+    product_options.is_active = true
+    AND (
+        EXISTS (
+            SELECT 1 FROM public.product_option_group_assignments a
+            JOIN public.products p ON p.id = a.product_id
+            JOIN public.companies c ON c.id = p.company_id
+            WHERE a.group_id = product_options.group_id
+              AND p.is_active = true
+              AND COALESCE(p.active, true) = true
+              AND COALESCE(c.is_active, true) = true
+        )
+        OR
+        EXISTS (
+            SELECT 1 FROM public.product_option_groups g
+            JOIN public.products p ON p.id = g.product_id
+            JOIN public.companies c ON c.id = p.company_id
+            WHERE g.id = product_options.group_id
+              AND p.is_active = true
+              AND COALESCE(p.active, true) = true
+              AND COALESCE(c.is_active, true) = true
+        )
+    )
+);
+
+-- SELECT authenticated: Admin, Dono ou Marketplace
+CREATE POLICY "po_select_authenticated"
+ON public.product_options
+FOR SELECT
+TO authenticated
+USING (
     EXISTS (
-      SELECT 1 FROM public.product_option_groups g
-      JOIN public.companies c ON c.id = g.company_id
-      WHERE g.id = product_options.group_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
     )
     OR
-    is_active = true
-  );
+    EXISTS (
+        SELECT 1 FROM public.product_option_groups g
+        JOIN public.companies c ON c.id = g.company_id
+        WHERE g.id = product_options.group_id
+          AND c.user_id = auth.uid()
+    )
+    OR
+    (
+        product_options.is_active = true
+        AND (
+            EXISTS (
+                SELECT 1 FROM public.product_option_group_assignments a
+                JOIN public.products p ON p.id = a.product_id
+                JOIN public.companies c ON c.id = p.company_id
+                WHERE a.group_id = product_options.group_id
+                  AND p.is_active = true
+                  AND COALESCE(p.active, true) = true
+                  AND COALESCE(c.is_active, true) = true
+            )
+            OR
+            EXISTS (
+                SELECT 1 FROM public.product_option_groups g
+                JOIN public.products p ON p.id = g.product_id
+                JOIN public.companies c ON c.id = p.company_id
+                WHERE g.id = product_options.group_id
+                  AND p.is_active = true
+                  AND COALESCE(p.active, true) = true
+                  AND COALESCE(c.is_active, true) = true
+            )
+        )
+    )
+);
 
 -- INSERT
 CREATE POLICY "po_insert"
-  ON public.product_options
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_options
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
     EXISTS (
-      SELECT 1 FROM public.product_option_groups g
-      JOIN public.companies c ON c.id = g.company_id
-      WHERE g.id = product_options.group_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.product_option_groups g
+        JOIN public.companies c ON c.id = g.company_id
+        WHERE g.id = product_options.group_id
+          AND c.user_id = auth.uid()
     )
-  );
+);
 
 -- UPDATE
 CREATE POLICY "po_update"
-  ON public.product_options
-  FOR UPDATE
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_options
+FOR UPDATE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
     EXISTS (
-      SELECT 1 FROM public.product_option_groups g
-      JOIN public.companies c ON c.id = g.company_id
-      WHERE g.id = product_options.group_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.product_option_groups g
+        JOIN public.companies c ON c.id = g.company_id
+        WHERE g.id = product_options.group_id
+          AND c.user_id = auth.uid()
     )
-  )
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
     EXISTS (
-      SELECT 1 FROM public.product_option_groups g
-      JOIN public.companies c ON c.id = g.company_id
-      WHERE g.id = product_options.group_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.product_option_groups g
+        JOIN public.companies c ON c.id = g.company_id
+        WHERE g.id = product_options.group_id
+          AND c.user_id = auth.uid()
     )
-  );
+);
 
 -- DELETE
 CREATE POLICY "po_delete"
-  ON public.product_options
-  FOR DELETE
-  USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+ON public.product_options
+FOR DELETE
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
     OR
     EXISTS (
-      SELECT 1 FROM public.product_option_groups g
-      JOIN public.companies c ON c.id = g.company_id
-      WHERE g.id = product_options.group_id
-        AND c.user_id = auth.uid()
+        SELECT 1 FROM public.product_option_groups g
+        JOIN public.companies c ON c.id = g.company_id
+        WHERE g.id = product_options.group_id
+          AND c.user_id = auth.uid()
     )
-  );
+);
 
 COMMIT;
