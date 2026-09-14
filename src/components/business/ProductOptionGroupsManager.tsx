@@ -197,7 +197,7 @@ export async function saveProductOptionGroups(
         min_options: group.required ? Math.max(1, group.min_options ?? 1) : 0,
         max_options: Math.max(1, group.max_options ?? 1),
         required: Boolean(group.required),
-        product_id: productId,
+        product_id: null,
       };
       if (companyId) {
         insertPayload.company_id = companyId;
@@ -346,7 +346,7 @@ export function ProductOptionGroupsManager({
             min_options: min,
             max_options: max,
             required: req,
-            product_id: productId, // legado
+            product_id: null,
           };
           if (companyId) {
             insertPayload.company_id = companyId;
@@ -1159,15 +1159,15 @@ export function ProductOptionGroupsManager({
         </button>
       </div>
 
-      {/* 2. Área de Grupos */}
+      {/* 2. Área de Grupos Reutilizáveis */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h5 className="text-xs font-black uppercase tracking-wider text-foreground">
-              GRUPOS DE OPÇÕES
+              GRUPOS DE ADICIONAIS
             </h5>
             <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Organize os adicionais em grupos para facilitar a escolha do cliente.
+              Crie grupos reutilizáveis para sua loja ou adicione grupos já existentes a este produto.
             </p>
           </div>
 
@@ -1178,8 +1178,8 @@ export function ProductOptionGroupsManager({
                 onClick={handleOpenAddExistingModal}
                 className="px-3.5 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-primary/10 active:scale-95 transition-all shadow-xs"
               >
-                <Layers className="h-4 w-4" />
-                Adicionar existente
+                <Plus className="h-4 w-4" />
+                Adicionar grupo existente
               </button>
             )}
             <button
@@ -1188,7 +1188,7 @@ export function ProductOptionGroupsManager({
               className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all shadow-sm"
             >
               <Plus className="h-4 w-4" />
-              Novo grupo
+              Criar novo grupo
             </button>
           </div>
         </div>
@@ -1207,7 +1207,7 @@ export function ProductOptionGroupsManager({
             <Layers className="h-10 w-10 mx-auto text-muted-foreground/40" />
             <div>
               <p className="text-sm font-bold text-foreground">
-                Nenhum grupo de opções associado
+                Nenhum grupo de adicionais associado
               </p>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-0.5 font-medium">
                 Crie um novo grupo para este produto ou reutilize um grupo já cadastrado na sua loja.
@@ -1220,7 +1220,7 @@ export function ProductOptionGroupsManager({
                   onClick={handleOpenAddExistingModal}
                   className="px-4 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold inline-flex items-center gap-1.5 hover:bg-primary/10 active:scale-95 transition-all"
                 >
-                  <Layers className="h-3.5 w-3.5" /> Adicionar existente
+                  <Plus className="h-3.5 w-3.5" /> Adicionar grupo existente
                 </button>
               )}
               <button
@@ -1234,7 +1234,7 @@ export function ProductOptionGroupsManager({
           </div>
         )}
 
-        {/* 3. Cards de Grupos Independentes */}
+        {/* 3. Cards de Grupos Associados */}
         <div className="space-y-5">
           {groups.map((group) => {
             const isSingleChoice = group.max_options === 1;
@@ -1243,17 +1243,17 @@ export function ProductOptionGroupsManager({
             let ruleSummary = "";
             if (!isRequired) {
               ruleSummary = isSingleChoice
-                ? "Escolha até 1 opção • Opcional"
-                : `Escolha até ${group.max_options ?? 1} opções • Opcional`;
+                ? "Até 1 opção"
+                : `Até ${group.max_options ?? 1} opções`;
             } else {
               const minOpt = group.min_options ?? 1;
               const maxOpt = group.max_options ?? minOpt;
               if (minOpt === 1 && maxOpt === 1) {
-                ruleSummary = "Escolha 1 opção • Obrigatório";
+                ruleSummary = "1 opção";
               } else if (minOpt === maxOpt) {
-                ruleSummary = `Escolha ${minOpt} opções • Obrigatório`;
+                ruleSummary = `${minOpt} opções`;
               } else {
-                ruleSummary = `Escolha de ${minOpt} a ${maxOpt} opções • Obrigatório`;
+                ruleSummary = `De ${minOpt} a ${maxOpt} opções`;
               }
             }
 
@@ -1263,57 +1263,80 @@ export function ProductOptionGroupsManager({
                 className="rounded-3xl border border-border bg-card shadow-sm p-6 space-y-4 transition-all relative overflow-hidden"
               >
                 {/* Cabeçalho do Card */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       <h4 className="text-base font-black text-foreground tracking-tight">
                         {group.name}
                       </h4>
                       {isRequired ? (
                         <span className="text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 px-2 py-0.5 rounded-md border border-rose-500/20">
-                          OBRIGATÓRIO
+                          Obrigatório
                         </span>
                       ) : (
                         <span className="text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground px-2 py-0.5 rounded-md border border-border/60">
-                          OPCIONAL
+                          Opcional
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground font-medium">
-                      {ruleSummary}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium flex-wrap">
+                      <span>{isRequired ? "Obrigatório" : "Opcional"}</span>
+                      <span>•</span>
+                      <span>{ruleSummary}</span>
+                      <span>•</span>
+                      <span>{group.options.length} {group.options.length === 1 ? "opção" : "opções"}</span>
+                    </div>
                   </div>
 
-                  {/* Menu ⋮ do Grupo */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="h-8 w-8 rounded-xl border border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                        aria-label="Ações do grupo"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem onClick={() => handleOpenEditGroup(group)}>
-                        <Edit3 className="h-3.5 w-3.5 mr-2" /> Editar regras do grupo
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setUnlinkGroupTarget(group)}
-                        className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
-                      >
-                        <X className="h-3.5 w-3.5 mr-2" /> Remover deste produto
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleOpenDeleteStoreGroup(group)}
-                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir grupo da loja
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Ações do Card: [Editar] [Remover do produto] + Mais Opções */}
+                  <div className="flex items-center gap-2 flex-wrap shrink-0 pt-1 sm:pt-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditGroup(group)}
+                      className="h-8 px-3 rounded-xl border border-border bg-background text-xs font-bold text-foreground hover:bg-muted transition-all inline-flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUnlinkGroupTarget(group)}
+                      className="h-8 px-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-2xs"
+                      title="Desvincula o grupo deste produto sem apagar da loja"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Remover do produto
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="h-8 w-8 rounded-xl border border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                          aria-label="Mais ações do grupo"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => handleOpenEditGroup(group)}>
+                          <Edit3 className="h-3.5 w-3.5 mr-2" /> Editar regras do grupo
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setUnlinkGroupTarget(group)}
+                          className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
+                        >
+                          <X className="h-3.5 w-3.5 mr-2" /> Remover deste produto
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleOpenDeleteStoreGroup(group)}
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir grupo da loja
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
 
                 {/* Separador */}
@@ -1975,7 +1998,7 @@ export function ProductOptionGroupsManager({
                 <Layers className="h-5 w-5" />
               </div>
               <DialogTitle className="text-lg font-black text-foreground">
-                Grupos da sua loja
+                Adicionar grupo de adicionais
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
                 Reutilize um grupo já cadastrado em outros produtos com todas as suas opções.
@@ -2016,7 +2039,10 @@ export function ProductOptionGroupsManager({
                   )
                   .map((sg) => {
                     const isAlreadyAdded = groups.some((g) => g.id === sg.id);
-                    const optNames = sg.options.map((o) => o.name).join(", ");
+                    const isReq = Boolean(sg.required);
+                    const ruleDesc = isReq
+                      ? (sg.min_options === sg.max_options ? `${sg.min_options} opções` : `De ${sg.min_options} a ${sg.max_options} opções`)
+                      : `Até ${sg.max_options} opções`;
 
                     return (
                       <div
@@ -2029,39 +2055,30 @@ export function ProductOptionGroupsManager({
                         )}
                       >
                         <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h5 className="text-sm font-bold text-foreground tracking-tight">
-                              {sg.name}
-                            </h5>
-                            {sg.required ? (
-                              <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 px-1.5 py-0.5 rounded border border-rose-500/20">
-                                Obrigatório
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-bold uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border/60">
-                                Opcional
-                              </span>
-                            )}
-                            <span className="text-[10px] text-muted-foreground font-medium">
-                              • {sg.options.length} {sg.options.length === 1 ? "opção" : "opções"}
+                          <h5 className="text-sm font-bold text-foreground tracking-tight">
+                            {sg.name}
+                          </h5>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium flex-wrap">
+                            <span>{sg.options.length} {sg.options.length === 1 ? "opção" : "opções"}</span>
+                            <span>•</span>
+                            <span className={isReq ? "text-rose-600 dark:text-rose-400 font-bold" : ""}>
+                              {isReq ? "Obrigatório" : "Opcional"}
                             </span>
+                            <span>•</span>
+                            <span>{ruleDesc}</span>
                           </div>
-                          {optNames && (
-                            <p className="text-[11px] text-muted-foreground line-clamp-1">
-                              {optNames}
-                            </p>
-                          )}
                         </div>
 
                         {isAlreadyAdded ? (
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                            <Check className="h-3.5 w-3.5" /> Adicionado
+                          <span className="text-xs font-bold text-muted-foreground flex items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl bg-muted border border-border/60">
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            Já adicionado
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleAssignExistingGroup(sg)}
-                            className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1"
+                            className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1"
                           >
                             <Plus className="h-3.5 w-3.5" /> Adicionar
                           </button>
