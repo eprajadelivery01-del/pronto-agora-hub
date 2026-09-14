@@ -90,12 +90,6 @@ export default function BusinessProductsPage() {
   // Drag state para produtos (NÍVEL 2)
   const dragId = useRef<string | null>(null);
   const dragCategory = useRef<string | null>(null);
-  const productPointerStartY = useRef<number>(0);
-  const productPointerStartX = useRef<number>(0);
-  const isProductPointerDragging = useRef<boolean>(false);
-  const activePointerProduct = useRef<{ id: string; category: string } | null>(null);
-  const [touchDraggingProductId, setTouchDraggingProductId] = useState<string | null>(null);
-  const [touchDragOverProductId, setTouchDragOverProductId] = useState<string | null>(null);
 
   // Drag state para categorias (NÍVEL 1)
   const dragCategoryRef = useRef<string | null>(null);
@@ -258,133 +252,83 @@ export default function BusinessProductsPage() {
   };
 
 
-  // ── Drag & Drop handlers (NÍVEL 2 - PRODUTOS) ──────────────────────────────────
+  // ── Drag & Drop handlers (NÍVEL 2 - PRODUTOS NATIVO) ──────────────────────────
   const handleDragStart = useCallback((id: string, category: string) => {
+    console.log("[PRODUCT DRAG] dragstart registrado no pai:", id, "categoria:", category);
     dragId.current = id;
     dragCategory.current = category;
   }, []);
 
-  const handleDragEndProduct = useCallback(() => {
+  const handleDragEndProduct = useCallback((id: string) => {
+    console.log("[PRODUCT DRAG] dragend/reset no pai para:", id);
     dragId.current = null;
     dragCategory.current = null;
-    setTouchDraggingProductId(null);
-    setTouchDragOverProductId(null);
   }, []);
 
   const handleDrop = useCallback(async (targetId: string, targetCategory: string) => {
     const srcId = dragId.current;
     const srcCat = dragCategory.current;
+    console.log("[PRODUCT DRAG] drop recebido:", { srcId, targetId, srcCat, targetCategory });
 
-    // Fail-safe: sempre limpa os refs de drag imediatamente para não travar próximos drags
-    dragId.current = null;
-    dragCategory.current = null;
-    setTouchDraggingProductId(null);
-    setTouchDragOverProductId(null);
-
-    if (!srcId || srcId === targetId || srcCat !== targetCategory) return;
-
-    // Filtra produtos usando a mesma regra uniforme do agrupamento visual
-    const catProducts = products.filter(p => {
-      const raw = p.category ? p.category.trim() : "Lanches";
-      const resolved = isForbiddenCategory(raw) ? "Lanches" : raw;
-      return resolved === targetCategory;
-    });
-
-    const srcIdx = catProducts.findIndex(p => p.id === srcId);
-    const tgtIdx = catProducts.findIndex(p => p.id === targetId);
-    if (srcIdx === -1 || tgtIdx === -1) return;
-
-    const reordered = [...catProducts];
-    const [moved] = reordered.splice(srcIdx, 1);
-    reordered.splice(tgtIdx, 0, moved);
-    const updated = reordered.map((p, i) => ({ ...p, sort_order: i }));
-
-    // Optimistic UI imediata
-    setProducts(prev =>
-      prev.map(p => {
-        const found = updated.find(u => u.id === p.id);
-        return found ?? p;
-      })
-    );
-
-    // Persistência no banco
     try {
-      await Promise.all(
+      if (!srcId || srcId === targetId || srcCat !== targetCategory) {
+        console.warn("[PRODUCT DRAG] drop cancelado (mesmo id ou categoria divergente):", { srcId, targetId, srcCat, targetCategory });
+        return;
+      }
+
+      // Filtra produtos usando a mesma regra uniforme do agrupamento visual
+      const catProducts = products.filter(p => {
+        const raw = p.category ? p.category.trim() : "Lanches";
+        const resolved = isForbiddenCategory(raw) ? "Lanches" : raw;
+        return resolved === targetCategory;
+      });
+
+      const srcIdx = catProducts.findIndex(p => p.id === srcId);
+      const tgtIdx = catProducts.findIndex(p => p.id === targetId);
+      if (srcIdx === -1 || tgtIdx === -1) {
+        console.warn("[PRODUCT DRAG] índices não localizados:", { srcIdx, tgtIdx });
+        return;
+      }
+
+      const reordered = [...catProducts];
+      const [moved] = reordered.splice(srcIdx, 1);
+      reordered.splice(tgtIdx, 0, moved);
+      const updated = reordered.map((p, i) => ({ ...p, sort_order: i }));
+
+      console.log("[PRODUCT DRAG] aplicando nova ordenação:", updated.map(p => `${p.name}: ${p.sort_order}`));
+
+      // Optimistic UI imediata
+      setProducts(prev =>
+        prev.map(p => {
+          const found = updated.find(u => u.id === p.id);
+          return found ?? p;
+        })
+      );
+
+      // Persistência no banco
+      const results = await Promise.all(
         updated.map(p =>
           supabase.from("products").update({ sort_order: p.sort_order }).eq("id", p.id)
         )
       );
-      toast.success("Ordem dos produtos salva!");
-    } catch {
+
+      const hasError = results.some(r => r.error);
+      if (hasError) {
+        console.error("[PRODUCT DRAG] erro retornado do Supabase:", results);
+        toast.error("Erro ao salvar ordem dos produtos");
+        fetchCompanyAndProducts();
+      } else {
+        toast.success("Ordem dos produtos salva!");
+      }
+    } catch (err) {
+      console.error("[PRODUCT DRAG] exceção durante persistência:", err);
       toast.error("Erro ao salvar ordem dos produtos");
       fetchCompanyAndProducts();
-    }
-  }, [products]);
-
-  // Pointer Events para touch/mobile no handle do produto (NÍVEL 2)
-  const handlePointerDownProduct = (e: React.PointerEvent, productId: string, catValue: string) => {
-    if (e.pointerType === "mouse") return;
-    productPointerStartY.current = e.clientY;
-    productPointerStartX.current = e.clientX;
-    isProductPointerDragging.current = false;
-    activePointerProduct.current = { id: productId, category: catValue };
-    dragId.current = productId;
-    dragCategory.current = catValue;
-  };
-
-  const handlePointerMoveProduct = (e: React.PointerEvent) => {
-    if (!activePointerProduct.current) return;
-    const dy = Math.abs(e.clientY - productPointerStartY.current);
-    const dx = Math.abs(e.clientX - productPointerStartX.current);
-
-    // Ativa drag somente se o deslocamento no handle for intencional (> 10px)
-    if (!isProductPointerDragging.current && (dy > 10 || dx > 10)) {
-      isProductPointerDragging.current = true;
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-      } catch {}
-      setTouchDraggingProductId(activePointerProduct.current.id);
-    }
-
-    if (isProductPointerDragging.current) {
-      e.preventDefault();
-      const elem = document.elementFromPoint(e.clientX, e.clientY);
-      const card = elem?.closest("[data-product-id]");
-      const targetId = card?.getAttribute("data-product-id");
-      if (targetId && targetId !== activePointerProduct.current.id) {
-        setTouchDragOverProductId(targetId);
-      } else if (!targetId) {
-        setTouchDragOverProductId(null);
-      }
-    }
-  };
-
-  const handlePointerUpProduct = (e: React.PointerEvent) => {
-    if (!activePointerProduct.current) return;
-    const { id: sourceId, category: catVal } = activePointerProduct.current;
-    const wasDragging = isProductPointerDragging.current;
-
-    try {
-      if ((e.currentTarget as HTMLElement).hasPointerCapture?.(e.pointerId)) {
-        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
-      }
-    } catch {}
-
-    const targetId = touchDragOverProductId;
-    activePointerProduct.current = null;
-    isProductPointerDragging.current = false;
-    setTouchDraggingProductId(null);
-    setTouchDragOverProductId(null);
-
-    if (wasDragging && targetId && targetId !== sourceId) {
-      dragId.current = sourceId;
-      dragCategory.current = catVal;
-      handleDrop(targetId, catVal);
-    } else {
+    } finally {
       dragId.current = null;
       dragCategory.current = null;
     }
-  };
+  }, [products]);
 
   // ── Controle de Recolhimento de Categorias ────────────────────────────────────
   const toggleCategoryCollapse = (catValue: string) => {
@@ -785,19 +729,13 @@ export default function BusinessProductsPage() {
                         <ProductCard
                           key={product.id}
                           product={product}
-                          isTouchDragging={touchDraggingProductId === product.id}
-                          isTouchOver={touchDragOverProductId === product.id}
                           onEdit={() => setEditingProduct(product)}
                           onDelete={() => deleteProduct(product.id)}
                           onToggle={() => toggleActive(product)}
                           onToggleFeatured={() => toggleFeatured(product)}
                           onDragStart={() => handleDragStart(product.id, cat.value)}
-                          onDragEnd={handleDragEndProduct}
+                          onDragEnd={() => handleDragEndProduct(product.id)}
                           onDrop={() => handleDrop(product.id, cat.value)}
-                          onPointerDownHandle={(e) => handlePointerDownProduct(e, product.id, cat.value)}
-                          onPointerMoveHandle={handlePointerMoveProduct}
-                          onPointerUpHandle={handlePointerUpProduct}
-                          onPointerCancelHandle={handlePointerUpProduct}
                         />
                       ))}
                     </div>
@@ -823,11 +761,9 @@ export default function BusinessProductsPage() {
   );
 }
 
-// ── Product Card (NÍVEL 2 - PRODUTO) ──────────────────────────────────────────
+// ── Product Card (NÍVEL 2 - PRODUTO NATIVO) ───────────────────────────────────
 function ProductCard({
   product,
-  isTouchDragging,
-  isTouchOver,
   onEdit,
   onDelete,
   onToggle,
@@ -835,14 +771,8 @@ function ProductCard({
   onDragStart,
   onDragEnd,
   onDrop,
-  onPointerDownHandle,
-  onPointerMoveHandle,
-  onPointerUpHandle,
-  onPointerCancelHandle,
 }: {
   product: Product;
-  isTouchDragging?: boolean;
-  isTouchOver?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
@@ -850,18 +780,11 @@ function ProductCard({
   onDragStart: () => void;
   onDragEnd: () => void;
   onDrop: () => void;
-  onPointerDownHandle?: (e: React.PointerEvent) => void;
-  onPointerMoveHandle?: (e: React.PointerEvent) => void;
-  onPointerUpHandle?: (e: React.PointerEvent) => void;
-  onPointerCancelHandle?: (e: React.PointerEvent) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isOver, setIsOver] = useState(false);
   const images = parseImages(product.image_url);
   const mainImage = images[0];
-
-  const effectivelyDragging = isDragging || !!isTouchDragging;
-  const effectivelyOver = isOver || !!isTouchOver;
 
   // Contadores reais de personalização
   const groups = product.product_option_groups || [];
@@ -879,15 +802,16 @@ function ProductCard({
   return (
     <div
       data-product-id={product.id}
-      draggable
+      draggable={true}
       onDragStart={(e) => {
-        // NÍVEL 2: Drag do produto
+        console.log("[PRODUCT DRAG] dragstart", product.id, product.name);
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", product.id);
         setIsDragging(true);
         onDragStart();
       }}
       onDragEnd={() => {
+        console.log("[PRODUCT DRAG] dragend", product.id, product.name);
         setIsDragging(false);
         setIsOver(false);
         onDragEnd();
@@ -895,40 +819,33 @@ function ProductCard({
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        if (!isOver) setIsOver(true);
+        if (!isOver) {
+          console.log("[PRODUCT DRAG] dragover target:", product.id, product.name);
+          setIsOver(true);
+        }
       }}
       onDragLeave={(e) => {
-        // Evita piscar quando o cursor passa sobre elementos filhos
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
           setIsOver(false);
         }
       }}
       onDrop={(e) => {
         e.preventDefault();
+        console.log("[PRODUCT DRAG] drop target:", product.id, product.name);
         setIsOver(false);
         setIsDragging(false);
         onDrop();
       }}
       className={cn(
-        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full select-none",
+        "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full select-none cursor-grab active:cursor-grabbing",
         !product.is_active && "opacity-75 grayscale-[0.3]",
-        effectivelyDragging ? "opacity-40 scale-95 cursor-grabbing shadow-none" : "cursor-grab hover:shadow-xl hover:border-primary/25 hover:-translate-y-0.5",
-        effectivelyOver ? "border-primary ring-2 ring-primary/30 scale-[1.01]" : "border-border/60",
+        isDragging ? "opacity-40 shadow-none ring-2 ring-primary/20" : "hover:shadow-xl hover:border-primary/25 hover:-translate-y-0.5",
+        isOver ? "border-primary ring-4 ring-primary/40 scale-[1.02]" : "border-border/60",
       )}
     >
-      {/* Drag Handle — visível no hover no desktop e sempre ativo para touch no mobile */}
-      <div
-        role="button"
-        tabIndex={0}
-        onPointerDown={onPointerDownHandle}
-        onPointerMove={onPointerMoveHandle}
-        onPointerUp={onPointerUpHandle}
-        onPointerCancel={onPointerCancelHandle}
-        className="absolute top-3 left-3 z-20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none select-none"
-        title="Segure e arraste este ícone para reordenar o produto"
-        aria-label={`Arrastar produto ${product.name}`}
-      >
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
+      {/* Drag Handle — visível no hover com pointer-events-none para que qualquer clique/arraste nele acione o card diretamente */}
+      <div className="absolute top-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
           <GripVertical className="h-3 w-3" />
           Arrastar
         </span>
