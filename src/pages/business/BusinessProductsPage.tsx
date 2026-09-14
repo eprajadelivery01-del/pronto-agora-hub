@@ -54,6 +54,9 @@ export const isForbiddenCategory = (cat: string | null | undefined): boolean => 
   return lower.includes("teste") || lower.includes("test");
 };
 
+// TESTE BINÁRIO: desliga por completo o drag de CATEGORIAS para isolar o drag de PRODUTOS.
+const CATEGORY_DRAG_ENABLED = true;
+
 function parseImages(imageUrl: string | null): string[] {
   if (!imageUrl) return [];
   try {
@@ -617,71 +620,78 @@ export default function BusinessProductsPage() {
                   data-category-name={cat.value}
                   className="transition-all duration-200 rounded-3xl"
                 >
-                  {/* Cabeçalho da Categoria com área isolada de drop exclusivo de CATEGORIA (NÍVEL 1) */}
+                  {/* Cabeçalho da Categoria — handlers de drag só existem se CATEGORY_DRAG_ENABLED */}
                   <div
                     data-category-header={cat.value}
-                    onDragOver={(e) => {
-                      // NÍVEL 1: Só reage se for arrasto de CATEGORIA
-                      if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        if (dragOverCategory !== cat.value) {
-                          setDragOverCategory(cat.value);
+                    {...(CATEGORY_DRAG_ENABLED
+                      ? {
+                          onDragOver: (e: React.DragEvent) => {
+                            if (dragCategoryRef.current && dragCategoryRef.current !== cat.value) {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                              if (dragOverCategory !== cat.value) {
+                                setDragOverCategory(cat.value);
+                              }
+                            }
+                          },
+                          onDragLeave: (e: React.DragEvent) => {
+                            if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+                              if (dragOverCategory === cat.value) {
+                                setDragOverCategory(null);
+                              }
+                            }
+                          },
+                          onDrop: (e: React.DragEvent) => {
+                            if (dragCategoryRef.current) {
+                              e.preventDefault();
+                              const src = dragCategoryRef.current;
+                              dragCategoryRef.current = null;
+                              setDraggingCategory(null);
+                              setDragOverCategory(null);
+                              reorderCategories(src, cat.value);
+                            }
+                          },
                         }
-                      }
-                    }}
-                    onDragLeave={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        if (dragOverCategory === cat.value) {
-                          setDragOverCategory(null);
-                        }
-                      }
-                    }}
-                    onDrop={(e) => {
-                      // NÍVEL 1: Só reage se for soltura de CATEGORIA
-                      if (dragCategoryRef.current) {
-                        e.preventDefault();
-                        const src = dragCategoryRef.current;
-                        dragCategoryRef.current = null;
-                        setDraggingCategory(null);
-                        setDragOverCategory(null);
-                        reorderCategories(src, cat.value);
-                      }
-                    }}
+                      : {})}
                     className={cn(
                       "flex items-center justify-between gap-3 mb-5 px-3 py-2.5 rounded-2xl bg-card border border-border/50 shadow-sm transition-all select-none",
                       isDropTarget && "border-primary/60 shadow-md ring-2 ring-primary/40 bg-primary/5",
                       isDraggingThis && "opacity-40"
                     )}
                   >
-                    {/* Handle EXCLUSIVO para Drag da categoria (NÍVEL 1) */}
+                    {/* Handle de categoria (NÍVEL 1) — inerte durante o teste binário */}
                     <div
                       role="button"
                       tabIndex={0}
-                      draggable
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        e.dataTransfer.setData("application/x-category", cat.value);
-                        e.dataTransfer.effectAllowed = "move";
-                        dragCategoryRef.current = cat.value;
-                        setDraggingCategory(cat.value);
-                      }}
-                      onDragEnd={() => {
-                        dragCategoryRef.current = null;
-                        setDraggingCategory(null);
-                        setDragOverCategory(null);
-                      }}
-                      onPointerDown={(e) => handlePointerDownCategory(e, cat.value)}
-                      onPointerMove={handlePointerMoveCategory}
-                      onPointerUp={handlePointerUpCategory}
-                      onPointerCancel={handlePointerUpCategory}
+                      {...(CATEGORY_DRAG_ENABLED
+                        ? {
+                            draggable: true,
+                            onDragStart: (e: React.DragEvent) => {
+                              e.stopPropagation();
+                              e.dataTransfer.setData("application/x-category", cat.value);
+                              e.dataTransfer.effectAllowed = "move";
+                              dragCategoryRef.current = cat.value;
+                              setDraggingCategory(cat.value);
+                            },
+                            onDragEnd: () => {
+                              dragCategoryRef.current = null;
+                              setDraggingCategory(null);
+                              setDragOverCategory(null);
+                            },
+                            onPointerDown: (e: React.PointerEvent) => handlePointerDownCategory(e, cat.value),
+                            onPointerMove: handlePointerMoveCategory,
+                            onPointerUp: handlePointerUpCategory,
+                            onPointerCancel: handlePointerUpCategory,
+                          }
+                        : {})}
                       onClick={(e) => e.stopPropagation()}
-                      title="Segure e arraste este ícone para reordenar a categoria"
+                      title={CATEGORY_DRAG_ENABLED ? "Segure e arraste este ícone para reordenar a categoria" : "Reordenação de categoria temporariamente desativada"}
                       aria-label={`Arrastar para reordenar categoria ${cat.label}`}
                       className="cursor-grab active:cursor-grabbing p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/70 active:bg-primary/15 active:text-primary touch-none select-none transition-colors shrink-0"
                     >
                       <GripVertical className="h-5 w-5" />
                     </div>
+
 
                     {/* Botão de Título e Seta para Recolher / Expandir */}
                     <button
@@ -724,7 +734,7 @@ export default function BusinessProductsPage() {
 
                   {/* Grid de produtos (oculta visualmente quando a categoria estiver recolhida) */}
                   {!isCollapsed && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
                       {items.map(product => (
                         <ProductCard
                           key={product.id}
@@ -782,6 +792,10 @@ function ProductCard({
   onDrop: () => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
+
+
+
+
   const [isOver, setIsOver] = useState(false);
   const images = parseImages(product.image_url);
   const mainImage = images[0];
@@ -839,8 +853,10 @@ function ProductCard({
       className={cn(
         "bg-card border rounded-[2rem] overflow-hidden shadow-card transition-all duration-200 group relative flex flex-col h-full select-none cursor-grab active:cursor-grabbing",
         !product.is_active && "opacity-75 grayscale-[0.3]",
-        isDragging ? "opacity-40 shadow-none ring-2 ring-primary/20" : "hover:shadow-xl hover:border-primary/25 hover:-translate-y-0.5",
-        isOver ? "border-primary ring-4 ring-primary/40 scale-[1.02]" : "border-border/60",
+        // TESTE: nenhuma mudança de geometria/opacidade durante o dragstart
+        isDragging ? "ring-2 ring-primary/20" : "hover:shadow-xl hover:border-primary/25",
+        isOver ? "border-primary ring-4 ring-primary/40" : "border-border/60",
+
       )}
     >
       {/* Drag Handle — visível no hover com pointer-events-none para que qualquer clique/arraste nele acione o card diretamente */}
