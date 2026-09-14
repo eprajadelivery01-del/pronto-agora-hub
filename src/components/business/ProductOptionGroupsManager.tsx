@@ -68,34 +68,98 @@ export function formatBRL(value: number): string {
 }
 
 /**
- * Carrega grupos e opções oficiais de um produto existente no Supabase
+ * Carrega grupos e opções oficiais de um produto existente no Supabase.
+ * Fonte oficial: product_option_group_assignments.
+ * Fallback: product_option_groups.product_id (legado).
+ * Deduplica rigorosamente por group.id para nunca exibir duplicados.
  */
 export async function loadProductOptionGroups(productId: string): Promise<OptionGroupDraft[]> {
   try {
-    const { data, error } = await supabase
+    // 1. Buscar via assignments oficial (N:N)
+    const { data: assignmentsData, error: assignmentsError } = await supabase
+      .from("product_option_group_assignments")
+      .select(`
+        group_id,
+        product_option_groups:group_id (
+          id,
+          name,
+          min_options,
+          max_options,
+          required,
+          company_id,
+          product_options (id, name, price, is_active)
+        )
+      `)
+      .eq("product_id", productId);
+
+    if (assignmentsError) {
+      console.warn("Aviso ao carregar assignments:", assignmentsError.message);
+    }
+
+    // 2. Buscar legado via product_id direto
+    const { data: legacyData, error: legacyError } = await supabase
       .from("product_option_groups")
       .select("*, product_options(*)")
       .eq("product_id", productId)
       .order("created_at");
 
-    if (error) {
-      console.error("Erro ao carregar grupos:", error);
-      return [];
+    if (legacyError) {
+      console.warn("Aviso ao carregar grupos legados:", legacyError.message);
     }
 
-    return (data || []).map((g: any) => ({
-      id: g.id,
-      name: g.name,
-      min_options: g.min_options ?? 0,
-      max_options: g.max_options ?? 1,
-      required: g.required ?? false,
-      options: (g.product_options || []).map((o: any) => ({
-        id: o.id,
-        name: o.name,
-        price: Number(o.price || 0),
-        is_active: o.is_active ?? true,
-      })),
-    }));
+    // 3. Combinar e deduplicar rigorosamente por group.id
+    const combinedMap = new Map<string, OptionGroupDraft>();
+
+    if (assignmentsData && Array.isArray(assignmentsData)) {
+      for (const row of assignmentsData) {
+        const g: any = row.product_option_groups;
+        if (g && g.id && !combinedMap.has(g.id)) {
+          const req = Boolean(g.required);
+          const min = req ? Math.max(1, g.min_options ?? 1) : 0;
+          const max = Math.max(min, Math.max(1, g.max_options ?? 1));
+
+          combinedMap.set(g.id, {
+            id: g.id,
+            name: g.name,
+            min_options: min,
+            max_options: max,
+            required: req,
+            options: (g.product_options || []).map((o: any) => ({
+              id: o.id,
+              name: o.name,
+              price: Number(o.price || 0),
+              is_active: o.is_active ?? true,
+            })),
+          });
+        }
+      }
+    }
+
+    if (legacyData && Array.isArray(legacyData)) {
+      for (const g of legacyData) {
+        if (g && g.id && !combinedMap.has(g.id)) {
+          const req = Boolean(g.required);
+          const min = req ? Math.max(1, g.min_options ?? 1) : 0;
+          const max = Math.max(min, Math.max(1, g.max_options ?? 1));
+
+          combinedMap.set(g.id, {
+            id: g.id,
+            name: g.name,
+            min_options: min,
+            max_options: max,
+            required: req,
+            options: (g.product_options || []).map((o: any) => ({
+              id: o.id,
+              name: o.name,
+              price: Number(o.price || 0),
+              is_active: o.is_active ?? true,
+            })),
+          });
+        }
+      }
+    }
+
+    return Array.from(combinedMap.values());
   } catch (err) {
     console.error("Exceção ao carregar grupos do produto:", err);
     return [];
@@ -110,7 +174,8 @@ export async function saveProductOptionGroups(
   productId: string,
   hasOptions: boolean,
   groups: OptionGroupDraft[],
-  isNewProduct: boolean = false
+  isNewProduct: boolean = false,
+  companyId?: string
 ) {
   // Se for edição de produto existente, NÃO fazemos sync em lote destrutivo.
   // As alterações já foram persistidas em tempo real de forma granular e atômica.
@@ -124,37 +189,59 @@ export async function saveProductOptionGroups(
 
   // Insere grupos e opções para o produto recém-criado
   for (const group of groups) {
-    const { data: insertedGroup, error: groupError } = await supabase
-      .from("product_option_groups")
-      .insert({
-        product_id: productId,
-        name: group.name,
-        min_options: group.min_options,
-        max_options: group.max_options,
-        required: group.required,
-      })
-      .select()
-      .single();
+    let targetGroupId = group.id;
 
-    if (groupError || !insertedGroup) {
-      console.error("Erro ao inserir grupo do novo produto:", groupError);
-      continue;
+    if (group.isNew || group.id.startsWith("temp_")) {
+      const insertPayload: any = {
+        name: group.name,
+        min_options: group.required ? Math.max(1, group.min_options ?? 1) : 0,
+        max_options: Math.max(1, group.max_options ?? 1),
+        required: Boolean(group.required),
+        product_id: productId,
+      };
+      if (companyId) {
+        insertPayload.company_id = companyId;
+      }
+
+      const { data: insertedGroup, error: groupError } = await supabase
+        .from("product_option_groups")
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (groupError || !insertedGroup) {
+        console.error("Erro ao inserir grupo do novo produto:", groupError);
+        continue;
+      }
+
+      targetGroupId = insertedGroup.id;
+
+      if (group.options && group.options.length > 0) {
+        const optionsToInsert = group.options.map((opt) => ({
+          group_id: targetGroupId,
+          name: opt.name,
+          price: opt.price,
+          is_active: opt.is_active,
+        }));
+        await supabase.from("product_options").insert(optionsToInsert);
+      }
     }
 
-    if (group.options && group.options.length > 0) {
-      const optionsToInsert = group.options.map((opt) => ({
-        group_id: insertedGroup.id,
-        name: opt.name,
-        price: opt.price,
-        is_active: opt.is_active,
-      }));
-      await supabase.from("product_options").insert(optionsToInsert);
+    // Criar a associação oficial N:N
+    if (productId && targetGroupId && !targetGroupId.startsWith("temp_")) {
+      await supabase
+        .from("product_option_group_assignments")
+        .insert({
+          product_id: productId,
+          group_id: targetGroupId,
+        });
     }
   }
 }
 
 interface ProductOptionGroupsManagerProps {
   productId?: string;
+  companyId?: string;
   hasOptions: boolean;
   onToggleHasOptions: (active: boolean) => void;
   groups: OptionGroupDraft[];
@@ -164,6 +251,7 @@ interface ProductOptionGroupsManagerProps {
 
 export function ProductOptionGroupsManager({
   productId,
+  companyId,
   hasOptions,
   onToggleHasOptions,
   groups,
@@ -178,6 +266,12 @@ export function ProductOptionGroupsManager({
   const [groupFormMin, setGroupFormMin] = useState(0);
   const [groupFormMax, setGroupFormMax] = useState(20);
   const [groupFormRequired, setGroupFormRequired] = useState(false);
+
+  // Modal de Adicionar Grupo Existente da Loja
+  const [addExistingModalOpen, setAddExistingModalOpen] = useState(false);
+  const [storeGroups, setStoreGroups] = useState<OptionGroupDraft[]>([]);
+  const [loadingStoreGroups, setLoadingStoreGroups] = useState(false);
+  const [storeGroupSearch, setStoreGroupSearch] = useState("");
 
   // Modal de Cadastro em Massa de Opções
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -195,7 +289,8 @@ export function ProductOptionGroupsManager({
   const [editOptionPrice, setEditOptionPrice] = useState("");
   const [editOptionActive, setEditOptionActive] = useState(true);
 
-  // Confirmações de Exclusão
+  // Confirmações de Exclusão / Desvinculação
+  const [unlinkGroupTarget, setUnlinkGroupTarget] = useState<OptionGroupDraft | null>(null);
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<OptionGroupDraft | null>(null);
   const [deleteOptionTarget, setDeleteOptionTarget] = useState<{ groupId: string; option: OptionDraft } | null>(null);
 
@@ -218,9 +313,9 @@ export function ProductOptionGroupsManager({
     setGroupModalMode("edit");
     setTargetGroupId(group.id);
     setGroupFormName(group.name);
-    setGroupFormMin(group.min_options);
-    setGroupFormMax(group.max_options);
-    setGroupFormRequired(group.required);
+    setGroupFormRequired(Boolean(group.required));
+    setGroupFormMin(group.required ? (group.min_options ?? 1) : 0);
+    setGroupFormMax(group.max_options ?? 20);
     setGroupModalOpen(true);
   };
 
@@ -235,23 +330,31 @@ export function ProductOptionGroupsManager({
       return;
     }
 
-    const min = Math.max(0, Number(groupFormMin) || 0);
+    // REGRA #8: Semântica estrita de obrigatoriedade
+    // required = false -> min_options = 0
+    // required = true -> min_options >= 1
+    const req = Boolean(groupFormRequired);
+    const min = req ? Math.max(1, Number(groupFormMin) || 1) : 0;
     const max = Math.max(min, Math.max(1, Number(groupFormMax) || 1));
-    const req = groupFormRequired || min > 0;
 
     if (groupModalMode === "create") {
       if (productId) {
         setIsSavingGroup(true);
         try {
+          const insertPayload: any = {
+            name: trimmed,
+            min_options: min,
+            max_options: max,
+            required: req,
+            product_id: productId, // legado
+          };
+          if (companyId) {
+            insertPayload.company_id = companyId;
+          }
+
           const { data: insertedGroup, error: groupInsertError } = await supabase
             .from("product_option_groups")
-            .insert({
-              product_id: productId,
-              name: trimmed,
-              min_options: min,
-              max_options: max,
-              required: req,
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -262,12 +365,24 @@ export function ProductOptionGroupsManager({
             return;
           }
 
+          // Criar o assignment oficial na tabela N:N
+          const { error: assignError } = await supabase
+            .from("product_option_group_assignments")
+            .insert({
+              product_id: productId,
+              group_id: insertedGroup.id,
+            });
+
+          if (assignError) {
+            console.warn("Aviso ao vincular assignment:", assignError.message);
+          }
+
           const createdGroup: OptionGroupDraft = {
             id: insertedGroup.id,
             name: insertedGroup.name,
-            min_options: insertedGroup.min_options ?? min,
-            max_options: insertedGroup.max_options ?? max,
-            required: insertedGroup.required ?? req,
+            min_options: min,
+            max_options: max,
+            required: req,
             options: [],
             isNew: false,
           };
@@ -275,7 +390,7 @@ export function ProductOptionGroupsManager({
           onToggleHasOptions(true);
           onChange([...groups, createdGroup]);
           setGroupModalOpen(false);
-          toast.success(`Grupo "${trimmed}" criado!`);
+          toast.success(`Grupo "${trimmed}" criado com sucesso!`);
         } catch (err: any) {
           console.error("Exceção ao inserir grupo:", err);
           toast.error("Erro inesperado ao criar grupo.");
@@ -345,13 +460,189 @@ export function ProductOptionGroupsManager({
     }
   };
 
+  // ----------------------------------------------------
+  // ADICIONAR GRUPO EXISTENTE DA LOJA (N:N REUTILIZÁVEL)
+  // ----------------------------------------------------
+  const handleOpenAddExistingModal = async () => {
+    setAddExistingModalOpen(true);
+    setStoreGroupSearch("");
+    if (!companyId) {
+      setStoreGroups([]);
+      return;
+    }
+
+    setLoadingStoreGroups(true);
+    try {
+      const { data, error } = await supabase
+        .from("product_option_groups")
+        .select(`
+          id,
+          name,
+          min_options,
+          max_options,
+          required,
+          company_id,
+          product_options (id, name, price, is_active)
+        `)
+        .eq("company_id", companyId)
+        .order("name");
+
+      if (error) {
+        console.error("Erro ao buscar grupos da loja:", error);
+        toast.error("Não foi possível carregar os grupos da loja.");
+        setStoreGroups([]);
+      } else {
+        const loaded: OptionGroupDraft[] = (data || []).map((g: any) => {
+          const req = Boolean(g.required);
+          const min = req ? Math.max(1, g.min_options ?? 1) : 0;
+          const max = Math.max(min, Math.max(1, g.max_options ?? 1));
+          return {
+            id: g.id,
+            name: g.name,
+            min_options: min,
+            max_options: max,
+            required: req,
+            options: (g.product_options || []).map((o: any) => ({
+              id: o.id,
+              name: o.name,
+              price: Number(o.price || 0),
+              is_active: o.is_active ?? true,
+            })),
+          };
+        });
+        setStoreGroups(loaded);
+      }
+    } catch (err: any) {
+      console.error("Exceção ao carregar grupos da loja:", err);
+    } finally {
+      setLoadingStoreGroups(false);
+    }
+  };
+
+  const handleAssignExistingGroup = async (groupToAssign: OptionGroupDraft) => {
+    if (!groupToAssign) return;
+
+    if (groups.some((g) => g.id === groupToAssign.id)) {
+      toast.info(`O grupo "${groupToAssign.name}" já está adicionado a este produto.`);
+      return;
+    }
+
+    if (productId && !groupToAssign.id.startsWith("temp_")) {
+      try {
+        const { error: assignErr } = await supabase
+          .from("product_option_group_assignments")
+          .insert({
+            product_id: productId,
+            group_id: groupToAssign.id,
+          });
+
+        if (assignErr) {
+          console.error("Erro ao associar grupo:", assignErr);
+          toast.error(`Erro ao associar grupo: ${assignErr.message}`);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Exceção ao associar grupo:", err);
+        toast.error("Erro inesperado ao associar grupo.");
+        return;
+      }
+    }
+
+    onToggleHasOptions(true);
+    onChange([...groups, groupToAssign]);
+    toast.success(`Grupo "${groupToAssign.name}" adicionado ao produto!`);
+  };
+
+  // ----------------------------------------------------
+  // REMOVER DESTE PRODUTO (DELETE SOMENTE EM ASSIGNMENTS)
+  // ----------------------------------------------------
+  const handleConfirmUnlinkGroup = async () => {
+    if (!unlinkGroupTarget) return;
+    const target = unlinkGroupTarget;
+    const isRealGroup = !target.id.startsWith("temp_");
+
+    if (productId && isRealGroup) {
+      try {
+        const { error: unlinkError } = await supabase
+          .from("product_option_group_assignments")
+          .delete()
+          .eq("product_id", productId)
+          .eq("group_id", target.id);
+
+        if (unlinkError) {
+          console.error("Erro ao desvincular grupo:", unlinkError);
+          toast.error(`Erro ao desvincular: ${unlinkError.message}`);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Exceção ao desvincular:", err);
+        toast.error("Erro inesperado ao desvincular grupo.");
+        return;
+      }
+    }
+
+    const updated = groups.filter((g) => g.id !== target.id);
+    onChange(updated);
+    if (updated.length === 0) {
+      onToggleHasOptions(false);
+    }
+    setUnlinkGroupTarget(null);
+    toast.success(`Grupo "${target.name}" removido deste produto. Ele continua disponível para outros produtos da loja.`);
+  };
+
+  // ----------------------------------------------------
+  // EXCLUIR GRUPO DA LOJA (BLOQUEADO SE HOUVER ASSOCIAÇÕES)
+  // ----------------------------------------------------
+  const handleOpenDeleteStoreGroup = async (group: OptionGroupDraft) => {
+    if (!group) return;
+    const isRealGroup = !group.id.startsWith("temp_");
+
+    if (isRealGroup) {
+      try {
+        const { count, error: countErr } = await supabase
+          .from("product_option_group_assignments")
+          .select("*", { count: "exact", head: true })
+          .eq("group_id", group.id);
+
+        if (countErr) {
+          console.warn("Aviso ao checar vínculos do grupo:", countErr);
+        }
+
+        if (count && count > 0) {
+          toast.error(
+            `Não é possível excluir o grupo "${group.name}". Ele ainda está vinculado a ${count} produto(s). Remova-o dos produtos antes de excluir da loja.`
+          );
+          return;
+        }
+      } catch (err: any) {
+        console.error("Erro ao checar vínculos:", err);
+      }
+    }
+
+    setDeleteGroupTarget(group);
+  };
+
   const handleConfirmDeleteGroup = async () => {
     if (!deleteGroupTarget) return;
     const idToDelete = deleteGroupTarget.id;
     const name = deleteGroupTarget.name;
 
-    if (productId && !idToDelete.startsWith("temp_")) {
+    if (!idToDelete.startsWith("temp_")) {
       try {
+        // Validação estrita: se houver associações ativas, bloqueia
+        const { count } = await supabase
+          .from("product_option_group_assignments")
+          .select("*", { count: "exact", head: true })
+          .eq("group_id", idToDelete);
+
+        if (count && count > 0) {
+          toast.error(
+            `Exclusão bloqueada: O grupo "${name}" está vinculado a ${count} produto(s). Remova o vínculo primeiro.`
+          );
+          setDeleteGroupTarget(null);
+          return;
+        }
+
         const { error: delError } = await supabase
           .from("product_option_groups")
           .delete()
@@ -369,9 +660,13 @@ export function ProductOptionGroupsManager({
       }
     }
 
-    onChange(groups.filter((g) => g.id !== idToDelete));
+    const updated = groups.filter((g) => g.id !== idToDelete);
+    onChange(updated);
+    if (updated.length === 0) {
+      onToggleHasOptions(false);
+    }
     setDeleteGroupTarget(null);
-    toast.success(`Grupo "${name}" excluído.`);
+    toast.success(`Grupo "${name}" excluído da loja com sucesso.`);
   };
 
   // ----------------------------------------------------
@@ -876,14 +1171,26 @@ export function ProductOptionGroupsManager({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreateGroup}
-            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all shadow-sm shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            Novo grupo
-          </button>
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {companyId && (
+              <button
+                type="button"
+                onClick={handleOpenAddExistingModal}
+                className="px-3.5 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-primary/10 active:scale-95 transition-all shadow-xs"
+              >
+                <Layers className="h-4 w-4" />
+                Adicionar existente
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleOpenCreateGroup}
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 active:scale-95 transition-all shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Novo grupo
+            </button>
+          </div>
         </div>
 
         {/* Loading indicator */}
@@ -900,19 +1207,30 @@ export function ProductOptionGroupsManager({
             <Layers className="h-10 w-10 mx-auto text-muted-foreground/40" />
             <div>
               <p className="text-sm font-bold text-foreground">
-                Nenhum grupo de opções criado
+                Nenhum grupo de opções associado
               </p>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-0.5 font-medium">
-                Crie grupos como "Turbine seu Lanche", "Escolha seu Molho" ou "Bebidas" para organizar as opções.
+                Crie um novo grupo para este produto ou reutilize um grupo já cadastrado na sua loja.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleOpenCreateGroup}
-              className="mt-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-sm hover:opacity-90"
-            >
-              <Plus className="h-3.5 w-3.5" /> Criar primeiro grupo
-            </button>
+            <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+              {companyId && (
+                <button
+                  type="button"
+                  onClick={handleOpenAddExistingModal}
+                  className="px-4 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold inline-flex items-center gap-1.5 hover:bg-primary/10 active:scale-95 transition-all"
+                >
+                  <Layers className="h-3.5 w-3.5" /> Adicionar existente
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleOpenCreateGroup}
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-sm hover:opacity-90 active:scale-95 transition-all"
+              >
+                <Plus className="h-3.5 w-3.5" /> Criar novo grupo
+              </button>
+            </div>
           </div>
         )}
 
@@ -920,17 +1238,23 @@ export function ProductOptionGroupsManager({
         <div className="space-y-5">
           {groups.map((group) => {
             const isSingleChoice = group.max_options === 1;
-            const isRequired = group.required || group.min_options > 0;
+            const isRequired = Boolean(group.required);
 
             let ruleSummary = "";
-            if (isSingleChoice && isRequired) {
-              ruleSummary = "Escolha 1 opção • Obrigatório";
-            } else if (isSingleChoice) {
-              ruleSummary = "Escolha até 1 opção • Opcional";
-            } else if (!isRequired) {
-              ruleSummary = `Escolha de 0 a ${group.max_options} opções • Opcional`;
+            if (!isRequired) {
+              ruleSummary = isSingleChoice
+                ? "Escolha até 1 opção • Opcional"
+                : `Escolha até ${group.max_options ?? 1} opções • Opcional`;
             } else {
-              ruleSummary = `Escolha de ${group.min_options} a ${group.max_options} opções • Obrigatório`;
+              const minOpt = group.min_options ?? 1;
+              const maxOpt = group.max_options ?? minOpt;
+              if (minOpt === 1 && maxOpt === 1) {
+                ruleSummary = "Escolha 1 opção • Obrigatório";
+              } else if (minOpt === maxOpt) {
+                ruleSummary = `Escolha ${minOpt} opções • Obrigatório`;
+              } else {
+                ruleSummary = `Escolha de ${minOpt} a ${maxOpt} opções • Obrigatório`;
+              }
             }
 
             return (
@@ -971,16 +1295,22 @@ export function ProductOptionGroupsManager({
                         <MoreVertical className="h-4 w-4" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuItem onClick={() => handleOpenEditGroup(group)}>
-                        <Edit3 className="h-3.5 w-3.5 mr-2" /> Editar grupo
+                        <Edit3 className="h-3.5 w-3.5 mr-2" /> Editar regras do grupo
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => setDeleteGroupTarget(group)}
+                        onClick={() => setUnlinkGroupTarget(group)}
+                        className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
+                      >
+                        <X className="h-3.5 w-3.5 mr-2" /> Remover deste produto
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleOpenDeleteStoreGroup(group)}
                         className="text-destructive focus:text-destructive focus:bg-destructive/10"
                       >
-                        <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir grupo
+                        <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir grupo da loja
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1161,9 +1491,14 @@ export function ProductOptionGroupsManager({
                   </label>
                   <input
                     type="number"
-                    min="0"
-                    value={groupFormMin}
-                    onChange={(e) => setGroupFormMin(Math.max(0, parseInt(e.target.value) || 0))}
+                    min={groupFormRequired ? 1 : 0}
+                    disabled={!groupFormRequired}
+                    value={groupFormRequired ? groupFormMin : 0}
+                    onChange={(e) => {
+                      if (groupFormRequired) {
+                        setGroupFormMin(Math.max(1, parseInt(e.target.value) || 1));
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -1171,10 +1506,15 @@ export function ProductOptionGroupsManager({
                         handleSaveGroupModal(e);
                       }
                     }}
-                    className="w-full h-11 px-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary"
+                    className={cn(
+                      "w-full h-11 px-4 rounded-xl border text-sm font-bold transition-all focus:outline-none focus:border-primary",
+                      groupFormRequired
+                        ? "bg-muted/40 border-border text-foreground"
+                        : "bg-muted/20 border-border/40 text-muted-foreground cursor-not-allowed"
+                    )}
                   />
                   <p className="text-[10px] text-muted-foreground mt-1 font-medium">
-                    Mínimo = quantidade mínima obrigatória
+                    {groupFormRequired ? "Mínimo obrigatório (≥ 1)" : "0 (Grupo Opcional)"}
                   </p>
                 </div>
 
@@ -1184,9 +1524,9 @@ export function ProductOptionGroupsManager({
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min={groupFormRequired ? Math.max(1, groupFormMin) : 1}
                     value={groupFormMax}
-                    onChange={(e) => setGroupFormMax(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => setGroupFormMax(Math.max(groupFormRequired ? Math.max(1, groupFormMin) : 1, parseInt(e.target.value) || 1))}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -1197,7 +1537,7 @@ export function ProductOptionGroupsManager({
                     className="w-full h-11 px-4 rounded-xl bg-muted/40 border border-border text-sm font-bold text-foreground focus:outline-none focus:border-primary"
                   />
                   <p className="text-[10px] text-muted-foreground mt-1 font-medium">
-                    Máximo = quantidade máxima permitida
+                    Máximo permitido no pedido
                   </p>
                 </div>
               </div>
@@ -1208,14 +1548,17 @@ export function ProductOptionGroupsManager({
                     Obrigatório
                   </label>
                   <p className="text-[11px] text-muted-foreground">
-                    O cliente é obrigado a selecionar uma opção?
+                    O cliente é obrigado a selecionar ao menos uma opção?
                   </p>
                 </div>
 
                 <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/60">
                   <button
                     type="button"
-                    onClick={() => setGroupFormRequired(false)}
+                    onClick={() => {
+                      setGroupFormRequired(false);
+                      setGroupFormMin(0);
+                    }}
                     className={cn(
                       "px-3 py-1 rounded-lg text-xs font-bold transition-all",
                       !groupFormRequired
@@ -1223,11 +1566,14 @@ export function ProductOptionGroupsManager({
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Não
+                    Não (Opcional)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setGroupFormRequired(true)}
+                    onClick={() => {
+                      setGroupFormRequired(true);
+                      setGroupFormMin((prev) => Math.max(1, prev || 1));
+                    }}
                     className={cn(
                       "px-3 py-1 rounded-lg text-xs font-bold transition-all",
                       groupFormRequired
@@ -1235,7 +1581,7 @@ export function ProductOptionGroupsManager({
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Sim
+                    Sim (Obrigatório)
                   </button>
                 </div>
               </div>
@@ -1253,7 +1599,7 @@ export function ProductOptionGroupsManager({
                 type="button"
                 onClick={(e) => handleSaveGroupModal(e)}
                 disabled={isSavingGroup}
-                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
               >
                 {isSavingGroup && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {isSavingGroup
@@ -1619,7 +1965,163 @@ export function ProductOptionGroupsManager({
       </Dialog>
 
       {/* ==================================================== */}
-      {/* DIÁLOGO DE CONFIRMAÇÃO: EXCLUIR GRUPO */}
+      {/* MODAL: ADICIONAR GRUPO EXISTENTE DA LOJA (N:N) */}
+      {/* ==================================================== */}
+      <Dialog open={addExistingModalOpen} onOpenChange={setAddExistingModalOpen}>
+        <DialogContent className="sm:max-w-lg rounded-3xl p-6 bg-background">
+          <div className="space-y-4">
+            <DialogHeader>
+              <div className="h-10 w-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-1">
+                <Layers className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-lg font-black text-foreground">
+                Grupos da sua loja
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Reutilize um grupo já cadastrado em outros produtos com todas as suas opções.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Input de busca */}
+            <div>
+              <input
+                type="text"
+                placeholder="Buscar grupo pelo nome..."
+                value={storeGroupSearch}
+                onChange={(e) => setStoreGroupSearch(e.target.value)}
+                className="w-full h-10 px-4 rounded-xl bg-muted/40 border border-border text-xs font-medium text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            {/* Lista de Grupos */}
+            <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1">
+              {loadingStoreGroups && (
+                <div className="p-8 text-center text-xs text-muted-foreground font-bold flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  Carregando grupos da loja...
+                </div>
+              )}
+
+              {!loadingStoreGroups && storeGroups.length === 0 && (
+                <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border/80">
+                  Nenhum outro grupo cadastrado nesta loja ainda.
+                </div>
+              )}
+
+              {!loadingStoreGroups &&
+                storeGroups
+                  .filter((g) =>
+                    !storeGroupSearch.trim() ||
+                    g.name.toLowerCase().includes(storeGroupSearch.trim().toLowerCase())
+                  )
+                  .map((sg) => {
+                    const isAlreadyAdded = groups.some((g) => g.id === sg.id);
+                    const optNames = sg.options.map((o) => o.name).join(", ");
+
+                    return (
+                      <div
+                        key={sg.id}
+                        className={cn(
+                          "p-4 rounded-2xl border transition-all flex items-center justify-between gap-3",
+                          isAlreadyAdded
+                            ? "border-border/50 bg-muted/20 opacity-70"
+                            : "border-border bg-card hover:border-primary/40 shadow-xs"
+                        )}
+                      >
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h5 className="text-sm font-bold text-foreground tracking-tight">
+                              {sg.name}
+                            </h5>
+                            {sg.required ? (
+                              <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 px-1.5 py-0.5 rounded border border-rose-500/20">
+                                Obrigatório
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border/60">
+                                Opcional
+                              </span>
+                            )}
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              • {sg.options.length} {sg.options.length === 1 ? "opção" : "opções"}
+                            </span>
+                          </div>
+                          {optNames && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">
+                              {optNames}
+                            </p>
+                          )}
+                        </div>
+
+                        {isAlreadyAdded ? (
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            <Check className="h-3.5 w-3.5" /> Adicionado
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAssignExistingGroup(sg)}
+                            className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shrink-0 hover:opacity-90 active:scale-95 transition-all shadow-xs flex items-center gap-1"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Adicionar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+            </div>
+
+            <DialogFooter className="pt-2 border-t border-border/50">
+              <button
+                type="button"
+                onClick={() => setAddExistingModalOpen(false)}
+                className="w-full px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-all"
+              >
+                Fechar
+              </button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================================================== */}
+      {/* DIÁLOGO DE CONFIRMAÇÃO: REMOVER DESTE PRODUTO (UNLINK) */}
+      {/* ==================================================== */}
+      <Dialog open={!!unlinkGroupTarget} onOpenChange={(open) => !open && setUnlinkGroupTarget(null)}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-background">
+          <DialogHeader>
+            <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-2">
+              <X className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-lg font-black text-foreground">
+              Remover grupo deste produto?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              O grupo <strong>"{unlinkGroupTarget?.name}"</strong> será desvinculado apenas deste item. Ele continuará salvo na sua loja e nos outros produtos associados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex-row justify-end gap-2 pt-4 border-t border-border/50">
+            <button
+              type="button"
+              onClick={() => setUnlinkGroupTarget(null)}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmUnlinkGroup}
+              className="px-5 py-2 rounded-xl bg-amber-600 text-white text-xs font-black uppercase tracking-wider hover:bg-amber-700 shadow-sm"
+            >
+              Remover deste produto
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================================================== */}
+      {/* DIÁLOGO DE CONFIRMAÇÃO: EXCLUIR GRUPO DA LOJA */}
       {/* ==================================================== */}
       <Dialog open={!!deleteGroupTarget} onOpenChange={(open) => !open && setDeleteGroupTarget(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-background">
@@ -1628,10 +2130,10 @@ export function ProductOptionGroupsManager({
               <AlertTriangle className="h-6 w-6" />
             </div>
             <DialogTitle className="text-lg font-black text-foreground">
-              Excluir grupo?
+              Excluir grupo da loja?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Todas as opções cadastradas no grupo <strong>"{deleteGroupTarget?.name}"</strong> também serão removidas.
+              Esta ação apagará o grupo <strong>"{deleteGroupTarget?.name}"</strong> e todas as suas opções permanentemente da sua loja. Só é permitida se nenhum produto estiver utilizando este grupo.
             </DialogDescription>
           </DialogHeader>
 
@@ -1648,7 +2150,7 @@ export function ProductOptionGroupsManager({
               onClick={handleConfirmDeleteGroup}
               className="px-5 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-black uppercase tracking-wider hover:opacity-90 shadow-sm"
             >
-              Excluir grupo
+              Excluir da loja
             </button>
           </DialogFooter>
         </DialogContent>

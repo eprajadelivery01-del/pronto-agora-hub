@@ -91,11 +91,54 @@ export default function BusinessProductsPage() {
     try {
       const { data: prods } = await supabase
         .from("products")
-        .select("*, product_option_groups(id, name, min_options, max_options, required, product_options(id, name, price, is_active))")
+        .select(`
+          *,
+          product_option_group_assignments (
+            group_id,
+            product_option_groups:group_id (
+              id, name, min_options, max_options, required,
+              product_options (id, name, price, is_active)
+            )
+          ),
+          product_option_groups (
+            id, name, min_options, max_options, required,
+            product_options (id, name, price, is_active)
+          )
+        `)
         .eq("company_id", cId)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
-      setProducts(prods || []);
+
+      const normalizedProds = (prods || []).map((p: any) => {
+        const groupsMap = new Map<string, any>();
+        if (p.product_option_group_assignments && Array.isArray(p.product_option_group_assignments)) {
+          for (const a of p.product_option_group_assignments) {
+            const g = a.product_option_groups;
+            if (g && g.id) {
+              groupsMap.set(g.id, {
+                ...g,
+                min_options: g.required ? (g.min_options ?? 1) : 0,
+              });
+            }
+          }
+        }
+        if (p.product_option_groups && Array.isArray(p.product_option_groups)) {
+          for (const g of p.product_option_groups) {
+            if (g && g.id && !groupsMap.has(g.id)) {
+              groupsMap.set(g.id, {
+                ...g,
+                min_options: g.required ? (g.min_options ?? 1) : 0,
+              });
+            }
+          }
+        }
+        return {
+          ...p,
+          product_option_groups: Array.from(groupsMap.values()),
+        };
+      });
+
+      setProducts(normalizedProds);
     } catch (err) {
       console.error("Erro ao carregar produtos:", err);
     } finally {
@@ -735,7 +778,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
       // Sincroniza grupos de adicionais e opções apenas se for um novo produto
       const isNewProduct = !product;
       if (savedProductId && isNewProduct) {
-        await saveProductOptionGroups(savedProductId, hasOptions, optionGroups, true);
+        await saveProductOptionGroups(savedProductId, hasOptions, optionGroups, true, companyId);
       }
 
       onSaved();
@@ -900,6 +943,7 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
               <div className="pt-4 border-t border-border/60">
                 <ProductOptionGroupsManager
                   productId={product?.id}
+                  companyId={companyId}
                   hasOptions={hasOptions}
                   onToggleHasOptions={setHasOptions}
                   groups={optionGroups}
