@@ -511,9 +511,17 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
         if (grps && grps.length > 0) {
           setHasOptions(true);
           setOptionGroups(grps);
+        } else {
+          setHasOptions(false);
+          setOptionGroups([]);
         }
         setLoadingOptions(false);
+      }).catch(() => {
+        setLoadingOptions(false);
       });
+    } else {
+      setHasOptions(false);
+      setOptionGroups([]);
     }
   }, [product?.id]);
 
@@ -809,11 +817,18 @@ function ProductForm({ companyId, product, categoryCount, existingCategories, on
 
                 {hasOptions && (
                   <div className="pt-2 animate-in fade-in duration-300">
-                    <ProductOptionGroupsManager
-                      productId={product?.id}
-                      groups={optionGroups}
-                      onChange={setOptionGroups}
-                    />
+                    {loadingOptions ? (
+                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground p-4 bg-muted/20 rounded-2xl border border-dashed border-border">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        Carregando adicionais deste produto...
+                      </div>
+                    ) : (
+                      <ProductOptionGroupsManager
+                        productId={product?.id}
+                        groups={optionGroups}
+                        onChange={setOptionGroups}
+                      />
+                    )}
                   </div>
                 )}
               </div>
