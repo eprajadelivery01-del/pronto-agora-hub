@@ -141,75 +141,126 @@ async function sendToToken(
   body: string,
   data: Record<string, string>,
 ): Promise<SendResult> {
-  const isDriverDelivery = data.type === "delivery";
-  const isMerchantOrder = Boolean(data.companyId || data.type === "new_order" || data.target === "merchant" || data.orderId || data.order_id);
-  const useOfficialSound = isDriverDelivery || isMerchantOrder;
-  const channelId = isDriverDelivery ? "delivery-incoming-v9" : (isMerchantOrder ? "lojista_orders_v2" : "marketplace_orders");
-  const soundName = useOfficialSound ? "notification_sound" : "default";
+  // Identificação explícita dos aplicativos:
+  // Marketplace → app: 'marketplace', bundleId: 'br.com.epraja.appFma'
+  // Lojista → app: 'lojista', bundleId: 'br.com.epraja.lojista'
+  // Entregador → app: 'entregador', bundleId: 'br.com.epraja.entregador'
+
+  const explicitApp = (data.app || data.target || "").toLowerCase();
+  const explicitBundle = data.bundleId;
+
+  let targetApp: "marketplace" | "lojista" | "entregador";
+  if (explicitApp === "entregador" || explicitApp === "driver" || data.type === "delivery") {
+    targetApp = "entregador";
+  } else if (explicitApp === "lojista" || explicitApp === "merchant" || explicitApp === "company" || data.type === "new_order" || Boolean(data.companyId)) {
+    targetApp = "lojista";
+  } else {
+    targetApp = "marketplace";
+  }
+
+  let defaultBundleId: string;
+  let defaultSound: string;
+  let channelId: string;
+
+  if (targetApp === "entregador") {
+    defaultBundleId = "br.com.epraja.entregador";
+    defaultSound = "notification_sound.mp3";
+    channelId = "delivery-incoming-v9";
+  } else if (targetApp === "lojista") {
+    defaultBundleId = "br.com.epraja.lojista";
+    defaultSound = "notification_sound.mp3";
+    channelId = "lojista_orders_v2";
+  } else {
+    defaultBundleId = "br.com.epraja.appFma";
+    defaultSound = "default";
+    channelId = "marketplace_orders";
+  }
+
+  const resolvedBundleId = explicitBundle || defaultBundleId;
+  const soundName = targetApp === "marketplace" ? "default" : "notification_sound";
+  const iosSound = defaultSound;
 
   let targetToken = token;
   const isApnsHex = /^[0-9a-fA-F]{64}$/.test(token.trim());
   if (isApnsHex) {
-    const bundleId = isDriverDelivery ? "br.com.epraja.entregador" : "br.com.epraja.lojista";
-    console.log(`[send-push:${reqId}] Token APNs bruto detectado (${token.slice(0, 10)}...). Convertendo via BatchImport para ${bundleId}...`);
-    for (const sandbox of [false, true]) {
-      try {
-        const importRes = await fetch("https://iid.googleapis.com/iid/v1:batchImport", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "access_token_auth": "true",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            application: bundleId,
-            sandbox: sandbox,
-            apns_tokens: [token.trim()]
-          })
-        });
-        const importData = await importRes.json();
-        const mapped = importData?.results?.[0];
-        if (mapped?.status === "OK" && mapped.registration_token) {
-          console.log(`[send-push:${reqId}] Token APNs convertido com sucesso para FCM token (sandbox=${sandbox}):`, mapped.registration_token.slice(0, 15) + "...");
-          targetToken = mapped.registration_token;
-          break;
+    const candidateBundles = [
+      resolvedBundleId,
+      "br.com.epraja.appFma",
+      "br.com.epraja.lojista",
+      "br.com.epraja.entregador"
+    ].filter((val, idx, self) => self.indexOf(val) === idx);
+
+    console.log(`[send-push:${reqId}] Token APNs bruto detectado (${token.slice(0, 10)}...). Testando conversão via BatchImport para [${candidateBundles.join(", ")}]...`);
+    let converted = false;
+    for (const bId of candidateBundles) {
+      for (const sandbox of [false, true]) {
+        try {
+          const importRes = await fetch("https://iid.googleapis.com/iid/v1:batchImport", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "access_token_auth": "true",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              application: bId,
+              sandbox: sandbox,
+              apns_tokens: [token.trim()]
+            })
+          });
+          const importData = await importRes.json();
+          const mapped = importData?.results?.[0];
+          if (mapped?.status === "OK" && mapped.registration_token) {
+            console.log(`[send-push:${reqId}] Token APNs convertido com sucesso para FCM token via ${bId} (sandbox=${sandbox}):`, mapped.registration_token.slice(0, 15) + "...");
+            targetToken = mapped.registration_token;
+            converted = true;
+            break;
+          }
+        } catch (errImport) {
+          console.warn(`[send-push:${reqId}] Erro BatchImport ${bId} (sandbox=${sandbox}):`, errImport);
         }
-      } catch (errImport) {
-        console.warn(`[send-push:${reqId}] Erro BatchImport (sandbox=${sandbox}):`, errImport);
       }
+      if (converted) break;
     }
   }
   
   // Estrutura Padrão Profissional FCM HTTP v1: notification + data + android.priority HIGH + channel_id
-    const notifTag = data.deliveryId 
-      ? `delivery-${data.deliveryId}` 
-      : (data.orderId 
-          ? `order-${data.orderId}` 
-          : `mkt-${title.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}`);
+  const notifTag = data.deliveryId 
+    ? `delivery-${data.deliveryId}` 
+    : (data.orderId 
+        ? `order-${data.orderId}` 
+        : `mkt-${title.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}`);
 
-    const payload: any = {
-      message: {
-        token: targetToken,
-        notification: { title, body },
-        data,
-        android: {
-          priority: "HIGH",
-          collapse_key: notifTag,
-          notification: {
-            channel_id: channelId,
-            sound: soundName,
-            default_vibrate_timings: true,
-            notification_priority: "PRIORITY_MAX",
-            visibility: "PUBLIC",
-            tag: notifTag,
-          },
+  const payload: any = {
+    message: {
+      token: targetToken,
+      notification: { title, body },
+      data: {
+        ...data,
+        app: targetApp,
+        bundleId: resolvedBundleId,
+      },
+      android: {
+        priority: "HIGH",
+        collapse_key: notifTag,
+        notification: {
+          channel_id: channelId,
+          sound: soundName,
+          default_vibrate_timings: true,
+          notification_priority: "PRIORITY_MAX",
+          visibility: "PUBLIC",
+          tag: notifTag,
         },
+      },
       apns: {
-        headers: { "apns-priority": "10", "apns-push-type": "alert" },
+        headers: {
+          "apns-priority": "10",
+          "apns-push-type": "alert"
+        },
         payload: {
           aps: {
             alert: { title, body },
-            sound: useOfficialSound ? "notification_sound.mp3" : "default",
+            sound: iosSound,
             badge: 1,
             "content-available": 1,
             "mutable-content": 1
@@ -383,6 +434,17 @@ Deno.serve(async (req) => {
         outcome.companies = comp.error ? `erro: ${comp.error.message}` : "ok";
       }
 
+      // Vínculo com Entregador
+      const driverId = body.driverId ? String(body.driverId) : null;
+      const appType = body.app ? String(body.app).toLowerCase() : null;
+      if (driverId) {
+        const drv = await supabase.from("delivery_drivers").update({ fcm_token: fcmToken, updated_at: now }).eq("id", driverId);
+        outcome.delivery_drivers = drv.error ? `erro: ${drv.error.message}` : "ok";
+      } else if (userId && (appType === "entregador" || body.isDriver)) {
+        const drv = await supabase.from("delivery_drivers").update({ fcm_token: fcmToken, updated_at: now }).eq("user_id", userId);
+        outcome.delivery_drivers = drv.error ? `erro: ${drv.error.message}` : "ok";
+      }
+
       if (userId) {
         const p = await supabase.from("profiles").update({ fcm_token: fcmToken, updated_at: now }).eq("id", userId);
         outcome.profiles = p.error ? `erro: ${p.error.message}` : "ok";
@@ -435,6 +497,8 @@ Deno.serve(async (req) => {
       message = String(details).slice(0, 400);
 
       extra.type = "delivery";
+      extra.app = "entregador";
+      extra.bundleId = "br.com.epraja.entregador";
       extra.deliveryId = String(deliveryId);
       extra.orderId = String(rec.order_id || "");
       extra.route = `/driver?deliveryId=${deliveryId}`;
@@ -508,8 +572,9 @@ Deno.serve(async (req) => {
     if (body.status) extra.status = String(body.status);
     if (body.url) extra.url = String(body.url);
     if (body.route) extra.route = String(body.route);
-    if (!extra.route && extra.orderId) extra.route = `/marketplace/orders/${extra.orderId}`;
     extra.click_action = "FLUTTER_NOTIFICATION_CLICK";
+    extra.app = String(body.app || "marketplace");
+    extra.bundleId = String(body.bundleId || (extra.app === "lojista" ? "br.com.epraja.lojista" : extra.app === "entregador" ? "br.com.epraja.entregador" : "br.com.epraja.appFma"));
 
     console.log("[EXTRA_DATA]", extra);
 
@@ -560,6 +625,8 @@ Deno.serve(async (req) => {
         const orderNum = orderRecord?.order_number ? `#${orderRecord.order_number}` : (orderRecord?.id ? `#${String(orderRecord.id).slice(0, 5).toUpperCase()}` : "");
         message = `Você recebeu um novo pedido ${orderNum}! Toque para aceitar e começar a preparar.`;
         extra.type = "new_order";
+        extra.app = "lojista";
+        extra.bundleId = "br.com.epraja.lojista";
         extra.route = "/business/orders";
         extra.companyId = String(companyId);
 

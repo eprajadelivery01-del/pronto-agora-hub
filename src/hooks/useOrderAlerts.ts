@@ -113,6 +113,8 @@ export function useOrderAlerts() {
             userId: user?.id,
             companyId: companyId,
             platform: Capacitor.getPlatform(),
+            app: "lojista",
+            bundleId: "br.com.epraja.lojista",
           },
         });
       } catch (e) {
