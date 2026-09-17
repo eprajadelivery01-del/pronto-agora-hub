@@ -231,44 +231,90 @@ async function sendToToken(
         ? `order-${data.orderId}` 
         : `mkt-${title.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}`);
 
-  const payload: any = {
-    message: {
-      token: targetToken,
-      notification: { title, body },
-      data: {
-        ...data,
-        app: targetApp,
-        bundleId: resolvedBundleId,
-      },
-      android: {
-        priority: "HIGH",
-        collapse_key: notifTag,
-        notification: {
-          channel_id: channelId,
-          sound: soundName,
-          default_vibrate_timings: true,
-          notification_priority: "PRIORITY_MAX",
-          visibility: "PUBLIC",
-          tag: notifTag,
+  const isDriverDelivery = targetApp === "entregador" && (data.type === "delivery" || data.eventType === "delivery_available" || Boolean(data.deliveryId));
+
+  let payload: any;
+  if (isDriverDelivery) {
+    // ── NOVA CORRIDA PARA ENTREGADOR: HIGH-PRIORITY DATA-ONLY PAYLOAD ──
+    // Para que o Android execute MyFirebaseMessagingService.onMessageReceived()
+    // em segundo plano (background / tela apagada), o FCM NÃO pode conter o bloco
+    // "notification" no nível raiz para Android. Caso contrário, o Google Play Services
+    // intercepta o push e o exibe apenas na barra de notificações sem acionar o código Java.
+    // O MyFirebaseMessagingService já cria a notificação nativa com ações (ACEITAR/RECUSAR)
+    // e som oficial (notification_sound.mp3), e aciona o OverlayService para abrir o CARD BRANCO.
+    payload = {
+      message: {
+        token: targetToken,
+        data: {
+          ...data,
+          title,
+          body,
+          message: body,
+          app: "entregador",
+          bundleId: "br.com.epraja.entregador",
+        },
+        android: {
+          priority: "HIGH",
+          collapse_key: notifTag,
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert"
+          },
+          payload: {
+            aps: {
+              alert: { title, body },
+              sound: iosSound,
+              badge: 1,
+              "content-available": 1,
+              "mutable-content": 1
+            }
+          },
         },
       },
-      apns: {
-        headers: {
-          "apns-priority": "10",
-          "apns-push-type": "alert"
+    };
+  } else {
+    // ── DEMAIS NOTIFICAÇÕES (MARKETPLACE, LOJISTA, MARKETING, STATUS DE PEDIDO) ──
+    payload = {
+      message: {
+        token: targetToken,
+        notification: { title, body },
+        data: {
+          ...data,
+          app: targetApp,
+          bundleId: resolvedBundleId,
         },
-        payload: {
-          aps: {
-            alert: { title, body },
-            sound: iosSound,
-            badge: 1,
-            "content-available": 1,
-            "mutable-content": 1
-          }
+        android: {
+          priority: "HIGH",
+          collapse_key: notifTag,
+          notification: {
+            channel_id: channelId,
+            sound: soundName,
+            default_vibrate_timings: true,
+            notification_priority: "PRIORITY_MAX",
+            visibility: "PUBLIC",
+            tag: notifTag,
+          },
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert"
+          },
+          payload: {
+            aps: {
+              alert: { title, body },
+              sound: iosSound,
+              badge: 1,
+              "content-available": 1,
+              "mutable-content": 1
+            }
+          },
         },
       },
-    },
-  };
+    };
+  }
 
   let last: SendResult = { ok: false, status: 0, attempts: 0, token };
 
@@ -485,37 +531,67 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── DETECÇÃO DE TRIGGER DE DELIVERY (webhook do Postgres)
-    // Quando body.table === "deliveries" e body.type === "INSERT", significa que uma nova
-    // entrega foi criada e precisamos notificar TODOS os entregadores ONLINE via FCM.
-    const isDeliveryTrigger = (body.table === "deliveries" || body.schema === "public") &&
-      (body.type === "INSERT" || body.type === "UPDATE") && body.record;
+    // ── DETECÇÃO DE TRIGGER DE DELIVERY (webhook do Postgres ou disparo direto)
+    // Quando uma nova entrega é criada ou disponibilizada para entregadores
+    const isDeliveryTrigger = (
+      body.table === "deliveries" ||
+      body.table === "available_deliveries" ||
+      body.type === "delivery" ||
+      body.type === "new_delivery" ||
+      body.eventType === "delivery_available"
+    ) && (body.record || body.deliveryId || body.id);
 
     let title: string;
     let message: string;
     const extra: Record<string, string> = {};
 
     if (isDeliveryTrigger) {
-      const rec = body.record;
-      const storeName = rec.store_name || rec.company_name || "É Pra Já Delivery";
+      const rec = body.record || body;
+      const storeName = rec.store_name || rec.company_name || rec.storeName || "É Pra Já Delivery";
       const details = rec.details || rec.address || "Nova corrida disponível!";
-      const deliveryId = rec.id || "";
+      const deliveryId = rec.id || rec.deliveryId || rec.delivery_id || "";
+      const companyId = rec.company_id || rec.companyId || "";
+      const pickup = rec.pickup_address || rec.origin_address || rec.store_address || rec.pickup || "Retirada na Loja";
+      const dropoff = rec.delivery_address || rec.dropoff_address || rec.customer_address || rec.dropoff || rec.address || "Endereço do cliente";
+      const rawFee = rec.delivery_fee ?? rec.price ?? rec.value ?? rec.commission ?? rec.driver_fee ?? rec.earnings ?? rec.fee ?? "";
+      const feeFormatted = (rawFee !== "" && rawFee !== null && rawFee !== undefined)
+        ? (typeof rawFee === "number" || (!isNaN(Number(rawFee)) && Number(rawFee) > 0)
+            ? `R$ ${Number(rawFee).toFixed(2).replace(".", ",")}`
+            : String(rawFee))
+        : "";
 
       title = `🏬 ${storeName}`;
       message = String(details).slice(0, 400);
 
+      // Contrato de campos esperados pelo speed-squad (MyFirebaseMessagingService e OverlayService)
       extra.type = "delivery";
+      extra.eventType = "delivery_available";
       extra.app = "entregador";
       extra.bundleId = "br.com.epraja.entregador";
       extra.deliveryId = String(deliveryId);
-      extra.orderId = String(rec.order_id || "");
-      extra.route = `/driver?deliveryId=${deliveryId}`;
+      extra.delivery_id = String(deliveryId);
+      extra.id = String(deliveryId);
+      extra.orderId = String(rec.order_id || rec.orderId || "");
+      extra.order_id = String(rec.order_id || rec.orderId || "");
+      extra.companyId = String(companyId);
+      extra.company_id = String(companyId);
       extra.storeName = String(storeName);
-      extra.pickup = String(rec.pickup_address || rec.origin_address || "Retirada na Loja");
-      extra.dropoff = String(rec.delivery_address || rec.dropoff_address || "Endereço do cliente");
-      extra.fee = rec.delivery_fee ? `R$ ${Number(rec.delivery_fee).toFixed(2).replace(".", ",")}` : "";
+      extra.store_name = String(storeName);
+      extra.pickup = String(pickup);
+      extra.pickupAddress = String(pickup);
+      extra.pickup_address = String(pickup);
+      extra.dropoff = String(dropoff);
+      extra.deliveryAddress = String(dropoff);
+      extra.delivery_address = String(dropoff);
+      extra.fee = feeFormatted;
+      extra.earnings = feeFormatted;
+      extra.delivery_fee = feeFormatted;
       extra.address = String(details);
       extra.details = String(details);
+      extra.title = title;
+      extra.body = message;
+      extra.message = message;
+      extra.route = `/driver?deliveryId=${deliveryId}`;
 
       console.log(`[send-push:${reqId}] DELIVERY TRIGGER detectado — deliveryId=${deliveryId} storeName=${storeName}`);
 
