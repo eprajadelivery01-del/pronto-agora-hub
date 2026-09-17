@@ -24,14 +24,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle('dark', theme === 'dark');
     root.classList.toggle('light', theme === 'light');
-    // Dynamic HTML Meta Theme-Color
+    // Dynamic HTML Meta Theme-Color: Sempre #0D0D0D oficial
     let metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (!metaThemeColor) {
       metaThemeColor = document.createElement('meta');
       metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
-    metaThemeColor.setAttribute('content', theme === 'dark' ? '#0D0D0D' : '#FFFFFF');
+    metaThemeColor.setAttribute('content', '#0D0D0D');
 
     let metaStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (!metaStatusBar) {
@@ -39,17 +39,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       metaStatusBar.setAttribute('name', 'apple-mobile-web-app-status-bar-style');
       document.head.appendChild(metaStatusBar);
     }
-    metaStatusBar.setAttribute('content', theme === 'dark' ? 'black-translucent' : 'default');
+    metaStatusBar.setAttribute('content', 'black-translucent');
 
     if (Capacitor.isNativePlatform()) {
       StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
-      if (theme === 'dark') {
-        StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-        StatusBar.setBackgroundColor({ color: '#0D0D0D' }).catch(() => {});
-      } else {
-        StatusBar.setStyle({ style: Style.Light }).catch(() => {});
-        StatusBar.setBackgroundColor({ color: '#FFFFFF' }).catch(() => {});
-      }
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#0D0D0D' }).catch(() => {});
     }
   }, [theme]);
 
