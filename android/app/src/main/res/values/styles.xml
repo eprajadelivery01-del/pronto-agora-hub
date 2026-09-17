@@ -15,7 +15,9 @@
         <item name="android:background">#0D0D0D</item>
         <item name="android:windowBackground">#0D0D0D</item>
         <item name="android:statusBarColor">#0D0D0D</item>
+        <item name="android:navigationBarColor">#0D0D0D</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:enforceStatusBarContrast">false</item>
         <item name="android:enforceNavigationBarContrast">false</item>
     </style>
@@ -25,6 +27,8 @@
         <item name="android:windowBackground">#0D0D0D</item>
         <item name="windowSplashScreenBackground">#0D0D0D</item>
         <item name="android:statusBarColor">#0D0D0D</item>
+        <item name="android:navigationBarColor">#0D0D0D</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>
