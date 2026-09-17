@@ -353,6 +353,25 @@ export default function BusinessProfilePage() {
     }
   };
 
+  const handleToggleStoreStatus = async () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    window.dispatchEvent(new CustomEvent('store-status-changed', { detail: { isOpen: next } }));
+    if (companyId) {
+      try {
+        const { error } = await (supabase as any)
+          .from("companies")
+          .update({ is_open: next })
+          .eq("id", companyId);
+        if (error) throw error;
+        toast.success(next ? "Loja aberta no Marketplace!" : "Loja fechada no Marketplace!");
+      } catch (err: any) {
+        setIsOpen(!next);
+        toast.error("Erro ao atualizar status: " + err.message);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <BusinessLayout title="Perfil">
@@ -439,12 +458,24 @@ export default function BusinessProfilePage() {
                      <h2 className="text-3xl font-black text-foreground tracking-tight">
                         {storeName || "Minha Loja"}
                      </h2>
-                     <div className="flex items-center gap-2 mt-1">
+                     <div className="flex flex-wrap items-center gap-3 mt-2">
                         <div className={cn("h-2.5 w-2.5 rounded-full", (isOpen && isStoreOpenBySchedule(workingDays)) ? "bg-green-500 animate-pulse" : "bg-red-500")} />
                         <span className={cn("text-[11px] font-black uppercase tracking-widest", (isOpen && isStoreOpenBySchedule(workingDays)) ? "text-green-600" : "text-red-600")}>
                            {(isOpen && isStoreOpenBySchedule(workingDays)) ? "Sua Loja está aberta" : (isOpen ? "Sua Loja está fora do horário" : "Sua Loja está fechada")}
                         </span>
-                      </div>
+                        <button
+                          type="button"
+                          onClick={handleToggleStoreStatus}
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm transition-all active:scale-95 cursor-pointer",
+                            isOpen
+                              ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-100"
+                              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100"
+                          )}
+                        >
+                          {isOpen ? "Fechar Loja Manualmente" : "Abrir Loja Manualmente"}
+                        </button>
+                     </div>
                   </div>
                   <div className="flex gap-3">
                      <button 
@@ -490,6 +521,7 @@ export default function BusinessProfilePage() {
                               className="w-full px-5 py-3.5 rounded-2xl border border-border bg-background focus:ring-4 focus:ring-primary/5 transition-all outline-none font-bold appearance-none cursor-pointer"
                            >
                               <option value="restaurante">Restaurante</option>
+                              <option value="lanches">Lanches / Hamburgueria</option>
                               <option value="mercado">Mercado / Mercearia</option>
                               <option value="farmacia">Farmácia / Drogaria</option>
                               <option value="petiscaria">Petiscaria</option>
