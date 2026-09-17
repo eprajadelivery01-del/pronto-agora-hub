@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" translate="no">
+<html lang="pt-BR" translate="no" class="dark" style="background-color: #0D0D0D;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=0" />
@@ -18,6 +18,8 @@
     <meta name="twitter:image" content="/logo.png?v=7">
     
     <link rel="icon" type="image/png" href="/favicon.png?v=7">
+    <meta name="theme-color" content="#0D0D0D">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <script>
       // Polyfill precoce para crypto.randomUUID (compatibilidade com Android 11 e WebViews antigas)
@@ -47,7 +49,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: white;
+        background-color: #0D0D0D;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -107,7 +109,6 @@
         color: #374151;
       }
     </style>
-    <meta name="theme-color" content="#FF7A00">
     <link rel="manifest" href="/manifest.json">
   
   
@@ -117,19 +118,19 @@
   <meta name="twitter:title" content="&Eacute; Pra J&aacute; - Lojista">
   <meta property="og:description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
   <meta name="twitter:description" content="&Eacute; Pra J&aacute; Delivery - O Painel de Gestão Completo para o seu Negócio.">
-  <script type="module" crossorigin src="/assets/index-BzsAm63W.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Ddyewtj1.css">
+  <script type="module" crossorigin src="/assets/index-DUpiT9sV.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-nj-oPa3h.css">
 </head>
 
-  <body>
+  <body style="background-color: #0D0D0D; margin: 0;">
     <div id="root"></div>
     <div id="splash-screen">
       <img src="/logo.png?v=7" alt="&Eacute; Pra J&aacute;" class="splash-logo" style="border-radius: 20px;">
-      <div class="splash-spinner" style="width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #F97316; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-      <p class="splash-loading-text" style="margin-top: 20px; font-family: sans-serif; font-weight: bold; color: #666; font-size: 14px; letter-spacing: 2px;">CARREGANDO</p>
-      <div class="splash-fallback">
-        <p style="margin: 0 0 4px; color: #111827; font-size: 15px; font-weight: 800;">Falha ao abrir o painel</p>
-        <p style="margin: 0; color: #6B7280; font-size: 12px; line-height: 1.4;">Isso geralmente é cache antigo ou sessão expirada neste aparelho.</p>
+      <div class="splash-spinner" style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #F97316; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p class="splash-loading-text" style="margin-top: 20px; font-family: sans-serif; font-weight: bold; color: #9CA3AF; font-size: 14px; letter-spacing: 2px;">CARREGANDO</p>
+      <div class="splash-fallback" style="background: #18181B; padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+        <p style="margin: 0 0 4px; color: #F9FAFB; font-size: 15px; font-weight: 800;">Falha ao abrir o painel</p>
+        <p style="margin: 0; color: #9CA3AF; font-size: 12px; line-height: 1.4;">Isso geralmente é cache antigo ou sessão expirada neste aparelho.</p>
         <button type="button" class="splash-reload-btn" onclick="window.location.reload()">Recarregar</button>
         <button type="button" class="splash-clear-btn" onclick="window.__EPJ_CLEAR_AND_RELOAD__ && window.__EPJ_CLEAR_AND_RELOAD__()">Limpar sessão e entrar</button>
       </div>
