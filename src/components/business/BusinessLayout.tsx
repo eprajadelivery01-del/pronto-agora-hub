@@ -241,54 +241,6 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
           </button>
         </div>
 
-        {/* Store Status Toggle in Sidebar */}
-        {!collapsed ? (
-          <div className="px-4 py-3 border-b border-border/50">
-            <button
-              onClick={toggleStoreStatus}
-              disabled={updatingStatus}
-              className={cn(
-                "w-full flex items-center justify-between p-3 rounded-2xl border transition-all active:scale-[0.98] shadow-sm cursor-pointer",
-                isOpen
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15"
-                  : "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400 hover:bg-rose-500/15"
-              )}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className={cn("w-3 h-3 rounded-full shrink-0", isOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
-                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground leading-none mb-1">Status no Marketplace</p>
-                  <p className="text-xs font-black uppercase tracking-wide leading-none">
-                    {updatingStatus ? "Atualizando..." : (isOpen ? "Loja Aberta" : "Loja Fechada")}
-                  </p>
-                </div>
-              </div>
-              <span className={cn(
-                "text-[10px] font-black uppercase px-2.5 py-1 rounded-xl shadow-xs text-white",
-                isOpen ? "bg-emerald-600" : "bg-rose-600"
-              )}>
-                {isOpen ? "Fechar" : "Abrir"}
-              </span>
-            </button>
-          </div>
-        ) : (
-          <div className="p-2 border-b border-border/50 flex justify-center">
-            <button
-              onClick={toggleStoreStatus}
-              disabled={updatingStatus}
-              title={isOpen ? "Loja Aberta (Clique para fechar)" : "Loja Fechada (Clique para abrir)"}
-              className={cn(
-                "w-10 h-10 rounded-2xl border flex items-center justify-center transition-all shadow-sm active:scale-95 cursor-pointer",
-                isOpen
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600"
-                  : "bg-rose-500/10 border-rose-500/30 text-rose-600"
-              )}
-            >
-              <div className={cn("w-3 h-3 rounded-full", isOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
-            </button>
-          </div>
-        )}
-
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
           {categories.map((category) => {
