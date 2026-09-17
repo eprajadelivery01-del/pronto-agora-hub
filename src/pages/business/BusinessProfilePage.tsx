@@ -84,7 +84,8 @@ export default function BusinessProfilePage() {
   const [category, setCategory] = useState("restaurante");
   const [deliveryFee, setDeliveryFee] = useState("0.00");
   const [adminDeliveryFee, setAdminDeliveryFee] = useState<number | null>(null);
-  const [prepTime, setPrepTime] = useState("30");
+  const [prepTimeMin, setPrepTimeMin] = useState("25");
+  const [prepTimeMax, setPrepTimeMax] = useState("45");
   const [isOpen, setIsOpen] = useState(true);
   const [showInMarketplace, setShowInMarketplace] = useState(false);
   const [businessHours, setBusinessHours] = useState("");
@@ -159,7 +160,10 @@ export default function BusinessProfilePage() {
         setShowInMarketplace(company.show_in_marketplace ?? false);
         setDeliveryFee(company.delivery_fee?.toString() || "0.00");
         setAdminDeliveryFee(company.admin_delivery_fee || null);
-        setPrepTime(company.prep_time?.toString() || "30");
+        const minVal = company.prep_time_min != null ? company.prep_time_min : (company.prep_time != null ? company.prep_time : 25);
+        const maxVal = company.prep_time_max != null ? company.prep_time_max : (company.prep_time != null ? company.prep_time : 45);
+        setPrepTimeMin(minVal.toString());
+        setPrepTimeMax(maxVal.toString());
         setBusinessHours(company.business_hours || "");
         setGallery(normalizeGallery(company.gallery));
         setWorkingDays(normalizeWorkingDays(company.business_hours));
@@ -317,6 +321,24 @@ export default function BusinessProfilePage() {
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
+    const minVal = parseInt(prepTimeMin, 10);
+    const maxVal = parseInt(prepTimeMax, 10);
+
+    if (isNaN(minVal) || isNaN(maxVal) || minVal <= 0 || maxVal <= 0) {
+      toast.error("O tempo mínimo e máximo de entrega devem ser números inteiros maiores que zero.");
+      return;
+    }
+
+    if (minVal > maxVal) {
+      toast.error("O tempo mínimo não pode ser maior que o tempo máximo.");
+      return;
+    }
+
+    if (maxVal > 300) {
+      toast.error("O tempo máximo de entrega não pode ultrapassar 300 minutos (5 horas).");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -332,7 +354,9 @@ export default function BusinessProfilePage() {
           cover_url: coverUrl,
           category: category,
           delivery_fee: parseFloat(deliveryFee.replace(',', '.')),
-          prep_time: parseInt(prepTime, 10) || 0,
+          prep_time: minVal,
+          prep_time_min: minVal,
+          prep_time_max: maxVal,
           business_hours: hoursJson,
           gallery: gallery,
           delivery_regions_pricing: deliveryRegionsPricing,
@@ -564,25 +588,64 @@ export default function BusinessProfilePage() {
                             </div>
                          </div>
 
-                         {/* PREP TIME */}
-                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Tempo de Preparo dos Pedidos</label>
-                            <div className="relative">
-                               <Clock3 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                               <input
-                                  type="number"
-                                  min={0}
-                                  value={prepTime}
-                                  onChange={(e) => setPrepTime(e.target.value)}
-                                  className="w-full pl-11 pr-16 py-3.5 rounded-2xl border border-border bg-background outline-none font-bold"
-                                  placeholder="30"
-                               />
-                               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">min</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground ml-1">
-                              Tempo médio para preparar. Exibido aos clientes.
-                            </p>
-                         </div>
+                         {/* TEMPO DE PREPARO E ENVIO */}
+                          <div className="space-y-3 p-4 bg-muted/20 rounded-2xl border border-border/50">
+                             <div>
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground">
+                                   <Clock3 className="h-3.5 w-3.5 text-primary" /> Tempo de Preparo e Envio
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                   Defina quanto tempo sua loja normalmente leva para preparar e enviar um pedido.
+                                </p>
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-3 pt-1">
+                                <div className="space-y-1.5">
+                                   <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Tempo mínimo</label>
+                                   <div className="relative">
+                                      <input
+                                         type="number"
+                                         min={1}
+                                         max={300}
+                                         value={prepTimeMin}
+                                         onChange={(e) => setPrepTimeMin(e.target.value)}
+                                         className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-border bg-background outline-none font-black text-sm"
+                                         placeholder="25"
+                                      />
+                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted-foreground">min</span>
+                                   </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                   <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Tempo máximo</label>
+                                   <div className="relative">
+                                      <input
+                                         type="number"
+                                         min={1}
+                                         max={300}
+                                         value={prepTimeMax}
+                                         onChange={(e) => setPrepTimeMax(e.target.value)}
+                                         className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-border bg-background outline-none font-black text-sm"
+                                         placeholder="45"
+                                      />
+                                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted-foreground">min</span>
+                                   </div>
+                                </div>
+                             </div>
+
+                             <div className="flex items-center justify-between rounded-xl bg-background/80 border border-border/40 px-3 py-2 text-xs">
+                                <span className="text-muted-foreground font-medium">Os clientes verão:</span>
+                                <span className="font-black text-primary">
+                                   {(() => {
+                                      const min = parseInt(prepTimeMin, 10);
+                                      const max = parseInt(prepTimeMax, 10);
+                                      if (isNaN(min) || isNaN(max) || min <= 0 || max <= 0) return "25–45 min";
+                                      if (min === max) return `${min} min`;
+                                      return `${min}–${max} min`;
+                                   })()}
+                                </span>
+                             </div>
+                          </div>
 
                          {/* Toggle Unificado: Loja Ativa */}
                          <button
