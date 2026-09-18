@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || "8822944243:AAE1dZ0GhBzvnDZRoIw4w9kjv5mRM3oyuWk";
-const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID') || "538563060";
+const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID') || "-5164097344";
 
 const TARGETS = [
   { name: "Marketplace (Cliente)", url: "https://eprajadelivery.com/marketplace" },
