@@ -398,7 +398,24 @@ export default function OrderDetailModal({
                 </button>
                 <div className="flex flex-col text-left">
                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
-                   <p className="text-2xl font-black text-primary italic leading-none mt-0.5">R$ {((items?.reduce((acc, curr) => acc + ((curr.price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace('.', ',')}</p>
+                   {(() => {
+                     const itemsSub = items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
+                     const delFee = Number(order.delivery_fee) || 0;
+                     const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
+                     const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
+                     return (
+                       <div>
+                         <p className="text-2xl font-black text-primary italic leading-none mt-0.5">
+                           R$ {ordTotal.toFixed(2).replace('.', ',')}
+                         </p>
+                         {disc > 0 && (
+                           <p className="text-[10px] font-bold text-muted-foreground mt-0.5">
+                             (Subtotal R$ {itemsSub.toFixed(2).replace('.', ',')} + Frete R$ {delFee.toFixed(2).replace('.', ',')} - Cupom R$ {disc.toFixed(2).replace('.', ',')})
+                           </p>
+                         )}
+                       </div>
+                     );
+                   })()}
                 </div>
               </div>
 
@@ -506,9 +523,22 @@ export default function OrderDetailModal({
              </div>
           )}
 
-          <div className="text-right border-b border-black pb-2 mb-2 border-dashed">
-             <p className="font-bold text-lg m-0 p-0">TOTAL: R$ {((items?.reduce((acc, curr) => acc + ((curr.price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)).toFixed(2).replace('.', ',')}</p>
-          </div>
+           <div className="text-right border-b border-black pb-2 mb-2 border-dashed space-y-0.5">
+              {(() => {
+                const itemsSub = items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
+                const delFee = Number(order.delivery_fee) || 0;
+                const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
+                const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
+                return (
+                  <>
+                    <p className="text-xs m-0 p-0">SUBTOTAL: R$ {itemsSub.toFixed(2).replace('.', ',')}</p>
+                    <p className="text-xs m-0 p-0">TAXA ENTREGA: R$ {delFee.toFixed(2).replace('.', ',')}</p>
+                    {disc > 0 && <p className="text-xs m-0 p-0">DESCONTO CUPOM: - R$ {disc.toFixed(2).replace('.', ',')}</p>}
+                    <p className="font-bold text-lg m-0 p-0 pt-1">TOTAL: R$ {ordTotal.toFixed(2).replace('.', ',')}</p>
+                  </>
+                );
+              })()}
+           </div>
 
           <div className="text-center pt-2 pb-4">
             <p className="text-xs font-bold uppercase">OBRIGADO PELA PREFERÊNCIA!</p>
