@@ -684,7 +684,7 @@ Deno.serve(async (req) => {
           .from("device_tokens")
           .select("token")
           .eq("user_id", userId)
-          .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma")
+          .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma,app.is.null")
           .is("disabled_at", null);
         collect(devUser as any[], "token");
 
