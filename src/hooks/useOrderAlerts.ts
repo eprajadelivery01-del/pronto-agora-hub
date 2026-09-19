@@ -87,6 +87,17 @@ export function useOrderAlerts() {
         }
       }
 
+      const app = "lojista";
+      const bundle_id = "br.com.epraja.lojista";
+      const platform = Capacitor.getPlatform();
+
+      console.log("[PUSH REGISTER]", {
+        platform,
+        app,
+        bundle_id,
+        hasToken: !!token.value,
+      });
+
       // 3. Registra na tabela device_tokens com identidade explícita do Lojista
       try {
         await supabase
@@ -95,9 +106,9 @@ export function useOrderAlerts() {
             {
               token: token.value,
               user_id: user?.id || null,
-              platform: Capacitor.getPlatform(),
-              app: "lojista",
-              bundle_id: "br.com.epraja.lojista",
+              platform,
+              app,
+              bundle_id,
               updated_at: new Date().toISOString(),
             } as any,
             { onConflict: "token" }
@@ -106,7 +117,7 @@ export function useOrderAlerts() {
         console.warn("[Push] Falha ao persistir em device_tokens:", e);
       }
 
-      // 4. Registra via Edge Function send-push (para garantir sincronização no backend)
+      // 4. Registra via Edge Function send-push (para garantir sincronização no backend com service role)
       try {
         await supabase.functions.invoke("send-push", {
           body: {
@@ -114,14 +125,36 @@ export function useOrderAlerts() {
             token: token.value,
             userId: user?.id,
             companyId: companyId,
-            platform: Capacitor.getPlatform(),
-            app: "lojista",
-            bundleId: "br.com.epraja.lojista",
+            platform,
+            app,
+            bundleId: bundle_id,
           },
         });
       } catch (e) {
         console.warn("[Push] Falha ao chamar edge function register_token:", e);
       }
+
+      // 5. Verificação pós-upsert para auditoria e confirmação da gravação
+      try {
+        const { data: checkData } = await supabase
+          .from("device_tokens" as any)
+          .select("id, user_id, platform, app, bundle_id, disabled_at, created_at, updated_at")
+          .eq("token", token.value)
+          .maybeSingle();
+
+        if (checkData) {
+          console.log("[PUSH REGISTER VERIFIED]", {
+            id: checkData.id,
+            user_id: checkData.user_id,
+            platform: checkData.platform,
+            app: checkData.app,
+            bundle_id: checkData.bundle_id,
+            disabled_at: checkData.disabled_at,
+            updated_at: checkData.updated_at,
+            hasToken: true,
+          });
+        }
+      } catch (e) {}
     }).then(listener => { regListener = listener; });
 
     PushNotifications.addListener("registrationError", (error: any) => {
