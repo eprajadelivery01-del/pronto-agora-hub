@@ -450,69 +450,65 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
         {/* Header */}
         <header 
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.85rem)' }}
-          className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-6 pb-4 flex items-center justify-between gap-4 relative z-30"
+          className="flex-none bg-background/80 backdrop-blur-xl border-b border-border px-3 sm:px-6 pb-3 sm:pb-4 flex items-center justify-between gap-2 sm:gap-4 relative z-30"
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button
-              className="lg:hidden p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors"
+              className="lg:hidden p-2 rounded-xl sm:rounded-2xl bg-muted/50 hover:bg-muted transition-colors shrink-0"
               onClick={() => setSidebarOpen(true)}
             >
-              <Menu className="h-6 w-6 text-foreground" />
+              <Menu className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
             </button>
-            <h1 className="text-xl font-display font-black text-foreground tracking-tight flex items-center gap-3">
-              <span className="hidden sm:inline w-1 h-6 bg-primary rounded-full" />
-              {title || "Painel Lojista"}
+            <h1 className="text-sm sm:text-xl font-display font-black text-foreground tracking-tight flex items-center gap-2 sm:gap-3 truncate">
+              <span className="hidden sm:inline w-1 h-6 bg-primary rounded-full shrink-0" />
+              <span className="truncate">{title || "Painel Lojista"}</span>
             </h1>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Status Button - Visible on all screens */}
-            <div className="flex items-center mr-1">
-              <button 
-                onClick={toggleStoreStatus}
-                disabled={updatingStatus}
-                className={cn(
-                  "px-3 py-1.5 md:px-4 md:py-2 rounded-2xl border text-[10px] md:text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer",
-                  isOpen 
-                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/60" 
-                    : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/60"
-                )}
-                title={isOpen ? "Loja aberta no Marketplace. Clique para fechar." : "Loja fechada no Marketplace. Clique para abrir."}
-              >
-                <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", isOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
-                <span>
-                  {updatingStatus ? "..." : (isOpen ? "Aberto" : "Fechado")}
-                </span>
-              </button>
-            </div>
+            <button 
+              onClick={toggleStoreStatus}
+              disabled={updatingStatus}
+              className={cn(
+                "px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl border text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0",
+                isOpen 
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/60" 
+                  : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/60"
+              )}
+              title={isOpen ? "Loja aberta no Marketplace. Clique para fechar." : "Loja fechada no Marketplace. Clique para abrir."}
+            >
+              <div className={cn("w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0", isOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+              <span>
+                {updatingStatus ? "..." : (isOpen ? "Aberto" : "Fechado")}
+              </span>
+            </button>
 
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              {/* Notifications */}
-              <Popover open={popoverOpen} onOpenChange={(open) => {
-                setPopoverOpen(open);
-                if (open) {
-                  marketingNotifs.forEach(m => markMarketingAsRead(m.id));
-                }
-              }}>
-                <PopoverTrigger asChild>
-                  <button className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all group">
-                    <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
-                    {(pendingOrders.length + marketingNotifs.filter(m => !m.read).length) > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse flex items-center justify-center text-[8px] text-white font-black">
-                        {(pendingOrders.length + marketingNotifs.filter(m => !m.read).length) > 9 ? '9+' : (pendingOrders.length + marketingNotifs.filter(m => !m.read).length)}
-                      </span>
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-84 md:w-96 p-0 mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden bg-background/95 backdrop-blur-xl" align="end">
-                  <div className="bg-primary/5 px-6 py-4 border-b border-border flex items-center justify-between">
-                    <h3 className="font-black text-sm uppercase tracking-widest text-primary">Notificações</h3>
-                    <span className="text-[10px] text-muted-foreground font-bold">
-                      {pendingOrders.length + marketingNotifs.length} no total
+            {/* Notifications Bell */}
+            <Popover open={popoverOpen} onOpenChange={(open) => {
+              setPopoverOpen(open);
+              if (open) {
+                marketingNotifs.forEach(m => markMarketingAsRead(m.id));
+              }
+            }}>
+              <PopoverTrigger asChild>
+                <button className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all shrink-0 group">
+                  <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-primary group-hover:animate-ring transition-transform" />
+                  {(pendingOrders.length + marketingNotifs.filter(m => !m.read).length) > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse flex items-center justify-center text-[8px] text-white font-black">
+                      {(pendingOrders.length + marketingNotifs.filter(m => !m.read).length) > 9 ? '9+' : (pendingOrders.length + marketingNotifs.filter(m => !m.read).length)}
                     </span>
-                  </div>
-                  <div className="max-h-[60vh] overflow-y-auto custom-scrollbar divide-y divide-border/50">
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-84 md:w-96 p-0 mr-2 sm:mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden bg-background/95 backdrop-blur-xl" align="end">
+                <div className="bg-primary/5 px-6 py-4 border-b border-border flex items-center justify-between">
+                  <h3 className="font-black text-sm uppercase tracking-widest text-primary">Notificações</h3>
+                  <span className="text-[10px] text-muted-foreground font-bold">
+                    {pendingOrders.length + marketingNotifs.length} no total
+                  </span>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar divide-y divide-border/50">
                     {(pendingOrders.length === 0 && marketingNotifs.length === 0) ? (
                       <div className="p-8 text-center flex flex-col items-center gap-3">
                         <Bell className="w-8 h-8 text-muted-foreground/30" />
@@ -557,115 +553,111 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
                                     </div>
                                   )}
 
-                                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{item.message}</p>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">{item.message}</p>
 
                                   {item.coupon_code && (
                                     <div 
-                                      className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center justify-between gap-2 mt-1.5"
+                                      className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center justify-between gap-2 mt-1" 
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       <div className="flex items-center gap-1.5 min-w-0">
                                         <Tag className="w-3.5 h-3.5 text-primary shrink-0" />
                                         <span className="font-mono font-black text-primary text-xs tracking-wider truncate">{item.coupon_code}</span>
                                       </div>
-                                      <button 
-                                        onClick={(e) => handleCopyCoupon(item.coupon_code, e)}
-                                        className="h-7 px-2.5 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shrink-0 flex items-center gap-1"
+                                      <Button 
+                                        size="sm" 
+                                        onClick={(e) => handleCopyCoupon(item.coupon_code!, e)} 
+                                        className="h-7 px-2.5 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shrink-0"
                                       >
                                         {copiedCoupon === item.coupon_code ? (
-                                          <><Check className="w-3 h-3" /> Copiado</>
+                                          <>
+                                            <Check className="w-3 h-3 mr-1" /> Copiado
+                                          </>
                                         ) : (
-                                          <><Copy className="w-3 h-3" /> Copiar</>
+                                          <>
+                                            <Copy className="w-3 h-3 mr-1" /> Copiar
+                                          </>
                                         )}
-                                      </button>
+                                      </Button>
                                     </div>
                                   )}
-
-                                  <div className="mt-1">
-                                    <Badge variant="secondary" className="text-[9px] font-bold bg-primary/10 text-primary border-primary/20">
-                                      📣 Comunicado Lojista
-                                    </Badge>
-                                  </div>
                                 </div>
                               );
                             }
 
-                            // Order notification
                             return (
-                              <div 
-                                key={item.id} 
-                                onClick={() => {
-                                  setSidebarOpen(false);
-                                  setPopoverOpen(false);
-                                  navigate('/business/orders');
-                                }} 
-                                className="p-4 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
+                              <Link
+                                key={item.id}
+                                to="/business/orders"
+                                onClick={() => setPopoverOpen(false)}
+                                className="p-4 hover:bg-muted/50 transition-colors flex items-start gap-3"
                               >
-                                <div className="flex items-center justify-between">
-                                  {item.notifType === 'delivery_cancelled' ? (
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-destructive bg-destructive/10 px-2 py-0.5 rounded-full animate-pulse">Motoboy Cancelou</span>
-                                  ) : (
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
-                                  )}
-                                  <span className="text-xs font-bold text-muted-foreground">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <div className="p-2 rounded-xl bg-primary/10 text-primary mt-0.5">
+                                  <Clock className="h-4 w-4" />
                                 </div>
-                                <p className="text-sm font-bold mt-1">Pedido #{item.id?.slice(-6).toUpperCase()}</p>
-                                <p className="text-xs text-muted-foreground truncate">{item.customer_name || 'Cliente Marketplace'}</p>
-                                {item.notifType === 'delivery_cancelled' ? (
-                                  <span className="text-xs text-destructive font-medium">Vá em "Novos Pedidos" para re-despachar.</span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground font-medium">R$ {Number(item.total || 0).toFixed(2).replace('.', ',')}</span>
-                                )}
-                              </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-black text-xs text-foreground">Novo Pedido #{item.id.slice(0, 8)}</span>
+                                    <span className="text-[10px] text-muted-foreground font-bold">
+                                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-0.5 font-bold">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total)}
+                                  </p>
+                                </div>
+                              </Link>
                             );
                           })}
                       </div>
                     )}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                </div>
+              </PopoverContent>
+            </Popover>
 
-              {/* Profile Dropdown */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="flex items-center gap-2 p-1 rounded-2xl hover:bg-muted transition-all group border border-transparent hover:border-border">
-                    <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
-                      {profile?.avatar_url ? (
-                        <img src={optimizeStorageImage(profile.avatar_url, { width: 96 })} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                      ) : (
-                        <User className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                    <div className="hidden sm:block text-left mr-1">
-                      <p className="text-[10px] font-black uppercase text-foreground leading-tight truncate max-w-[100px]">
-                        {companyData?.name || profile?.full_name || 'Lojista'}
-                      </p>
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2 mr-4 mt-2 rounded-[1.5rem] shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl" align="end">
-                  <div className="px-4 py-3 mb-2 border-b border-border/50">
-                    <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{companyData?.name || profile?.full_name || 'Lojista'}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground truncate">{user?.email}</p>
+            {/* Theme Toggle */}
+            <ThemeToggle className="h-9 w-9 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl shrink-0" />
+
+            {/* Profile Dropdown (Desktop / Tablet) */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="hidden sm:flex items-center gap-2 p-1 rounded-2xl hover:bg-muted transition-all group border border-transparent hover:border-border shrink-0">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                    {profile?.avatar_url ? (
+                      <img src={optimizeStorageImage(profile.avatar_url, { width: 96 })} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-4 w-4 text-primary" />
+                    )}
                   </div>
-                  <Link 
-                    to="/business/profile" 
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                  >
-                    <Settings className="h-4 w-4" />
-                    Configurações
-                  </Link>
-                  <button 
-                    onClick={signOut}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all mt-1"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sair do Painel
-                  </button>
-                </PopoverContent>
-              </Popover>
-            </div>
+                  <div className="text-left mr-1">
+                    <p className="text-[10px] font-black uppercase text-foreground leading-tight truncate max-w-[100px]">
+                      {companyData?.name || profile?.full_name || 'Lojista'}
+                    </p>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2 mr-4 mt-2 rounded-[1.5rem] shadow-2xl border-border/50 bg-background/95 backdrop-blur-xl" align="end">
+                <div className="px-4 py-3 mb-2 border-b border-border/50">
+                  <p className="text-xs font-black uppercase tracking-tight text-foreground truncate">{companyData?.name || profile?.full_name || 'Lojista'}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground truncate">{user?.email}</p>
+                </div>
+                <Link 
+                  to="/business/profile" 
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                >
+                  <Settings className="h-4 w-4" />
+                  Configurações
+                </Link>
+                <button 
+                  onClick={signOut}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all mt-1"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sair do Painel
+                </button>
+              </PopoverContent>
+            </Popover>
           </div>
         </header>
 
