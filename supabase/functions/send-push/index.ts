@@ -743,24 +743,17 @@ Deno.serve(async (req) => {
           // ── PÚBLICO: CLIENTES (MARKETPLACE - br.com.epraja.appFma) ──
           console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens exclusivos de 'customers' (Marketplace)...`);
 
-          // 3.1. Tokens legítimos de clientes na tabela customers
-          const { data: custTokens, error: errCust } = await supabase
-            .from("customers")
-            .select("fcm_token")
-            .not("fcm_token", "is", null);
-          if (errCust) console.error(`[send-push:${reqId}] customers query error: ${errCust.message}`);
-          (custTokens ?? []).forEach((c: any) => c?.fcm_token && targetTokens.add(String(c.fcm_token).trim()));
-
-          // 3.2. Tokens legítimos em device_tokens filtrados ESTRITAMENTE por app='marketplace' ou bundle_id='br.com.epraja.appFma'
+          // 3.1. Tokens em device_tokens filtrados ESTRITAMENTE com AND: app = 'marketplace' AND bundle_id = 'br.com.epraja.appFma'
           const { data: devCustTokens, error: errDev } = await supabase
             .from("device_tokens")
             .select("token")
             .is("disabled_at", null)
-            .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma");
+            .eq("app", "marketplace")
+            .eq("bundle_id", "br.com.epraja.appFma");
           if (errDev) console.error(`[send-push:${reqId}] device_tokens customers error: ${errDev.message}`);
           (devCustTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
 
-          // 3.3. Proteção Adicional de Expurgo Cruzado (Safety Net)
+          // 3.2. Proteção Adicional de Expurgo Cruzado (Safety Net)
           const [storeTokensRes, driverTokensRes, otherAppDevTokens] = await Promise.all([
             supabase.from("companies").select("fcm_token").not("fcm_token", "is", null),
             supabase.from("delivery_drivers").select("fcm_token").not("fcm_token", "is", null),
@@ -786,24 +779,17 @@ Deno.serve(async (req) => {
           // ── PÚBLICO: LOJISTAS (br.com.epraja.lojista) ──
           console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens exclusivos de 'stores' (Lojista)...`);
 
-          // 3.1. Tokens em companies
-          const { data: compTokens, error: errComp } = await supabase
-            .from("companies")
-            .select("fcm_token")
-            .not("fcm_token", "is", null);
-          if (errComp) console.error(`[send-push:${reqId}] companies query error: ${errComp.message}`);
-          (compTokens ?? []).forEach((c: any) => c?.fcm_token && targetTokens.add(String(c.fcm_token).trim()));
-
-          // 3.2. Tokens em device_tokens filtrados ESTRITAMENTE por app='lojista' ou bundle_id='br.com.epraja.lojista'
+          // 3.1. Tokens em device_tokens filtrados ESTRITAMENTE com AND: app = 'lojista' AND bundle_id = 'br.com.epraja.lojista'
           const { data: devStoreTokens, error: errDevStore } = await supabase
             .from("device_tokens")
             .select("token")
             .is("disabled_at", null)
-            .or("app.eq.lojista,bundle_id.eq.br.com.epraja.lojista");
+            .eq("app", "lojista")
+            .eq("bundle_id", "br.com.epraja.lojista");
           if (errDevStore) console.error(`[send-push:${reqId}] device_tokens stores error: ${errDevStore.message}`);
           (devStoreTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
 
-          // 3.3. Proteção Adicional de Expurgo Cruzado (Safety Net)
+          // 3.2. Proteção Adicional de Expurgo Cruzado (Safety Net)
           const [custTokensRes, driverTokensRes, otherAppDevTokens] = await Promise.all([
             supabase.from("customers").select("fcm_token").not("fcm_token", "is", null),
             supabase.from("delivery_drivers").select("fcm_token").not("fcm_token", "is", null),
@@ -829,24 +815,17 @@ Deno.serve(async (req) => {
           // ── PÚBLICO: ENTREGADORES (br.com.epraja.entregador) ──
           console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens exclusivos de 'drivers' (Entregador)...`);
 
-          // 3.1. Tokens em delivery_drivers
-          const { data: driverTokens, error: errDrv } = await supabase
-            .from("delivery_drivers")
-            .select("fcm_token")
-            .not("fcm_token", "is", null);
-          if (errDrv) console.error(`[send-push:${reqId}] delivery_drivers query error: ${errDrv.message}`);
-          (driverTokens ?? []).forEach((d: any) => d?.fcm_token && targetTokens.add(String(d.fcm_token).trim()));
-
-          // 3.2. Tokens em device_tokens filtrados ESTRITAMENTE por app='entregador' ou bundle_id='br.com.epraja.entregador'
+          // 3.1. Tokens em device_tokens filtrados ESTRITAMENTE com AND: app = 'entregador' AND bundle_id = 'br.com.epraja.entregador'
           const { data: devDriverTokens, error: errDevDrv } = await supabase
             .from("device_tokens")
             .select("token")
             .is("disabled_at", null)
-            .or("app.eq.entregador,bundle_id.eq.br.com.epraja.entregador");
+            .eq("app", "entregador")
+            .eq("bundle_id", "br.com.epraja.entregador");
           if (errDevDrv) console.error(`[send-push:${reqId}] device_tokens drivers error: ${errDevDrv.message}`);
           (devDriverTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
 
-          // 3.3. Proteção Adicional de Expurgo Cruzado (Safety Net)
+          // 3.2. Proteção Adicional de Expurgo Cruzado (Safety Net)
           const [custTokensRes, compTokensRes, otherAppDevTokens] = await Promise.all([
             supabase.from("customers").select("fcm_token").not("fcm_token", "is", null),
             supabase.from("companies").select("fcm_token").not("fcm_token", "is", null),
