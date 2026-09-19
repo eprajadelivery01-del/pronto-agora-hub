@@ -12,12 +12,6 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SA_RAW = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON") ?? Deno.env.get("FIREBASE_SERVICE_ACCOUNT") ?? "";
 
-const FALLBACK_SA: ServiceAccount = {
-  project_id: "e-pra-ja-a410d",
-  client_email: "firebase-adminsdk-fbsvc@e-pra-ja-a410d.iam.gserviceaccount.com",
-  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDEM97wrIbbPEij\n8b51daQwbYH2NTEcAFRxPlPKZo/jguHmXo2R9kB88vb+vcgQW/EAJqJF3LeoT1dv\n7Utm03U2s927sr0ZMgRaqVvDmPx62q/b7XkYxfjwKZ05NIyRuyYneUtkfGKvVOea\nDOvRJ48I8QY9fNo540HLHaoeJw962NcLqlOP/EXlkN8aJc6bGb7BPu6BkPdwv/NS\nZIk2lulHbKBaryOyUKFY8YAxqN30Vi4J7aO8a7Vudtr72LZAM+wlAniSGyyJ04Mk\nWXt3SQCJ5CVxHkeYkCuKpCcs5iCEXAtRo1g4xEDA+Api8fy8AqCUdEd4G42VwZxj\n06aCkci9AgMBAAECggEAASu8vWAuAXYpccOuvf+nrSG8c1UQ4dD9vDQH0x7ctT6g\nX4gvTJIFxn803/D22Rrn7ToQ16aNx+1leXfyVfXAzUS4d+HB5PDVzel2cExUzWLi\nUwRIG5/hrZ2aVwS4W1zyBg7B3WvKsylAmMKCscA3HLrhlPxCLqccY3NLuclKjb0Q\nSN67bgbN+3l/yg2Ru9fx7oWlUppzys1wxY1AdaXaMk2eyEgAZ7YhbIGMwI77LimD\ntxH1C76ez+oq/drrK54eSG+cudLxFZ8JEMsdZflGW8FqkU0OuiUHbmcFX2Gqw1y7\n+yy751Xuhnl9hO+q1/sMptW9paR2MOePauzrt1Z+gQKBgQDkLE071kNtSiVO/q7X\nK3aREWjXbBYkCwdyQmxQDqmQAmg8VNWsIbKzKyx3NWovUEzVn+i9mJ1zYR8xMxOR\nUSx3rnTUL3JKGT+5/I3pdKR6cPx2geC+JbflRRxv5Nao5TC5l7bdbjtNOaTj0/sy\nlmvAAt/MnO3UIebGq8Gdi7WtYQKBgQDcIW7pqHzGiF8r6HQ1EdaxosWj9yyEVss0\nU5/hOnzFS/6Zc1XqlVjUy3n23e9ekIFuOXvMnqW3Hp+qRJL5kWRoKYHQ9CFC0r85\nQvtqZcJiswhjMHG6eLVkaURJVJiVVr9G8EipIGw9ul8Hy3+1RmtK7zUYe1pYJi+X\n9v/hFZSc3QKBgQCxFYzvhrAX7vabo1+wkQPZPMjAgBuC56hkzhZf37FLmgKp6DFZ\nAWI+WaCN+D+r7sdi+FNaakqwlEzwEzL5kiVP0W7MivJJfeUOhGrjJ+rLOEtH8i6p\nhH5/iq6yTMkolY/GSm/a1MVjfvxw8UFAlquTfueQVq7h91mzEPQYQKjEoQKBgAEO\n3BSdbbQalbKFVIGoy0phSOfn2Tvtmt5uhHc1q8HbAqdEKaaN/zZOoBBysqLWuPiJ\nqDGslYlSyVutJrOyYjQp9ujFM5+5mZex3bl+Mbf9uk2XvwQxblXEN8LOeElHeHXj\n08WUVVDao3hLHxsE8qESk0PB3AZOcK4fTs2LKAK1AoGBANTLECrr29ud64EZlEXh\nYF7zc8A0dl+v4lUFiJVxfdLL5USkh6RBmlp2Wtq+whi1SEHT1Eo6/Pk1I4mTVvED\nSSs9ZGIBzdP7R/3qftyrRu6Z//LI5RUZg7fQNAyz05tpGDFvL9Xfg13vWiibUgat\nDV0Y5xzSFP9S3ijgdNKLjM8Z\n-----END PRIVATE KEY-----\n",
-};
-
 type ServiceAccount = {
   client_email: string;
   private_key: string;
@@ -88,7 +82,6 @@ const RETRY_DELAYS_MS = [400, 1200, 3000];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Classificação dos erros do FCM HTTP v1
-// https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
 type Outcome = "success" | "invalid" | "transient" | "auth" | "quota" | "config";
 
 function classifyFcm(httpStatus: number, json: any): { outcome: Outcome; code: string; message: string } {
@@ -190,7 +183,6 @@ async function sendToToken(
       "br.com.epraja.entregador"
     ].filter((val, idx, self) => self.indexOf(val) === idx);
 
-    console.log(`[send-push:${reqId}] Token APNs bruto detectado (${token.slice(0, 10)}...). Testando conversão via BatchImport para [${candidateBundles.join(", ")}]...`);
     let converted = false;
     for (const bId of candidateBundles) {
       for (const sandbox of [false, true]) {
@@ -211,20 +203,16 @@ async function sendToToken(
           const importData = await importRes.json();
           const mapped = importData?.results?.[0];
           if (mapped?.status === "OK" && mapped.registration_token) {
-            console.log(`[send-push:${reqId}] Token APNs convertido com sucesso para FCM token via ${bId} (sandbox=${sandbox}):`, mapped.registration_token.slice(0, 15) + "...");
             targetToken = mapped.registration_token;
             converted = true;
             break;
           }
-        } catch (errImport) {
-          console.warn(`[send-push:${reqId}] Erro BatchImport ${bId} (sandbox=${sandbox}):`, errImport);
-        }
+        } catch (errImport) {}
       }
       if (converted) break;
     }
   }
   
-  // Estrutura Padrão Profissional FCM HTTP v1: notification + data + android.priority HIGH + channel_id
   const notifTag = data.deliveryId 
     ? `delivery-${data.deliveryId}` 
     : (data.orderId 
@@ -235,13 +223,6 @@ async function sendToToken(
 
   let payload: any;
   if (isDriverDelivery) {
-    // ── NOVA CORRIDA PARA ENTREGADOR: HIGH-PRIORITY DATA-ONLY PAYLOAD ──
-    // Para que o Android execute MyFirebaseMessagingService.onMessageReceived()
-    // em segundo plano (background / tela apagada), o FCM NÃO pode conter o bloco
-    // "notification" no nível raiz para Android. Caso contrário, o Google Play Services
-    // intercepta o push e o exibe apenas na barra de notificações sem acionar o código Java.
-    // O MyFirebaseMessagingService já cria a notificação nativa com ações (ACEITAR/RECUSAR)
-    // e som oficial (notification_sound.mp3), e aciona o OverlayService para abrir o CARD BRANCO.
     payload = {
       message: {
         token: targetToken,
@@ -250,57 +231,50 @@ async function sendToToken(
           title,
           body,
           message: body,
-          app: "entregador",
-          bundleId: "br.com.epraja.entregador",
+          sound: "notification_sound.mp3",
+          channel_id: "delivery-incoming-v9",
+          priority: "high"
         },
         android: {
           priority: "HIGH",
-          collapse_key: notifTag,
-        },
-        apns: {
-          headers: {
-            "apns-priority": "10",
-            "apns-push-type": "alert"
-          },
-          payload: {
-            aps: {
-              alert: { title, body },
-              sound: iosSound,
-              badge: 1,
-              "content-available": 1,
-              "mutable-content": 1
-            }
-          },
-        },
-      },
+          ttl: "45s",
+          direct_boot_ok: true
+        }
+      }
     };
   } else {
-    // ── DEMAIS NOTIFICAÇÕES (MARKETPLACE, LOJISTA, MARKETING, STATUS DE PEDIDO) ──
     payload = {
       message: {
         token: targetToken,
-        notification: { title, body },
+        notification: {
+          title,
+          body,
+          ...(data.url ? { image: data.url } : {}),
+        },
         data: {
           ...data,
-          app: targetApp,
-          bundleId: resolvedBundleId,
+          title,
+          body,
+          message: body,
+          tag: notifTag
         },
         android: {
           priority: "HIGH",
-          collapse_key: notifTag,
           notification: {
-            channel_id: channelId,
             sound: soundName,
-            default_vibrate_timings: true,
-            notification_priority: "PRIORITY_MAX",
-            visibility: "PUBLIC",
+            channel_id: channelId,
             tag: notifTag,
-          },
+            default_sound: targetApp === "marketplace",
+            default_vibrate_timings: true,
+            visibility: "PUBLIC",
+            notification_priority: "PRIORITY_MAX"
+          }
         },
         apns: {
           headers: {
             "apns-priority": "10",
-            "apns-push-type": "alert"
+            "apns-push-type": "alert",
+            "apns-topic": resolvedBundleId,
           },
           payload: {
             aps: {
@@ -308,75 +282,58 @@ async function sendToToken(
               sound: iosSound,
               badge: 1,
               "content-available": 1,
-              "mutable-content": 1
-            }
+              "mutable-content": 1,
+              category: notifTag
+            },
           },
         },
       },
     };
   }
 
+  const endpoint = `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`;
   let last: SendResult = { ok: false, status: 0, attempts: 0, token };
 
-  for (let attempt = 1; attempt <= RETRY_DELAYS_MS.length + 1; attempt++) {
-    const started = Date.now();
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    last.attempts = attempt + 1;
     try {
-      console.log(
-        "[FCM_PAYLOAD]",
-        JSON.stringify(payload, null, 2)
-      );
-
-      const res = await fetch(
-        `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-      );
-      const json = await res.json().catch(() => ({}));
-      
-      console.log(
-        "[FCM_RESPONSE]",
-        JSON.stringify(json, null, 2)
-      );
-      const ms = Date.now() - started;
-      const cls = res.ok
-        ? { outcome: "success" as Outcome, code: "OK", message: "" }
-        : classifyFcm(res.status, json);
-      const invalid = cls.outcome === "invalid";
+        body: JSON.stringify(payload),
+      });
 
-      console.log(
-        `[send-push:${reqId}] attempt=${attempt} status=${res.status} ms=${ms} token=${token.slice(0, 12)}… outcome=${cls.outcome} code=${cls.code}`,
-        res.ok ? "" : JSON.stringify(json).slice(0, 500),
-      );
+      last.status = res.status;
+      const resJson = await res.json().catch(() => null);
+      last.response = resJson;
 
-      last = {
-        ok: res.ok,
-        status: res.status,
-        attempts: attempt,
-        token,
-        invalid,
-        outcome: cls.outcome,
-        code: cls.code,
-        error: res.ok ? undefined : cls.message,
-        response: json,
-      };
-      if (res.ok || invalid || cls.outcome === "config" || cls.outcome === "auth" || !isRetryable(res.status)) {
+      if (res.ok) {
+        last.ok = true;
+        last.outcome = "success";
         return last;
       }
+
+      const classified = classifyFcm(res.status, resJson);
+      last.outcome = classified.outcome;
+      last.code = classified.code;
+      last.error = `${classified.code}: ${classified.message || JSON.stringify(resJson)}`;
+      last.invalid = classified.outcome === "invalid";
+
+      if (last.invalid || classified.outcome === "config" || classified.outcome === "auth") {
+        return last;
+      }
+
+      if (!isRetryable(res.status) && attempt > 0) return last;
     } catch (e) {
-      const msg = String((e as Error)?.message ?? e);
-      console.error(`[send-push:${reqId}] attempt=${attempt} network error: ${msg}`);
-      last = { ok: false, status: 0, attempts: attempt, token, error: msg, outcome: "transient", code: "NETWORK" };
+      last.error = (e as Error)?.message ?? String(e);
+      last.outcome = "transient";
     }
 
-    const delay = RETRY_DELAYS_MS[attempt - 1];
-    if (delay === undefined) break;
-    console.log(`[send-push:${reqId}] retry em ${delay}ms (tentativa ${attempt + 1})`);
+    if (attempt === RETRY_DELAYS_MS.length) break;
+    const delay = RETRY_DELAYS_MS[attempt] + Math.floor(Math.random() * 200);
     await sleep(delay);
   }
 
@@ -401,30 +358,18 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({} as any));
 
     // Filtro de segurança absoluto: ignora mensagens manuais legadas do Lojista/Entregador
-    // para evitar duplicidade de notificações na central.
     const notifBody = String(body.body ?? body.message ?? "");
     if (notifBody && (notifBody.includes("foi atualizado:") || notifBody.includes("mudou para:"))) {
-      console.log(`[send-push] Bloqueando push legado manual duplicado: "${notifBody}"`);
       return new Response(JSON.stringify({ requestId: reqId, success: true, message: "Dropped legacy manual notification" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const action = String(body.action ?? "send");
-    console.log(`[send-push:${reqId}] action=${action}`, JSON.stringify({
-      orderId: body.orderId ?? null,
-      userId: body.userId ?? null,
-      customerId: body.customerId ?? null,
-      hasToken: Boolean(body.token || body.fcmToken),
-    }));
-
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Seleciona tokens ignorando os que estão em quarentena.
-    // Se as colunas do ciclo de vida ainda não existirem, cai para a consulta simples.
     const selectTokens = async (column: string, value: string) => {
       const active = await supabase
         .from("device_tokens").select("token").eq(column, value).is("disabled_at", null);
       if (!active.error) return active;
-      console.warn(`[send-push:${reqId}] filtro disabled_at indisponível (${active.error.message}); usando fallback`);
       return await supabase.from("device_tokens").select("token").eq(column, value);
     };
 
@@ -434,9 +379,8 @@ Deno.serve(async (req) => {
       const { data, error } = await supabase.rpc("cleanup_device_tokens", { _stale_days: staleDays });
       if (error) {
         console.error(`[send-push:${reqId}] cleanup falhou: ${error.message}`);
-        return json({ error: `cleanup falhou: ${error.message}`, hint: "Rode scripts/device_tokens_lifecycle.sql" }, 500);
+        return json({ error: `cleanup falhou: ${error.message}` }, 500);
       }
-      console.log(`[send-push:${reqId}] cleanup:`, JSON.stringify(data));
       return json({ cleanup: data });
     }
 
@@ -450,13 +394,24 @@ Deno.serve(async (req) => {
       const companyId = body.companyId ? String(body.companyId) : null;
       const phone = body.phone ? String(body.phone) : null;
       const platform = body.platform ? String(body.platform) : "unknown";
+      const appType = body.app ? String(body.app).toLowerCase().trim() : null;
+      const explicitBundle = body.bundleId ? String(body.bundleId).trim() : null;
       const now = new Date().toISOString();
       const outcome: Record<string, string> = {};
 
       const up = await supabase
         .from("device_tokens")
         .upsert(
-          { token: fcmToken, user_id: userId, customer_id: customerId, phone, platform, updated_at: now },
+          {
+            token: fcmToken,
+            user_id: userId,
+            customer_id: customerId,
+            phone,
+            platform,
+            app: appType,
+            bundle_id: explicitBundle,
+            updated_at: now
+          },
           { onConflict: "token" },
         );
       outcome.device_tokens = up.error ? `erro: ${up.error.message}` : "ok";
@@ -464,7 +419,7 @@ Deno.serve(async (req) => {
       // Reativa o token (sai da quarentena) sempre que o app o registra novamente
       const reset = await supabase
         .from("device_tokens")
-        .update({ disabled_at: null, disabled_reason: null, failure_count: 0, last_error_code: null })
+        .update({ disabled_at: null, disabled_reason: null, failure_count: 0, last_error_code: null, app: appType, bundle_id: explicitBundle })
         .eq("token", fcmToken);
       outcome.reset = reset.error ? `ignorado: ${reset.error.message}` : "ok";
 
@@ -476,8 +431,6 @@ Deno.serve(async (req) => {
 
       // Vínculo seguro por Aplicativo (evita contaminação entre Cliente, Lojista e Entregador)
       const driverId = body.driverId ? String(body.driverId) : null;
-      const appType = body.app ? String(body.app).toLowerCase() : null;
-      const explicitBundle = body.bundleId ? String(body.bundleId).toLowerCase() : null;
 
       if (companyId || appType === "lojista" || explicitBundle === "br.com.epraja.lojista") {
         // 1. App Lojista
@@ -512,27 +465,28 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.log(`[send-push:${reqId}] registro do token:`, JSON.stringify(outcome));
+      console.log(`[send-push:${reqId}] registro do token (app=${appType}, bundle=${explicitBundle}):`, JSON.stringify(outcome));
       return json({ registered: true, outcome });
     }
 
     // ---------- ENVIO ----------
-    let sa: ServiceAccount = FALLBACK_SA;
+    let sa: ServiceAccount | null = null;
     if (SA_RAW) {
       try {
         const parsed = JSON.parse(SA_RAW) as ServiceAccount;
-        if (parsed.private_key && parsed.project_id === "e-pra-ja-a410d") {
+        if (parsed.private_key && parsed.client_email && parsed.project_id) {
           sa = parsed;
-        } else {
-          console.warn(`[send-push:${reqId}] SA_RAW tem project_id '${parsed.project_id}' diferente de 'e-pra-ja-a410d'; usando FALLBACK_SA`);
         }
       } catch (e) {
-        console.warn(`[send-push:${reqId}] Erro ao parsear SA_RAW, usando FALLBACK_SA:`, e);
+        console.error(`[send-push:${reqId}] Erro ao parsear FIREBASE_SERVICE_ACCOUNT_JSON:`, e);
       }
     }
 
+    if (!sa) {
+      return json({ error: "Configuração do Firebase ausente: configure o secret FIREBASE_SERVICE_ACCOUNT_JSON no painel do Supabase." }, 500);
+    }
+
     // ── DETECÇÃO DE TRIGGER DE DELIVERY (webhook do Postgres ou disparo direto)
-    // Quando uma nova entrega é criada ou disponibilizada para entregadores
     const isDeliveryTrigger = (
       body.table === "deliveries" ||
       body.table === "available_deliveries" ||
@@ -563,7 +517,6 @@ Deno.serve(async (req) => {
       title = `🏬 ${storeName}`;
       message = String(details).slice(0, 400);
 
-      // Contrato de campos esperados pelo speed-squad (MyFirebaseMessagingService e OverlayService)
       extra.type = "delivery";
       extra.eventType = "delivery_available";
       extra.app = "entregador";
@@ -595,7 +548,6 @@ Deno.serve(async (req) => {
 
       console.log(`[send-push:${reqId}] DELIVERY TRIGGER detectado — deliveryId=${deliveryId} storeName=${storeName}`);
 
-      // Busca TODOS os tokens FCM dos entregadores ONLINE
       const { data: drivers, error: drvErr } = await supabase
         .from("delivery_drivers")
         .select("fcm_token")
@@ -610,27 +562,21 @@ Deno.serve(async (req) => {
         .map((d: any) => d.fcm_token)
         .filter((t: string) => t && t.trim().length > 10);
 
-      console.log(`[send-push:${reqId}] ${driverTokens.length} entregador(es) online com token FCM`);
-
       if (driverTokens.length === 0) {
         return json({ sent: 0, total: 0, warning: "Nenhum entregador online com token FCM" });
       }
 
-      // Envia FCM para cada entregador usando o channel de alta prioridade
       const accessToken = await getAccessToken(sa);
       const results = await Promise.all(
         driverTokens.map((t: string) => sendToToken(reqId, sa, accessToken, t, title, message, extra)),
       );
       const sent = results.filter((r) => r.ok).length;
 
-      // Saúde dos tokens
       const invalidTokens = results.filter((r) => r.invalid).map((r) => r.token);
       if (invalidTokens.length > 0) {
         await supabase.from("delivery_drivers").update({ fcm_token: null }).in("fcm_token", invalidTokens);
-        console.log(`[send-push:${reqId}] ${invalidTokens.length} token(s) de entregador inválido(s) limpo(s)`);
       }
 
-      console.log(`[send-push:${reqId}] DELIVERY BROADCAST enviados ${sent}/${driverTokens.length}`);
       return json({
         sent,
         total: driverTokens.length,
@@ -649,7 +595,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── FLUXO NORMAL (Marketplace / notificações de pedido para clientes)
+    // ── FLUXO TRANSACIONAL (Marketplace / Lojista)
     title = String(body.title ?? "É Pra Já").slice(0, 120);
     message = String(body.body ?? body.message ?? "Você tem uma nova atualização.").slice(0, 400);
     if (body.orderId) extra.orderId = String(body.orderId);
@@ -660,9 +606,6 @@ Deno.serve(async (req) => {
     extra.app = String(body.app || "marketplace");
     extra.bundleId = String(body.bundleId || (extra.app === "lojista" ? "br.com.epraja.lojista" : extra.app === "entregador" ? "br.com.epraja.entregador" : "br.com.epraja.appFma"));
 
-    console.log("[EXTRA_DATA]", extra);
-
-    // Resolve os tokens de destino
     let tokens: string[] = Array.isArray(body.tokens)
       ? body.tokens.filter(Boolean).map(String)
       : body.token
@@ -681,30 +624,24 @@ Deno.serve(async (req) => {
           .select("id, customer_id, user_id, company_id, status, order_number, total_amount")
           .eq("id", String(body.orderId))
           .maybeSingle();
-        if (error) console.error(`[send-push:${reqId}] erro ao buscar pedido:`, error.message);
         if (order) {
           orderRecord = order;
           if (!customerId) customerId = order.customer_id ?? null;
           if (!userId) userId = order.user_id ?? null;
           if (!companyId) companyId = order.company_id ?? null;
-          console.log(`[send-push:${reqId}] pedido resolvido -> customerId=${customerId} userId=${userId} companyId=${companyId} status=${order.status}`);
         }
       }
 
       const found = new Set<string>();
-      const collect = (rows: any[] | null, field: string, source: string) => {
+      const collect = (rows: any[] | null, field: string) => {
         (rows ?? []).forEach((r) => r?.[field] && found.add(r[field]));
-        console.log(`[send-push:${reqId}] ${source}: ${rows?.length ?? 0} linha(s)`);
       };
 
       const orderStatus = String(body.status || orderRecord?.status || "").toLowerCase();
       const isPendingNewOrder = orderStatus === "pending" || body.type === "new_order" || body.isNewOrder;
 
-      // Se for novo pedido (status 'pending') ou direcionado ao lojista:
+      // Notificação de novo pedido para Lojista
       if (companyId && (isPendingNewOrder || body.target === "merchant" || body.forMerchant)) {
-        console.log(`[send-push:${reqId}] NOVO PEDIDO PARA LOJISTA detectado! Buscando tokens da empresa: ${companyId}`);
-        
-        // Customiza título e corpo para o lojista
         title = `📦 NOVO PEDIDO RECEBIDO! 🛎️`;
         const orderNum = orderRecord?.order_number ? `#${orderRecord.order_number}` : (orderRecord?.id ? `#${String(orderRecord.id).slice(0, 5).toUpperCase()}` : "");
         message = `Você recebeu um novo pedido ${orderNum}! Toque para aceitar e começar a preparar.`;
@@ -714,52 +651,47 @@ Deno.serve(async (req) => {
         extra.route = "/business/orders";
         extra.companyId = String(companyId);
 
-        // 1. Busca token direto de companies
         const { data: comp } = await supabase
           .from("companies")
           .select("fcm_token")
           .eq("id", companyId)
           .maybeSingle();
-        if (comp?.fcm_token) {
-          collect([{ token: comp.fcm_token }], "token", "companies(lojista)");
-        }
+        if (comp?.fcm_token) collect([{ token: comp.fcm_token }], "token");
 
-        // 2. Busca tokens dos profiles vinculados a esta empresa
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("fcm_token, id")
-          .eq("company_id", companyId)
-          .not("fcm_token", "is", null);
-        collect(profs as any[], "fcm_token", "profiles(company_id)");
-
-        // 3. Busca em device_tokens de usuários da empresa
-        if (profs && profs.length > 0) {
-          for (const p of profs) {
-            const { data: dTokens } = await selectTokens("user_id", p.id);
-            collect(dTokens as any[], "token", "device_tokens(lojista_user)");
-          }
-        }
+        const { data: devStoreTokens } = await supabase
+          .from("device_tokens")
+          .select("token")
+          .is("disabled_at", null)
+          .or("app.eq.lojista,bundle_id.eq.br.com.epraja.lojista");
+        collect(devStoreTokens as any[], "token");
       }
 
+      // Notificação de pedido para Cliente (Marketplace)
       if (customerId) {
-        const { data, error } = await selectTokens("customer_id", customerId);
-        if (error) console.error(`[send-push:${reqId}] device_tokens(customer): ${error.message}`);
-        collect(data as any[], "token", "device_tokens(customer)");
+        const { data: devCust } = await supabase
+          .from("device_tokens")
+          .select("token")
+          .eq("customer_id", customerId)
+          .is("disabled_at", null);
+        collect(devCust as any[], "token");
+
         const c = await supabase.from("customers").select("fcm_token").or(`id.eq.${customerId},user_id.eq.${customerId}`);
-        if (c.error) console.error(`[send-push:${reqId}] customers: ${c.error.message}`);
-        collect(c.data as any[], "fcm_token", "customers");
+        collect(c.data as any[], "fcm_token");
       }
-      if (userId) {
-        const { data, error } = await selectTokens("user_id", userId);
-        if (error) console.error(`[send-push:${reqId}] device_tokens(user): ${error.message}`);
-        collect(data as any[], "token", "device_tokens(user)");
-        const p = await supabase.from("profiles").select("fcm_token").eq("id", userId);
-        if (p.error) console.error(`[send-push:${reqId}] profiles: ${p.error.message}`);
-        collect(p.data as any[], "fcm_token", "profiles");
+
+      if (userId && !companyId && !isPendingNewOrder) {
+        const { data: devUser } = await supabase
+          .from("device_tokens")
+          .select("token")
+          .eq("user_id", userId)
+          .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma")
+          .is("disabled_at", null);
+        collect(devUser as any[], "token");
+
         const c2 = await supabase.from("customers").select("fcm_token").eq("user_id", userId);
-        if (c2.error) console.error(`[send-push:${reqId}] customers(user): ${c2.error.message}`);
-        collect(c2.data as any[], "fcm_token", "customers(user)");
+        collect(c2.data as any[], "fcm_token");
       }
+
       tokens = Array.from(found);
 
       // ── MODO MARKETING / BROADCAST SEGMENTADO ─────────────────────
@@ -789,7 +721,7 @@ Deno.serve(async (req) => {
 
         const campaignId = String(body.campaign_id || body.campaignId || body.id || "manual");
 
-        // 2. Configuração mandatória de bundle e app por público (Regras 1, 2 e 3)
+        // 2. Configuração mandatória de bundle e app por público
         if (targetAudience === "stores") {
           extra.app = "lojista";
           extra.bundleId = "br.com.epraja.lojista";
@@ -804,16 +736,14 @@ Deno.serve(async (req) => {
           extra.type = "marketing";
         }
 
-        // 3. Coleta e Isolamento Absoluto de Destinatários por Público
+        // 3. Coleta e Isolamento Absoluto de Destinatários por Público (Positive Filtering)
         const targetTokens = new Set<string>();
 
         if (targetAudience === "customers") {
           // ── PÚBLICO: CLIENTES (MARKETPLACE - br.com.epraja.appFma) ──
-          // NUNCA enviar para br.com.epraja.lojista ou br.com.epraja.entregador.
-          // NÃO consultar profiles.fcm_token!
-          console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens para 'customers' (Marketplace)...`);
+          console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens exclusivos de 'customers' (Marketplace)...`);
 
-          // 3.1. Busca tokens legítimos de clientes na tabela customers
+          // 3.1. Tokens legítimos de clientes na tabela customers
           const { data: custTokens, error: errCust } = await supabase
             .from("customers")
             .select("fcm_token")
@@ -821,31 +751,25 @@ Deno.serve(async (req) => {
           if (errCust) console.error(`[send-push:${reqId}] customers query error: ${errCust.message}`);
           (custTokens ?? []).forEach((c: any) => c?.fcm_token && targetTokens.add(String(c.fcm_token).trim()));
 
-          // 3.2. Busca em device_tokens onde customer_id NÃO é nulo (garantia de ser cliente)
+          // 3.2. Tokens legítimos em device_tokens filtrados ESTRITAMENTE por app='marketplace' ou bundle_id='br.com.epraja.appFma'
           const { data: devCustTokens, error: errDev } = await supabase
             .from("device_tokens")
             .select("token")
             .is("disabled_at", null)
-            .not("customer_id", "is", null);
+            .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma");
           if (errDev) console.error(`[send-push:${reqId}] device_tokens customers error: ${errDev.message}`);
           (devCustTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
 
-          // 3.3. Trava de isolamento: Identifica e remove qualquer token pertencente a Lojistas ou Entregadores
-          const [storeTokensRes, driverTokensRes] = await Promise.all([
+          // 3.3. Proteção Adicional de Expurgo Cruzado (Safety Net)
+          const [storeTokensRes, driverTokensRes, otherAppDevTokens] = await Promise.all([
             supabase.from("companies").select("fcm_token").not("fcm_token", "is", null),
             supabase.from("delivery_drivers").select("fcm_token").not("fcm_token", "is", null),
+            supabase.from("device_tokens").select("token").or("app.eq.lojista,app.eq.entregador,bundle_id.eq.br.com.epraja.lojista,bundle_id.eq.br.com.epraja.entregador")
           ]);
           const excludedTokens = new Set<string>();
           (storeTokensRes.data ?? []).forEach((s: any) => s?.fcm_token && excludedTokens.add(String(s.fcm_token).trim()));
           (driverTokensRes.data ?? []).forEach((d: any) => d?.fcm_token && excludedTokens.add(String(d.fcm_token).trim()));
-
-          // Também exclui tokens de profiles com company_id
-          const { data: storeProfiles } = await supabase
-            .from("profiles")
-            .select("fcm_token")
-            .not("company_id", "is", null)
-            .not("fcm_token", "is", null);
-          (storeProfiles ?? []).forEach((p: any) => p?.fcm_token && excludedTokens.add(String(p.fcm_token).trim()));
+          (otherAppDevTokens.data ?? []).forEach((d: any) => d?.token && excludedTokens.add(String(d.token).trim()));
 
           let excludedCount = 0;
           for (const exc of excludedTokens) {
@@ -855,15 +779,14 @@ Deno.serve(async (req) => {
             }
           }
           if (excludedCount > 0) {
-            console.log(`[send-push:${reqId}] [PUSH_MARKETING] Isolamento aplicado: ${excludedCount} token(s) de lojista/entregador excluído(s) da campanha customers`);
+            console.log(`[send-push:${reqId}] [PUSH_MARKETING] Expurgo cruzado removeu ${excludedCount} token(s) incompatíveis da campanha customers`);
           }
 
         } else if (targetAudience === "stores") {
           // ── PÚBLICO: LOJISTAS (br.com.epraja.lojista) ──
-          // NUNCA enviar para br.com.epraja.appFma ou br.com.epraja.entregador.
-          console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens para 'stores' (Lojista)...`);
+          console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens exclusivos de 'stores' (Lojista)...`);
 
-          // 3.1. Busca tokens em companies
+          // 3.1. Tokens em companies
           const { data: compTokens, error: errComp } = await supabase
             .from("companies")
             .select("fcm_token")
@@ -871,105 +794,100 @@ Deno.serve(async (req) => {
           if (errComp) console.error(`[send-push:${reqId}] companies query error: ${errComp.message}`);
           (compTokens ?? []).forEach((c: any) => c?.fcm_token && targetTokens.add(String(c.fcm_token).trim()));
 
-          // 3.2. Busca tokens em profiles com company_id
-          const { data: profTokens, error: errProf } = await supabase
-            .from("profiles")
-            .select("fcm_token, id")
-            .not("company_id", "is", null)
-            .not("fcm_token", "is", null);
-          if (errProf) console.error(`[send-push:${reqId}] profiles(stores) error: ${errProf.message}`);
-          const storeUserIds: string[] = [];
-          (profTokens ?? []).forEach((p: any) => {
-            if (p?.fcm_token) targetTokens.add(String(p.fcm_token).trim());
-            if (p?.id) storeUserIds.push(String(p.id));
-          });
+          // 3.2. Tokens em device_tokens filtrados ESTRITAMENTE por app='lojista' ou bundle_id='br.com.epraja.lojista'
+          const { data: devStoreTokens, error: errDevStore } = await supabase
+            .from("device_tokens")
+            .select("token")
+            .is("disabled_at", null)
+            .or("app.eq.lojista,bundle_id.eq.br.com.epraja.lojista");
+          if (errDevStore) console.error(`[send-push:${reqId}] device_tokens stores error: ${errDevStore.message}`);
+          (devStoreTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
 
-          // 3.3. Busca em device_tokens de usuários lojistas
-          if (storeUserIds.length > 0) {
-            const { data: devStoreTokens } = await supabase
-              .from("device_tokens")
-              .select("token")
-              .is("disabled_at", null)
-              .in("user_id", storeUserIds);
-            (devStoreTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
-          }
-
-          // Trava de isolamento: remove qualquer token de cliente ou entregador
-          const [custTokensRes, driverTokensRes] = await Promise.all([
+          // 3.3. Proteção Adicional de Expurgo Cruzado (Safety Net)
+          const [custTokensRes, driverTokensRes, otherAppDevTokens] = await Promise.all([
             supabase.from("customers").select("fcm_token").not("fcm_token", "is", null),
             supabase.from("delivery_drivers").select("fcm_token").not("fcm_token", "is", null),
+            supabase.from("device_tokens").select("token").or("app.eq.marketplace,app.eq.entregador,bundle_id.eq.br.com.epraja.appFma,bundle_id.eq.br.com.epraja.entregador")
           ]);
           const excludedTokens = new Set<string>();
           (custTokensRes.data ?? []).forEach((c: any) => c?.fcm_token && excludedTokens.add(String(c.fcm_token).trim()));
           (driverTokensRes.data ?? []).forEach((d: any) => d?.fcm_token && excludedTokens.add(String(d.fcm_token).trim()));
+          (otherAppDevTokens.data ?? []).forEach((d: any) => d?.token && excludedTokens.add(String(d.token).trim()));
+
+          let excludedCount = 0;
           for (const exc of excludedTokens) {
-            targetTokens.delete(exc);
+            if (targetTokens.has(exc)) {
+              targetTokens.delete(exc);
+              excludedCount++;
+            }
+          }
+          if (excludedCount > 0) {
+            console.log(`[send-push:${reqId}] [PUSH_MARKETING] Expurgo cruzado removeu ${excludedCount} token(s) incompatíveis da campanha stores`);
           }
 
         } else if (targetAudience === "drivers") {
           // ── PÚBLICO: ENTREGADORES (br.com.epraja.entregador) ──
-          // NUNCA enviar para br.com.epraja.appFma ou br.com.epraja.lojista.
-          console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens para 'drivers' (Entregador)...`);
+          console.log(`[send-push:${reqId}] [PUSH_MARKETING] Coletando tokens exclusivos de 'drivers' (Entregador)...`);
 
-          // 3.1. Busca tokens em delivery_drivers
+          // 3.1. Tokens em delivery_drivers
           const { data: driverTokens, error: errDrv } = await supabase
             .from("delivery_drivers")
-            .select("fcm_token, user_id")
+            .select("fcm_token")
             .not("fcm_token", "is", null);
           if (errDrv) console.error(`[send-push:${reqId}] delivery_drivers query error: ${errDrv.message}`);
-          const driverUserIds: string[] = [];
-          (driverTokens ?? []).forEach((d: any) => {
-            if (d?.fcm_token) targetTokens.add(String(d.fcm_token).trim());
-            if (d?.user_id) driverUserIds.push(String(d.user_id));
-          });
+          (driverTokens ?? []).forEach((d: any) => d?.fcm_token && targetTokens.add(String(d.fcm_token).trim()));
 
-          // 3.2. Busca em device_tokens de entregadores
-          if (driverUserIds.length > 0) {
-            const { data: devDriverTokens } = await supabase
-              .from("device_tokens")
-              .select("token")
-              .is("disabled_at", null)
-              .in("user_id", driverUserIds);
-            (devDriverTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
-          }
+          // 3.2. Tokens em device_tokens filtrados ESTRITAMENTE por app='entregador' ou bundle_id='br.com.epraja.entregador'
+          const { data: devDriverTokens, error: errDevDrv } = await supabase
+            .from("device_tokens")
+            .select("token")
+            .is("disabled_at", null)
+            .or("app.eq.entregador,bundle_id.eq.br.com.epraja.entregador");
+          if (errDevDrv) console.error(`[send-push:${reqId}] device_tokens drivers error: ${errDevDrv.message}`);
+          (devDriverTokens ?? []).forEach((t: any) => t?.token && targetTokens.add(String(t.token).trim()));
 
-          // Trava de isolamento: remove qualquer token de cliente ou lojista
-          const [custTokensRes, compTokensRes] = await Promise.all([
+          // 3.3. Proteção Adicional de Expurgo Cruzado (Safety Net)
+          const [custTokensRes, compTokensRes, otherAppDevTokens] = await Promise.all([
             supabase.from("customers").select("fcm_token").not("fcm_token", "is", null),
             supabase.from("companies").select("fcm_token").not("fcm_token", "is", null),
+            supabase.from("device_tokens").select("token").or("app.eq.marketplace,app.eq.lojista,bundle_id.eq.br.com.epraja.appFma,bundle_id.eq.br.com.epraja.lojista")
           ]);
           const excludedTokens = new Set<string>();
           (custTokensRes.data ?? []).forEach((c: any) => c?.fcm_token && excludedTokens.add(String(c.fcm_token).trim()));
           (compTokensRes.data ?? []).forEach((s: any) => s?.fcm_token && excludedTokens.add(String(s.fcm_token).trim()));
+          (otherAppDevTokens.data ?? []).forEach((d: any) => d?.token && excludedTokens.add(String(d.token).trim()));
+
+          let excludedCount = 0;
           for (const exc of excludedTokens) {
-            targetTokens.delete(exc);
+            if (targetTokens.has(exc)) {
+              targetTokens.delete(exc);
+              excludedCount++;
+            }
+          }
+          if (excludedCount > 0) {
+            console.log(`[send-push:${reqId}] [PUSH_MARKETING] Expurgo cruzado removeu ${excludedCount} token(s) incompatíveis da campanha drivers`);
           }
         }
 
         tokens = Array.from(targetTokens);
 
-        // 4. Log de auditoria obrigatório (Regra 13)
+        // 4. Log de auditoria
         console.log(
           `[PUSH_MARKETING]\ncampaign=${campaignId}\naudience=${targetAudience}\nbundle=${extra.bundleId}\napp=${extra.app}\nrecipients=${tokens.length}`
         );
-        if (tokens.length > 0) {
-          const masked = tokens.map((t) => t.length > 14 ? `${t.slice(0, 8)}...${t.slice(-6)}` : "***");
-          console.log(`[PUSH_MARKETING_TOKENS] [${masked.join(", ")}]`);
-        }
       }
     }
 
     console.log(`[send-push:${reqId}] ${tokens.length} token(s) alvo`);
     if (tokens.length === 0) {
-      return json({ sent: 0, total: 0, warning: "Nenhum token FCM encontrado para o destinatário" });
+      return json({
+        sent: 0,
+        total: 0,
+        warning: `Nenhum token FCM válido encontrado para o público alvo: ${extra.app || 'desconhecido'}`
+      });
     }
 
     const accessToken = await getAccessToken(sa);
-    console.log("[BODY_RECEIVED]", body);
-    console.log("[TITLE]", title);
-    console.log("[MESSAGE]", message);
-    console.log("[TOKENS]", tokens.map((t) => t.length > 14 ? `${t.slice(0, 8)}...${t.slice(-6)}` : "***"));
-    console.log("[EXTRA]", extra);
     const results = await Promise.all(
       tokens.map((t) => sendToToken(reqId, sa, accessToken, t, title, message, extra)),
     );
@@ -989,30 +907,16 @@ Deno.serve(async (req) => {
       });
       if (error) {
         rpcAvailable = false;
-        console.warn(`[send-push:${reqId}] record_push_result indisponível (${error.message}); usando limpeza simples`);
       }
     }
     if (!rpcAvailable && invalidTokens.length > 0) {
       await supabase.from("device_tokens").delete().in("token", invalidTokens);
     }
-    if (invalidTokens.length > 0) {
-      console.log(`[send-push:${reqId}] ${invalidTokens.length} token(s) inválido(s) removido(s)`);
-    }
-    // Credencial/projeto errados afetam TODOS os envios: destaque nos logs
-    const misconfig = results.find((r) => r.outcome === "config" || r.outcome === "auth");
-    if (misconfig) {
-      console.error(
-        `[send-push:${reqId}] problema de credencial FCM (${misconfig.code}): ${misconfig.error ?? ""}`,
-      );
-      cachedToken = null; // força novo OAuth na próxima chamada
-    }
 
-    console.log(`[send-push:${reqId}] enviados ${sent}/${tokens.length}`);
     return json({
       sent,
       total: tokens.length,
       invalid: invalidTokens.length,
-      misconfigured: misconfig ? misconfig.code : null,
       results: results.map((r) => ({
         ok: r.ok,
         status: r.status,
@@ -1021,7 +925,7 @@ Deno.serve(async (req) => {
         outcome: r.ok ? "success" : (r.outcome ?? "transient"),
         code: r.code ?? null,
         token: `${r.token.slice(0, 12)}…`,
-        error: r.error ?? (r.ok ? undefined : JSON.stringify(r.response).slice(0, 300)),
+        error: r.error ?? undefined,
       })),
     });
   } catch (e) {

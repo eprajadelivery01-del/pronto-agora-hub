@@ -87,17 +87,19 @@ export function useOrderAlerts() {
         }
       }
 
-      // 3. Registra na tabela device_tokens
+      // 3. Registra na tabela device_tokens com identidade explícita do Lojista
       try {
         await supabase
-          .from("device_tokens")
+          .from("device_tokens" as any)
           .upsert(
             {
               token: token.value,
               user_id: user?.id || null,
               platform: Capacitor.getPlatform(),
+              app: "lojista",
+              bundle_id: "br.com.epraja.lojista",
               updated_at: new Date().toISOString(),
-            },
+            } as any,
             { onConflict: "token" }
           );
       } catch (e) {
