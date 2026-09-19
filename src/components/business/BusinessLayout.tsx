@@ -1,4 +1,4 @@
-import { useState, ReactNode, useEffect } from "react";
+import { useState, ReactNode, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -22,7 +22,9 @@ import {
   ChevronDown,
   Package,
   Truck,
-  ExternalLink
+  ExternalLink,
+  Copy,
+  Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
@@ -36,6 +38,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
 
 interface BusinessLayoutProps {
@@ -46,7 +49,7 @@ interface BusinessLayoutProps {
 }
 
 const tabs = [
-  { label: "Painel de Entregas", icon: LayoutDashboard, href: "/business", category: "Operacional" },
+  { label: "Visão Geral", icon: LayoutDashboard, href: "/business", category: "Visão Geral" },
   { label: "Novos Pedidos", icon: ShoppingBag, href: "/business/orders", category: "Operacional" },
   { label: "Chat", icon: MessageCircle, href: "/business/chat", category: "Operacional" },
   { label: "Marketplace", icon: Store, href: "DYNAMIC_MARKETPLACE", category: "Marketplace", external: true },
@@ -58,16 +61,47 @@ const tabs = [
   { label: "Histórico", icon: History, href: "/business/history", category: "Gestão" },
 ];
 
+const LOJISTA_READ_KEY = "@epraja_lojista_read_notif_ids";
+
 export function BusinessLayout({ children, title, subtitle, fullHeight }: BusinessLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+  const [marketingNotifs, setMarketingNotifs] = useState<any[]>([]);
+  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
   const { data: companyData } = useCompany(user?.id, user?.email);
+
+  const getReadIds = useCallback((): Set<string> => {
+    try {
+      const raw = localStorage.getItem(LOJISTA_READ_KEY);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  const markMarketingAsRead = (id: string) => {
+    try {
+      const readIds = getReadIds();
+      readIds.add(id);
+      localStorage.setItem(LOJISTA_READ_KEY, JSON.stringify(Array.from(readIds)));
+      setMarketingNotifs(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+    } catch {}
+  };
+
+  const handleCopyCoupon = (code: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopiedCoupon(code);
+    toast.success(`Cupom ${code} copiado!`);
+    setTimeout(() => setCopiedCoupon(null), 2500);
+  };
 
   const isActive = (href: string) => {
     if (href === "/business") return location.pathname === "/business";
@@ -77,6 +111,64 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
   const categories = Array.from(new Set(tabs.map(t => t.category)));
 
   const unreadChatCount = useUnreadChatCount(companyData?.id);
+
+  // Busca notificações de marketing destinadas aos lojistas
+  const fetchMarketingNotifications = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('marketing_notifications')
+        .select('*')
+        .eq('target_audience', 'stores')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.warn("[BusinessLayout] Erro ao buscar marketing_notifications:", error.message);
+        return;
+      }
+
+      const readIds = getReadIds();
+      const now = Date.now();
+
+      const items = (data || [])
+        .filter((item: any) => {
+          const audience = String(item.target_audience || "").trim().toLowerCase();
+          if (audience !== "stores") return false;
+          const createdAtTime = new Date(item.created_at).getTime();
+          if (!isNaN(createdAtTime) && createdAtTime > now + 60000) return false;
+          return true;
+        })
+        .map((item: any) => ({
+          ...item,
+          type: 'marketing',
+          read: readIds.has(item.id),
+        }));
+
+      setMarketingNotifs(items);
+    } catch (e) {
+      console.warn("[BusinessLayout] Exceção ao carregar marketing:", e);
+    }
+  }, [getReadIds]);
+
+  useEffect(() => {
+    fetchMarketingNotifications();
+
+    const mktChannel = supabase.channel(`public:mkt_lojista_${Math.random().toString(36).substring(2, 8)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketing_notifications' }, (payload) => {
+        const record: any = payload.new || payload.old;
+        if (!record) return;
+        const audience = String(record.target_audience || "").trim().toLowerCase();
+        if (audience === "stores") {
+          fetchMarketingNotifications();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(mktChannel);
+    };
+  }, [fetchMarketingNotifications]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -120,6 +212,7 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
 
         const notifs = rawOrders.filter(o => o.status === 'pending' || cancelledDeliveryIds.has(o.delivery_id)).map(o => ({
           ...o,
+          type: 'order',
           notifType: o.status === 'pending' ? 'new_order' : 'delivery_cancelled'
         }));
         setPendingOrders(notifs);
@@ -396,55 +489,136 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
             <div className="flex items-center gap-2">
               <ThemeToggle />
               {/* Notifications */}
-              <Popover>
+              <Popover open={popoverOpen} onOpenChange={(open) => {
+                setPopoverOpen(open);
+                if (open) {
+                  marketingNotifs.forEach(m => markMarketingAsRead(m.id));
+                }
+              }}>
                 <PopoverTrigger asChild>
                   <button className="relative w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 hover:bg-primary/20 transition-all group">
                     <Bell className="h-5 w-5 text-primary group-hover:animate-ring transition-transform" />
-                    {pendingOrders.length > 0 && (
+                    {(pendingOrders.length + marketingNotifs.filter(m => !m.read).length) > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm animate-pulse flex items-center justify-center text-[8px] text-white font-black">
-                        {pendingOrders.length > 9 ? '9+' : pendingOrders.length}
+                        {(pendingOrders.length + marketingNotifs.filter(m => !m.read).length) > 9 ? '9+' : (pendingOrders.length + marketingNotifs.filter(m => !m.read).length)}
                       </span>
                     )}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0 mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden" align="end">
-                  <div className="bg-primary/5 px-6 py-4 border-b border-border">
+                <PopoverContent className="w-84 md:w-96 p-0 mr-4 mt-2 rounded-[2rem] shadow-2xl border-border/50 overflow-hidden bg-background/95 backdrop-blur-xl" align="end">
+                  <div className="bg-primary/5 px-6 py-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-black text-sm uppercase tracking-widest text-primary">Notificações</h3>
+                    <span className="text-[10px] text-muted-foreground font-bold">
+                      {pendingOrders.length + marketingNotifs.length} no total
+                    </span>
                   </div>
-                  <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
-                    {pendingOrders.length === 0 ? (
+                  <div className="max-h-[60vh] overflow-y-auto custom-scrollbar divide-y divide-border/50">
+                    {(pendingOrders.length === 0 && marketingNotifs.length === 0) ? (
                       <div className="p-8 text-center flex flex-col items-center gap-3">
                         <Bell className="w-8 h-8 text-muted-foreground/30" />
-                        <p className="text-xs text-muted-foreground font-medium">Nenhuma notificação nova.</p>
+                        <p className="text-xs text-muted-foreground font-medium">Nenhuma notificação por enquanto.</p>
                       </div>
                     ) : (
                       <div className="flex flex-col">
-                        {pendingOrders.map(order => (
-                          <div 
-                            key={order.id} 
-                            onClick={() => {
-                              setSidebarOpen(false);
-                              navigate('/business/orders');
-                            }} 
-                            className="p-5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
-                          >
-                            <div className="flex items-center justify-between">
-                              {order.notifType === 'delivery_cancelled' ? (
-                                <span className="text-[10px] font-black uppercase tracking-widest text-destructive bg-destructive/10 px-2 py-0.5 rounded-full animate-pulse">Motoboy Cancelou</span>
-                              ) : (
-                                <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
-                              )}
-                              <span className="text-xs font-bold text-muted-foreground">{new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                            <p className="text-sm font-bold mt-2">Pedido #{order.id?.slice(-6).toUpperCase()}</p>
-                            <p className="text-xs text-muted-foreground truncate">{order.customer_name || 'Cliente Marketplace'}</p>
-                            {order.notifType === 'delivery_cancelled' ? (
-                              <span className="text-xs text-destructive font-medium">Vá em "Novos Pedidos" para re-despachar.</span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground font-medium">R$ {order.total.toFixed(2).replace('.', ',')}</span>
-                            )}
-                          </div>
-                        ))}
+                        {[
+                          ...pendingOrders.map(p => ({ ...p, notifCategory: 'order' as const, sortTime: new Date(p.created_at).getTime() })),
+                          ...marketingNotifs.map(m => ({ ...m, notifCategory: 'marketing' as const, sortTime: new Date(m.created_at).getTime() }))
+                        ]
+                          .sort((a, b) => b.sortTime - a.sortTime)
+                          .map(item => {
+                            if (item.notifCategory === 'marketing') {
+                              return (
+                                <div 
+                                  key={item.id}
+                                  onClick={() => markMarketingAsRead(item.id)}
+                                  className={cn(
+                                    "p-4 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1.5 relative",
+                                    !item.read && "bg-primary/5 border-l-2 border-primary"
+                                  )}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      {item.emoji && <span className="text-base shrink-0">{item.emoji}</span>}
+                                      <span className="text-xs font-black text-foreground truncate">{item.title}</span>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+
+                                  {item.image_url && (
+                                    <div className="w-full h-28 rounded-xl overflow-hidden my-1 bg-muted relative">
+                                      <img 
+                                        src={item.image_url} 
+                                        alt="" 
+                                        className="w-full h-full object-cover" 
+                                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{item.message}</p>
+
+                                  {item.coupon_code && (
+                                    <div 
+                                      className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 flex items-center justify-between gap-2 mt-1.5"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <Tag className="w-3.5 h-3.5 text-primary shrink-0" />
+                                        <span className="font-mono font-black text-primary text-xs tracking-wider truncate">{item.coupon_code}</span>
+                                      </div>
+                                      <button 
+                                        onClick={(e) => handleCopyCoupon(item.coupon_code, e)}
+                                        className="h-7 px-2.5 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shrink-0 flex items-center gap-1"
+                                      >
+                                        {copiedCoupon === item.coupon_code ? (
+                                          <><Check className="w-3 h-3" /> Copiado</>
+                                        ) : (
+                                          <><Copy className="w-3 h-3" /> Copiar</>
+                                        )}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <div className="mt-1">
+                                    <Badge variant="secondary" className="text-[9px] font-bold bg-primary/10 text-primary border-primary/20">
+                                      📣 Comunicado Lojista
+                                    </Badge>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            // Order notification
+                            return (
+                              <div 
+                                key={item.id} 
+                                onClick={() => {
+                                  setSidebarOpen(false);
+                                  setPopoverOpen(false);
+                                  navigate('/business/orders');
+                                }} 
+                                className="p-4 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col gap-1"
+                              >
+                                <div className="flex items-center justify-between">
+                                  {item.notifType === 'delivery_cancelled' ? (
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-destructive bg-destructive/10 px-2 py-0.5 rounded-full animate-pulse">Motoboy Cancelou</span>
+                                  ) : (
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full">Novo Pedido</span>
+                                  )}
+                                  <span className="text-xs font-bold text-muted-foreground">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                </div>
+                                <p className="text-sm font-bold mt-1">Pedido #{item.id?.slice(-6).toUpperCase()}</p>
+                                <p className="text-xs text-muted-foreground truncate">{item.customer_name || 'Cliente Marketplace'}</p>
+                                {item.notifType === 'delivery_cancelled' ? (
+                                  <span className="text-xs text-destructive font-medium">Vá em "Novos Pedidos" para re-despachar.</span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground font-medium">R$ {Number(item.total || 0).toFixed(2).replace('.', ',')}</span>
+                                )}
+                              </div>
+                            );
+                          })}
                       </div>
                     )}
                   </div>
