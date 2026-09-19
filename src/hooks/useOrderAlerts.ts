@@ -30,101 +30,94 @@ export function useOrderAlerts() {
 
   // Configurar registro de Push Notifications se estiver em plataforma nativa (Android/iOS)
   useEffect(() => {
-    if (!Capacitor.isNativePlatform() || !companyId) return;
+    if (!Capacitor.isNativePlatform()) return;
 
     let regListener: any = null;
     let errListener: any = null;
     let pushListener: any = null;
     let actionListener: any = null;
 
-    // Solicita todas as permissões no iOS e Android (alert, badge, sound)
-    const initPush = async () => {
-      try {
-        let permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive !== "granted" && (permStatus as any).display !== "granted") {
-          permStatus = await PushNotifications.requestPermissions();
-        }
+    const syncToken = async (tokenValue: string) => {
+      if (!tokenValue) return;
 
-        if (permStatus.receive === "granted" || (permStatus as any).display === "granted") {
-          await PushNotifications.register();
-          console.log("[Push iOS/Android] Registrado no serviço de notificações nativas");
-        } else {
-          console.warn("[Push iOS/Android] Permissões não concedidas pelo usuário:", permStatus);
-        }
-      } catch (e) {
-        console.warn("[Push iOS/Android] Erro ao inicializar push nativo:", e);
-      }
-    };
+      const masked = tokenValue.length > 12 
+        ? `${tokenValue.slice(0, 8)}...${tokenValue.slice(-4)}` 
+        : tokenValue;
+      console.log("[FCM][LOJISTA] registration recebido:", masked);
 
-    initPush();
+      localStorage.setItem("@epraja_lojista_push_token", tokenValue);
+      localStorage.setItem("fcm_token", tokenValue);
 
-    PushNotifications.addListener("registration", async (token) => {
-      console.log("[Push Lojista] Token registrado:", token.value);
-      localStorage.setItem("@epraja_lojista_push_token", token.value);
-      localStorage.setItem("fcm_token", token.value);
-
-      // 1. Salva na empresa (companies.fcm_token)
-      try {
-        const { error: compErr } = await supabase
-          .from("companies")
-          .update({ fcm_token: token.value })
-          .eq("id", companyId);
-        if (compErr) console.error("[Push] Erro ao salvar token em companies:", compErr);
-        else console.log("[Push] Token salvo com sucesso na empresa:", companyId);
-      } catch (e) {
-        console.warn("[Push] Falha ao persistir em companies:", e);
-      }
-
-      // 2. Salva no perfil do usuário logado (profiles.fcm_token)
       if (user?.id) {
-        try {
-          await supabase
-            .from("profiles")
-            .update({ fcm_token: token.value, updated_at: new Date().toISOString() })
-            .eq("id", user.id);
-        } catch (e) {
-          console.warn("[Push] Falha ao persistir em profiles:", e);
-        }
+        console.log("[FCM][LOJISTA] user_id encontrado:", user.id);
       }
 
       const app = "lojista";
       const bundle_id = "br.com.epraja.lojista";
       const platform = Capacitor.getPlatform();
 
-      console.log("[PUSH REGISTER]", {
-        platform,
-        app,
-        bundle_id,
-        hasToken: !!token.value,
-      });
-
-      // 3. Registra na tabela device_tokens com identidade explícita do Lojista
+      // 1. Registra diretamente na tabela device_tokens
+      console.log("[FCM][LOJISTA] salvando device_tokens");
       try {
-        await supabase
+        const { error: devErr } = await supabase
           .from("device_tokens" as any)
           .upsert(
             {
-              token: token.value,
+              token: tokenValue,
               user_id: user?.id || null,
               platform,
               app,
               bundle_id,
+              disabled_at: null,
+              failure_count: 0,
               updated_at: new Date().toISOString(),
             } as any,
             { onConflict: "token" }
           );
-      } catch (e) {
-        console.warn("[Push] Falha ao persistir em device_tokens:", e);
+
+        if (devErr) {
+          console.error("[FCM][LOJISTA] erro ao salvar device_tokens:", devErr.message);
+        } else {
+          console.log("[FCM][LOJISTA] device_tokens salvo com sucesso");
+        }
+      } catch (e: any) {
+        console.error("[FCM][LOJISTA] erro ao salvar device_tokens:", e?.message || e);
       }
 
-      // 4. Registra via Edge Function send-push (para garantir sincronização no backend com service role)
+      // 2. Salva na empresa (companies.fcm_token) se houver companyId
+      if (companyId) {
+        try {
+          const { error: compErr } = await supabase
+            .from("companies")
+            .update({ fcm_token: tokenValue })
+            .eq("id", companyId);
+          if (compErr) console.error("[Push] Erro ao salvar token em companies:", compErr.message);
+          else console.log("[Push] Token salvo com sucesso na empresa:", companyId);
+        } catch (e) {
+          console.warn("[Push] Falha ao persistir em companies:", e);
+        }
+      }
+
+      // 3. Salva no perfil do usuário logado (profiles.fcm_token)
+      if (user?.id) {
+        try {
+          await supabase
+            .from("profiles")
+            .update({ fcm_token: tokenValue, updated_at: new Date().toISOString() })
+            .eq("id", user.id);
+        } catch (e) {
+          console.warn("[Push] Falha ao persistir em profiles:", e);
+        }
+      }
+
+      // 4. Registra via Edge Function send-push (sincronização no backend com service role)
       try {
         await supabase.functions.invoke("send-push", {
           body: {
             action: "register_token",
-            token: token.value,
+            token: tokenValue,
             userId: user?.id,
-            companyId: companyId,
+            companyId: companyId || undefined,
             platform,
             app,
             bundleId: bundle_id,
@@ -133,32 +126,17 @@ export function useOrderAlerts() {
       } catch (e) {
         console.warn("[Push] Falha ao chamar edge function register_token:", e);
       }
+    };
 
-      // 5. Verificação pós-upsert para auditoria e confirmação da gravação
-      try {
-        const { data: checkData } = await supabase
-          .from("device_tokens" as any)
-          .select("id, user_id, platform, app, bundle_id, disabled_at, created_at, updated_at")
-          .eq("token", token.value)
-          .maybeSingle();
-
-        if (checkData) {
-          console.log("[PUSH REGISTER VERIFIED]", {
-            id: checkData.id,
-            user_id: checkData.user_id,
-            platform: checkData.platform,
-            app: checkData.app,
-            bundle_id: checkData.bundle_id,
-            disabled_at: checkData.disabled_at,
-            updated_at: checkData.updated_at,
-            hasToken: true,
-          });
-        }
-      } catch (e) {}
+    // 1. Registra ouvintes ANTES de chamar register()
+    PushNotifications.addListener("registration", (token) => {
+      if (token?.value) {
+        syncToken(token.value);
+      }
     }).then(listener => { regListener = listener; });
 
     PushNotifications.addListener("registrationError", (error: any) => {
-      console.error("[Push iOS/Android] Erro no registro de Push:", error);
+      console.error("[FCM][LOJISTA] registrationError:", error);
     }).then(listener => { errListener = listener; });
 
     // Ouvinte do Push quando o app está aberto/foreground
@@ -193,6 +171,33 @@ export function useOrderAlerts() {
         window.location.href = targetRoute;
       }
     }).then(listener => { actionListener = listener; });
+
+    // 2. Sincroniza token em cache se já existir
+    const cachedToken = localStorage.getItem("@epraja_lojista_push_token") || localStorage.getItem("fcm_token");
+    if (cachedToken) {
+      syncToken(cachedToken);
+    }
+
+    // 3. Solicita todas as permissões no iOS e Android (alert, badge, sound) e registra
+    const initPush = async () => {
+      try {
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive !== "granted" && (permStatus as any).display !== "granted") {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+
+        if (permStatus.receive === "granted" || (permStatus as any).display === "granted") {
+          await PushNotifications.register();
+          console.log("[Push iOS/Android] Registrado no serviço de notificações nativas");
+        } else {
+          console.warn("[Push iOS/Android] Permissões não concedidas pelo usuário:", permStatus);
+        }
+      } catch (e) {
+        console.warn("[Push iOS/Android] Erro ao inicializar push nativo:", e);
+      }
+    };
+
+    initPush();
 
     return () => {
       if (regListener) regListener.remove();

@@ -76,11 +76,7 @@ export function triggerDeviceVibration(pattern: number[] = [500, 200, 500, 200, 
  */
 export function requestNotificationPermission() {
   if (Capacitor.isNativePlatform()) {
-    PushNotifications.requestPermissions().then((perm) => {
-      if (perm.receive === "granted" || (perm as any).display === "granted") {
-        PushNotifications.register().catch(() => {});
-      }
-    }).catch(() => {});
+    PushNotifications.requestPermissions().catch(() => {});
 
     LocalNotifications.requestPermissions().then((res) => {
       if (res.display === "granted") {
