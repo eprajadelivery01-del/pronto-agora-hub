@@ -127,104 +127,108 @@ export function useOrderAlerts() {
       }
     };
 
-    // 1. Registra ouvintes ANTES de chamar register()
-    PushNotifications.addListener("registration", async (token) => {
-      if (token?.value) {
-        // No iOS, o evento registration do PushNotifications devolve o APNs hex.
-        // Solicitamos o FCM registration token oficial via FirebaseMessaging.
-        if (Capacitor.getPlatform() === "ios") {
-          try {
-            const fcmRes = await FirebaseMessaging.getToken();
-            if (fcmRes?.token) {
-              console.log("[FCM][LOJISTA][iOS] FCM registration token obtido com sucesso:", fcmRes.token.slice(0, 12));
-              syncToken(fcmRes.token);
-              return;
-            }
-          } catch (errFcm) {
-            console.warn("[FCM][LOJISTA][iOS] Falha ao obter token via FirebaseMessaging, usando fallback:", errFcm);
+    // 1. Registra ouvintes do FirebaseMessaging (FCM)
+    let isRegistering = false;
+    const listeners: any[] = [];
+
+    const setupPush = async () => {
+      if (isRegistering) return;
+      isRegistering = true;
+
+      try {
+        const tokenListener = await FirebaseMessaging.addListener("tokenReceived", ({ token }) => {
+          if (token) {
+            console.log("[FCM][LOJISTA] tokenReceived:", token.slice(0, 12));
+            syncToken(token);
           }
+        });
+        listeners.push(tokenListener);
+
+        const notifListener = await FirebaseMessaging.addListener("notificationReceived", ({ notification }) => {
+          const orderId = notification.data?.order_id || notification.data?.orderId || notification.id;
+          console.log("[Push Recebido em Foreground]", orderId, notification);
+
+          if (orderId && processedOrders.has(orderId)) {
+            console.log("[Push] Pedido já notificado previamente, ignorando duplicata nativa:", orderId);
+            return;
+          }
+
+          if (orderId) {
+            processedOrders.add(orderId);
+          }
+
+          playAlert();
+          startLoop();
+
+          toast.success(notification.title || "📦 Novo pedido recebido!", {
+            description: notification.body || "Acesse o app para aceitar e começar a preparar.",
+            duration: 10000
+          });
+        });
+        listeners.push(notifListener);
+
+        const actionListener = await FirebaseMessaging.addListener("notificationActionPerformed", ({ notification }) => {
+          console.log("[Push Ação/Clique]", notification);
+          stopLoop();
+          const targetRoute = notification.data?.route || "/business/orders";
+          if (window.location.pathname !== targetRoute) {
+            window.location.href = targetRoute;
+          }
+        });
+        listeners.push(actionListener);
+
+        // Cria canal para Android com som oficial e prioridade máxima
+        if (Capacitor.getPlatform() === "android") {
+          await FirebaseMessaging.createChannel({
+            id: "lojista_orders_v2",
+            name: "Novos Pedidos do Lojista",
+            description: "Alertas sonoros para novos pedidos recebidos na loja",
+            importance: 5,
+            visibility: 1,
+            sound: "notification_sound",
+            vibration: true,
+          }).catch(() => {});
         }
-        syncToken(token.value);
+
+        // Solicita permissões via FirebaseMessaging
+        let permStatus = await FirebaseMessaging.checkPermissions();
+        if (permStatus.receive !== "granted") {
+          permStatus = await FirebaseMessaging.requestPermissions();
+        }
+
+        if (permStatus.receive === "granted") {
+          // Obtém o token FCM oficial do Firebase
+          try {
+            const { token } = await FirebaseMessaging.getToken();
+            if (token) {
+              console.log("[FCM][LOJISTA] Token obtido via getToken:", token.slice(0, 12));
+              syncToken(token);
+            }
+          } catch (errToken: any) {
+            console.warn("[FCM][LOJISTA] Aviso ao obter token:", errToken?.message || errToken);
+          }
+        } else {
+          console.warn("[FCM][LOJISTA] Permissão de notificação negada pelo usuário.");
+        }
+      } catch (errInit: any) {
+        console.warn("[FCM][LOJISTA] Erro ao inicializar notificações:", errInit?.message || errInit);
+      } finally {
+        isRegistering = false;
       }
-    }).then(listener => { regListener = listener; });
+    };
 
-    // Listener nativo de token FCM direto do Firebase Messaging
-    FirebaseMessaging.addListener("tokenReceived", ({ token }) => {
-      if (token) {
-        console.log("[FCM][LOJISTA] tokenReceived via FirebaseMessaging:", token.slice(0, 12));
-        syncToken(token);
-      }
-    }).catch(() => {});
-
-    PushNotifications.addListener("registrationError", (error: any) => {
-      console.error("[FCM][LOJISTA] registrationError:", error);
-    }).then(listener => { errListener = listener; });
-
-    // Ouvinte do Push quando o app está aberto/foreground
-    PushNotifications.addListener("pushNotificationReceived", (notification) => {
-      const orderId = notification.data?.order_id || notification.data?.orderId || notification.id;
-      console.log("[Push Recebido em Foreground]", orderId, notification);
-
-      if (orderId && processedOrders.has(orderId)) {
-        console.log("[Push] Pedido já notificado previamente, ignorando duplicata nativa:", orderId);
-        return;
-      }
-
-      if (orderId) {
-        processedOrders.add(orderId);
-      }
-
-      playAlert();
-      startLoop();
-
-      toast.success(notification.title || "📦 Novo pedido recebido!", {
-        description: notification.body || "Acesse o app para aceitar e começar a preparar.",
-        duration: 10000
-      });
-    }).then(listener => { pushListener = listener; });
-
-    // Ouvinte de clique na notificação na Central do iPhone/Android quando o app estava fechado ou em background
-    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      console.log("[Push Ação/Clique]", action);
-      stopLoop();
-      const targetRoute = action.notification.data?.route || "/business/orders";
-      if (window.location.pathname !== targetRoute) {
-        window.location.href = targetRoute;
-      }
-    }).then(listener => { actionListener = listener; });
-
-    // 2. Sincroniza token em cache se já existir
+    // Sincroniza token em cache se já existir
     const cachedToken = localStorage.getItem("@epraja_lojista_push_token") || localStorage.getItem("fcm_token");
     if (cachedToken) {
       syncToken(cachedToken);
     }
 
-    // 3. Solicita todas as permissões no iOS e Android (alert, badge, sound) e registra
-    const initPush = async () => {
-      try {
-        let permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive !== "granted" && (permStatus as any).display !== "granted") {
-          permStatus = await PushNotifications.requestPermissions();
-        }
-
-        if (permStatus.receive === "granted" || (permStatus as any).display === "granted") {
-          await PushNotifications.register();
-          console.log("[Push iOS/Android] Registrado no serviço de notificações nativas");
-        } else {
-          console.warn("[Push iOS/Android] Permissões não concedidas pelo usuário:", permStatus);
-        }
-      } catch (e) {
-        console.warn("[Push iOS/Android] Erro ao inicializar push nativo:", e);
-      }
-    };
-
-    initPush();
+    setupPush();
 
     return () => {
-      if (regListener) regListener.remove();
-      if (errListener) errListener.remove();
-      if (pushListener) pushListener.remove();
-      if (actionListener) actionListener.remove();
+      listeners.forEach(l => {
+        try { l.remove(); } catch {}
+      });
     };
   }, [companyId, user?.id, playAlert, startLoop, stopLoop]);
 
