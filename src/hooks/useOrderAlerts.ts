@@ -13,6 +13,7 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 
 import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
+import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 
 // Set global de IDs de pedidos já notificados para prevenir qualquer duplicata no dispositivo
 const processedOrders = new Set<string>();
@@ -129,11 +130,33 @@ export function useOrderAlerts() {
     };
 
     // 1. Registra ouvintes ANTES de chamar register()
-    PushNotifications.addListener("registration", (token) => {
+    PushNotifications.addListener("registration", async (token) => {
       if (token?.value) {
+        // No iOS, o evento registration do PushNotifications devolve o APNs hex.
+        // Solicitamos o FCM registration token oficial via FirebaseMessaging.
+        if (Capacitor.getPlatform() === "ios") {
+          try {
+            const fcmRes = await FirebaseMessaging.getToken();
+            if (fcmRes?.token) {
+              console.log("[FCM][LOJISTA][iOS] FCM registration token obtido com sucesso:", fcmRes.token.slice(0, 12));
+              syncToken(fcmRes.token);
+              return;
+            }
+          } catch (errFcm) {
+            console.warn("[FCM][LOJISTA][iOS] Falha ao obter token via FirebaseMessaging, usando fallback:", errFcm);
+          }
+        }
         syncToken(token.value);
       }
     }).then(listener => { regListener = listener; });
+
+    // Listener nativo de token FCM direto do Firebase Messaging
+    FirebaseMessaging.addListener("tokenReceived", ({ token }) => {
+      if (token) {
+        console.log("[FCM][LOJISTA] tokenReceived via FirebaseMessaging:", token.slice(0, 12));
+        syncToken(token);
+      }
+    }).catch(() => {});
 
     PushNotifications.addListener("registrationError", (error: any) => {
       console.error("[FCM][LOJISTA] registrationError:", error);

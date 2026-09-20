@@ -26,6 +26,7 @@
 		}
 	},
 	"packageClassList": [
+		"FirebaseMessagingPlugin",
 		"LocalNotificationsPlugin",
 		"PushNotificationsPlugin",
 		"StatusBarPlugin"
