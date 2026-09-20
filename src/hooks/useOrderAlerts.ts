@@ -69,8 +69,6 @@ export function useOrderAlerts() {
               platform,
               app,
               bundle_id,
-              disabled_at: null,
-              failure_count: 0,
               updated_at: new Date().toISOString(),
             } as any,
             { onConflict: "token" }
