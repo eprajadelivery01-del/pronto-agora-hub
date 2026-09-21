@@ -36,6 +36,47 @@ export const supabase = createClient(EXTERNAL_URL, EXTERNAL_ANON_KEY, {
   },
 });
 
+// Garantir que todos os query builders do Postgrest (select, update, insert, delete, rpc)
+// implementem .catch() e .finally() como uma Promise padrão
+try {
+  const builders = [
+    (supabase.from as any)('_dummy_patch_').select(),
+    (supabase.from as any)('_dummy_patch_').insert({}),
+    (supabase.from as any)('_dummy_patch_').update({}),
+    (supabase.from as any)('_dummy_patch_').delete(),
+    (supabase.from as any)('_dummy_patch_').upsert({}),
+    (supabase as any).rpc('_dummy_patch_')
+  ];
+
+  for (const b of builders) {
+    let proto = Object.getPrototypeOf(b);
+    while (proto && proto !== Object.prototype) {
+      if (!proto.catch) {
+        proto.catch = function (onRejected: any) {
+          return this.then(undefined, onRejected);
+        };
+      }
+      if (!proto.finally) {
+        proto.finally = function (onFinally: any) {
+          return this.then(
+            (val: any) => {
+              if (onFinally) onFinally();
+              return val;
+            },
+            (err: any) => {
+              if (onFinally) onFinally();
+              throw err;
+            }
+          );
+        };
+      }
+      proto = Object.getPrototypeOf(proto);
+    }
+  }
+} catch (e) {
+  // Ignora erros de inicialização de patch
+}
+
 // Handle token refresh errors gracefully by NOT logging the user out immediately.
 // The user should remain logged in until an explicit API call fails with 401 Unauthorized,
 // or until they manually click 'sair'.

@@ -24,7 +24,8 @@ import {
   Truck,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
