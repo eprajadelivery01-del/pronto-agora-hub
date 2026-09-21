@@ -36,66 +36,142 @@ export function BulkImportModal({ isOpen, onClose, onSuccess, companyId }: BulkI
 
     setIsParsing(true);
     try {
-      const lines = pastedText.split(/\r?\n/).filter(l => l.trim() !== "");
-      
+      const rawLines = pastedText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       const newProducts: ImportedProduct[] = [];
-      
-      for (const line of lines) {
-        // Separa por tabulação (Excel/Google Sheets)
-        let columns = line.split("\t");
-        
-        // Se não houver tabulação, tentar separar por ponto e vírgula ou pipe (|)
-        if (columns.length === 1) {
-          if (line.includes("|")) {
-            columns = line.split("|");
-          } else if (line.includes(";")) {
-            columns = line.split(";");
-          }
+
+      // Helper para extrair valor numérico de preço
+      const parsePrice = (val: string): number | null => {
+        if (!val) return null;
+        // Procura padrão de preço: R$ 25,00 ou 25.00 ou 25,00 ou 25
+        const match = val.match(/(?:R\$\s*)?(\d{1,5}(?:[.,]\d{1,2})?)/i);
+        if (!match) return null;
+        const clean = match[1].replace(",", ".");
+        const num = parseFloat(clean);
+        return !isNaN(num) && num > 0 ? num : null;
+      };
+
+      // 1. Tentar processamento linha a linha
+      let i = 0;
+      while (i < rawLines.length) {
+        const line = rawLines[i];
+
+        // Ignora cabeçalhos óbvios
+        if (/^(nome|produto|item|descri[cç][aã]o)\b/i.test(line) && /(pre[cç]o|valor|r\$|categoria)/i.test(line)) {
+          i++;
+          continue;
         }
 
-        // Precisamos de pelo menos nome e preço
-        if (columns.length >= 2) {
-          const name = columns[0]?.trim();
-          let category = columns[1]?.trim();
+        // Caso A: Linha com separador explícito (\t, |, ;)
+        let cols = line.split("\t");
+        if (cols.length === 1 && line.includes("|")) cols = line.split("|");
+        if (cols.length === 1 && line.includes(";")) cols = line.split(";");
+
+        if (cols.length >= 2) {
+          const name = cols[0]?.trim();
+          let category = "Geral";
           let priceStr = "";
           let description = "";
 
-          if (columns.length === 2) {
-            priceStr = columns[1]?.trim();
-            category = "Outros";
-          } else if (columns.length === 3) {
-            priceStr = columns[2]?.trim();
+          if (cols.length === 2) {
+            priceStr = cols[1]?.trim();
+          } else if (cols.length === 3) {
+            category = cols[1]?.trim() || "Geral";
+            priceStr = cols[2]?.trim();
           } else {
-            priceStr = columns[2]?.trim();
-            description = columns[3]?.trim();
+            category = cols[1]?.trim() || "Geral";
+            priceStr = cols[2]?.trim();
+            description = cols.slice(3).join(" ").trim();
           }
 
-          // Ignorar cabeçalho se houver
-          if (name.toLowerCase() === "nome" && priceStr.toLowerCase().includes("preço")) continue;
-
-          // Limpar preço (remover R$, formatar vírgulas)
-          const cleanPrice = priceStr.replace(/[^\d.,]/g, "").replace(",", ".");
-          const price = parseFloat(cleanPrice);
-
-          if (name && !isNaN(price)) {
+          const price = parsePrice(priceStr);
+          if (name && price !== null) {
             newProducts.push({
               name,
-              category: category || "Outros",
+              category: category || "Geral",
               price,
-              description: description || ""
+              description: description || "",
             });
+            i++;
+            continue;
           }
         }
+
+        // Caso B: Linha com hífen, travessão ou dois pontos (ex: "X-Burger - R$ 25,00 - Lanches" ou "X-Tudo : 25,00")
+        const dashMatch = line.match(/^(.+?)\s*(?:[-–—:]|\.{2,})\s*(?:R\$\s*)?(\d{1,5}(?:[.,]\d{1,2})?)\s*(?:[-–—:]\s*(.+))?$/i);
+        if (dashMatch) {
+          const name = dashMatch[1].trim();
+          const price = parsePrice(dashMatch[2]);
+          const rest = dashMatch[3]?.trim() || "";
+          if (name && price !== null) {
+            newProducts.push({
+              name,
+              category: rest || "Geral",
+              price,
+              description: "",
+            });
+            i++;
+            continue;
+          }
+        }
+
+        // Caso C: Preço no final ou no meio da linha (ex: "X Tudo Especial R$ 32,00" ou "Marmita M 22,00 Comida Caseira")
+        const inlinePriceMatch = line.match(/^(.+?)\s+(?:R\$\s*)(\d{1,5}(?:[.,]\d{1,2})?)(?:\s+(.*))?$/i) ||
+                                 line.match(/^(.+?)\s+(\d{1,4}[.,]\d{2})(?:\s+(.*))?$/);
+        if (inlinePriceMatch) {
+          const name = inlinePriceMatch[1].trim();
+          const price = parsePrice(inlinePriceMatch[2]);
+          const rest = inlinePriceMatch[3]?.trim() || "";
+          if (name && price !== null && name.length >= 2) {
+            newProducts.push({
+              name,
+              category: rest || "Geral",
+              price,
+              description: "",
+            });
+            i++;
+            continue;
+          }
+        }
+
+        // Caso D: Formato em bloco multi-linhas (Linha 1: Nome, Linha 2: Preço, Linha 3 opcional: Descrição)
+        if (i + 1 < rawLines.length) {
+          const possibleName = line;
+          const possiblePriceStr = rawLines[i + 1];
+          const price = parsePrice(possiblePriceStr);
+
+          // Se a linha 2 for exclusivamente um preço (ex: "R$ 25,00" ou "25,00")
+          if (price !== null && /^R?\$?\s*\d+([.,]\d+)?\s*$/i.test(possiblePriceStr)) {
+            let desc = "";
+            let step = 2;
+
+            // Se a linha seguinte existir e não for outro produto/preço, pega como descrição
+            if (i + 2 < rawLines.length && !parsePrice(rawLines[i + 2])) {
+              desc = rawLines[i + 2];
+              step = 3;
+            }
+
+            newProducts.push({
+              name: possibleName,
+              category: "Geral",
+              price,
+              description: desc,
+            });
+            i += step;
+            continue;
+          }
+        }
+
+        i++;
       }
 
       if (newProducts.length > 0) {
         setParsedData(newProducts);
-        toast.success(`${newProducts.length} produtos identificados!`);
+        toast.success(`${newProducts.length} produtos identificados com sucesso!`);
       } else {
-        toast.error("Não foi possível identificar os produtos no texto colado.");
+        toast.error("Não foi possível identificar os produtos. Certifique-se de que cada item possua nome e preço (ex: X-Bacon R$ 25,00).");
       }
     } catch (e) {
-      toast.error("Erro ao processar dados.");
+      toast.error("Erro ao processar dados colados.");
     } finally {
       setIsParsing(false);
     }
