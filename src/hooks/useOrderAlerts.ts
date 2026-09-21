@@ -75,12 +75,12 @@ export function useOrderAlerts() {
           );
 
         if (devErr) {
-          console.error("[FCM][LOJISTA] erro ao salvar device_tokens:", devErr.message);
+          console.warn("[FCM][LOJISTA] aviso ao salvar device_tokens:", devErr.message);
         } else {
           console.log("[FCM][LOJISTA] device_tokens salvo com sucesso");
         }
       } catch (e: any) {
-        console.error("[FCM][LOJISTA] erro ao salvar device_tokens:", e?.message || e);
+        console.warn("[FCM][LOJISTA] aviso ao salvar device_tokens:", e?.message || e);
       }
 
       // 2. Salva na empresa (companies.fcm_token) se houver companyId
