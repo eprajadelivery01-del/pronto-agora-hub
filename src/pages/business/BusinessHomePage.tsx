@@ -823,7 +823,9 @@ function StatCard({ label, value, icon: Icon, color, subtitle }: any) {
   };
   return (
     <div className="bg-card rounded-[2rem] p-6 shadow-sm border border-border/50 hover:border-primary/20 transition-all group">
-      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", colors[color])}><Icon className="h-7 w-7" /></div>
+      <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", colors[color])}>
+        {Icon ? <Icon className="h-7 w-7" /> : null}
+      </div>
       <p className="text-4xl font-black text-foreground tracking-tight">{value}</p>
       <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mt-1">{label}</p>
       <p className="text-[10px] font-bold text-muted-foreground opacity-50">{subtitle}</p>
@@ -834,7 +836,9 @@ function StatCard({ label, value, icon: Icon, color, subtitle }: any) {
 function EmptyState({ icon: Icon, message }: any) {
   return (
     <div className="bg-muted/20 border border-dashed border-border rounded-[2.5rem] p-16 text-center animate-in fade-in duration-700">
-      <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-6"><Icon className="h-10 w-10 text-muted-foreground/30" /></div>
+      <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
+        {Icon ? <Icon className="h-10 w-10 text-muted-foreground/30" /> : null}
+      </div>
       <p className="text-xs font-black text-muted-foreground/50 uppercase tracking-[0.2em]">{message}</p>
     </div>
   );
