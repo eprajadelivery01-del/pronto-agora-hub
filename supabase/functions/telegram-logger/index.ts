@@ -126,6 +126,8 @@ serve(async (req) => {
       "apns",
       "erro no registro de push",
       "falha ao registrar push",
+      "erro ao salvar devicetokens could not find the failurecount column",
+      "erro ao salvar device tokens could not find the failure count column",
       "deliveryoverlay is not defined",
       "deliveryoverlay",
       "driverrecord is not defined",

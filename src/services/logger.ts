@@ -14,6 +14,9 @@ const REPORT_DEDUP_WINDOW_MS = 60_000;
 const isExpectedAuthLifecycleError = (message: string) =>
   /pgrst303|jwt expired|invalid jwt|token is expired|invalid refresh token|refresh token not found/i.test(message);
 
+const isLegacyPushSchemaCompatibilityError = (message: string) =>
+  /device_?tokens[\s\S]*(failure_?count|disabled_at|disabled_reason|last_error_code)[\s\S]*schema cache/i.test(message);
+
 export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Painel Lojista") {
   if (isReporting) return;
   
@@ -28,7 +31,7 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
   const msg = rawMessage.toLowerCase();
   // Expiração/renovação de sessão faz parte do ciclo normal de autenticação.
   // A UI tenta renovar e, se necessário, redireciona ao login; não é incidente sistêmico.
-  if (isExpectedAuthLifecycleError(rawMessage)) return;
+  if (isExpectedAuthLifecycleError(rawMessage) || isLegacyPushSchemaCompatibilityError(rawMessage)) return;
 
   if (
     msg.includes("corrida já foi aceita") || 
@@ -183,7 +186,7 @@ export function initializeGlobalErrorHandlers(appName: string) {
     originalConsoleError.apply(console, args);
 
     // Skip nested reporting to prevent loops
-    if (isReporting || isExpectedAuthLifecycleError(msg)) return;
+    if (isReporting || isExpectedAuthLifecycleError(msg) || isLegacyPushSchemaCompatibilityError(msg)) return;
 
     reportErrorToTelegram({
       error_message: `[Console Error] ${msg.slice(0, 1000)}`,
