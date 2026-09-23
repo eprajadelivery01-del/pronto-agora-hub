@@ -135,6 +135,8 @@ export default function BusinessProductsPage() {
 
   // Ordem manual de categorias e estado de recolhimento
   const [customCategoryOrder, setCustomCategoryOrder] = useState<string[]>([]);
+  // Categorias realmente visíveis na tela (fonte de verdade para reordenar/limpar)
+  const visibleCategoriesRef = useRef<string[]>([]);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>(() => {
     if (typeof window === "undefined") return {};
     try {
