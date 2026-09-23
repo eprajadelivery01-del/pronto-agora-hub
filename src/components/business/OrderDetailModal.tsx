@@ -131,6 +131,22 @@ export default function OrderDetailModal({
     return [];
   };
 
+  /** Adicionais podem vir como array (jsonb) ou como texto JSON. */
+  const parseOptions = (raw: any): any[] => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+    if (typeof raw === "object") return Object.values(raw).filter(Boolean) as any[];
+    return [];
+  };
+
   if (!order) return null;
 
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string, prev?: string, prevLabel?: string }> = {
