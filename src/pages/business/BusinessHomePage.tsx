@@ -111,7 +111,7 @@ export default function BusinessHomePage() {
           delivery_address, payment_method,
           customers (name),
           order_items (
-            id, quantity, price, notes,
+            id, quantity, price, unit_price, product_name, notes, options,
             products (id, name, image_url, description)
           )
         `)
