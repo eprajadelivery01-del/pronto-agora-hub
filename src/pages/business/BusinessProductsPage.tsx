@@ -135,6 +135,8 @@ export default function BusinessProductsPage() {
 
   // Ordem manual de categorias e estado de recolhimento
   const [customCategoryOrder, setCustomCategoryOrder] = useState<string[]>([]);
+  // Categorias realmente visíveis na tela (fonte de verdade para reordenar/limpar)
+  const visibleCategoriesRef = useRef<string[]>([]);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -402,10 +404,18 @@ export default function BusinessProductsPage() {
       }
 
       // 2. Preserva quaisquer categorias remotas novas que não constem na nova ordem local
-      const mergedOrder = [
+      const mergedOrderRaw = [
         ...newOrder,
         ...remoteCategories.filter(c => typeof c === "string" && !newOrder.includes(c))
       ];
+
+      // 3. Descarta categorias que não existem mais (evita crescer indefinidamente)
+      const existing = visibleCategoriesRef.current;
+      const mergedOrder = existing.length > 0
+        ? mergedOrderRaw.filter(c => existing.includes(c))
+        : mergedOrderRaw;
+
+
 
       const { error } = await (supabase as any)
         .from("companies")
@@ -437,12 +447,19 @@ export default function BusinessProductsPage() {
     if (!sourceCat || !targetCat || sourceCat === targetCat) return;
 
     setCustomCategoryOrder(prev => {
-      const currentList = [...prev];
+      const visible = visibleCategoriesRef.current;
+
+      // Base = ordem salva + qualquer categoria visível ainda não registrada (ex.: recém-criada)
+      let currentList = prev.length > 0 ? [...prev] : [...visible];
+      for (const cat of visible) {
+        if (!currentList.includes(cat)) currentList.push(cat);
+      }
+
       const srcIdx = currentList.indexOf(sourceCat);
       const tgtIdx = currentList.indexOf(targetCat);
       if (srcIdx === -1 || tgtIdx === -1) return prev;
 
-      const previousOrder = [...currentList];
+      const previousOrder = [...prev];
       const [moved] = currentList.splice(srcIdx, 1);
       currentList.splice(tgtIdx, 0, moved);
 
@@ -476,12 +493,19 @@ export default function BusinessProductsPage() {
     return rawCategories;
   })();
 
-  // Mantém customCategoryOrder sincronizado caso existam novas categorias
+  // Mantém customCategoryOrder sincronizado: acrescenta categorias novas ao fim
+  const categoriesKey = allCategories.join("|");
   useEffect(() => {
-    if (allCategories.length > 0 && customCategoryOrder.length === 0) {
-      setCustomCategoryOrder(allCategories);
-    }
-  }, [allCategories.length]);
+    visibleCategoriesRef.current = allCategories;
+    if (allCategories.length === 0) return;
+
+    setCustomCategoryOrder(prev => {
+      if (prev.length === 0) return allCategories;
+      const missing = allCategories.filter(c => !prev.includes(c));
+      if (missing.length === 0) return prev;
+      return [...prev, ...missing];
+    });
+  }, [categoriesKey]);
   
   // Agrupa produtos por categoria, preservando a ordem definida
   const grouped = allCategories.map(catValue => {
