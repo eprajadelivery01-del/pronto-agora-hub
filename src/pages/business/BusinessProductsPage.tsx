@@ -447,12 +447,19 @@ export default function BusinessProductsPage() {
     if (!sourceCat || !targetCat || sourceCat === targetCat) return;
 
     setCustomCategoryOrder(prev => {
-      const currentList = [...prev];
+      const visible = visibleCategoriesRef.current;
+
+      // Base = ordem salva + qualquer categoria visível ainda não registrada (ex.: recém-criada)
+      let currentList = prev.length > 0 ? [...prev] : [...visible];
+      for (const cat of visible) {
+        if (!currentList.includes(cat)) currentList.push(cat);
+      }
+
       const srcIdx = currentList.indexOf(sourceCat);
       const tgtIdx = currentList.indexOf(targetCat);
       if (srcIdx === -1 || tgtIdx === -1) return prev;
 
-      const previousOrder = [...currentList];
+      const previousOrder = [...prev];
       const [moved] = currentList.splice(srcIdx, 1);
       currentList.splice(tgtIdx, 0, moved);
 
