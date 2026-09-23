@@ -159,11 +159,27 @@ export default function DeliveriesPage() {
         if (firstOrder.order_items && Array.isArray(firstOrder.order_items) && firstOrder.order_items.length > 0) {
           itemsHtml += `<hr/><div class="label" style="margin-top: 0;">Itens do Pedido</div>`;
           firstOrder.order_items.forEach((item: any) => {
-             const productName = item.products?.name || "Produto";
+             const productName = item.products?.name || item.product_name || "Produto";
              const quantity = item.quantity || 1;
              const price = Number(item.price || 0).toFixed(2).replace('.', ',');
-             const escName = productName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+             const escHtml = (s: string) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+             const escName = escHtml(productName);
              itemsHtml += `<div class="value" style="font-weight:normal; margin-bottom: 4px; font-size: 12px;">${quantity}x ${escName} (R$ ${price})</div>`;
+
+             let opts: any[] = [];
+             const rawOpts = item.options;
+             if (Array.isArray(rawOpts)) opts = rawOpts.filter(Boolean);
+             else if (typeof rawOpts === 'string') {
+               try { const p = JSON.parse(rawOpts); if (Array.isArray(p)) opts = p.filter(Boolean); } catch { opts = []; }
+             }
+             opts.forEach((opt: any) => {
+               const oQty = opt.quantity || 1;
+               itemsHtml += `<div class="value" style="font-weight:normal; margin: 0 0 2px 12px; font-size: 11px;">+ ${oQty}x ${escHtml(opt.name || opt.option_name || '')}</div>`;
+             });
+
+             if (item.notes) {
+               itemsHtml += `<div class="value" style="font-weight:normal; margin: 0 0 4px 12px; font-size: 11px;">Obs: ${escHtml(item.notes)}</div>`;
+             }
           });
         }
       }

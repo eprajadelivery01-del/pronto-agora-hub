@@ -143,7 +143,7 @@ export default function BusinessOrdersPage() {
           delivery_address, payment_method, notes, region_id,
           regions ( id, delivery_fee, price ),
           order_items (
-            id, quantity, price, notes,
+            id, quantity, price, unit_price, product_name, notes, options,
             products (id, name, image_url, description)
           )
         `;

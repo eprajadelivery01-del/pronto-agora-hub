@@ -131,6 +131,22 @@ export default function OrderDetailModal({
     return [];
   };
 
+  /** Adicionais podem vir como array (jsonb) ou como texto JSON. */
+  const parseOptions = (raw: any): any[] => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch {
+        return [];
+      }
+    }
+    if (typeof raw === "object") return Object.values(raw).filter(Boolean) as any[];
+    return [];
+  };
+
   if (!order) return null;
 
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string, prev?: string, prevLabel?: string }> = {
@@ -281,6 +297,7 @@ export default function OrderDetailModal({
                           {items.map((item, idx) => {
                               const images = parseImages(item.products?.image_url);
                               const mainImage = images[0];
+                              const itemOptions = parseOptions(item.options ?? item.selected_options ?? item.addons);
                               return (
                                   <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.25rem] bg-card border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
                                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/50">
@@ -306,21 +323,21 @@ export default function OrderDetailModal({
                                                 )}
 
                                                 {/* Detalhes/Ingredientes/Observações */}
-                                                {(item.options || item.choices || item.notes || item.observation) && (
+                                                {(itemOptions.length > 0 || item.choices || item.notes || item.observation) && (
                                                   <div className="mt-2 space-y-1.5">
-                                                    {item.options && Array.isArray(item.options) && item.options.length > 0 && (
+                                                    {itemOptions.length > 0 && (
                                                       <div className="bg-primary/5 border border-primary/20 rounded-xl p-2.5 space-y-1">
                                                         <p className="text-[10px] font-black uppercase tracking-wider text-primary">
                                                           Adicionais / Complementos:
                                                         </p>
                                                         <div className="space-y-0.5">
-                                                          {item.options.map((opt: any, optIdx: number) => {
+                                                          {itemOptions.map((opt: any, optIdx: number) => {
                                                             const optQty = opt.quantity || 1;
                                                             return (
                                                               <div key={optIdx} className="text-xs font-semibold text-foreground flex items-center justify-between">
                                                                 <span>
                                                                   <span className="font-bold text-primary mr-1">{optQty}x</span>
-                                                                  {opt.name}
+                                                                  {opt.name || opt.option_name}
                                                                   {opt.group_name && <span className="text-[10px] text-muted-foreground ml-1.5 font-normal">({opt.group_name})</span>}
                                                                 </span>
                                                                 {Number(opt.price || 0) > 0 && (
@@ -335,7 +352,7 @@ export default function OrderDetailModal({
                                                       </div>
                                                     )}
 
-                                                    {item.choices && !item.options && (
+                                                    {item.choices && itemOptions.length === 0 && (
                                                       <p className="text-[10px] text-foreground/80 leading-snug bg-muted/50 px-2 py-1 rounded-md">
                                                         <span className="font-bold text-foreground/90">Opções:</span> {
                                                           typeof item.choices === 'string' ? item.choices : 

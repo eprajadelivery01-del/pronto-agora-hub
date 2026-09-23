@@ -151,7 +151,7 @@ export default function BusinessHistoryPage() {
             id, status, total, created_at, notes, delivery_address, company_id,
             customers (id, name, phone),
             order_items (
-              id, quantity, price,
+              id, quantity, price, unit_price, product_name, notes, options,
               products (id, name, image_url, description)
             )
           `)

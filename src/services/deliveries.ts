@@ -55,7 +55,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           *,
           orders(
             total,
-            order_items(quantity, price, products(name))
+            order_items(quantity, price, product_name, notes, options, products(name))
           ),
           delivery_drivers(id, user_id, full_name, phone, vehicle_type, vehicle_plate)
         `, { count: "exact" })
