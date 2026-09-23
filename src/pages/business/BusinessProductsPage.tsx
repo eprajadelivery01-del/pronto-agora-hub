@@ -493,12 +493,19 @@ export default function BusinessProductsPage() {
     return rawCategories;
   })();
 
-  // Mantém customCategoryOrder sincronizado caso existam novas categorias
+  // Mantém customCategoryOrder sincronizado: acrescenta categorias novas ao fim
+  const categoriesKey = allCategories.join("|");
   useEffect(() => {
-    if (allCategories.length > 0 && customCategoryOrder.length === 0) {
-      setCustomCategoryOrder(allCategories);
-    }
-  }, [allCategories.length]);
+    visibleCategoriesRef.current = allCategories;
+    if (allCategories.length === 0) return;
+
+    setCustomCategoryOrder(prev => {
+      if (prev.length === 0) return allCategories;
+      const missing = allCategories.filter(c => !prev.includes(c));
+      if (missing.length === 0) return prev;
+      return [...prev, ...missing];
+    });
+  }, [categoriesKey]);
   
   // Agrupa produtos por categoria, preservando a ordem definida
   const grouped = allCategories.map(catValue => {
