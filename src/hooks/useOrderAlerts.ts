@@ -171,7 +171,7 @@ export function useOrderAlerts() {
         const actionListener = await FirebaseMessaging.addListener("notificationActionPerformed", ({ notification }) => {
           console.log("[Push Ação/Clique]", notification);
           stopLoop();
-          const targetRoute = notification.data?.route || "/business/orders";
+          const targetRoute = ((notification.data ?? {}) as Record<string, any>).route || "/business/orders";
           if (window.location.pathname !== targetRoute) {
             window.location.href = targetRoute;
           }
