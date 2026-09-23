@@ -297,6 +297,7 @@ export default function OrderDetailModal({
                           {items.map((item, idx) => {
                               const images = parseImages(item.products?.image_url);
                               const mainImage = images[0];
+                              const itemOptions = parseOptions(item.options ?? item.selected_options ?? item.addons);
                               return (
                                   <div key={idx} className="flex gap-4 items-start p-4 rounded-[1.25rem] bg-card border border-border/40 hover:border-primary/20 hover:shadow-md transition-all group">
                                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/50">
