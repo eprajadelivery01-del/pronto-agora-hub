@@ -145,7 +145,8 @@ export function useOrderAlerts() {
         listeners.push(tokenListener);
 
         const notifListener = await FirebaseMessaging.addListener("notificationReceived", ({ notification }) => {
-          const orderId = notification.data?.order_id || notification.data?.orderId || notification.id;
+          const notifData = (notification.data ?? {}) as Record<string, any>;
+          const orderId = notifData.order_id || notifData.orderId || notification.id;
           console.log("[Push Recebido em Foreground]", orderId, notification);
 
           if (orderId && processedOrders.has(orderId)) {
