@@ -404,10 +404,18 @@ export default function BusinessProductsPage() {
       }
 
       // 2. Preserva quaisquer categorias remotas novas que não constem na nova ordem local
-      const mergedOrder = [
+      const mergedOrderRaw = [
         ...newOrder,
         ...remoteCategories.filter(c => typeof c === "string" && !newOrder.includes(c))
       ];
+
+      // 3. Descarta categorias que não existem mais (evita crescer indefinidamente)
+      const existing = visibleCategoriesRef.current;
+      const mergedOrder = existing.length > 0
+        ? mergedOrderRaw.filter(c => existing.includes(c))
+        : mergedOrderRaw;
+
+
 
       const { error } = await (supabase as any)
         .from("companies")
