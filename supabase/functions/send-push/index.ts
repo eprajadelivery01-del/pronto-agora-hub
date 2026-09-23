@@ -416,12 +416,22 @@ Deno.serve(async (req) => {
         );
       outcome.device_tokens = up.error ? `erro: ${up.error.message}` : "ok";
 
-      // Reativa o token (sai da quarentena) sempre que o app o registra novamente
+      // Campos de saúde são opcionais: instalações antigas do banco podem não possuí-los.
+      // Primeiro tenta reativar totalmente; se o schema não suportar esses campos,
+      // mantém o registro válido atualizando apenas os campos universais.
       const reset = await supabase
         .from("device_tokens")
         .update({ disabled_at: null, disabled_reason: null, failure_count: 0, last_error_code: null, app: appType, bundle_id: explicitBundle })
         .eq("token", fcmToken);
-      outcome.reset = reset.error ? `ignorado: ${reset.error.message}` : "ok";
+      if (reset.error && /schema cache|column/i.test(reset.error.message)) {
+        const compatibleReset = await supabase
+          .from("device_tokens")
+          .update({ app: appType, bundle_id: explicitBundle, updated_at: now })
+          .eq("token", fcmToken);
+        outcome.reset = compatibleReset.error ? `ignorado: ${compatibleReset.error.message}` : "ok (compatível)";
+      } else {
+        outcome.reset = reset.error ? `ignorado: ${reset.error.message}` : "ok";
+      }
 
       // Rotação: remove tokens antigos do mesmo dispositivo/usuário
       if (body.previousToken && String(body.previousToken) !== fcmToken) {
