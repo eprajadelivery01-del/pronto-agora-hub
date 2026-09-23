@@ -293,48 +293,63 @@ export function useOrderAlerts() {
     if (!companyId) return;
 
     if (hasPending) {
+      let hasNewOrder = false;
       pendingOrders.forEach((ord: any) => {
-        console.log("[POLLING]", ord.id);
-        // O Polling apenas registra o ID se não existir, mas NUNCA chama sendNativeDeviceNotification!
-        processedOrders.add(ord.id);
+        if (!processedOrders.has(ord.id)) {
+          processedOrders.add(ord.id);
+          hasNewOrder = true;
+        }
       });
+
+      if (hasNewOrder) {
+        console.log("[POLLING] Novo pedido pendente identificado!");
+        sendNativeDeviceNotification("📦 Novo pedido recebido! 🛎️", {
+          body: "Acesse o app para aceitar e começar a preparar",
+          tag: "epraja-new-order",
+        });
+        toast.success("📦 Novo pedido recebido! 🛎️", {
+          description: "Acesse o app para aceitar e começar a preparar.",
+          duration: 10000,
+        });
+        playAlert();
+      }
+
       startLoop();
     } else {
       stopLoop();
     }
-  }, [hasPending, pendingOrders, startLoop, stopLoop, companyId]);
+  }, [hasPending, pendingOrders, startLoop, stopLoop, playAlert, companyId]);
 
   // Ouve inserções e atualizações via Supabase Realtime para tocar som e atualizar a tela instantaneamente
   useEffect(() => {
     if (!companyId) return;
 
-    const channelName = `company-order-alerts-${companyId}`;
+    const channelName = `company-order-alerts-${companyId}-${Date.now()}`;
     const channel = supabase
       .channel(channelName)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
+        { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
-          const order = payload.new;
-          console.log("[REALTIME]", order.id);
+          const order = payload.new as any;
+          if (!order || String(order.company_id) !== String(companyId)) return;
+          console.log("[REALTIME LOJISTA INSERT]", order.id);
 
           if (order.status === "pending") {
             const alreadyNotified = processedOrders.has(order.id);
             processedOrders.add(order.id);
 
-            // Se ainda não foi notificado e NÃO estiver rodando via FCM nativo em app fechado/background, dispara notificação nativa com tag única
             if (!alreadyNotified) {
-              if (!Capacitor.isNativePlatform()) {
-                sendNativeDeviceNotification("📦 Novo pedido recebido!", {
-                  body: "Acesse o app para aceitar e começar a preparar",
-                  tag: `order-${order.id}`,
-                });
-              }
+              sendNativeDeviceNotification("📦 Novo pedido recebido! 🛎️", {
+                body: "Acesse o app para aceitar e começar a preparar",
+                tag: `order-${order.id}`,
+              });
 
-              toast.success("📦 Novo pedido recebido!", {
+              toast.success("📦 Novo pedido recebido! 🛎️", {
                 description: "Acesse o app para aceitar e começar a preparar.",
                 duration: 10000,
               });
+              playAlert();
             }
             startLoop();
           }
@@ -345,13 +360,17 @@ export function useOrderAlerts() {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `company_id=eq.${companyId}` },
+        { event: "UPDATE", schema: "public", table: "orders" },
         async (payload) => {
+          const order = payload.new as any;
+          if (!order || String(order.company_id) !== String(companyId)) return;
+          console.log("[REALTIME LOJISTA UPDATE]", order.id, order.status);
+
           qc.invalidateQueries({ queryKey: ["orders-alert-check", companyId] });
           qc.invalidateQueries({ queryKey: ["orders"] });
           window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
           
-          if (payload.new.status !== "pending") {
+          if (order.status !== "pending") {
             const { count } = await supabase
               .from("orders")
               .select("*", { count: "exact", head: true })
@@ -368,5 +387,5 @@ export function useOrderAlerts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [companyId, qc, startLoop, stopLoop]);
+  }, [companyId, qc, playAlert, startLoop, stopLoop]);
 }
