@@ -1,13 +1,21 @@
 import UIKit
 import Capacitor
 import UserNotifications
+import FirebaseCore
+import FirebaseMessaging
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
 
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Inicializa o Firebase SDK com o GoogleService-Info.plist nativo
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
+        Messaging.messaging().delegate = self
+
         // Configura o delegate de notificações para garantir apresentação mesmo em primeiro plano e central do iOS
         UNUserNotificationCenter.current().delegate = self
         return true
@@ -49,11 +57,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        NotificationCenter.default.post(name: Notification.Name.capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+        // Vincula o token binário APNs nativo ao Firebase Messaging SDK
+        Messaging.messaging().apnsToken = deviceToken
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        NotificationCenter.default.post(name: Notification.Name.capacitorDidFailToRegisterForRemoteNotifications, object: error)
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
+    // MessagingDelegate: Recebe o token FCM gerado pelo Firebase e encaminha ao Capacitor
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let token = fcmToken, !token.isEmpty else { return }
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
     }
 
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
