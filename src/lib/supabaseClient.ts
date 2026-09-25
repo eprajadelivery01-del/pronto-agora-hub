@@ -94,8 +94,16 @@ export const resetLocalAuthSession = async () => {
 /** Detecta erros de token expirado/inválido vindos do PostgREST/GoTrue. */
 export const isJwtExpiredError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
-  const e = error as { code?: string; message?: string };
-  return e.code === "PGRST303" || /jwt expired|invalid jwt|token is expired/i.test(e.message ?? "");
+  const e = error as { code?: string; message?: string; status?: number };
+  if (e.status === 401) return true;
+  return (
+    e.code === "PGRST301" ||
+    e.code === "PGRST302" ||
+    e.code === "PGRST303" ||
+    /jwt|token is expired|invalid jwt|jwt expired|jwt not provided|invalid claim|signature|unauthorized|session_not_found|auth session/i.test(
+      e.message ?? ""
+    )
+  );
 };
 
 type SupabaseResultWithError = { error: unknown | null };

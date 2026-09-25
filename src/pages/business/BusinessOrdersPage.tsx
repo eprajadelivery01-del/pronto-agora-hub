@@ -17,6 +17,16 @@ import {
   ImagePlus, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const isValidUuid = (val: unknown): val is string =>
+  typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+const isConnectionOrNetworkError = (error: unknown): boolean => {
+  if (!error) return false;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true;
+  const msg = (typeof error === "object" && "message" in error ? String((error as any).message) : String(error)).toLowerCase();
+  return /network|fetch|load failed|timeout|econnreset|econnrefused|failed to fetch/i.test(msg);
+};
 import {
   Dialog,
   DialogContent,
@@ -128,7 +138,7 @@ export default function BusinessOrdersPage() {
   const fetchIdRef = useRef(0);
 
   const fetchOrders = useCallback(async () => {
-    if (!companyId) {
+    if (!companyId || !isValidUuid(companyId)) {
       setLoading(false);
       return;
     }
@@ -138,6 +148,7 @@ export default function BusinessOrdersPage() {
     try {
       // setLoading(true); removido para evitar travamento da UI via Realtime
 
+      // 1. TENTATIVA 1: Query direta completa com relações
       const ORDERS_SELECT = `
           id, status, total, delivery_fee, created_at, customer_id, delivery_id,
           delivery_address, payment_method, notes, region_id,
@@ -156,20 +167,59 @@ export default function BusinessOrdersPage() {
           .neq("status", "cancelled")
           .order("created_at", { ascending: false });
 
-      // BUSCA RESILIENTE: Campos operacionais (Após reparo SQL)
+      // BUSCA RESILIENTE: Campos operacionais
       let { data, error } = await withSessionRetry(runOrdersQuery);
 
-      // Expiração de sessão não é falha de banco e nunca deve acionar a RPC.
+      // Expiração de sessão não é falha de banco e nunca deve acionar a RPC
       if (error && isJwtExpiredError(error)) {
         toast.error("Sua sessão expirou. Faça login novamente.");
         window.location.replace("/login");
         return;
       }
 
+      // Falha de conexão transitória
+      if (error && isConnectionOrNetworkError(error)) {
+        console.warn("[Painel] Conexão transitória ao buscar pedidos:", error.message);
+        return;
+      }
+
+      // 2. TENTATIVA 2: Query direta simplificada sem relações aninhadas frágeis
       if (error) {
-        console.warn("[Painel] Query direta falhou, tentando CHAVE MESTRA (RPC)...", error.message);
+        console.warn("[Painel] Query completa falhou, tentando busca simplificada...", error.message);
+        const SIMPLE_SELECT = `
+          id, status, total, delivery_fee, created_at, customer_id, delivery_id,
+          delivery_address, payment_method, notes, region_id,
+          order_items (
+            id, quantity, price, unit_price, product_name, notes, options
+          )
+        `;
+
+        const { data: simpleData, error: simpleError } = await withSessionRetry(() =>
+          supabase
+            .from("orders")
+            .select(SIMPLE_SELECT)
+            .eq("company_id", companyId)
+            .neq("status", "cancelled")
+            .order("created_at", { ascending: false })
+        );
+
+        if (!simpleError && simpleData) {
+          data = simpleData;
+          error = null;
+        } else if (simpleError && isJwtExpiredError(simpleError)) {
+          toast.error("Sua sessão expirou. Faça login novamente.");
+          window.location.replace("/login");
+          return;
+        } else if (simpleError && isConnectionOrNetworkError(simpleError)) {
+          console.warn("[Painel] Conexão instável na query simplificada:", simpleError.message);
+          return;
+        }
+      }
+
+      // 3. TENTATIVA 3: Fallback via RPC get_business_orders_v2
+      if (error) {
+        console.warn("[Painel] Tentando fallback via RPC get_business_orders_v2...", error?.message);
         
-        // Tentativa via RPC (Função de Banco que pula o RLS quebrado)
         let { data: rpcData, error: rpcError } = await withSessionRetry(() => supabase
           .rpc('get_business_orders_v2', { p_company_id: companyId }));
 
@@ -180,15 +230,12 @@ export default function BusinessOrdersPage() {
         }
 
         if (rpcError) {
-          console.error("[Painel] Falha catastrófica: Nem a RPC funcionou.", rpcError);
-          toast.error("Erro crítico de banco de dados. Contate o suporte.");
+          console.warn("[Painel] Falha na sincronização de pedidos:", rpcError.message);
           return;
         }
         
         data = rpcData;
       }
-
-
 
       if (data && data.length > 0) {
         // 1. Extração IMEDIATA de todos os IDs necessários para busca paralela (customer_id e user_id)
@@ -197,6 +244,7 @@ export default function BusinessOrdersPage() {
         const orderIds = [...new Set(data.map((o: any) => o.id))].filter(Boolean);
         const deliveryIds = [...new Set(data.map((o: any) => o.delivery_id))].filter(Boolean);
         const addressIds = [...new Set(data.map((o: any) => o.address_id || o.delivery_address_id))].filter(Boolean);
+        const regionIds = [...new Set(data.map((o: any) => o.region_id))].filter(Boolean);
         
         // Mapeamento preparado antecipadamente
         let customerMap: Record<string, any> = {};
@@ -210,12 +258,26 @@ export default function BusinessOrdersPage() {
           ? supabase.from("deliveries").select("id, order_id, address, customer_name, customer_phone, status").or(`id.in.(${[...deliveryIds, '00000000-0000-0000-0000-000000000000'].join(',')}),order_id.in.(${orderIds.join(',')})`)
           : Promise.resolve({ data: [] });
 
-        const [customersRes, deliveriesRes, addressesRes, profilesRes] = await Promise.all([
+        const regionsQuery = regionIds.length > 0
+          ? supabase.from("regions").select("id, delivery_fee, price").in("id", regionIds)
+          : Promise.resolve({ data: [] });
+
+        const [customersRes, deliveriesRes, addressesRes, profilesRes, regionsRes] = await Promise.all([
           customerIds.length > 0 ? supabase.from("customers").select("id, name, phone, user_id").in("id", customerIds) : Promise.resolve({ data: [] }),
           deliveriesQuery,
           addressIds.length > 0 ? supabase.from("addresses").select("*").in("id", addressIds) : Promise.resolve({ data: [] }),
-          allUserOrCustIds.length > 0 ? supabase.from("profiles").select("id, full_name, phone, user_id").or(`id.in.(${allUserOrCustIds.join(',')}),user_id.in.(${allUserOrCustIds.join(',')})`) : Promise.resolve({ data: [] })
+          allUserOrCustIds.length > 0 ? supabase.from("profiles").select("id, full_name, phone, user_id").or(`id.in.(${allUserOrCustIds.join(',')}),user_id.in.(${allUserOrCustIds.join(',')})`) : Promise.resolve({ data: [] }),
+          regionsQuery
         ]);
+
+        if (regionsRes.data && Array.isArray(regionsRes.data)) {
+          const regionMap = new Map(regionsRes.data.map((r: any) => [r.id, r]));
+          data.forEach((o: any) => {
+            if (!o.regions && o.region_id && regionMap.has(o.region_id)) {
+              o.regions = regionMap.get(o.region_id);
+            }
+          });
+        }
 
         let profileMap: Record<string, any> = {};
         if (profilesRes.data) {
@@ -388,8 +450,16 @@ export default function BusinessOrdersPage() {
       }
     } catch (err: any) {
       if (currentFetchId !== fetchIdRef.current) return;
-      console.error("[Painel] Falha catastrófica no fetchOrders:", err);
-      toast.error("Ocorreu um erro ao processar os dados.");
+      if (isJwtExpiredError(err)) {
+        toast.error("Sua sessão expirou. Faça login novamente.");
+        window.location.replace("/login");
+        return;
+      }
+      if (isConnectionOrNetworkError(err)) {
+        console.warn("[Painel] Conexão instável ao processar pedidos:", err);
+        return;
+      }
+      console.warn("[Painel] Aviso no processamento de pedidos:", err);
     } finally {
       if (currentFetchId === fetchIdRef.current) {
         setLoading(false);
@@ -398,7 +468,7 @@ export default function BusinessOrdersPage() {
   }, [companyId]);
 
   useEffect(() => {
-    if (companyId) {
+    if (companyId && isValidUuid(companyId)) {
       fetchOrders();
 
       // 1. Ouve os disparos de alerta/som para atualizar a tela no exato instante da notificação
@@ -432,7 +502,7 @@ export default function BusinessOrdersPage() {
 
   // Realtime subscription com resiliência total para orders e deliveries
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId || !isValidUuid(companyId)) return;
     const channelName = `business-orders-${companyId}-${Math.random().toString(36).substring(2, 7)}`;
     const channel = supabase
       .channel(channelName)
