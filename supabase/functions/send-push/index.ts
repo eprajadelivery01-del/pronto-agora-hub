@@ -260,10 +260,6 @@ async function sendToToken(
               alert: { title, body },
               sound: "default",
               badge: 1,
-              "content-available": 1,
-              contentAvailable: true,
-              "mutable-content": 1,
-              category: `delivery-${data.deliveryId || "new"}`,
             },
           },
         },
@@ -306,12 +302,8 @@ async function sendToToken(
           payload: {
             aps: {
               alert: { title, body },
-              sound: iosSound,
+              sound: "default",
               badge: 1,
-              "content-available": 1,
-              contentAvailable: true,
-              "mutable-content": 1,
-              category: notifTag
             },
           },
         },
