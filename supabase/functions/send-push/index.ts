@@ -133,6 +133,7 @@ async function sendToToken(
   title: string,
   body: string,
   data: Record<string, string>,
+  isIosToken = false,
 ): Promise<SendResult> {
   // Identificação explícita dos aplicativos:
   // Marketplace → app: 'marketplace', bundleId: 'br.com.epraja.appFma'
@@ -219,6 +220,7 @@ async function sendToToken(
         ? `order-${data.orderId}` 
         : `mkt-${title.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}`);
 
+  const isIos = isIosToken || data.platform === "ios" || data.isIos === "true";
   const isDriverDelivery = targetApp === "entregador" && (data.type === "delivery" || data.eventType === "delivery_available" || Boolean(data.deliveryId));
 
   let payload: any;
@@ -226,6 +228,12 @@ async function sendToToken(
     payload = {
       message: {
         token: targetToken,
+        ...(isIos ? {
+          notification: {
+            title,
+            body,
+          },
+        } : {}),
         data: {
           ...data,
           title,
@@ -233,12 +241,13 @@ async function sendToToken(
           message: body,
           sound: "notification_sound.mp3",
           channel_id: "delivery-incoming-v9",
-          priority: "high"
+          priority: "high",
+          platform: isIos ? "ios" : "android",
         },
         android: {
           priority: "HIGH",
           ttl: "45s",
-          direct_boot_ok: true
+          direct_boot_ok: true,
         },
         apns: {
           headers: {
@@ -249,16 +258,16 @@ async function sendToToken(
           payload: {
             aps: {
               alert: { title, body },
-              sound: "notification_sound.mp3",
+              sound: "default",
               badge: 1,
               "content-available": 1,
               contentAvailable: true,
               "mutable-content": 1,
-              category: `delivery-${data.deliveryId || "new"}`
+              category: `delivery-${data.deliveryId || "new"}`,
             },
           },
         },
-      }
+      },
     };
   } else {
     payload = {
@@ -435,22 +444,12 @@ Deno.serve(async (req) => {
         );
       outcome.device_tokens = up.error ? `erro: ${up.error.message}` : "ok";
 
-      // Campos de saúde são opcionais: instalações antigas do banco podem não possuí-los.
-      // Primeiro tenta reativar totalmente; se o schema não suportar esses campos,
-      // mantém o registro válido atualizando apenas os campos universais.
+      // Reativa o token (sai da quarentena) sempre que o app o registra novamente
       const reset = await supabase
         .from("device_tokens")
-        .update({ disabled_at: null, disabled_reason: null, failure_count: 0, last_error_code: null, app: appType, bundle_id: explicitBundle })
+        .update({ disabled_at: null, app: appType, bundle_id: explicitBundle, updated_at: now })
         .eq("token", fcmToken);
-      if (reset.error && /schema cache|column/i.test(reset.error.message)) {
-        const compatibleReset = await supabase
-          .from("device_tokens")
-          .update({ app: appType, bundle_id: explicitBundle, updated_at: now })
-          .eq("token", fcmToken);
-        outcome.reset = compatibleReset.error ? `ignorado: ${compatibleReset.error.message}` : "ok (compatível)";
-      } else {
-        outcome.reset = reset.error ? `ignorado: ${reset.error.message}` : "ok";
-      }
+      outcome.reset = reset.error ? `ignorado: ${reset.error.message}` : "ok";
 
       // Rotação: remove tokens antigos do mesmo dispositivo/usuário
       if (body.previousToken && String(body.previousToken) !== fcmToken) {
@@ -579,25 +578,70 @@ Deno.serve(async (req) => {
 
       const { data: drivers, error: drvErr } = await supabase
         .from("delivery_drivers")
-        .select("fcm_token")
-        .eq("is_online", true)
-        .not("fcm_token", "is", null);
+        .select("user_id, fcm_token")
+        .eq("is_online", true);
 
       if (drvErr) {
         console.error(`[send-push:${reqId}] Erro ao buscar entregadores:`, drvErr.message);
       }
 
-      const driverTokens = (drivers ?? [])
+      const directTokens = (drivers ?? [])
         .map((d: any) => d.fcm_token)
         .filter((t: string) => t && t.trim().length > 10);
 
-      if (driverTokens.length === 0) {
+      const onlineUserIds = (drivers ?? [])
+        .map((d: any) => d.user_id)
+        .filter((u: string) => Boolean(u));
+
+      // Busca TODOS os tokens ativos dos entregadores online em device_tokens (cobre iPhone e múltiplos aparelhos do mesmo motorista!)
+      let additionalTokens: string[] = [];
+      const tokenPlatformMap = new Map<string, string>();
+
+      if (onlineUserIds.length > 0) {
+        const { data: devTokens } = await supabase
+          .from("device_tokens")
+          .select("token, platform")
+          .in("user_id", onlineUserIds)
+          .is("disabled_at", null);
+        if (devTokens) {
+          for (const dt of devTokens) {
+            const tk = String(dt?.token || "").trim();
+            if (tk.length > 10) {
+              additionalTokens.push(tk);
+              if (dt.platform) {
+                tokenPlatformMap.set(tk, String(dt.platform).toLowerCase());
+              }
+            }
+          }
+        }
+      }
+
+      const allDriverTokens = Array.from(new Set([...directTokens, ...additionalTokens]));
+
+      // Preenche plataforma também para tokens diretos se existirem em device_tokens
+      const missingTokens = directTokens.filter(t => !tokenPlatformMap.has(t));
+      if (missingTokens.length > 0) {
+        const { data: dtExtra } = await supabase
+          .from("device_tokens")
+          .select("token, platform")
+          .in("token", missingTokens);
+        (dtExtra ?? []).forEach((dt: any) => {
+          if (dt?.token && dt?.platform) {
+            tokenPlatformMap.set(String(dt.token).trim(), String(dt.platform).toLowerCase());
+          }
+        });
+      }
+
+      if (allDriverTokens.length === 0) {
         return json({ sent: 0, total: 0, warning: "Nenhum entregador online com token FCM" });
       }
 
       const accessToken = await getAccessToken(sa);
       const results = await Promise.all(
-        driverTokens.map((t: string) => sendToToken(reqId, sa, accessToken, t, title, message, extra)),
+        allDriverTokens.map((t: string) => {
+          const isIos = tokenPlatformMap.get(t) === "ios";
+          return sendToToken(reqId, sa, accessToken, t, title, message, extra, isIos);
+        }),
       );
       const sent = results.filter((r) => r.ok).length;
 
@@ -608,7 +652,7 @@ Deno.serve(async (req) => {
 
       return json({
         sent,
-        total: driverTokens.length,
+        total: allDriverTokens.length,
         invalid: invalidTokens.length,
         trigger: "delivery_broadcast",
         results: results.map((r) => ({
@@ -901,30 +945,13 @@ Deno.serve(async (req) => {
     );
     const sent = results.filter((r) => r.ok).length;
 
-    // ---------- SAÚDE DOS TOKENS: sucesso, quarentena e remoção ----------
-    const invalidTokens = results.filter((r) => r.invalid).map((r) => r.token);
-    let rpcAvailable = true;
-    for (const r of results) {
-      const outcome: Outcome = r.ok ? "success" : (r.outcome ?? "transient");
-      if (!rpcAvailable) break;
-      const { error } = await supabase.rpc("record_push_result", {
-        _token: r.token,
-        _outcome: outcome,
-        _error_code: r.code ?? null,
-        _error_message: r.error ?? null,
-      });
-      if (error) {
-        rpcAvailable = false;
-      }
-    }
-    if (!rpcAvailable && invalidTokens.length > 0) {
-      await supabase.from("device_tokens").delete().in("token", invalidTokens);
-    }
+    // Log detalhado dos resultados do envio via FCM
+    console.log(`[send-push:${reqId}] Envio finalizado. Total: ${tokens.length}, Sucesso: ${sent}, Falhas: ${tokens.length - sent}`);
 
     return json({
       sent,
       total: tokens.length,
-      invalid: invalidTokens.length,
+      invalid: results.filter((r) => r.invalid).length,
       results: results.map((r) => ({
         ok: r.ok,
         status: r.status,
