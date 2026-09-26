@@ -19,6 +19,25 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
+    const isChunkError =
+      error?.message?.includes("Failed to fetch dynamically imported module") ||
+      error?.message?.includes("Importing a module script failed") ||
+      error?.name === "ChunkLoadError";
+
+    if (isChunkError && typeof window !== "undefined") {
+      const sessionKey = "error_boundary_chunk_reload_ts";
+      const last = sessionStorage.getItem(sessionKey);
+      const now = Date.now();
+      if (!last || now - Number(last) > 10000) {
+        sessionStorage.setItem(sessionKey, String(now));
+        if ("caches" in window) {
+          caches.keys().then((names) => {
+            names.forEach((name) => caches.delete(name));
+          }).catch(() => {});
+        }
+        window.location.reload();
+      }
+    }
     return { hasError: true, error, errorInfo: null };
   }
 
