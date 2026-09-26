@@ -144,6 +144,27 @@ export function useOrderAlerts() {
         });
         listeners.push(tokenListener);
 
+        if (Capacitor.getPlatform() === "ios") {
+          const apnsListener = await FirebaseMessaging.addListener("apnsTokenReceived" as any, async (res: any) => {
+            const rawToken = res?.token;
+            console.log("[APNs][LOJISTA] apnsTokenReceived da Apple:", rawToken ? rawToken.slice(0, 12) : res);
+            try {
+              await new Promise(r => setTimeout(r, 600));
+              const fcmRes = await FirebaseMessaging.getToken();
+              if (fcmRes?.token) {
+                console.log("[FCM][LOJISTA] Token FCM gerado após APNs:", fcmRes.token.slice(0, 12));
+                syncToken(fcmRes.token);
+              } else if (rawToken) {
+                syncToken(rawToken);
+              }
+            } catch (errApns) {
+              console.warn("[APNs] Erro ao obter token FCM após apnsTokenReceived:", errApns);
+              if (rawToken) syncToken(rawToken);
+            }
+          });
+          listeners.push(apnsListener);
+        }
+
         const notifListener = await FirebaseMessaging.addListener("notificationReceived", ({ notification }) => {
           const notifData = (notification.data ?? {}) as Record<string, any>;
           const orderId = notifData.order_id || notifData.orderId || notification.id;
@@ -198,15 +219,23 @@ export function useOrderAlerts() {
         }
 
         if (permStatus.receive === "granted") {
-          // Obtém o token FCM oficial do Firebase
-          try {
-            const { token } = await FirebaseMessaging.getToken();
-            if (token) {
-              console.log("[FCM][LOJISTA] Token obtido via getToken:", token.slice(0, 12));
-              syncToken(token);
+          // Obtém o token FCM oficial do Firebase com retry para aguardar o APNs da Apple
+          const isIOS = Capacitor.getPlatform() === "ios";
+          const maxAttempts = isIOS ? 8 : 3;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              const { token } = await FirebaseMessaging.getToken();
+              if (token && token.length > 20) {
+                console.log("[FCM][LOJISTA] Token obtido via getToken:", token.slice(0, 12));
+                syncToken(token);
+                break;
+              }
+            } catch (errToken: any) {
+              console.warn(`[FCM][LOJISTA] Tentativa ${attempt}/${maxAttempts} ao obter token:`, errToken?.message || errToken);
+              if (attempt < maxAttempts) {
+                await new Promise(r => setTimeout(r, 1000 * Math.min(attempt, 3)));
+              }
             }
-          } catch (errToken: any) {
-            console.warn("[FCM][LOJISTA] Aviso ao obter token:", errToken?.message || errToken);
           }
         } else {
           console.warn("[FCM][LOJISTA] Permissão de notificação negada pelo usuário.");

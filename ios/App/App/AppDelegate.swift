@@ -10,6 +10,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Configura o delegate de notificações para garantir apresentação mesmo em primeiro plano e central do iOS
         UNUserNotificationCenter.current().delegate = self
+        // Solicita o registro de notificações remotas no APNs da Apple na inicialização
+        application.registerForRemoteNotifications()
         return true
     }
 
@@ -28,7 +30,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // Limpa o contador vermelho de notificações do ícone ao abrir o app
+        UIApplication.shared.applicationIconBadgeNumber = 0
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
