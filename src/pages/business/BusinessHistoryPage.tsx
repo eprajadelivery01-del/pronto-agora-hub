@@ -14,8 +14,26 @@ interface OrderHistory {
   total: number;
   created_at: string;
   customer_name: string;
+  customer_phone?: string;
+  delivery_address?: string;
   type?: 'manual' | 'marketplace';
+  raw_data?: any;
 }
+
+const cleanVal = (val: string | null | undefined, placeholder: string = "Cliente Marketplace") => {
+  if (!val) return null;
+  const v = String(val).trim();
+  if (
+    v === "" || 
+    v.toLowerCase() === placeholder.toLowerCase() || 
+    v.toLowerCase() === "consumidor" || 
+    v.toLowerCase() === "cliente" ||
+    v.toLowerCase() === "null" || 
+    v.toLowerCase() === "undefined" || 
+    v === "Não informado"
+  ) return null;
+  return v;
+};
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendente",
@@ -79,35 +97,121 @@ export default function BusinessHistoryPage() {
       console.log("[HistoryPage] Buscando histórico para company:", companyId);
       
       try {
-        // BUSCA PARALELA: Marketplace e Entregas Manuais ao mesmo tempo
+        // BUSCA PARALELA: Marketplace e Entregas Manuais ao mesmo tempo com campos completos de cliente
         const [ordersRes, deliveriesRes] = await Promise.all([
           supabase.from("orders")
-            .select(`id, status, total, created_at`)
+            .select(`
+              id, status, total, created_at, customer_id, user_id, delivery_id,
+              customer_name, customer_phone, delivery_address, notes,
+              customers (id, name, phone)
+            `)
             .eq("company_id", companyId)
             .order("created_at", { ascending: false }),
           supabase.from("deliveries")
-            .select(`id, status, value, price, commission, created_at, customer_name`)
+            .select(`id, order_id, status, value, price, commission, created_at, customer_name, customer_phone, address`)
             .eq("company_id", companyId)
             .order("created_at", { ascending: false })
         ]);
 
-        if (ordersRes.error) console.error("[HistoryPage] Erro orders:", ordersRes.error);
-        if (deliveriesRes.error) console.error("[HistoryPage] Erro deliveries:", deliveriesRes.error);
+        let orders = ordersRes.data;
 
-        const orders = ordersRes.data;
-        const deliveries = deliveriesRes.data;
+        // Fallback resiliente caso a relação aninhada com customers apresente erro
+        if (ordersRes.error) {
+          console.warn("[HistoryPage] Tentativa de query completa falhou, tentando simplificada:", ordersRes.error.message);
+          const { data: simpleOrders, error: simpleErr } = await supabase
+            .from("orders")
+            .select(`
+              id, status, total, created_at, customer_id, user_id, delivery_id,
+              customer_name, customer_phone, delivery_address, notes
+            `)
+            .eq("company_id", companyId)
+            .order("created_at", { ascending: false });
+
+          if (simpleErr) {
+            console.error("[HistoryPage] Erro fatal orders:", simpleErr);
+          } else {
+            orders = simpleOrders;
+          }
+        }
+
+        const deliveries = deliveriesRes.data || [];
+
+        // Mapeamentos de entregas (por delivery_id e por order_id)
+        const deliveryMap = new Map<string, any>();
+        const deliveryByOrderMap = new Map<string, any>();
+        deliveries.forEach((d: any) => {
+          if (d.id) deliveryMap.set(d.id, d);
+          if (d.order_id) deliveryByOrderMap.set(d.order_id, d);
+        });
+
+        // Extrair IDs para enriquecer dados dos clientes via profiles e customers
+        const customerIds = orders ? [...new Set(orders.map((o: any) => o.customer_id))].filter(Boolean) : [];
+        const userIds = orders ? [...new Set(orders.map((o: any) => o.user_id))].filter(Boolean) : [];
+        const allUserOrCustIds = [...new Set([...customerIds, ...userIds])];
+
+        const [profilesRes, customersRes] = await Promise.all([
+          allUserOrCustIds.length > 0
+            ? supabase.from("profiles").select("id, full_name, phone, user_id").or(`id.in.(${allUserOrCustIds.join(',')}),user_id.in.(${allUserOrCustIds.join(',')})`)
+            : Promise.resolve({ data: [] }),
+          customerIds.length > 0
+            ? supabase.from("customers").select("id, name, phone, user_id").in("id", customerIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        const profileMap = new Map<string, any>();
+        if (profilesRes.data) {
+          profilesRes.data.forEach((p: any) => {
+            if (p.id) profileMap.set(p.id, p);
+            if (p.user_id) profileMap.set(p.user_id, p);
+          });
+        }
+
+        const customerTableMap = new Map<string, any>();
+        if (customersRes.data) {
+          customersRes.data.forEach((c: any) => {
+            if (c.id) customerTableMap.set(c.id, c);
+            if (c.user_id) customerTableMap.set(c.user_id, c);
+          });
+        }
 
         const unifiedHistory: OrderHistory[] = [];
 
         if (orders) {
           orders.forEach((o: any) => {
+            const profile = (o.user_id && profileMap.get(o.user_id)) || (o.customer_id && profileMap.get(o.customer_id));
+            const custRecord = (o.customer_id && customerTableMap.get(o.customer_id)) || (o.user_id && customerTableMap.get(o.user_id));
+            const delivery = (o.delivery_id && deliveryMap.get(o.delivery_id)) || deliveryByOrderMap.get(o.id);
+
+            const resolvedName = 
+              cleanVal(o.customer_name) ||
+              cleanVal(o.customers?.name) ||
+              cleanVal(custRecord?.name) ||
+              cleanVal(profile?.full_name) ||
+              cleanVal(delivery?.customer_name) ||
+              "Cliente Marketplace";
+
+            const resolvedPhone = 
+              cleanVal(o.customer_phone, "Não informado") ||
+              cleanVal(o.customers?.phone, "Não informado") ||
+              cleanVal(custRecord?.phone, "Não informado") ||
+              cleanVal(profile?.phone, "Não informado") ||
+              cleanVal(delivery?.customer_phone, "Não informado") ||
+              "Não informado";
+
             unifiedHistory.push({
               id: o.id,
               status: o.status,
               total: o.total || 0,
               created_at: o.created_at,
-              customer_name: o.customers?.name || "Cliente Marketplace",
-              type: 'marketplace'
+              customer_name: resolvedName,
+              customer_phone: resolvedPhone,
+              delivery_address: o.delivery_address || delivery?.address,
+              type: 'marketplace',
+              raw_data: {
+                ...o,
+                customer_name: resolvedName,
+                customer_phone: resolvedPhone
+              }
             });
           });
         }
@@ -120,7 +224,10 @@ export default function BusinessHistoryPage() {
               total: Number(d.commission) || Number(d.price) || Number(d.value) || 0,
               created_at: d.created_at,
               customer_name: d.customer_name || "Cliente Manual",
-              type: 'manual'
+              customer_phone: d.customer_phone || "Não informado",
+              delivery_address: d.address,
+              type: 'manual',
+              raw_data: d
             });
           });
         }
@@ -149,6 +256,7 @@ export default function BusinessHistoryPage() {
           .from("orders")
           .select(`
             id, status, total, created_at, notes, delivery_address, company_id,
+            customer_id, user_id, delivery_id, customer_name, customer_phone,
             customers (id, name, phone),
             order_items (
               id, quantity, price, unit_price, product_name, notes, options,
@@ -159,7 +267,20 @@ export default function BusinessHistoryPage() {
           .single();
           
         if (error) throw error;
-        setSelectedOrder(data);
+
+        const resolvedCustomer = {
+          id: data.customer_id,
+          name: cleanVal(item.customer_name) || cleanVal(data.customer_name) || cleanVal(data.customers?.name) || "Cliente Marketplace",
+          phone: cleanVal(item.customer_phone, "Não informado") || cleanVal(data.customer_phone, "Não informado") || cleanVal(data.customers?.phone, "Não informado") || "Não informado",
+          address: data.delivery_address || item.delivery_address || "Endereço não informado"
+        };
+
+        setSelectedOrder({
+          ...data,
+          customer: resolvedCustomer,
+          customer_name: resolvedCustomer.name,
+          customer_phone: resolvedCustomer.phone,
+        });
       } else {
         const { data, error } = await supabase
           .from("deliveries")
@@ -174,7 +295,7 @@ export default function BusinessHistoryPage() {
           ...data,
           total: data.value,
           customer: {
-            name: data.customer_name,
+            name: data.customer_name || "Cliente Manual",
             phone: data.customer_phone || "Não informado",
             address: data.address
           }
