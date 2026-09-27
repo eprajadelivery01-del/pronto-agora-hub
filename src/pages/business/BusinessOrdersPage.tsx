@@ -9,6 +9,7 @@ import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { useAudioAlert, sendNativeDeviceNotification, requestNotificationPermission } from "@/hooks/useAudioAlert";
 import { useCustomerPhone, formatPhoneNumber, cleanPhoneNumber } from "@/hooks/useCustomerPhone";
 import { sendOrderAutoWelcomeMessage } from "@/services/chat";
+import { getPaymentMethodInfo } from "@/lib/orderUtils";
 
 import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
@@ -1006,23 +1007,29 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
           </div>
         </div>
 
-        {/* Info Row */}
-        <div className="flex items-center gap-4 mb-3">
-            <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+        {/* Info Row: Tempo, Forma de Pagamento e Troco */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="text-[10px] text-muted-foreground font-bold flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded">
               <Timer className="h-3 w-3" /> {age} min
-            </p>
-            <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate max-w-[100px]">
-              {order.payment_method === 'money' || order.payment_method === 'cash' ? 'Dinheiro' : 
-               order.payment_method === 'pix' ? 'Pix' : 
-               order.payment_method === 'credit_card' ? 'Cartão de Crédito' : 
-               order.payment_method === 'debit_card' ? 'Cartão de Débito' :
-               order.payment_method === 'card' ? 'Cartão' : 
-               order.payment_method === 'machine' ? 'Máquina Móvel' :
-               order.payment_method === 'online' ? 'Online' :
-               order.payment_method === 'voucher' ? 'Vale Refeição' :
-               order.payment_method || 'Presencial'}
-            </p>
+            </span>
+            {(() => {
+              const pay = getPaymentMethodInfo(
+                order.payment_method || (order.deliveries as any)?.payment_method || (order.deliveryInfo as any)?.payment_method,
+                order.notes
+              );
+              return (
+                <>
+                  <span className={cn("text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border flex items-center gap-1", pay.badgeClass)}>
+                    <span>{pay.icon}</span> {pay.label}
+                  </span>
+                  {pay.troco && (
+                    <span className="text-[10px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                      Troco R$ {pay.troco}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
         </div>
 
         {/* Items List - Tight */}

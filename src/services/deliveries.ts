@@ -353,6 +353,7 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       price: order.delivery_fee || 0,
       estimated_value: estimatedValue,
       notes: order.notes || null,
+      payment_method: (order as any).payment_method || null,
       region_id: (order as any).region_id || null,
       pickup_address: companyData?.address || "",
       pickup_latitude: companyData?.latitude || null,
