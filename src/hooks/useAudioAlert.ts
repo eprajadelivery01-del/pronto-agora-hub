@@ -80,16 +80,18 @@ export function requestNotificationPermission() {
 
     LocalNotifications.requestPermissions().then((res) => {
       if (res.display === "granted") {
-        LocalNotifications.deleteChannel({ id: "default" }).catch(() => {});
-        LocalNotifications.createChannel({
-          id: "lojista_orders_v2",
-          name: "Notificações do Lojista",
-          description: "Avisos de novos pedidos e mensagens dos clientes",
-          importance: 5,
-          visibility: 1,
-          vibration: true,
-          sound: "notification_sound.mp3",
-        }).catch(() => {});
+        if (Capacitor.getPlatform() === "android") {
+          LocalNotifications.deleteChannel({ id: "default" }).catch(() => {});
+          LocalNotifications.createChannel({
+            id: "lojista_orders_v2",
+            name: "Notificações do Lojista",
+            description: "Avisos de novos pedidos e mensagens dos clientes",
+            importance: 5,
+            visibility: 1,
+            vibration: true,
+            sound: "notification_sound.mp3",
+          }).catch(() => {});
+        }
       }
     }).catch(() => {});
   }

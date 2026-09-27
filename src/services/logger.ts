@@ -161,7 +161,12 @@ export function initializeGlobalErrorHandlers(appName: string) {
     const reason = event.reason;
     const reasonMsg = reason?.message || String(reason);
 
-    if (isExpectedAuthLifecycleError(reasonMsg)) return;
+    if (
+      isExpectedAuthLifecycleError(reasonMsg) ||
+      reasonMsg.includes("UNIMPLEMENTED") ||
+      reasonMsg.includes("not implemented") ||
+      reasonMsg.includes("implementation unavailable for")
+    ) return;
 
     reportErrorToTelegram({
       error_message: `Unhandled Rejection: ${reason?.message || reason}`,
@@ -186,7 +191,14 @@ export function initializeGlobalErrorHandlers(appName: string) {
     originalConsoleError.apply(console, args);
 
     // Skip nested reporting to prevent loops
-    if (isReporting || isExpectedAuthLifecycleError(msg) || isLegacyPushSchemaCompatibilityError(msg)) return;
+    if (
+      isReporting ||
+      isExpectedAuthLifecycleError(msg) ||
+      isLegacyPushSchemaCompatibilityError(msg) ||
+      msg.includes("UNIMPLEMENTED") ||
+      msg.includes("not implemented") ||
+      msg.includes("implementation unavailable for")
+    ) return;
 
     reportErrorToTelegram({
       error_message: `[Console Error] ${msg.slice(0, 1000)}`,
