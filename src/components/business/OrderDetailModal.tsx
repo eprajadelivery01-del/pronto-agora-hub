@@ -10,7 +10,6 @@ import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { supabase } from "@/lib/supabaseClient";
 import DeliveryTrackingMap from "./DeliveryTrackingMap";
 import { useNavigate } from "react-router-dom";
-import { getPaymentMethodInfo } from "@/lib/orderUtils";
 
 interface OrderDetailModalProps {
   order: any;
@@ -150,16 +149,6 @@ export default function OrderDetailModal({
 
   if (!order) return null;
 
-  const payInfo = getPaymentMethodInfo(
-    order.payment_method || (order.deliveries as any)?.payment_method || (order.deliveryInfo as any)?.payment_method,
-    order.notes
-  );
-
-  const cleanNotes = (order.notes || "")
-    .replace(/Troco para R\$\s*[\d,\.]+/gi, "")
-    .replace(/^[•\s-]+|[•\s-]+$/g, "")
-    .trim();
-
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string, prev?: string, prevLabel?: string }> = {
     pending: { label: "Novo Pedido", color: "bg-amber-500 text-white shadow-lg", next: "preparing", nextLabel: "Aceitar Pedido" },
     accepted: { label: "Aceito", color: "bg-indigo-500 text-white shadow-lg", next: "preparing", nextLabel: "Começar Preparo", prev: "pending", prevLabel: "Voltar para Novos" },
@@ -248,16 +237,6 @@ export default function OrderDetailModal({
                               {customerInfo?.name || order.customer?.name || order.customer_name || "Cliente"}
                               <span className="text-white/50 text-[9px] font-medium ml-1">({customerInfo?.phone || order.customer?.phone || order.customer_phone || "S/N"})</span>
                           </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider bg-white text-slate-900 shadow-sm flex items-center gap-1">
-                          <span>{payInfo.icon}</span> {payInfo.label}
-                        </span>
-                        {payInfo.troco && (
-                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-amber-400 text-slate-950 animate-pulse">
-                            Troco: R$ {payInfo.troco}
-                          </span>
-                        )}
                       </div>
                       <div className="flex items-center gap-1.5 text-white/90 max-w-xs">
                           <MapPin className="w-3.5 h-3.5 opacity-70 shrink-0" />
@@ -403,41 +382,25 @@ export default function OrderDetailModal({
                   )}
               </div>
 
-              {/* Seção Clara e Obrigatória de Forma de Pagamento */}
-              <div className="p-6 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-[2rem] space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-primary" /> Forma de Pagamento
-                  </p>
-                  <span className={cn("px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm", payInfo.badgeClass)}>
-                    <span>{payInfo.icon}</span> {payInfo.label}
-                  </span>
-                </div>
-                
-                <div className="pt-1">
-                  <p className="text-sm font-bold text-foreground">
-                    {payInfo.detail}
-                  </p>
-                  {payInfo.troco && (
-                    <div className="mt-2 p-3 bg-amber-100 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-xl">
-                      <span className="text-base font-black text-amber-900 dark:text-amber-200 not-italic block">
-                        🚨 LEVAR TROCO PARA R$ {payInfo.troco} 🚨
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {cleanNotes && (
-                  <div className="pt-3 border-t border-border/40">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                      Observações do Cliente:
+               {order.notes && (
+                  <div className="p-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-[2rem] space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                      <AlertCircle className="h-3 w-3" /> Forma de Pagamento / Observações
                     </p>
-                    <p className="text-sm font-medium italic text-foreground bg-muted/30 p-3 rounded-xl border border-border/50">
-                      {cleanNotes}
+                    <p className="text-sm font-medium italic text-blue-900 dark:text-blue-100">
+                      {order.notes.includes("Troco para R$") ? (
+                        <>
+                           Dinheiro <br/>
+                           <span className="text-base font-black text-green-700 dark:text-green-400 not-italic mt-1 block">
+                             🚨 LEVAR TROCO PARA R$ {order.notes.split("Troco para R$")[1]?.trim()} 🚨
+                           </span>
+                        </>
+                      ) : (
+                        order.notes
+                      )}
                     </p>
                   </div>
-                )}
-              </div>
+               )}
           </div>
 
           {/* Footer Actions */}
@@ -566,22 +529,16 @@ export default function OrderDetailModal({
             </table>
           </div>
 
-          <div className="border-b border-black pb-2 mb-2 border-dashed">
-            <p className="font-bold uppercase m-0 p-0 mb-1">FORMA DE PAGAMENTO:</p>
-            <p className="m-0 p-0 font-bold text-sm">
-              {payInfo.icon} {payInfo.label.toUpperCase()}
-            </p>
-            {payInfo.troco && (
-              <p className="m-0 p-0 font-black text-sm mt-0.5">
-                *** LEVAR TROCO P/ R$ {payInfo.troco} ***
-              </p>
-            )}
-            {cleanNotes && (
-              <p className="m-0 p-0 italic mt-1 text-xs">
-                OBS: {cleanNotes}
-              </p>
-            )}
-          </div>
+          {order.notes && (
+             <div className="border-b border-black pb-2 mb-2 border-dashed">
+               <p className="font-bold uppercase m-0 p-0 mb-1">PAGAMENTO / OBSERVAÇÕES</p>
+               <p className="m-0 p-0 italic font-bold">
+                 {order.notes.includes("Troco para R$") 
+                   ? `DINHEIRO - TROCO P/ R$ ${order.notes.split("Troco para R$")[1]?.trim()}`
+                   : order.notes}
+               </p>
+             </div>
+          )}
 
            <div className="text-right border-b border-black pb-2 mb-2 border-dashed space-y-0.5">
               {(() => {
