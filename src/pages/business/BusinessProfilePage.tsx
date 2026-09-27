@@ -12,7 +12,7 @@ import {
 import { maskPhone, maskTime } from "@/lib/masks";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
-import { isStoreOpenBySchedule } from "@/lib/storeHours";
+import { isStoreOpenBySchedule, WEEKDAY_FULL_NAMES } from "@/lib/storeHours";
 
 const DEFAULT_WORKING_DAYS = [
   { day: 'Seg', active: true, start: '08:00', end: '18:00', periods: [{ start: '08:00', end: '18:00' }] },
@@ -804,12 +804,12 @@ export default function BusinessProfilePage() {
                </div>
 
                {/* FULL WIDTH SECTIONS BELOW */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-border/50">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-border/50">
                    {/* SCHEDULE SECTION */}
-                   <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                   <div className="space-y-4 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                           <Clock3 className="h-3 w-3" /> Horário de Funcionamento
+                           <Clock3 className="h-3.5 w-3.5 text-primary" /> Horário de Funcionamento
                         </div>
                         <button
                           type="button"
@@ -823,6 +823,7 @@ export default function BusinessProfilePage() {
 
                               const newDays = (Array.isArray(workingDays) ? workingDays : []).map((d) => ({
                                 ...d,
+                                active: true,
                                 start: sourcePeriods[0].start,
                                 end: sourcePeriods[sourcePeriods.length - 1].end,
                                 periods: sourcePeriods.map((p) => ({ ...p })),
@@ -831,21 +832,31 @@ export default function BusinessProfilePage() {
                               toast.success("Horários aplicados a todos os dias!");
                             }
                           }}
-                          className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
+                          className="text-[10px] font-black uppercase tracking-wider text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
                         >
                           Repetir Horários (Aplicar a todos)
                         </button>
                       </div>
-                      <div className="space-y-3 p-4 bg-muted/30 rounded-2xl border border-border/40">
+
+                      <div className="space-y-2.5 p-3 sm:p-4 bg-muted/20 rounded-2xl border border-border/50">
                         {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => {
                           const periods = wd.periods && wd.periods.length > 0
                             ? wd.periods
                             : [{ start: wd.start || "08:00", end: wd.end || "18:00" }];
+                          const dayFullName = WEEKDAY_FULL_NAMES[wd.day] || wd.day;
 
                           return (
-                            <div key={wd.day} className="py-2.5 border-b border-border/10 last:border-0">
+                            <div 
+                              key={wd.day} 
+                              className={cn(
+                                "p-3 rounded-xl border transition-all",
+                                wd.active 
+                                  ? "bg-card border-border/80 shadow-xs" 
+                                  : "bg-muted/40 border-border/30 opacity-70"
+                              )}
+                            >
                               <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-3 shrink-0">
+                                <div className="flex items-center gap-2.5">
                                   <input 
                                     type="checkbox" 
                                     id={`day-toggle-${wd.day}`}
@@ -855,67 +866,75 @@ export default function BusinessProfilePage() {
                                   />
                                   <label 
                                     htmlFor={`day-toggle-${wd.day}`} 
-                                    className={cn("text-xs font-bold w-10 cursor-pointer select-none", wd.active ? "text-foreground" : "text-muted-foreground")}
+                                    className={cn("text-xs font-black cursor-pointer select-none", wd.active ? "text-foreground" : "text-muted-foreground")}
                                   >
-                                    {wd.day}
+                                    {dayFullName}
                                   </label>
                                 </div>
 
                                 {!wd.active ? (
-                                  <span className="text-[11px] font-bold text-muted-foreground/60 italic py-1">
-                                    Fechado neste dia
+                                  <span className="text-[10px] font-bold text-muted-foreground/70 bg-muted px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                    Fechado
                                   </span>
                                 ) : (
-                                  <div className="flex flex-col items-end gap-2 flex-1">
-                                    {periods.map((p, pIdx) => (
-                                      <div key={pIdx} className="flex items-center gap-2">
-                                        <div className="relative">
-                                          <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                                          <input 
-                                            type="text" 
-                                            value={p.start} 
-                                            onChange={(e) => updatePeriodTime(idx, pIdx, 'start', maskTime(e.target.value))}
-                                            className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
-                                            placeholder="08:00"
-                                          />
-                                        </div>
-                                        <span className="text-[10px] font-black text-muted-foreground/30">➜</span>
-                                        <div className="relative">
-                                          <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                                          <input 
-                                            type="text" 
-                                            value={p.end} 
-                                            onChange={(e) => updatePeriodTime(idx, pIdx, 'end', maskTime(e.target.value))}
-                                            className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
-                                            placeholder="18:00"
-                                          />
-                                        </div>
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                    Aberto
+                                  </span>
+                                )}
+                              </div>
+
+                              {wd.active && (
+                                <div className="mt-2.5 pt-2.5 border-t border-border/40 space-y-2">
+                                  {periods.map((p, pIdx) => (
+                                    <div key={pIdx} className="flex items-center justify-between gap-2 bg-muted/40 px-2.5 py-1.5 rounded-lg border border-border/30">
+                                      <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+                                        {periods.length > 1 ? `Turno ${pIdx + 1}` : 'Horário'}:
+                                      </span>
+
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <input 
+                                          type="text" 
+                                          value={p.start} 
+                                          onChange={(e) => updatePeriodTime(idx, pIdx, 'start', maskTime(e.target.value))}
+                                          className="w-14 py-1 text-center text-xs font-black bg-background border border-border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all tracking-wider shadow-2xs"
+                                          placeholder="08:00"
+                                          maxLength={5}
+                                        />
+                                        <span className="text-[11px] font-bold text-muted-foreground/60 px-0.5">às</span>
+                                        <input 
+                                          type="text" 
+                                          value={p.end} 
+                                          onChange={(e) => updatePeriodTime(idx, pIdx, 'end', maskTime(e.target.value))}
+                                          className="w-14 py-1 text-center text-xs font-black bg-background border border-border rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all tracking-wider shadow-2xs"
+                                          placeholder="18:00"
+                                          maxLength={5}
+                                        />
 
                                         {periods.length > 1 && (
                                           <button
                                             type="button"
                                             onClick={() => removePeriod(idx, pIdx)}
-                                            className="p-1 rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                            className="p-1 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-colors ml-0.5 cursor-pointer"
                                             title="Remover este turno"
                                           >
                                             <X className="h-3.5 w-3.5" />
                                           </button>
                                         )}
                                       </div>
-                                    ))}
+                                    </div>
+                                  ))}
 
-                                    {periods.length < 4 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => addPeriod(idx)}
-                                        className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 mt-0.5"
-                                      >
-                                        + Adicionar turno (intervalo)
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
+                                  {periods.length < 4 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => addPeriod(idx)}
+                                      className="text-[11px] font-bold text-primary hover:text-primary/80 flex items-center gap-1 pt-0.5 pl-1 cursor-pointer transition-colors"
+                                    >
+                                      + Adicionar turno (intervalo)
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -923,7 +942,7 @@ export default function BusinessProfilePage() {
                    </div>
 
                    {/* DELIVERY REGIONS PRICING */}
-                   <div className="space-y-4">
+                   <div className="space-y-4 min-w-0">
                       <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                          <MapPin className="h-3 w-3" /> Taxas de Entrega por Região
                       </div>
