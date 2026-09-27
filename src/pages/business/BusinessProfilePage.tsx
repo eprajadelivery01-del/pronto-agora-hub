@@ -15,13 +15,13 @@ import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { isStoreOpenBySchedule } from "@/lib/storeHours";
 
 const DEFAULT_WORKING_DAYS = [
-  { day: 'Seg', active: true, start: '08:00', end: '18:00' },
-  { day: 'Ter', active: true, start: '08:00', end: '18:00' },
-  { day: 'Qua', active: true, start: '08:00', end: '18:00' },
-  { day: 'Qui', active: true, start: '08:00', end: '18:00' },
-  { day: 'Sex', active: true, start: '08:00', end: '18:00' },
-  { day: 'Sab', active: true, start: '08:00', end: '12:00' },
-  { day: 'Dom', active: false, start: '00:00', end: '00:00' },
+  { day: 'Seg', active: true, start: '08:00', end: '18:00', periods: [{ start: '08:00', end: '18:00' }] },
+  { day: 'Ter', active: true, start: '08:00', end: '18:00', periods: [{ start: '08:00', end: '18:00' }] },
+  { day: 'Qua', active: true, start: '08:00', end: '18:00', periods: [{ start: '08:00', end: '18:00' }] },
+  { day: 'Qui', active: true, start: '08:00', end: '18:00', periods: [{ start: '08:00', end: '18:00' }] },
+  { day: 'Sex', active: true, start: '08:00', end: '18:00', periods: [{ start: '08:00', end: '18:00' }] },
+  { day: 'Sab', active: true, start: '08:00', end: '12:00', periods: [{ start: '08:00', end: '12:00' }] },
+  { day: 'Dom', active: false, start: '00:00', end: '00:00', periods: [{ start: '00:00', end: '00:00' }] },
 ];
 
 const normalizeGallery = (value: any): string[] => {
@@ -55,15 +55,47 @@ const normalizeWorkingDays = (value: any) => {
         ? parsed.workingDays
         : null;
 
-  if (!rawDays) return DEFAULT_WORKING_DAYS.map((day) => ({ ...day }));
+  if (!rawDays) {
+    return DEFAULT_WORKING_DAYS.map((day) => ({
+      ...day,
+      periods: day.periods.map((p) => ({ ...p })),
+    }));
+  }
 
   return DEFAULT_WORKING_DAYS.map((defaultDay, index) => {
-    const day = rawDays[index] || {};
+    const day =
+      rawDays.find(
+        (d: any) =>
+          String(d.day || d.weekday || d.name)
+            .trim()
+            .toLowerCase()
+            .startsWith(defaultDay.day.toLowerCase())
+      ) ||
+      rawDays[index] ||
+      {};
+
+    let periods: { start: string; end: string }[] = [];
+    if (Array.isArray(day.periods) && day.periods.length > 0) {
+      periods = day.periods
+        .map((p: any) => ({
+          start: typeof p.start === "string" && p.start.trim() ? p.start.trim() : (p.open || "08:00"),
+          end: typeof p.end === "string" && p.end.trim() ? p.end.trim() : (p.close || "18:00"),
+        }))
+        .filter((p: any) => Boolean(p.start && p.end));
+    }
+
+    if (periods.length === 0) {
+      const s = typeof day.start === "string" && day.start.trim() ? day.start.trim() : defaultDay.start;
+      const e = typeof day.end === "string" && day.end.trim() ? day.end.trim() : defaultDay.end;
+      periods = [{ start: s, end: e }];
+    }
+
     return {
       day: String(day.day || defaultDay.day),
       active: typeof day.active === "boolean" ? day.active : defaultDay.active,
-      start: typeof day.start === "string" ? day.start : defaultDay.start,
-      end: typeof day.end === "string" ? day.end : defaultDay.end,
+      start: periods[0]?.start || defaultDay.start,
+      end: periods[periods.length - 1]?.end || defaultDay.end,
+      periods,
     };
   });
 };
@@ -318,6 +350,73 @@ export default function BusinessProfilePage() {
     setWorkingDays(newDays);
   };
 
+  const addPeriod = (dayIdx: number) => {
+    const newDays = [...workingDays];
+    const day = newDays[dayIdx];
+    const currentPeriods = (day.periods && day.periods.length > 0
+      ? day.periods
+      : [{ start: day.start || "08:00", end: day.end || "18:00" }]
+    ).map((p: any) => ({ ...p }));
+
+    if (currentPeriods.length >= 4) {
+      toast.info("Máximo de 4 turnos por dia.");
+      return;
+    }
+
+    const last = currentPeriods[currentPeriods.length - 1];
+    const nextStart = last ? "18:00" : "08:00";
+    const nextEnd = last ? "23:00" : "18:00";
+    currentPeriods.push({ start: nextStart, end: nextEnd });
+
+    newDays[dayIdx] = {
+      ...day,
+      periods: currentPeriods,
+      start: currentPeriods[0].start,
+      end: currentPeriods[currentPeriods.length - 1].end,
+    };
+    setWorkingDays(newDays);
+  };
+
+  const removePeriod = (dayIdx: number, pIdx: number) => {
+    const newDays = [...workingDays];
+    const day = newDays[dayIdx];
+    const currentPeriods = (day.periods && day.periods.length > 0
+      ? day.periods
+      : [{ start: day.start || "08:00", end: day.end || "18:00" }]
+    ).map((p: any) => ({ ...p }));
+
+    if (currentPeriods.length <= 1) return;
+    currentPeriods.splice(pIdx, 1);
+
+    newDays[dayIdx] = {
+      ...day,
+      periods: currentPeriods,
+      start: currentPeriods[0]?.start || "08:00",
+      end: currentPeriods[currentPeriods.length - 1]?.end || "18:00",
+    };
+    setWorkingDays(newDays);
+  };
+
+  const updatePeriodTime = (dayIdx: number, pIdx: number, field: "start" | "end", val: string) => {
+    const newDays = [...workingDays];
+    const day = newDays[dayIdx];
+    const currentPeriods = (day.periods && day.periods.length > 0
+      ? day.periods
+      : [{ start: day.start || "08:00", end: day.end || "18:00" }]
+    ).map((p: any) => ({ ...p }));
+
+    if (!currentPeriods[pIdx]) return;
+    currentPeriods[pIdx][field] = val;
+
+    newDays[dayIdx] = {
+      ...day,
+      periods: currentPeriods,
+      start: currentPeriods[0]?.start || "08:00",
+      end: currentPeriods[currentPeriods.length - 1]?.end || "18:00",
+    };
+    setWorkingDays(newDays);
+  };
+
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!companyId) return;
@@ -342,7 +441,23 @@ export default function BusinessProfilePage() {
     setSaving(true);
 
     try {
-      const hoursJson = JSON.stringify(workingDays);
+      const sanitizedDays = (Array.isArray(workingDays) ? workingDays : []).map((d) => {
+        const periods = (d.periods && d.periods.length > 0
+          ? d.periods
+          : [{ start: d.start || "08:00", end: d.end || "18:00" }]
+        ).map((p: any) => ({
+          start: typeof p.start === 'string' && p.start.trim() ? p.start.trim() : "08:00",
+          end: typeof p.end === 'string' && p.end.trim() ? p.end.trim() : "18:00",
+        }));
+        return {
+          day: d.day,
+          active: Boolean(d.active),
+          start: periods[0]?.start || "08:00",
+          end: periods[periods.length - 1]?.end || "18:00",
+          periods,
+        };
+      });
+      const hoursJson = JSON.stringify(sanitizedDays);
       const { error } = await (supabase as any)
         .from("companies")
         .update({
@@ -699,9 +814,19 @@ export default function BusinessProfilePage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const firstActive = workingDays.find(d => d.active);
+                            const firstActive = workingDays.find((d) => d.active);
                             if (firstActive) {
-                              const newDays = (Array.isArray(workingDays) ? workingDays : []).map(d => ({ ...d, start: firstActive.start, end: firstActive.end }));
+                              const sourcePeriods = (firstActive.periods && firstActive.periods.length > 0
+                                ? firstActive.periods
+                                : [{ start: firstActive.start || "08:00", end: firstActive.end || "18:00" }]
+                              ).map((p) => ({ ...p }));
+
+                              const newDays = (Array.isArray(workingDays) ? workingDays : []).map((d) => ({
+                                ...d,
+                                start: sourcePeriods[0].start,
+                                end: sourcePeriods[sourcePeriods.length - 1].end,
+                                periods: sourcePeriods.map((p) => ({ ...p })),
+                              }));
                               setWorkingDays(newDays);
                               toast.success("Horários aplicados a todos os dias!");
                             }
@@ -711,44 +836,89 @@ export default function BusinessProfilePage() {
                           Repetir Horários (Aplicar a todos)
                         </button>
                       </div>
-                      <div className="space-y-2 p-4 bg-muted/30 rounded-2xl border border-border/40">
-                        {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => (
-                          <div key={wd.day} className="flex items-center justify-between gap-2 py-2 border-b border-border/10 last:border-0">
-                            <div className="flex items-center gap-3 shrink-0">
-                              <input 
-                                type="checkbox" 
-                                checked={wd.active} 
-                                onChange={(e) => updateWorkingDay(idx, 'active', e.target.checked)}
-                                className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-                              />
-                              <span className={cn("text-xs font-bold w-10", wd.active ? "text-foreground" : "text-muted-foreground")}>{wd.day}</span>
-                            </div>
-                            
-                            <div className={cn("flex items-center gap-2 shrink-0 transition-all", !wd.active && "opacity-20 pointer-events-none")}>
-                              <div className="relative">
-                                <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                                <input 
-                                  type="text" 
-                                  value={wd.start} 
-                                  onChange={(e) => updateWorkingDay(idx, 'start', maskTime(e.target.value))}
-                                  className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
-                                  placeholder="08:00"
-                                />
+                      <div className="space-y-3 p-4 bg-muted/30 rounded-2xl border border-border/40">
+                        {(Array.isArray(workingDays) ? workingDays : []).map((wd, idx) => {
+                          const periods = wd.periods && wd.periods.length > 0
+                            ? wd.periods
+                            : [{ start: wd.start || "08:00", end: wd.end || "18:00" }];
+
+                          return (
+                            <div key={wd.day} className="py-2.5 border-b border-border/10 last:border-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <input 
+                                    type="checkbox" 
+                                    id={`day-toggle-${wd.day}`}
+                                    checked={wd.active} 
+                                    onChange={(e) => updateWorkingDay(idx, 'active', e.target.checked)}
+                                    className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                                  />
+                                  <label 
+                                    htmlFor={`day-toggle-${wd.day}`} 
+                                    className={cn("text-xs font-bold w-10 cursor-pointer select-none", wd.active ? "text-foreground" : "text-muted-foreground")}
+                                  >
+                                    {wd.day}
+                                  </label>
+                                </div>
+
+                                {!wd.active ? (
+                                  <span className="text-[11px] font-bold text-muted-foreground/60 italic py-1">
+                                    Fechado neste dia
+                                  </span>
+                                ) : (
+                                  <div className="flex flex-col items-end gap-2 flex-1">
+                                    {periods.map((p, pIdx) => (
+                                      <div key={pIdx} className="flex items-center gap-2">
+                                        <div className="relative">
+                                          <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                                          <input 
+                                            type="text" 
+                                            value={p.start} 
+                                            onChange={(e) => updatePeriodTime(idx, pIdx, 'start', maskTime(e.target.value))}
+                                            className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                                            placeholder="08:00"
+                                          />
+                                        </div>
+                                        <span className="text-[10px] font-black text-muted-foreground/30">➜</span>
+                                        <div className="relative">
+                                          <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                                          <input 
+                                            type="text" 
+                                            value={p.end} 
+                                            onChange={(e) => updatePeriodTime(idx, pIdx, 'end', maskTime(e.target.value))}
+                                            className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                                            placeholder="18:00"
+                                          />
+                                        </div>
+
+                                        {periods.length > 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => removePeriod(idx, pIdx)}
+                                            className="p-1 rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                            title="Remover este turno"
+                                          >
+                                            <X className="h-3.5 w-3.5" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+
+                                    {periods.length < 4 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => addPeriod(idx)}
+                                        className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 mt-0.5"
+                                      >
+                                        + Adicionar turno (intervalo)
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                              <span className="text-[10px] font-black text-muted-foreground/30">➜</span>
-                              <div className="relative">
-                                <Clock3 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                                <input 
-                                  type="text" 
-                                  value={wd.end} 
-                                  onChange={(e) => updateWorkingDay(idx, 'end', maskTime(e.target.value))}
-                                  className="w-20 pl-7 pr-2 py-1.5 text-[11px] font-black bg-background border border-border rounded-xl text-center outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
-                                  placeholder="18:00"
-                                />
-                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                    </div>
 
