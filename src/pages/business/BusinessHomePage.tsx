@@ -624,6 +624,11 @@ export default function BusinessHomePage() {
                            <div className="flex flex-col">
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Pedido</span>
                              <span className="text-sm font-black text-foreground">#{order.id?.slice(-6).toUpperCase()}</span>
+                             {order.notes?.match(/CUPOM:\s*([A-Za-z0-9_-]+)/i) && (
+                               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                                 🎟️ Cupom {order.notes.match(/CUPOM:\s*([A-Za-z0-9_-]+)/i)[1].toUpperCase()}
+                               </span>
+                             )}
                            </div>
                            <div className="text-right">
                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Valor</span>

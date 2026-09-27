@@ -1051,8 +1051,49 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
 
         {/* Action & Price Footer */}
         <div className="flex flex-col gap-3">
+          {(() => {
+            const itemsSub = order.items?.reduce((acc: number, curr: any) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
+            const delFee = Number(order.delivery_fee) || 0;
+            const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
+            const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
+            const couponMatch = order.notes?.match(/CUPOM:\s*([A-Za-z0-9_-]+)/i);
+            const couponCode = couponMatch ? couponMatch[1].toUpperCase() : null;
+
+            if (disc > 0.01 || couponCode) {
+              return (
+                <div className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-[11px]">
+                  <span className="font-black text-emerald-700 dark:text-emerald-300 flex items-center gap-1 truncate max-w-[150px]">
+                    🎟️ {couponCode ? `Cupom: ${couponCode}` : 'Cupom de Desconto'}
+                  </span>
+                  {disc > 0.01 && (
+                    <span className="font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                      - R$ {disc.toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-black text-muted-foreground uppercase opacity-60">Total</span>
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-muted-foreground uppercase opacity-60">Total</span>
+              {(() => {
+                const itemsSub = order.items?.reduce((acc: number, curr: any) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
+                const delFee = Number(order.delivery_fee) || 0;
+                const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
+                const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
+                if (disc > 0.01) {
+                  return (
+                    <span className="text-[9px] font-bold text-muted-foreground line-through">
+                      De R$ {(itemsSub + delFee).toFixed(2).replace('.', ',')}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
+            </div>
             <p className="text-lg font-black text-primary tracking-tighter italic leading-none">
               R$ {(order.total != null ? Number(order.total) : (((order.items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0) + (order.delivery_fee || 0)))).toFixed(2).replace(".", ",")}
             </p>

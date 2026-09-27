@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
   CheckCircle2, AlertCircle, X, Printer, ArrowRight, ArrowLeft, Trash2,
-  Package, ImagePlus, Loader2, RotateCcw, Truck, MessageSquare
+  Package, ImagePlus, Loader2, RotateCcw, Truck, MessageSquare, Ticket
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
@@ -34,6 +34,11 @@ export default function OrderDetailModal({
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<{name: string | null, phone: string | null} | null>(null);
+  const [couponDetails, setCouponDetails] = useState<{
+    code: string | null;
+    discount: number;
+    discountType?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen && order?.id) {
@@ -48,8 +53,49 @@ export default function OrderDetailModal({
 
        // Fetch Customer Info if generic
        fetchCustomerDetails();
+
+       // Fetch Coupon info
+       fetchCouponDetails();
     }
   }, [isOpen, order?.id, order?.customer_id]);
+
+  const fetchCouponDetails = async () => {
+    if (!order?.id) return;
+    let extractedCode: string | null = null;
+    if (order.notes) {
+      const match = order.notes.match(/CUPOM:\s*([A-Za-z0-9_-]+)/i);
+      if (match) {
+        extractedCode = match[1].toUpperCase();
+      }
+    }
+
+    try {
+      const { data } = await supabase
+        .from('user_coupons')
+        .select('coupon_id, coupons(code, discount_type, discount_value)')
+        .eq('order_id', order.id)
+        .maybeSingle();
+
+      if (data && (data as any).coupons) {
+        const c = (data as any).coupons;
+        setCouponDetails({
+          code: c.code || extractedCode,
+          discount: 0,
+          discountType: c.discount_type,
+        });
+        return;
+      }
+    } catch {
+      // Silencioso se bloqueado por RLS
+    }
+
+    if (extractedCode) {
+      setCouponDetails({
+        code: extractedCode,
+        discount: 0,
+      });
+    }
+  };
 
   const fetchCustomerDetails = async () => {
     if (!order?.customer_id) return;
@@ -201,6 +247,52 @@ export default function OrderDetailModal({
     }
   };
 
+  // Cálculos financeiros e detecção de cupom
+  const itemsSub = items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
+  const delFee = Number(order.delivery_fee) || 0;
+  const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
+  const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
+  const activeCouponCode = couponDetails?.code || (order.notes?.match(/CUPOM:\s*([A-Za-z0-9_-]+)/i)?.[1]?.toUpperCase() ?? null);
+  const hasCoupon = disc > 0.01 || !!activeCouponCode;
+
+  // Separador de notas inteligente para não esconder nenhuma informação do lojista
+  const parseOrderNotes = (rawNotes: string | null) => {
+    if (!rawNotes) return { changeNote: null, couponNote: null, otherNotes: null };
+    
+    let changeNote: string | null = null;
+    let couponNote: string | null = null;
+    let remaining = rawNotes;
+
+    if (remaining.includes("Troco para R$")) {
+      const parts = remaining.split("Troco para R$");
+      const changePart = parts[1]?.split("•")[0]?.trim();
+      if (changePart) {
+        changeNote = `Troco para R$ ${changePart}`;
+      }
+      remaining = (parts[0] + " " + (parts[1]?.split("•").slice(1).join("•") || "")).trim();
+    }
+
+    const couponMatch = remaining.match(/🎟️?\s*CUPOM:\s*([^\s•]+)(\s*\([^)]*\))?/i);
+    if (couponMatch) {
+      couponNote = couponMatch[0].trim();
+      remaining = remaining.replace(couponMatch[0], "").trim();
+    }
+
+    const cleanedOthers = remaining
+      .split("•")
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && s !== "•")
+      .join(" • ");
+
+    return {
+      changeNote,
+      couponNote,
+      otherNotes: cleanedOthers || null,
+    };
+  };
+
+  const parsedNotes = parseOrderNotes(order.notes);
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-3xl p-0 overflow-hidden rounded-[3rem] border-none shadow-2xl bg-background text-foreground selection:bg-primary/10 flex flex-col max-h-[95vh] print:shadow-none print:rounded-none print:overflow-visible">
@@ -264,6 +356,40 @@ export default function OrderDetailModal({
                       driverId={order.deliveries?.driver_id || order.deliveryInfo?.driver_id}
                       destinationAddress={order.delivery_address || order.address}
                    />
+                </div>
+              )}
+
+              {/* Alerta de Cupom de Desconto */}
+              {hasCoupon && (
+                <div className="p-4 md:p-5 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/40 rounded-[1.5rem] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
+                      <Ticket className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">
+                          Cupom Aplicado
+                        </span>
+                        {activeCouponCode && (
+                          <span className="text-sm font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-800">
+                            {activeCouponCode}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200 mt-1">
+                        O cliente utilizou um cupom no marketplace. O total do pedido já reflete este desconto.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-emerald-500/20 shrink-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800/80 dark:text-emerald-300/80 block">
+                      Desconto no Pedido
+                    </span>
+                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                      - R$ {disc.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -382,23 +508,43 @@ export default function OrderDetailModal({
                   )}
               </div>
 
-               {order.notes && (
-                  <div className="p-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-[2rem] space-y-2">
+               {(parsedNotes.changeNote || parsedNotes.couponNote || parsedNotes.otherNotes) && (
+                  <div className="p-5 md:p-6 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-[2rem] space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                      <AlertCircle className="h-3 w-3" /> Forma de Pagamento / Observações
+                      <AlertCircle className="h-3.5 w-3.5" /> Informações de Pagamento e Observações
                     </p>
-                    <p className="text-sm font-medium italic text-blue-900 dark:text-blue-100">
-                      {order.notes.includes("Troco para R$") ? (
-                        <>
-                           Dinheiro <br/>
-                           <span className="text-base font-black text-green-700 dark:text-green-400 not-italic mt-1 block">
-                             🚨 LEVAR TROCO PARA R$ {order.notes.split("Troco para R$")[1]?.trim()} 🚨
-                           </span>
-                        </>
-                      ) : (
-                        order.notes
+                    <div className="space-y-2.5">
+                      {parsedNotes.changeNote && (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 rounded-xl">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 block mb-0.5">
+                            🚨 Pagamento em Dinheiro
+                          </span>
+                          <span className="text-base font-black text-amber-900 dark:text-amber-200 block">
+                            LEVAR {parsedNotes.changeNote.toUpperCase()}
+                          </span>
+                        </div>
                       )}
-                    </p>
+
+                      {parsedNotes.couponNote && (
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 rounded-xl flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 font-bold text-xs">
+                            <Ticket className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>{parsedNotes.couponNote}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {parsedNotes.otherNotes && (
+                        <div className="p-3 bg-white dark:bg-card border border-border/60 rounded-xl">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-0.5">
+                            Instruções do Cliente / Observações
+                          </span>
+                          <p className="text-sm font-medium text-foreground">
+                            {parsedNotes.otherNotes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                )}
           </div>
@@ -414,25 +560,22 @@ export default function OrderDetailModal({
                    <Printer className="h-5 w-5" />
                 </button>
                 <div className="flex flex-col text-left">
-                   <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total do Pedido</p>
-                   {(() => {
-                     const itemsSub = items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
-                     const delFee = Number(order.delivery_fee) || 0;
-                     const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
-                     const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
-                     return (
-                       <div>
-                         <p className="text-2xl font-black text-primary italic leading-none mt-0.5">
-                           R$ {ordTotal.toFixed(2).replace('.', ',')}
+                   <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Valores do Pedido</p>
+                   <div>
+                     <p className="text-2xl font-black text-primary italic leading-none mt-0.5">
+                       R$ {ordTotal.toFixed(2).replace('.', ',')}
+                     </p>
+                     <div className="text-[11px] font-bold mt-1 space-y-0.5 text-muted-foreground">
+                       <p>
+                         Subtotal R$ {itemsSub.toFixed(2).replace('.', ',')} + Frete R$ {delFee.toFixed(2).replace('.', ',')}
+                       </p>
+                       {disc > 0 && (
+                         <p className="text-emerald-600 dark:text-emerald-400 font-black">
+                           Desconto Cupom {activeCouponCode ? `(${activeCouponCode})` : ''}: - R$ {disc.toFixed(2).replace('.', ',')}
                          </p>
-                         {disc > 0 && (
-                           <p className="text-[10px] font-bold text-muted-foreground mt-0.5">
-                             (Subtotal R$ {itemsSub.toFixed(2).replace('.', ',')} + Frete R$ {delFee.toFixed(2).replace('.', ',')} - Cupom R$ {disc.toFixed(2).replace('.', ',')})
-                           </p>
-                         )}
-                       </div>
-                     );
-                   })()}
+                       )}
+                     </div>
+                   </div>
                 </div>
               </div>
 
@@ -529,32 +672,36 @@ export default function OrderDetailModal({
             </table>
           </div>
 
-          {order.notes && (
-             <div className="border-b border-black pb-2 mb-2 border-dashed">
+          {(parsedNotes.changeNote || parsedNotes.couponNote || parsedNotes.otherNotes) && (
+             <div className="border-b border-black pb-2 mb-2 border-dashed text-xs">
                <p className="font-bold uppercase m-0 p-0 mb-1">PAGAMENTO / OBSERVAÇÕES</p>
-               <p className="m-0 p-0 italic font-bold">
-                 {order.notes.includes("Troco para R$") 
-                   ? `DINHEIRO - TROCO P/ R$ ${order.notes.split("Troco para R$")[1]?.trim()}`
-                   : order.notes}
-               </p>
+               {parsedNotes.changeNote && (
+                 <p className="m-0 p-0 font-bold">
+                   DINHEIRO - {parsedNotes.changeNote.toUpperCase()}
+                 </p>
+               )}
+               {parsedNotes.couponNote && (
+                 <p className="m-0 p-0 font-bold">
+                   {parsedNotes.couponNote.toUpperCase()}
+                 </p>
+               )}
+               {parsedNotes.otherNotes && (
+                 <p className="m-0 p-0 italic">
+                   OBS: {parsedNotes.otherNotes}
+                 </p>
+               )}
              </div>
           )}
 
            <div className="text-right border-b border-black pb-2 mb-2 border-dashed space-y-0.5">
-              {(() => {
-                const itemsSub = items?.reduce((acc, curr) => acc + ((curr.price || curr.unit_price || 0) * curr.quantity), 0) || 0;
-                const delFee = Number(order.delivery_fee) || 0;
-                const ordTotal = order.total != null ? Number(order.total) : (itemsSub + delFee);
-                const disc = Math.max(0, (itemsSub + delFee) - ordTotal);
-                return (
-                  <>
-                    <p className="text-xs m-0 p-0">SUBTOTAL: R$ {itemsSub.toFixed(2).replace('.', ',')}</p>
-                    <p className="text-xs m-0 p-0">TAXA ENTREGA: R$ {delFee.toFixed(2).replace('.', ',')}</p>
-                    {disc > 0 && <p className="text-xs m-0 p-0">DESCONTO CUPOM: - R$ {disc.toFixed(2).replace('.', ',')}</p>}
-                    <p className="font-bold text-lg m-0 p-0 pt-1">TOTAL: R$ {ordTotal.toFixed(2).replace('.', ',')}</p>
-                  </>
-                );
-              })()}
+              <p className="text-xs m-0 p-0">SUBTOTAL ITENS: R$ {itemsSub.toFixed(2).replace('.', ',')}</p>
+              <p className="text-xs m-0 p-0">TAXA ENTREGA: R$ {delFee.toFixed(2).replace('.', ',')}</p>
+              {disc > 0 && (
+                <p className="text-xs font-bold m-0 p-0">
+                  DESCONTO CUPOM {activeCouponCode ? `(${activeCouponCode})` : ''}: - R$ {disc.toFixed(2).replace('.', ',')}
+                </p>
+              )}
+              <p className="font-bold text-lg m-0 p-0 pt-1">TOTAL A PAGAR: R$ {ordTotal.toFixed(2).replace('.', ',')}</p>
            </div>
 
           <div className="text-center pt-2 pb-4">
