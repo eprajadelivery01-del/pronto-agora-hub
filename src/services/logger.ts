@@ -197,7 +197,10 @@ export function initializeGlobalErrorHandlers(appName: string) {
       isLegacyPushSchemaCompatibilityError(msg) ||
       msg.includes("UNIMPLEMENTED") ||
       msg.includes("not implemented") ||
-      msg.includes("implementation unavailable for")
+      msg.includes("implementation unavailable for") ||
+      msg.startsWith("Warning:") ||
+      msg.includes("Warning: ") ||
+      msg.includes("React.forwardRef")
     ) return;
 
     reportErrorToTelegram({
