@@ -49,8 +49,6 @@ export type BusinessHoursInput =
   | null
   | undefined;
 
-const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
-
 function normalizeDayName(d: any): WeekDay | null {
   if (d == null) return null;
   const str = String(d).trim().toLowerCase();
@@ -102,19 +100,24 @@ function getZonedParts(date: Date, timeZone: string) {
   let hour = Number(get("hour")) || 0;
   if (hour === 24) hour = 0;
   const minute = Number(get("minute")) || 0;
+  const rawWd = get("weekday").replace(/[^a-zA-Z]/g, "");
   return {
-    day: weekdayMap[get("weekday")] ?? "Dom",
+    day: weekdayMap[rawWd] || weekdayMap[get("weekday")] || "Dom",
     minutes: hour * 60 + minute,
   };
 }
 
 export function isMinutesInPeriod(currentMinutes: number, start: string, end: string): boolean {
   const startMinutes = toMinutes(start, 0);
-  let endMinutes = toMinutes(end, 23 * 60 + 59);
+  const endMinutes = toMinutes(end, 23 * 60 + 59);
 
-  // Se o fechamento for menor ou igual à abertura (ex: 18:00 às 02:00), atravessa a meia-noite
-  if (endMinutes <= startMinutes) {
-    return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+  if (startMinutes === endMinutes) return false;
+
+  // Se o fechamento for menor que a abertura (ex: 18:00 às 02:00),
+  // a parte de hoje vai de startMinutes até 23:59.
+  // A parte da madrugada (00:00 às 02:00) pertence ao dia seguinte e é checada pelo histórico do dia anterior.
+  if (endMinutes < startMinutes) {
+    return currentMinutes >= startMinutes;
   }
 
   return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
@@ -270,7 +273,7 @@ export function isStoreOpenBySchedule(
     for (const p of prevPeriods) {
       const pStart = toMinutes(p.start, 0);
       const pEnd = toMinutes(p.end, 23 * 60 + 59);
-      if (pEnd <= pStart && currentMinutes <= pEnd) {
+      if (pEnd < pStart && currentMinutes <= pEnd) {
         return true;
       }
     }
@@ -311,7 +314,7 @@ export function getNextOpenTimeInfo(
   if (todayEntry && todayEntry.active !== false) {
     const periods = todayEntry.periods || [{ start: todayEntry.start, end: todayEntry.end }];
     const futurePeriods = periods
-      .filter((p) => toMinutes(p.start, 0) > currentMinutes)
+      .filter((p) => toMinutes(p.start, 0) !== toMinutes(p.end, 0) && toMinutes(p.start, 0) > currentMinutes)
       .sort((a, b) => toMinutes(a.start, 0) - toMinutes(b.start, 0));
 
     if (futurePeriods.length > 0) {
@@ -327,7 +330,8 @@ export function getNextOpenTimeInfo(
 
     if (nextEntry && nextEntry.active !== false) {
       const periods = nextEntry.periods || [{ start: nextEntry.start, end: nextEntry.end }];
-      const sortedPeriods = [...periods].sort((a, b) => toMinutes(a.start, 0) - toMinutes(b.start, 0));
+      const validPeriods = periods.filter((p) => toMinutes(p.start, 0) !== toMinutes(p.end, 0));
+      const sortedPeriods = [...validPeriods].sort((a, b) => toMinutes(a.start, 0) - toMinutes(b.start, 0));
       if (sortedPeriods.length > 0) {
         if (i === 1) {
           return `Abre amanhã às ${sortedPeriods[0].start}`;
@@ -342,7 +346,9 @@ export function getNextOpenTimeInfo(
 
 export function formatPeriodsLabel(periods?: TimePeriod[] | null): string {
   if (!periods || periods.length === 0) return "Fechado";
-  return periods.map((p) => `${p.start} às ${p.end}`).join(" | ");
+  const valid = periods.filter(p => Boolean(p.start && p.end) && p.start !== p.end);
+  if (valid.length === 0) return "Fechado";
+  return valid.map((p) => `${p.start} às ${p.end}`).join(" | ");
 }
 
 export type StoreStatusInput = {
