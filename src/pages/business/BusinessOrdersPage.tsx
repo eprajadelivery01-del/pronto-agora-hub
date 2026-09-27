@@ -165,7 +165,8 @@ export default function BusinessOrdersPage() {
           .select(ORDERS_SELECT)
           .eq("company_id", companyId)
           .neq("status", "cancelled")
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(50);
 
       // BUSCA RESILIENTE: Campos operacionais
       let { data, error } = await withSessionRetry(runOrdersQuery);
@@ -201,6 +202,7 @@ export default function BusinessOrdersPage() {
             .eq("company_id", companyId)
             .neq("status", "cancelled")
             .order("created_at", { ascending: false })
+            .limit(50)
         );
 
         if (!simpleError && simpleData) {
@@ -480,15 +482,9 @@ export default function BusinessOrdersPage() {
       // 2. Atualiza ao voltar o foco para a aba
       window.addEventListener('focus', handleAlertRefresh);
 
-      // 3. Polling de resiliência a cada 8s para garantir sincronia do Kanban sem refresh manual
-      const interval = setInterval(() => {
-        fetchOrders();
-      }, 8000);
-
       return () => {
         window.removeEventListener('epraja-order-alert-triggered', handleAlertRefresh);
         window.removeEventListener('focus', handleAlertRefresh);
-        clearInterval(interval);
       };
     } else if (!companyLoading) {
       // Sem empresa vinculada — encerra o skeleton imediatamente

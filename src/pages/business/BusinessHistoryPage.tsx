@@ -106,11 +106,13 @@ export default function BusinessHistoryPage() {
               customers (id, name, phone)
             `)
             .eq("company_id", companyId)
-            .order("created_at", { ascending: false }),
+            .order("created_at", { ascending: false })
+            .limit(30),
           supabase.from("deliveries")
             .select(`id, order_id, status, value, price, commission, created_at, customer_name, customer_phone, address`)
             .eq("company_id", companyId)
             .order("created_at", { ascending: false })
+            .limit(30)
         ]);
 
         let orders = ordersRes.data;
@@ -125,7 +127,8 @@ export default function BusinessHistoryPage() {
               customer_name, customer_phone, delivery_address, notes
             `)
             .eq("company_id", companyId)
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .limit(30);
 
           if (simpleErr) {
             console.error("[HistoryPage] Erro fatal orders:", simpleErr);
