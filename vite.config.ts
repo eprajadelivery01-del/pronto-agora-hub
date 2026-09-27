@@ -23,6 +23,11 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Pacotes Capacitor instalados sem dist/ neste ambiente — usar stubs web seguros
+      "@capacitor/status-bar": path.resolve(__dirname, "./src/lib/capacitorNativeStubs.ts"),
+      "@capacitor/local-notifications": path.resolve(__dirname, "./src/lib/capacitorNativeStubs.ts"),
+      "@capacitor/push-notifications": path.resolve(__dirname, "./src/lib/capacitorNativeStubs.ts"),
+      "@capacitor-firebase/messaging": path.resolve(__dirname, "./src/lib/capacitorNativeStubs.ts"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
