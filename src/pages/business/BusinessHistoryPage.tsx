@@ -130,7 +130,7 @@ export default function BusinessHistoryPage() {
           if (simpleErr) {
             console.error("[HistoryPage] Erro fatal orders:", simpleErr);
           } else {
-            orders = simpleOrders;
+            orders = simpleOrders as any;
           }
         }
 
@@ -270,8 +270,8 @@ export default function BusinessHistoryPage() {
 
         const resolvedCustomer = {
           id: data.customer_id,
-          name: cleanVal(item.customer_name) || cleanVal(data.customer_name) || cleanVal(data.customers?.name) || "Cliente Marketplace",
-          phone: cleanVal(item.customer_phone, "Não informado") || cleanVal(data.customer_phone, "Não informado") || cleanVal(data.customers?.phone, "Não informado") || "Não informado",
+          name: cleanVal(item.customer_name) || cleanVal(data.customer_name) || cleanVal((data.customers as any)?.name) || "Cliente Marketplace",
+          phone: cleanVal(item.customer_phone, "Não informado") || cleanVal(data.customer_phone, "Não informado") || cleanVal((data.customers as any)?.phone, "Não informado") || "Não informado",
           address: data.delivery_address || item.delivery_address || "Endereço não informado"
         };
 
