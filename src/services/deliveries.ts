@@ -43,6 +43,27 @@ interface UseDeliveriesParams {
   cityId?: string;
 }
 
+export function getDeliveryFee(delivery: any): number {
+  if (!delivery) return 6.00;
+  
+  const directCandidate = Math.max(
+    Number(delivery.commission) || 0,
+    Number(delivery.value) || 0,
+    Number(delivery.price) || 0,
+    Number(delivery.delivery_fee) || 0,
+    Number(delivery.driver_fee) || 0
+  );
+  if (directCandidate > 0) return directCandidate;
+
+  if (delivery.orders) {
+    const orderObj = Array.isArray(delivery.orders) ? delivery.orders[0] : delivery.orders;
+    const orderFee = Number(orderObj?.delivery_fee) || 0;
+    if (orderFee > 0) return orderFee;
+  }
+
+  return 6.00;
+}
+
 export function useDeliveries(params?: UseDeliveriesParams) {
   const { status, search, companyId, driverId, dateFrom, dateTo, cityId, pageSize = 50, page = 0 } = params || {};
 
@@ -55,6 +76,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
           *,
           orders(
             total,
+            delivery_fee,
             order_items(quantity, price, product_name, notes, options, products(name))
           ),
           delivery_drivers(id, user_id, full_name, phone, vehicle_type, vehicle_plate)
@@ -88,11 +110,33 @@ export function useDeliveries(params?: UseDeliveriesParams) {
 
       const filteredData = (data ?? []).filter((d: any) => d.notes !== "Cancelamento automático de entrega prematura");
 
+      // Auto-cura preventiva no Supabase para registros históricos que estavam com 0,00
+      filteredData.forEach((d: any) => {
+        if (!Number(d.value) || !Number(d.price) || !Number(d.commission)) {
+          const fee = getDeliveryFee(d);
+          supabase.from("deliveries").update({
+            value: fee,
+            commission: fee,
+            price: fee,
+            delivery_fee: fee
+          }).eq("id", d.id).then(() => {}).catch(() => {});
+        }
+      });
+
       const mappedData = filteredData.map((delivery: any) => {
-        if (delivery.delivery_drivers) {
-          const dd = delivery.delivery_drivers;
+        const fee = getDeliveryFee(delivery);
+        const normalizedDelivery = {
+          ...delivery,
+          value: Number(delivery.value) > 0 ? Number(delivery.value) : fee,
+          commission: Number(delivery.commission) > 0 ? Number(delivery.commission) : fee,
+          price: Number(delivery.price) > 0 ? Number(delivery.price) : fee,
+          delivery_fee: Number(delivery.delivery_fee) > 0 ? Number(delivery.delivery_fee) : fee,
+        };
+
+        if (normalizedDelivery.delivery_drivers) {
+          const dd = normalizedDelivery.delivery_drivers;
           return {
-            ...delivery,
+            ...normalizedDelivery,
             delivery_drivers: {
               ...dd,
               vehicle: dd.vehicle_type || dd.vehicle_plate || "Veículo não inf.",
@@ -103,7 +147,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
             }
           };
         }
-        return delivery;
+        return normalizedDelivery;
       });
 
       return { data: mappedData as unknown as DeliveryWithRelations[], count: count || 0 };
@@ -157,8 +201,8 @@ export function useDeliveryStats(params?: { companyId?: string; dateFrom?: strin
         inTransit: data.filter((d) => ["accepted", "collecting", "in_route", "in_transit"].includes(d.status)).length,
         delivered: data.filter((d) => d.status === "completed").length,
         cancelled: data.filter((d) => d.status === "cancelled").length,
-        todayRevenue: data.filter((d) => d.status === "completed").reduce((sum, d) => sum + (Number((d as any).value) || Number((d as any).price) || 0), 0),
-        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + (Number((d as any).value) || Number((d as any).price) || 0), 0),
+        todayRevenue: data.filter((d) => d.status === "completed").reduce((sum, d) => sum + getDeliveryFee(d), 0),
+        todayCollection: data.filter((d) => d.status !== "cancelled").reduce((sum, d) => sum + getDeliveryFee(d), 0),
       };
     },
   });
@@ -290,7 +334,10 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
   const existingDelivery = existingDeliveries && existingDeliveries.length > 0 ? existingDeliveries[0] : null;
 
   const estimatedValue = Number(order.total || 0);
-  const driverFee = customValue !== undefined && customValue !== null ? customValue : 0;
+  const orderDeliveryFee = Number(order.delivery_fee) || 0;
+  const driverFee = (customValue !== undefined && customValue !== null && customValue > 0)
+    ? customValue
+    : (orderDeliveryFee > 0 ? orderDeliveryFee : 6.00);
 
   if (existingDelivery) {
     console.log(`[Deliveries] Entrega já existe para o pedido ${orderId}. Atualizando para pending e retornando existente.`);
@@ -298,9 +345,10 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     // Atualizar o status para pending (caso estivesse como draft/hidden) e atualizar o valor
     await supabase.from("deliveries").update({ 
       status: "pending", 
-      value: customValue !== undefined && customValue !== null ? customValue : existingDelivery.value,
-      commission: customValue !== undefined && customValue !== null ? customValue : existingDelivery.commission,
-      price: order.delivery_fee || existingDelivery.price || 0,
+      value: driverFee,
+      commission: driverFee,
+      price: driverFee,
+      delivery_fee: driverFee,
       estimated_value: estimatedValue
     }).eq("id", existingDelivery.id);
 
@@ -350,7 +398,8 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
       delivery_address: dropoff,
       value: driverFee,
       commission: driverFee,
-      price: order.delivery_fee || 0,
+      price: driverFee,
+      delivery_fee: driverFee,
       estimated_value: estimatedValue,
       notes: order.notes || null,
       region_id: (order as any).region_id || null,

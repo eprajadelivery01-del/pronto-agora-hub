@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDeliveries, useDeliveryStats, type DeliveryWithRelations } from "@/services/deliveries";
+import { useDeliveries, useDeliveryStats, getDeliveryFee, type DeliveryWithRelations } from "@/services/deliveries";
 import { useCurrentCompany } from "@/hooks/useCurrentCompany";
 import { DeliveryStatusBadge } from "@/components/admin/DeliveryStatusBadge";
 import type { DeliveryStatus, Delivery } from "@/types/models";
@@ -92,7 +92,7 @@ export default function BusinessHomePage() {
       }
     }
     
-    const deliveryFee = Number(delivery.commission ?? delivery.price ?? delivery.value ?? 0);
+    const deliveryFee = getDeliveryFee(delivery);
     return productValue + deliveryFee;
   };
 
@@ -468,7 +468,7 @@ export default function BusinessHomePage() {
         <div class="label">Valor do Produto</div>
         <div class="value">R$ ${productValue.toFixed(2).replace('.', ',')}</div>
         <div class="label">Taxa de Entrega</div>
-        <div class="value">R$ ${Number((delivery as any).commission ?? delivery.value ?? (delivery as any).price ?? 0).toFixed(2).replace('.', ',')}</div>
+        <div class="value">R$ ${getDeliveryFee(delivery).toFixed(2).replace('.', ',')}</div>
         <div class="label">Data/Hora da Solicitação</div>
         <div class="value">${format(new Date(delivery.created_at), "dd/MM/yyyy HH:mm")}</div>
         ${delivery.notes ? `<div class="label">Observações</div><div class="value">${delivery.notes}</div>` : ""}

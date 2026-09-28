@@ -746,9 +746,10 @@ export default function BusinessOrdersPage() {
       return;
     }
 
-    if (isNaN(finalFee) || finalFee < 0) {
-      toast.error("Erro no cálculo da taxa de entrega.");
-      return;
+    // Trava de segurança absoluta: NUNCA permitir taxa <= 0 para o entregador
+    if (isNaN(finalFee) || finalFee <= 0) {
+      const orderFee = Number((order as any).delivery_fee) || 0;
+      finalFee = orderFee > 0 ? orderFee : 6.00;
     }
 
     try {

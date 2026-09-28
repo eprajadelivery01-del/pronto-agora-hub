@@ -2,7 +2,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { MotoboysSidebar } from "@/components/admin/MotoboysSidebar";
 import { BikeIcon } from "@/components/icons/BikeIcon";
 import { NotificationsPanel } from "@/components/admin/NotificationsPanel";
-import { useDeliveryStats, useDeliveries } from "@/services/deliveries";
+import { useDeliveryStats, useDeliveries, getDeliveryFee } from "@/services/deliveries";
 import { useOnlineDrivers } from "@/services/drivers";
 import { useCompanies } from "@/services/companies";
 import { useAllRealtime } from "@/services/realtime";
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td className="py-3 text-right font-bold text-xs">
-                          R$ {Number((delivery as any).commission ?? delivery.value ?? 0).toFixed(2)}
+                          R$ {getDeliveryFee(delivery).toFixed(2)}
                         </td>
                       </tr>
                     ))}

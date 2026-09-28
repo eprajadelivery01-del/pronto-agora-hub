@@ -77,7 +77,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
   });
   const [companyAddress, setCompanyAddress] = useState(initialData?.pickup_address || currentCompany?.address || "");
   
-  const [deliveryValue, setDeliveryValue] = useState(initialData?.value?.toFixed(2).replace('.', ',') || "0,00");
+  const [deliveryValue, setDeliveryValue] = useState(initialData?.value?.toFixed(2).replace('.', ',') || "6,00");
   const [collectValue, setCollectValue] = useState(initialData?.estimated_value?.toFixed(2).replace('.', ',') || "0,00");
   const [isPaid, setIsPaid] = useState(() => {
     return initialData?.notes?.includes("[PAGO]") || false;
@@ -237,6 +237,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
       const now = new Date().toISOString();
       const deliveryId = initialData?.id || crypto.randomUUID();
       const resolvedCityId = currentCompany?.city_id || selectedCity || initialData?.city_id || null;
+      const finalFee = (!isNaN(parsedDeliveryValue) && parsedDeliveryValue > 0) ? parsedDeliveryValue : 6.00;
       const payload: any = {
         id: deliveryId,
         company_id: cId,
@@ -247,7 +248,10 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
         address: finalAddress,
         dropoff_address: finalAddress,
         pickup_address: companyAddress || "Retirada na Loja",
-        price: isNaN(parsedDeliveryValue) ? 0 : parsedDeliveryValue,
+        price: finalFee,
+        value: finalFee,
+        commission: finalFee,
+        delivery_fee: finalFee,
         estimated_value: isNaN(parsedCollectValue) ? 0 : parsedCollectValue,
         notes: finalNotes || null,
         status: initialData ? initialData.status : "pending",

@@ -3,6 +3,7 @@ import { BusinessLayout } from "@/components/business/BusinessLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { ClipboardList, Search, Calendar, RefreshCw, Eye, CheckCircle, XCircle, Clock, ShoppingBag, Truck } from "lucide-react";
+import { getDeliveryFee } from "@/services/deliveries";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OrderDetailModal from "@/components/business/OrderDetailModal";
@@ -224,7 +225,7 @@ export default function BusinessHistoryPage() {
             unifiedHistory.push({
               id: d.id,
               status: d.status,
-              total: Number(d.commission) || Number(d.price) || Number(d.value) || 0,
+              total: getDeliveryFee(d),
               created_at: d.created_at,
               customer_name: d.customer_name || "Cliente Manual",
               customer_phone: d.customer_phone || "Não informado",
