@@ -129,7 +129,8 @@ export default function BusinessHomePage() {
   // 2. Fetch all active deliveries
   const { data: deliveriesData, isLoading: isLoadingDeliveries } = useDeliveries({
     companyId: companyId || undefined,
-    pageSize: 100
+    pageSize: 100,
+    enabled: !!companyId,
   });
 
   // Consulta direta e simples, igual ao que o painel do entregador precisa enxergar.

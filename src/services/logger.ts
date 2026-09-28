@@ -12,7 +12,7 @@ const recentlyReported = new Map<string, number>();
 const REPORT_DEDUP_WINDOW_MS = 60_000;
 
 const isExpectedAuthLifecycleError = (message: string) =>
-  /pgrst303|jwt expired|invalid jwt|token is expired|invalid refresh token|refresh token not found/i.test(message);
+  /pgrst303|jwt expired|invalid jwt|token is expired|invalid refresh token|refresh token not found|permission denied for table/i.test(message);
 
 const isLegacyPushSchemaCompatibilityError = (message: string) =>
   /device_?tokens[\s\S]*(failure_?count|disabled_at|disabled_reason|last_error_code)[\s\S]*schema cache/i.test(message);
@@ -41,6 +41,7 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
     msg.includes("offline") ||
     msg.includes("não encontrada") ||
     msg.includes("acesso negado") ||
+    msg.includes("permission denied") ||
     msg.includes("exclusivo para entregadores") ||
     msg.includes("load failed") ||
     msg.includes("failed to fetch") ||
@@ -63,6 +64,11 @@ export async function reportErrorToTelegram(payload: ErrorPayload, appName = "Pa
 
   try {
     const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+
+    // Se o usuário não está autenticado e o erro for de permissão (RLS), trata-se de rota protegida e não incidente de sistema
+    if (!user && (msg.includes("permission denied") || msg.includes("42501") || msg.includes("acesso negado"))) {
+      return;
+    }
     
     const requestBody = {
       app_name: appName,

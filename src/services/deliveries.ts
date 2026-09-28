@@ -41,6 +41,7 @@ interface UseDeliveriesParams {
   pageSize?: number;
   page?: number;
   cityId?: string;
+  enabled?: boolean;
 }
 
 export function getDeliveryFee(delivery: any): number {
@@ -65,10 +66,11 @@ export function getDeliveryFee(delivery: any): number {
 }
 
 export function useDeliveries(params?: UseDeliveriesParams) {
-  const { status, search, companyId, driverId, dateFrom, dateTo, cityId, pageSize = 50, page = 0 } = params || {};
+  const { status, search, companyId, driverId, dateFrom, dateTo, cityId, pageSize = 50, page = 0, enabled = true } = params || {};
 
   return useQuery({
     queryKey: ["deliveries", status, search, companyId, driverId, dateFrom, dateTo, cityId, page, pageSize],
+    enabled,
     queryFn: async () => {
       let query = supabase
         .from("deliveries")
