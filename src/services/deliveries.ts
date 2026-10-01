@@ -458,7 +458,7 @@ export function useDeliveryTracking(orderId?: string | null) {
     queryKey: ["order-delivery", orderId],
     queryFn: async () => {
       if (!orderId) return null;
-      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, price, commission, payment_method, created_at)").eq("id", orderId).single();
+      const { data } = await supabase.from("orders").select("*, deliveries(id, status, driver_id, customer_name, address, value, price, commission, created_at)").eq("id", orderId).single();
       return data;
     },
     enabled: !!orderId,
