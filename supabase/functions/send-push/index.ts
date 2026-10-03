@@ -158,11 +158,11 @@ async function sendToToken(
 
   if (targetApp === "entregador") {
     defaultBundleId = "br.com.epraja.entregador";
-    defaultSound = "notification_sound.mp3";
+    defaultSound = "notification_sound.wav";
     channelId = "delivery-incoming-v9";
   } else if (targetApp === "lojista") {
     defaultBundleId = "br.com.epraja.lojista";
-    defaultSound = "notification_sound.mp3";
+    defaultSound = "notification_sound.wav";
     channelId = "lojista_orders_v2";
   } else {
     defaultBundleId = "br.com.epraja.appFma";
@@ -258,7 +258,7 @@ async function sendToToken(
           payload: {
             aps: {
               alert: { title, body },
-              sound: "default",
+              sound: iosSound,
               badge: 1,
             },
           },
@@ -302,7 +302,7 @@ async function sendToToken(
           payload: {
             aps: {
               alert: { title, body },
-              sound: "default",
+              sound: iosSound,
               badge: 1,
             },
           },
