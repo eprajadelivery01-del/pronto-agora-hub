@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { 
   ShoppingBag, User, MapPin, Phone, Clock, DollarSign, 
   CheckCircle2, AlertCircle, X, Printer, ArrowRight, ArrowLeft, Trash2,
-  Package, ImagePlus, Loader2, RotateCcw, Truck, MessageSquare, Ticket
+  Package, ImagePlus, Loader2, RotateCcw, Truck, MessageSquare, Ticket, Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { optimizeStorageImage } from "@/lib/imageOptimization";
 import { supabase } from "@/lib/supabaseClient";
+import { isPickupOrder } from "@/utils/order";
 import DeliveryTrackingMap from "./DeliveryTrackingMap";
 import { useNavigate } from "react-router-dom";
 
@@ -195,21 +196,25 @@ export default function OrderDetailModal({
 
   if (!order) return null;
 
+  const isPickup = isPickupOrder(order);
+
   const statusMap: Record<string, { label: string, color: string, next?: string, nextLabel?: string, prev?: string, prevLabel?: string }> = {
     pending: { label: "Novo Pedido", color: "bg-amber-500 text-white shadow-lg", next: "preparing", nextLabel: "Aceitar Pedido" },
     accepted: { label: "Aceito", color: "bg-indigo-500 text-white shadow-lg", next: "preparing", nextLabel: "Começar Preparo", prev: "pending", prevLabel: "Voltar para Novos" },
     preparing: { label: "Em Preparo", color: "bg-blue-500 text-white shadow-lg", next: "ready", nextLabel: "Marcar como Pronto", prev: "pending", prevLabel: "Voltar para Novos" },
-    ready: { label: "Pronto", color: "bg-emerald-500 text-white shadow-lg", next: "ready", nextLabel: "Chamar Entregador", prev: "preparing", prevLabel: "Voltar para Preparo" },
+    ready: isPickup 
+      ? { label: "Pronto p/ Retirada", color: "bg-emerald-500 text-white shadow-lg", next: "delivered", nextLabel: "Concluir Retirada", prev: "preparing", prevLabel: "Voltar para Preparo" }
+      : { label: "Pronto", color: "bg-emerald-500 text-white shadow-lg", next: "ready", nextLabel: "Chamar Entregador", prev: "preparing", prevLabel: "Voltar para Preparo" },
     in_route: { label: "Em Rota", color: "bg-purple-500 text-white shadow-lg", next: "completed", nextLabel: "Concluir Pedido", prev: "ready", prevLabel: "Voltar para Pronto" },
     completed: { label: "Concluído", color: "bg-emerald-600 text-white shadow-lg" },
-    delivered: { label: "Entregue", color: "bg-emerald-600 text-white shadow-lg" },
+    delivered: { label: isPickup ? "Retirado" : "Entregue", color: "bg-emerald-600 text-white shadow-lg" },
     cancelled: { label: "Cancelado", color: "bg-rose-500 text-white shadow-lg" }
   };
 
   const status = statusMap[order.status] || { label: order.status, color: "bg-muted", next: undefined, nextLabel: undefined, prev: undefined, prevLabel: undefined };
   
   const handleAdvance = () => {
-    if (order.status === "ready" && onDispatch) {
+    if (order.status === "ready" && !isPickup && onDispatch) {
       onDispatch();
       return;
     }
@@ -219,6 +224,11 @@ export default function OrderDetailModal({
       } else if (updateStatus) {
         updateStatus(order.id, status.next).then(() => {
           onStatusUpdate?.();
+        });
+      } else {
+        supabase.from('orders').update({ status: status.next }).eq('id', order.id).then(() => {
+          onStatusUpdate?.();
+          onClose();
         });
       }
     }
@@ -331,10 +341,19 @@ export default function OrderDetailModal({
                           </div>
                       </div>
                       <div className="flex items-center gap-1.5 text-white/90 max-w-xs">
-                          <MapPin className="w-3.5 h-3.5 opacity-70 shrink-0" />
-                          <p className="text-xs font-bold truncate">
-                              {order.customer?.address || order.delivery_address || order.address || "Endereço não informado"}
-                          </p>
+                          {isPickup ? (
+                            <div className="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-xl text-white font-black text-xs uppercase tracking-wider">
+                              <Store className="w-3.5 h-3.5 shrink-0" />
+                              <span>Retirada no Local</span>
+                            </div>
+                          ) : (
+                            <>
+                              <MapPin className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                              <p className="text-xs font-bold truncate">
+                                  {order.customer?.address || order.delivery_address || order.address || "Endereço não informado"}
+                              </p>
+                            </>
+                          )}
                       </div>
                   </div>
               </DialogHeader>
@@ -356,6 +375,23 @@ export default function OrderDetailModal({
                       driverId={order.deliveries?.driver_id || order.deliveryInfo?.driver_id}
                       destinationAddress={order.delivery_address || order.address}
                    />
+                </div>
+              )}
+
+              {/* Alerta de Retirada no Local */}
+              {isPickup && (
+                <div className="p-4 md:p-5 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500/40 rounded-[1.5rem] flex items-center gap-3.5 shadow-sm animate-in fade-in duration-300">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
+                    <Store className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">
+                      Retirada no Local / Balcão
+                    </span>
+                    <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mt-1">
+                      O cliente irá retirar este pedido diretamente no balcão da loja. Não é necessário acionar entregador.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -638,13 +674,21 @@ export default function OrderDetailModal({
             <p className="m-0 p-0 text-xs mt-1">{new Date(order.created_at).toLocaleString('pt-BR')}</p>
           </div>
 
-          <div className="border-b border-black pb-2 mb-2 border-dashed">
-            <p className="font-bold uppercase m-0 p-0 mb-1">DADOS DO CLIENTE</p>
-            <p className="m-0 p-0">{customerInfo?.name || order.customer?.name || order.customer_name || "Cliente"}</p>
-            <p className="m-0 p-0">Tel: {customerInfo?.phone || order.customer?.phone || order.customer_phone || "Não informado"}</p>
-            <p className="m-0 p-0 mt-2 font-bold">Endereço de Entrega:</p>
-            <p className="m-0 p-0">{order.customer?.address || order.delivery_address || order.address || "Endereço não informado"}</p>
-          </div>
+          {isPickup ? (
+            <div className="border-b border-black pb-2 mb-2 border-dashed">
+              <p className="font-bold uppercase m-0 p-1 text-center bg-black text-white text-xs">*** RETIRADA NO LOCAL / BALCÃO ***</p>
+              <p className="m-0 p-0 mt-1.5 font-bold">CLIENTE: {customerInfo?.name || order.customer?.name || order.customer_name || "Cliente"}</p>
+              <p className="m-0 p-0">TEL: {customerInfo?.phone || order.customer?.phone || order.customer_phone || "Não informado"}</p>
+            </div>
+          ) : (
+            <div className="border-b border-black pb-2 mb-2 border-dashed">
+              <p className="font-bold uppercase m-0 p-0 mb-1">DADOS DO CLIENTE</p>
+              <p className="m-0 p-0">{customerInfo?.name || order.customer?.name || order.customer_name || "Cliente"}</p>
+              <p className="m-0 p-0">Tel: {customerInfo?.phone || order.customer?.phone || order.customer_phone || "Não informado"}</p>
+              <p className="m-0 p-0 mt-2 font-bold">Endereço de Entrega:</p>
+              <p className="m-0 p-0">{order.customer?.address || order.delivery_address || order.address || "Endereço não informado"}</p>
+            </div>
+          )}
 
           <div className="border-b border-black pb-2 mb-2 border-dashed">
             <p className="font-bold uppercase m-0 p-0 mb-2">ITENS DO PEDIDO</p>
@@ -695,7 +739,7 @@ export default function OrderDetailModal({
 
            <div className="text-right border-b border-black pb-2 mb-2 border-dashed space-y-0.5">
               <p className="text-xs m-0 p-0">SUBTOTAL ITENS: R$ {itemsSub.toFixed(2).replace('.', ',')}</p>
-              <p className="text-xs m-0 p-0">TAXA ENTREGA: R$ {delFee.toFixed(2).replace('.', ',')}</p>
+              <p className="text-xs m-0 p-0">TAXA ENTREGA: {isPickup ? "GRÁTIS (RETIRADA)" : `R$ ${delFee.toFixed(2).replace('.', ',')}`}</p>
               {disc > 0 && (
                 <p className="text-xs font-bold m-0 p-0">
                   DESCONTO CUPOM {activeCouponCode ? `(${activeCouponCode})` : ''}: - R$ {disc.toFixed(2).replace('.', ',')}

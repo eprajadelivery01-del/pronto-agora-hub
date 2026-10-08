@@ -14,9 +14,10 @@ import {
   ShoppingBag, Clock, CheckCircle, XCircle, ChefHat,
   Truck, Bell, RefreshCw, Timer, Phone, MapPin, User, Package,
   ChevronRight, ArrowRight, MoreVertical, LayoutGrid, DollarSign,
-  ImagePlus, AlertCircle
+  ImagePlus, AlertCircle, Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isPickupOrder } from "@/utils/order";
 
 const isValidUuid = (val: unknown): val is string =>
   typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
@@ -80,11 +81,14 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 const ALLOWED_MANUAL_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   pending: ["preparing", "cancelled"],
   preparing: ["ready", "pending", "cancelled"],
-  ready: ["in_route", "preparing", "cancelled"],
+  ready: ["delivered", "in_route", "preparing", "cancelled"],
   in_route: ["delivered", "ready", "cancelled"],
 };
 
-const getNextActions = (status: OrderStatus) => {
+const getNextActions = (status: OrderStatus, isPickup: boolean = false) => {
+  if (isPickup && status === "ready") {
+    return { label: "Concluir Retirada", next: "delivered" as OrderStatus };
+  }
   const actions: Record<string, { label: string, next: OrderStatus }> = {
     pending: { label: "Aceitar Pedido", next: "preparing" },
     preparing: { label: "Marcar Pronto", next: "ready" },
@@ -652,6 +656,13 @@ export default function BusinessOrdersPage() {
   const handleDispatch = async (order: Order) => {
     if (!acquireLock(order.id)) return;
     
+    // Pedidos de retirada no balcão não devem acionar motoboy
+    if (isPickupOrder(order)) {
+      toast.warning("Este pedido é para Retirada no Local. Não é necessário chamar entregador.");
+      releaseLock(order.id);
+      return;
+    }
+
     // 🛡️ VERIFICAÇÃO INTELIGENTE DE DUPLICIDADE (Resiliente)
     if (order.delivery_id) {
       
@@ -887,37 +898,44 @@ export default function BusinessOrdersPage() {
               </div>
 
               <div className="space-y-2 h-[65vh] overflow-y-auto custom-scrollbar bg-muted/20 rounded-[1.5rem] p-1.5 border border-border/40">
-                {ordersByColumn(col.key).map(order => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    isProcessing={processingOrderIds.has(order.id)}
-                    onAdvance={async () => {
-                      const action = getNextActions(order.status);
-                      if (action && action.next) {
-                        await updateStatus(order.id, action.next);
-                      }
-                    }}
-                    onDispatch={async () => {
-                      const { data: realOrder } = await supabase.from('orders').select('status, delivery_id').eq('id', order.id).maybeSingle();
-                      if (!realOrder || realOrder.status !== "ready") {
-                        toast.warning("O status foi alterado. Lista sincronizada.");
-                        fetchOrders();
-                        return;
-                      }
-                      if (realOrder.delivery_id) {
-                        toast.info("Já existe entrega vinculada.");
-                        fetchOrders();
-                        return;
-                      }
-                      await handleDispatch(order);
-                    }}
-                    onCancel={() => updateStatus(order.id, "cancelled")}
-                    onRefresh={fetchOrders}
-                    action={getNextActions(order.status)}
-                    updateStatus={updateStatus}
-                  />
-                ))}
+                {ordersByColumn(col.key).map(order => {
+                  const isPickup = isPickupOrder(order);
+                  return (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      isProcessing={processingOrderIds.has(order.id)}
+                      onAdvance={async () => {
+                        const action = getNextActions(order.status, isPickup);
+                        if (action && action.next) {
+                          await updateStatus(order.id, action.next);
+                        }
+                      }}
+                      onDispatch={async () => {
+                        if (isPickup) {
+                          toast.warning("Este pedido é para Retirada no Local.");
+                          return;
+                        }
+                        const { data: realOrder } = await supabase.from('orders').select('status, delivery_id').eq('id', order.id).maybeSingle();
+                        if (!realOrder || realOrder.status !== "ready") {
+                          toast.warning("O status foi alterado. Lista sincronizada.");
+                          fetchOrders();
+                          return;
+                        }
+                        if (realOrder.delivery_id) {
+                          toast.info("Já existe entrega vinculada.");
+                          fetchOrders();
+                          return;
+                        }
+                        await handleDispatch(order);
+                      }}
+                      onCancel={() => updateStatus(order.id, "cancelled")}
+                      onRefresh={fetchOrders}
+                      action={getNextActions(order.status, isPickup)}
+                      updateStatus={updateStatus}
+                    />
+                  );
+                })}
                 
                 {ordersByColumn(col.key).length === 0 && (
                   <div className="h-40 flex flex-col items-center justify-center text-center p-6 opacity-30">
@@ -950,6 +968,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
   const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
   const isPending = order.status === "pending";
   const isDeliveryActive = !!(order.delivery_id && (order as any).deliveryStatus && (order as any).deliveryStatus !== "cancelled");
+  const isPickup = isPickupOrder(order);
 
   return (
     <>
@@ -962,6 +981,13 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
         {isPending && (
           <div className="absolute top-0 right-0 px-3 py-1 bg-warning text-white text-[8px] font-black uppercase tracking-widest rounded-bl-xl">
             Novo
+          </div>
+        )}
+
+        {isPickup && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 font-black text-[9px] uppercase tracking-wider mb-2.5 w-fit">
+            <Store className="h-3 w-3 shrink-0" />
+            <span>Retirada no Local</span>
           </div>
         )}
 
@@ -1111,7 +1137,18 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 <XCircle className="h-4 w-4" />
               </button>
             )}
-            {order.status === "ready" && !isDeliveryActive && (
+            {order.status === "ready" && isPickup && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAdvance(); }}
+                disabled={isProcessing}
+                className="flex-1 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-50"
+              >
+                {isProcessing ? "Aguarde..." : "Concluir Retirada"}
+                {!isProcessing && <CheckCircle className="h-3 w-3" />}
+              </button>
+            )}
+            {order.status === "ready" && !isPickup && !isDeliveryActive && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onDispatch(); }}
@@ -1122,7 +1159,7 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 {!isProcessing && <Truck className="h-3 w-3" />}
               </button>
             )}
-            {action && (order.status !== "ready" || isDeliveryActive) && (!isDeliveryActive || action.next !== "delivered") && (
+            {action && order.status !== "ready" && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onAdvance(); }}
@@ -1135,6 +1172,17 @@ function OrderCard({ order, isProcessing, onAdvance, onDispatch, onCancel, onRef
                 )}
               >
                 {isProcessing ? "Aguarde..." : action.label}
+                {!isProcessing && <ArrowRight className="h-3 w-3" />}
+              </button>
+            )}
+            {order.status === "in_route" && !action && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAdvance(); }}
+                disabled={isProcessing}
+                className="flex-1 h-10 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-foreground text-background disabled:opacity-50"
+              >
+                {isProcessing ? "Aguarde..." : "Finalizar"}
                 {!isProcessing && <ArrowRight className="h-3 w-3" />}
               </button>
             )}

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import type { DeliveryStatus } from "@/types/models";
+import { isPickupOrder } from "@/utils/order";
 
 export interface DeliveryWithRelations {
   id: string;
@@ -254,6 +255,10 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
     throw orderError;
   }
   if (!order) throw new Error("Pedido não encontrado");
+
+  if (isPickupOrder(order)) {
+    throw new Error("Este pedido foi marcado para Retirada no Local e não requer entregador.");
+  }
 
   // 1.1 Busca o cliente separadamente (Resiliente)
   let customerData = null;
