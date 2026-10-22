@@ -1,55 +1,123 @@
-
 import React, { useState, useEffect } from "react";
-import { Volume2, BellRing, X } from "lucide-react";
+import { Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-import { useAudioAlert, requestNotificationPermission } from "@/hooks/useAudioAlert";
+import { useAudioAlert, requestNotificationPermission, isAudioUnlocked } from "@/hooks/useAudioAlert";
 
 export function SoundEnabler() {
-  const [isVisible, setIsVisible] = useState(false);
-  const { unlockAudio } = useAudioAlert();
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => (typeof window !== "undefined" ? isAudioUnlocked() : false));
+  const [dismissed, setDismissed] = useState(false);
+  const [testPlaying, setTestPlaying] = useState(false);
+  const { unlockAudio, playAlert } = useAudioAlert();
 
   useEffect(() => {
-    // Check if we already have interaction in this session
-    const soundEnabled = localStorage.getItem("epj_sound_enabled");
-    if (!soundEnabled) {
-      // Show after a short delay
-      const timer = setTimeout(() => setIsVisible(true), 1500);
-      return () => clearTimeout(timer);
+    const handleBlocked = () => {
+      setIsBlocked(true);
+      setUnlocked(false);
+      setDismissed(false); // Sempre reabre se o som foi bloqueado
+    };
+
+    const handleUnlocked = () => {
+      setIsBlocked(false);
+      setUnlocked(true);
+    };
+
+    window.addEventListener("epraja-audio-blocked", handleBlocked);
+    window.addEventListener("epraja-audio-unlocked", handleUnlocked);
+
+    // Se já estiver destravado, atualiza
+    if (isAudioUnlocked()) {
+      setUnlocked(true);
     }
+
+    return () => {
+      window.removeEventListener("epraja-audio-blocked", handleBlocked);
+      window.removeEventListener("epraja-audio-unlocked", handleUnlocked);
+    };
   }, []);
 
   const enableSound = () => {
     unlockAudio();
     requestNotificationPermission();
-    localStorage.setItem("epj_sound_enabled", "true");
-    setIsVisible(false);
+    setUnlocked(true);
+    setIsBlocked(false);
   };
 
-  if (!isVisible) return null;
+  const handleTestSound = () => {
+    enableSound();
+    playAlert();
+    setTestPlaying(true);
+    setTimeout(() => setTestPlaying(false), 2000);
+  };
+
+  // Se já foi desbloqueado e não está bloqueado, ou usuário dispensou (sem bloqueio ativo)
+  if ((unlocked && !isBlocked) || (dismissed && !isBlocked)) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md animate-in slide-in-from-bottom-10 duration-500">
-      <div className="bg-foreground text-background p-5 rounded-[2rem] shadow-2xl border border-white/10 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shrink-0 animate-bounce">
-          <Volume2 className="h-6 w-6 text-white" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-black leading-tight">Ativar Alertas Sonoros?</p>
-          <p className="text-[10px] opacity-70 font-bold uppercase tracking-widest mt-1">Para ouvir novos pedidos e mensagens.</p>
-        </div>
-        <Button 
-          onClick={enableSound}
-          className="rounded-xl bg-primary hover:bg-primary/90 text-white font-black text-[10px] uppercase tracking-widest h-10 px-6"
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] w-[92%] max-w-lg animate-in slide-in-from-bottom-6 duration-300">
+      <div
+        className={`p-4 rounded-2xl shadow-2xl border flex items-center gap-3 backdrop-blur-md transition-all ${
+          isBlocked
+            ? "bg-red-600 text-white border-red-400 animate-pulse"
+            : "bg-foreground text-background border-border"
+        }`}
+      >
+        <div
+          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+            isBlocked ? "bg-white text-red-600" : "bg-primary text-white"
+          }`}
         >
-          Ativar
-        </Button>
-        <button onClick={() => {
-          setIsVisible(false);
-          localStorage.setItem("epj_sound_enabled", "dismissed");
-        }} className="p-2 opacity-50 hover:opacity-100">
-          <X className="h-4 w-4" />
-        </button>
+          {isBlocked ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6 animate-bounce" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-black leading-tight">
+            {isBlocked ? "Som bloqueado pelo navegador!" : "Ativar Alertas Sonoros?"}
+          </p>
+          <p
+            className={`text-[11px] font-medium leading-tight mt-0.5 ${
+              isBlocked ? "text-white/90 font-bold" : "text-muted-foreground"
+            }`}
+          >
+            {isBlocked
+              ? "Clique para liberar o som dos novos pedidos."
+              : "Clique para garantir o som da campainha e mensagens."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            onClick={enableSound}
+            size="sm"
+            className={`font-black text-xs uppercase tracking-wider h-9 px-3 sm:px-4 rounded-xl shadow-md ${
+              isBlocked
+                ? "bg-white text-red-600 hover:bg-white/90"
+                : "bg-primary hover:bg-primary/90 text-white"
+            }`}
+          >
+            {isBlocked ? "Liberar Som" : "Ativar"}
+          </Button>
+          <Button
+            onClick={handleTestSound}
+            variant="outline"
+            size="sm"
+            className={`text-xs font-bold h-9 px-2 sm:px-3 rounded-xl border ${
+              isBlocked
+                ? "border-white/50 text-white hover:bg-white/10"
+                : "border-border text-foreground hover:bg-muted"
+            }`}
+            title="Testar som da campainha"
+          >
+            {testPlaying ? "Tocando..." : "Testar"}
+          </Button>
+          {!isBlocked && (
+            <button
+              onClick={() => setDismissed(true)}
+              className="p-1 opacity-50 hover:opacity-100 transition-opacity ml-1"
+              aria-label="Fechar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

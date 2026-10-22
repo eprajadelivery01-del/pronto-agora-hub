@@ -262,12 +262,13 @@ export function useOrderAlerts() {
     };
   }, [companyId, user?.id, playAlert, startLoop, stopLoop]);
 
-  // Admin Alerts (Toca uma vez só quando entra um novo pedido no sistema)
+  // Admin Alerts (Toca quando entra um novo pedido no sistema)
   useEffect(() => {
     if (!user) return;
     if (hasRole("admin")) {
+      const channelName = `admin-order-alerts-${Date.now()}`;
       const channel = supabase
-        .channel("admin-order-alerts")
+        .channel(channelName)
         .on(
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "orders" },
@@ -298,6 +299,51 @@ export function useOrderAlerts() {
       };
     }
   }, [user, hasRole, qc, playAlert]);
+
+  // Admin Alerts - POLLING (15s): Backup para garantir que administradores nunca percam novos pedidos mesmo com oscilações de rede
+  const { data: adminPendingOrders = [] } = useQuery({
+    queryKey: ["admin-orders-alert-check"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("status", "pending")
+        .limit(10);
+      return data || [];
+    },
+    enabled: !companyId && !!user && hasRole("admin"),
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
+  });
+
+  const hasAdminPending = adminPendingOrders.length > 0;
+
+  useEffect(() => {
+    if (companyId || !hasRole("admin")) return;
+
+    if (hasAdminPending) {
+      let hasNewOrder = false;
+      adminPendingOrders.forEach((ord: any) => {
+        if (!processedOrders.has(ord.id)) {
+          processedOrders.add(ord.id);
+          hasNewOrder = true;
+        }
+      });
+
+      if (hasNewOrder) {
+        console.log("[POLLING ADMIN] Novo pedido pendente identificado!");
+        sendNativeDeviceNotification("📦 Novo pedido recebido! 🛎️", {
+          body: "Acesse o painel para gerenciar o novo pedido.",
+          tag: "epraja-new-order-admin",
+        });
+        toast.success("📦 Novo pedido recebido! 🛎️", {
+          description: "Acesse o painel para gerenciar o novo pedido.",
+          duration: 10000,
+        });
+        playAlert();
+      }
+    }
+  }, [hasAdminPending, adminPendingOrders, playAlert, companyId, hasRole]);
 
   // Lojista Alerts - POLLING (15s): O polling serve EXCLUSIVAMENTE para garantir que o som da campainha continue tocando até que a loja aceite o pedido. O POLLING NUNCA CRIA NOTIFICAÇÕES VISUAIS DO SISTEMA!
   const { data: pendingOrders = [] } = useQuery({

@@ -12,6 +12,10 @@ let vibrationInterval: any = null;
 let activeNotification: Notification | null = null;
 let lastPlayPromise: Promise<void> | null = null;
 
+export function isAudioUnlocked(): boolean {
+  return isUnlocked;
+}
+
 if (typeof window !== "undefined") {
   globalAudio = new Audio();
   globalAudio.src = ALERT_SOUND_URL + "?v=" + Date.now();
@@ -40,6 +44,7 @@ if (typeof window !== "undefined") {
         window.removeEventListener("click", unlockGlobalAudio);
         window.removeEventListener("touchstart", unlockGlobalAudio);
         window.removeEventListener("keydown", unlockGlobalAudio);
+        window.dispatchEvent(new CustomEvent('epraja-audio-unlocked'));
       })
       .catch(() => {
         if (globalAudio) globalAudio.muted = false;
@@ -196,6 +201,7 @@ export function useAudioAlert() {
         if (lastPlayPromise === playPromise) {
           lastPlayPromise = null;
         }
+        window.dispatchEvent(new CustomEvent('epraja-audio-unlocked'));
       })
       .catch((e) => {
         if (globalAudio) globalAudio.muted = false;
@@ -214,6 +220,8 @@ export function useAudioAlert() {
       lastPlayPromise = playPromise;
       playPromise
         .then(() => {
+          isUnlocked = true;
+          window.dispatchEvent(new CustomEvent('epraja-audio-unlocked'));
           if (lastPlayPromise === playPromise) {
             lastPlayPromise = null;
           }
@@ -223,6 +231,7 @@ export function useAudioAlert() {
             lastPlayPromise = null;
           }
           console.warn("[AudioAlert] Falha ao tocar alerta sonoro:", e);
+          window.dispatchEvent(new CustomEvent('epraja-audio-blocked', { detail: e }));
         });
     }
     triggerDeviceVibration();
@@ -237,6 +246,8 @@ export function useAudioAlert() {
       lastPlayPromise = playPromise;
       playPromise
         .then(() => {
+          isUnlocked = true;
+          window.dispatchEvent(new CustomEvent('epraja-audio-unlocked'));
           if (lastPlayPromise === playPromise) {
             lastPlayPromise = null;
           }
@@ -246,6 +257,7 @@ export function useAudioAlert() {
             lastPlayPromise = null;
           }
           console.warn("[AudioAlert] Falha ao tocar alerta sonoro em loop:", e);
+          window.dispatchEvent(new CustomEvent('epraja-audio-blocked', { detail: e }));
         });
     }
 
