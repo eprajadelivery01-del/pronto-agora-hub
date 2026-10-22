@@ -812,10 +812,15 @@ export default function BusinessHomePage() {
       </React.Suspense>
 
       {/* ── BONASOFT Watermark ── */}
-      <div className="mt-16 pb-8 flex justify-center opacity-40 select-none pointer-events-none">
-        <span className="text-[10px] font-black tracking-[0.5em] text-muted-foreground uppercase">
+      <div className="mt-16 pb-8 flex justify-center opacity-40 select-none">
+        <a
+          href={`https://wa.me/5566992734632?text=${encodeURIComponent("Olá! Conheci a BonaSoft através do aplicativo É Pra Já e gostaria de conhecer melhor os serviços de desenvolvimento de aplicativos e sistemas. Podemos conversar?")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] font-black tracking-[0.5em] text-muted-foreground uppercase cursor-pointer"
+        >
           BONASOFT
-        </span>
+        </a>
       </div>
     </BusinessLayout>
   );
