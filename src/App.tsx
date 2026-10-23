@@ -34,7 +34,6 @@ import MerchantInvoicesPage from "./pages/business/MerchantInvoicesPage";
 import { GlobalChatListener } from "@/hooks/useGlobalChatNotifications";
 import { GlobalScrapingListener } from "@/hooks/useScrapingAlert";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
-import { SoundEnabler } from "@/components/shared/SoundEnabler";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { reportErrorToTelegram } from "@/services/logger";
 
@@ -100,7 +99,6 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <SoundEnabler />
           <BrowserRouter>
             <ScrollToTop />
             <CityProvider>

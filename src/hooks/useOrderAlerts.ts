@@ -266,7 +266,7 @@ export function useOrderAlerts() {
   useEffect(() => {
     if (!user) return;
     if (hasRole("admin")) {
-      const channelName = `admin-order-alerts-${Date.now()}`;
+      const channelName = "admin-order-alerts";
       const channel = supabase
         .channel(channelName)
         .on(
@@ -311,7 +311,7 @@ export function useOrderAlerts() {
         .limit(10);
       return data || [];
     },
-    enabled: !companyId && !!user && hasRole("admin"),
+    enabled: !!user && hasRole("admin"),
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
   });
@@ -319,7 +319,7 @@ export function useOrderAlerts() {
   const hasAdminPending = adminPendingOrders.length > 0;
 
   useEffect(() => {
-    if (companyId || !hasRole("admin")) return;
+    if (!hasRole("admin")) return;
 
     if (hasAdminPending) {
       let hasNewOrder = false;
@@ -343,7 +343,7 @@ export function useOrderAlerts() {
         playAlert();
       }
     }
-  }, [hasAdminPending, adminPendingOrders, playAlert, companyId, hasRole]);
+  }, [hasAdminPending, adminPendingOrders, playAlert, hasRole]);
 
   // Lojista Alerts - POLLING (15s): O polling serve EXCLUSIVAMENTE para garantir que o som da campainha continue tocando até que a loja aceite o pedido. O POLLING NUNCA CRIA NOTIFICAÇÕES VISUAIS DO SISTEMA!
   const { data: pendingOrders = [] } = useQuery({
