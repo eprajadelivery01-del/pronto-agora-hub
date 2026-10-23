@@ -819,7 +819,7 @@ export default function BusinessHomePage() {
           rel="noopener noreferrer"
           className="text-[10px] font-black tracking-[0.5em] text-foreground opacity-30 hover:opacity-100 active:opacity-100 transition-opacity duration-200 uppercase cursor-pointer"
         >
-          BONASOFT
+          B O N A S O F T
         </a>
       </div>
     </BusinessLayout>

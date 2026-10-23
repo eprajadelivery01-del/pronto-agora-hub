@@ -161,7 +161,7 @@ export default function CompaniesPage() {
           rel="noopener noreferrer"
           className="text-[11px] font-black uppercase tracking-[0.6em] text-foreground opacity-30 hover:opacity-100 active:opacity-100 transition-opacity duration-200 ml-2 cursor-pointer inline-block"
         >
-          BONASOFT
+          B O N A S O F T
         </a>
       </div>
     </AdminLayout>
