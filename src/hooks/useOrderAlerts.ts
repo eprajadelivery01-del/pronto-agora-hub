@@ -399,7 +399,7 @@ export function useOrderAlerts() {
   useEffect(() => {
     if (!companyId) return;
 
-    const channelName = `company-order-alerts-${companyId}-${Date.now()}`;
+    const channelName = `company-order-alerts-${companyId}`;
     const channel = supabase
       .channel(channelName)
       .on(

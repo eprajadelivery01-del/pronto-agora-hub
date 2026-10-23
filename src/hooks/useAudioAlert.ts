@@ -12,6 +12,9 @@ let vibrationInterval: any = null;
 let activeNotification: Notification | null = null;
 let lastPlayPromise: Promise<void> | null = null;
 
+let pendingPlay = false;
+let pendingLoop = false;
+
 export function isAudioUnlocked(): boolean {
   return isUnlocked;
 }
@@ -23,7 +26,21 @@ if (typeof window !== "undefined") {
 
   let isUnlocking = false;
   const unlockGlobalAudio = () => {
-    if (isUnlocked || isUnlocking || !globalAudio) return;
+    if (isUnlocking || !globalAudio) return;
+
+    if (isUnlocked && (pendingPlay || pendingLoop)) {
+      const shouldLoop = pendingLoop;
+      pendingPlay = false;
+      pendingLoop = false;
+      globalAudio.loop = shouldLoop;
+      globalAudio.volume = 1.0;
+      globalAudio.currentTime = 0;
+      globalAudio.play().catch(() => {});
+      return;
+    }
+
+    if (isUnlocked) return;
+
     isUnlocking = true;
     globalAudio.muted = true;
     globalAudio.volume = 0;
@@ -32,10 +49,13 @@ if (typeof window !== "undefined") {
     playPromise
       .then(() => {
         try {
-          globalAudio!.pause();
-          globalAudio!.currentTime = 0;
+          if (!pendingPlay && !pendingLoop) {
+            globalAudio!.pause();
+            globalAudio!.currentTime = 0;
+          }
         } catch {}
         globalAudio!.muted = false;
+        globalAudio!.volume = 1.0;
         isUnlocked = true;
         isUnlocking = false;
         if (lastPlayPromise === playPromise) {
@@ -45,9 +65,22 @@ if (typeof window !== "undefined") {
         window.removeEventListener("touchstart", unlockGlobalAudio);
         window.removeEventListener("keydown", unlockGlobalAudio);
         window.dispatchEvent(new CustomEvent('epraja-audio-unlocked'));
+
+        if (pendingPlay || pendingLoop) {
+          const shouldLoop = pendingLoop;
+          pendingPlay = false;
+          pendingLoop = false;
+          globalAudio!.loop = shouldLoop;
+          globalAudio!.volume = 1.0;
+          globalAudio!.currentTime = 0;
+          globalAudio!.play().catch(() => {});
+        }
       })
       .catch(() => {
-        if (globalAudio) globalAudio.muted = false;
+        if (globalAudio) {
+          globalAudio.muted = false;
+          globalAudio.volume = 1.0;
+        }
         if (lastPlayPromise === playPromise) {
           lastPlayPromise = null;
         }
@@ -230,8 +263,8 @@ export function useAudioAlert() {
           if (lastPlayPromise === playPromise) {
             lastPlayPromise = null;
           }
-          console.warn("[AudioAlert] Falha ao tocar alerta sonoro:", e);
-          window.dispatchEvent(new CustomEvent('epraja-audio-blocked', { detail: e }));
+          pendingPlay = true;
+          if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao tocar alerta sonoro:", e);
         });
     }
     triggerDeviceVibration();
@@ -247,6 +280,7 @@ export function useAudioAlert() {
       playPromise
         .then(() => {
           isUnlocked = true;
+          pendingLoop = false;
           window.dispatchEvent(new CustomEvent('epraja-audio-unlocked'));
           if (lastPlayPromise === playPromise) {
             lastPlayPromise = null;
@@ -256,8 +290,8 @@ export function useAudioAlert() {
           if (lastPlayPromise === playPromise) {
             lastPlayPromise = null;
           }
-          console.warn("[AudioAlert] Falha ao tocar alerta sonoro em loop:", e);
-          window.dispatchEvent(new CustomEvent('epraja-audio-blocked', { detail: e }));
+          pendingLoop = true;
+          if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao tocar alerta sonoro em loop:", e);
         });
     }
 
@@ -272,6 +306,8 @@ export function useAudioAlert() {
   }, []);
 
   const stopLoop = useCallback(() => {
+    pendingPlay = false;
+    pendingLoop = false;
     if (globalAudio) {
       const performPause = () => {
         try {
@@ -279,7 +315,7 @@ export function useAudioAlert() {
           globalAudio.currentTime = 0;
           globalAudio.loop = false;
         } catch (e) {
-          console.warn("[AudioAlert] Falha ao parar áudio:", e);
+          if (import.meta.env.DEV) console.warn("[AudioAlert] Falha ao parar áudio:", e);
         }
       };
 
