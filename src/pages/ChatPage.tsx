@@ -306,39 +306,52 @@ export default function ChatPage() {
     return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Conversa";
   };
 
-  // Agrupa e deduplica todas as conversas que pertencem ao mesmo pedido (order_id)
+  // Agrupa e unifica todas as conversas pelo mesmo participante/cliente (estilo WhatsApp)
   const unifiedConversations = useMemo(() => {
     if (!conversations) return [];
 
-    const orderGroups: Record<string, any[]> = {};
-    const directList: any[] = [];
+    const participantGroups: Record<string, any[]> = {};
 
     conversations.forEach((conv: any) => {
-      if (conv.order_id) {
-        if (!orderGroups[conv.order_id]) orderGroups[conv.order_id] = [];
-        orderGroups[conv.order_id].push(conv);
-      } else {
-        directList.push(conv);
+      const otherId = conv.participants?.find((id: string) => id && id !== user?.id && id !== companyData?.id)
+        || conv.participants?.find((id: string) => id && id !== user?.id)
+        || conv.participants?.[0]
+        || conv.id;
+
+      if (!participantGroups[otherId]) {
+        participantGroups[otherId] = [];
       }
+      participantGroups[otherId].push(conv);
     });
 
-    const mergedOrders = Object.values(orderGroups).map((group) => {
-      const sortedByDate = [...group].sort(
+    const unified = Object.values(participantGroups).map((group) => {
+      // Ordena as conversas da mais recente para a mais antiga
+      const sortedConvs = [...group].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-      const primary = sortedByDate[0];
-      const allIds = group.map((c) => c.id);
+      const primary = sortedConvs[0];
+      const allIds = Array.from(new Set(group.map((c) => c.id)));
       const allParticipants = Array.from(new Set(group.flatMap((c) => c.participants || [])));
+      const allOrderIds = Array.from(new Set(group.map((c) => c.order_id).filter(Boolean)));
+      const latestOrderId = sortedConvs.find((c) => c.order_id)?.order_id || null;
+
+      // Junta e deduplica todas as mensagens de todas as conversas desse mesmo cliente
       const allMessages = group
         .flatMap((c) => c.messages || [])
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      // Deduplica mensagens
-      const seenMsg = new Set<string>();
+      const seen = new Set<string>();
       const deduplicated = allMessages.filter((m) => {
-        const key = m.id || `${m.sender_id}_${m.content}_${m.created_at}`;
-        if (seenMsg.has(key)) return false;
-        seenMsg.add(key);
+        if (!m) return false;
+        if (m.id && seen.has(m.id)) return false;
+
+        const clean = (m.content || "").replace(/\u200B/g, "").trim();
+        const timeBucket = Math.floor(new Date(m.created_at).getTime() / (120 * 1000));
+        const contentKey = `${m.sender_id}_${clean}_${timeBucket}`;
+        if (seen.has(contentKey)) return false;
+
+        if (m.id) seen.add(m.id);
+        seen.add(contentKey);
         return true;
       });
 
@@ -347,29 +360,31 @@ export default function ChatPage() {
         id: primary.id,
         all_ids: allIds,
         participants: allParticipants,
+        order_id: latestOrderId,
+        all_order_ids: allOrderIds,
         messages: deduplicated,
       };
     });
 
-    const combined = [...mergedOrders, ...directList];
-
-    return combined.sort((a, b) => {
-      const lastMsgA = a.messages && a.messages.length > 0 
+    return unified.sort((a, b) => {
+      const lastMsgA = a.messages && a.messages.length > 0
         ? Math.max(...a.messages.map((m: any) => new Date(m.created_at).getTime()))
         : new Date(a.created_at).getTime();
 
-      const lastMsgB = b.messages && b.messages.length > 0 
+      const lastMsgB = b.messages && b.messages.length > 0
         ? Math.max(...b.messages.map((m: any) => new Date(m.created_at).getTime()))
         : new Date(b.created_at).getTime();
 
       return lastMsgB - lastMsgA;
     });
-  }, [conversations]);
+  }, [conversations, user?.id, companyData?.id]);
 
   useEffect(() => {
     const handleUrlParams = async () => {
       if (conversations && orderIdParam && !selectedConv) {
-        let convForOrder = unifiedConversations.find((c: any) => c.order_id === orderIdParam);
+        let convForOrder = unifiedConversations.find((c: any) => 
+          c.order_id === orderIdParam || (c.all_order_ids && c.all_order_ids.includes(orderIdParam))
+        );
         
         if (!convForOrder && searchParams.get("customer_id") && user) {
           const customerId = searchParams.get("customer_id");
@@ -564,7 +579,8 @@ export default function ChatPage() {
       const title = getConvTitle(conv).toLowerCase();
       const lastMsg = conv.messages?.[conv.messages.length - 1]?.content?.toLowerCase() || "";
       const orderId = conv.order_id?.toLowerCase() || "";
-      return title.includes(term) || lastMsg.includes(term) || orderId.includes(term);
+      const allOrderMatch = conv.all_order_ids?.some((oid: string) => oid.toLowerCase().includes(term));
+      return title.includes(term) || lastMsg.includes(term) || orderId.includes(term) || allOrderMatch;
     });
   }, [unifiedConversations, searchFilter, profilesMap]);
 

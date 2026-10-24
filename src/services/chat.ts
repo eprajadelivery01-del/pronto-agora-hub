@@ -120,9 +120,14 @@ export async function getMessages(conversationId: string | string[]) {
   // Deduplicar mensagens por ID ou por conteúdo e horário para evitar duplicações visuais
   const seen = new Set<string>();
   const unique = (data || []).filter((m) => {
-    const key = m.id || `${m.sender_id}_${m.content}_${m.created_at}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (!m) return false;
+    if (m.id && seen.has(m.id)) return false;
+    const clean = (m.content || "").replace(/\u200B/g, "").trim();
+    const timeBucket = Math.floor(new Date(m.created_at).getTime() / (120 * 1000));
+    const contentKey = `${m.sender_id}_${clean}_${timeBucket}`;
+    if (seen.has(contentKey)) return false;
+    if (m.id) seen.add(m.id);
+    seen.add(contentKey);
     return true;
   });
 

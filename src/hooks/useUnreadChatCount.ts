@@ -22,32 +22,43 @@ export function useUnreadChatCount(companyId?: string) {
 
       if (error || !rawConvs) return;
 
-      // Agrupa por order_id para unificar conversas duplicadas do mesmo pedido
-      const orderGroups: Record<string, any[]> = {};
-      const directList: any[] = [];
+      // Agrupa e unifica todas as conversas pelo mesmo participante/cliente (estilo WhatsApp)
+      const participantGroups: Record<string, any[]> = {};
 
       rawConvs.forEach((conv: any) => {
-        if (conv.order_id) {
-          if (!orderGroups[conv.order_id]) orderGroups[conv.order_id] = [];
-          orderGroups[conv.order_id].push(conv);
-        } else {
-          directList.push(conv);
+        const otherId = conv.participants?.find((id: string) => id && id !== user?.id && id !== companyId)
+          || conv.participants?.find((id: string) => id && id !== user?.id)
+          || conv.participants?.[0]
+          || conv.id;
+
+        if (!participantGroups[otherId]) {
+          participantGroups[otherId] = [];
         }
+        participantGroups[otherId].push(conv);
       });
 
-      const mergedOrders = Object.values(orderGroups).map((group) => {
-        const primary = group[0];
-        const allIds = group.map((c) => c.id);
+      const allUnified = Object.values(participantGroups).map((group) => {
+        const sortedConvs = [...group].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        const primary = sortedConvs[0];
+        const allIds = Array.from(new Set(group.map((c) => c.id)));
         const allMessages = group
           .flatMap((c) => c.messages || [])
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-        // Deduplica mensagens por ID ou conteúdo
         const seen = new Set<string>();
         const deduplicated = allMessages.filter((m) => {
-          const key = m.id || `${m.sender_id}_${m.content}_${m.created_at}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
+          if (!m) return false;
+          if (m.id && seen.has(m.id)) return false;
+
+          const clean = (m.content || "").replace(/\u200B/g, "").trim();
+          const timeBucket = Math.floor(new Date(m.created_at).getTime() / (120 * 1000));
+          const contentKey = `${m.sender_id}_${clean}_${timeBucket}`;
+          if (seen.has(contentKey)) return false;
+
+          if (m.id) seen.add(m.id);
+          seen.add(contentKey);
           return true;
         });
 
@@ -57,8 +68,6 @@ export function useUnreadChatCount(companyId?: string) {
           messages: deduplicated,
         };
       });
-
-      const allUnified = [...mergedOrders, ...directList];
       const readTimestamps = JSON.parse(localStorage.getItem("chat_read_timestamps") || "{}");
 
       // Conta quantas conversas têm mensagens não lidas pendentes
