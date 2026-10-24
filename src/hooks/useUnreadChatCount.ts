@@ -22,19 +22,55 @@ export function useUnreadChatCount(companyId?: string) {
 
       if (error || !rawConvs) return;
 
+      const orderIds = Array.from(new Set(rawConvs.map((c: any) => c.order_id).filter(Boolean)));
+      let ordersMap: Record<string, any> = {};
+      if (orderIds.length > 0) {
+        try {
+          const { data: orders } = await supabase
+            .from("orders")
+            .select("id, customer_id, user_id, customer:customers(id, user_id, name, phone)")
+            .in("id", orderIds);
+          (orders || []).forEach((o: any) => {
+            ordersMap[o.id] = {
+              phone: o.customer?.phone,
+              name: o.customer?.name,
+              customer_id: o.customer_id,
+              user_id: o.user_id,
+            };
+          });
+        } catch (e) {
+          console.warn("[useUnreadChatCount] Erro ao buscar orders:", e);
+        }
+      }
+
       // Agrupa e unifica todas as conversas pelo mesmo participante/cliente (estilo WhatsApp)
       const participantGroups: Record<string, any[]> = {};
 
       rawConvs.forEach((conv: any) => {
+        const orderInfo = conv.order_id ? ordersMap[conv.order_id] : null;
         const otherId = conv.participants?.find((id: string) => id && id !== user?.id && id !== companyId)
           || conv.participants?.find((id: string) => id && id !== user?.id)
           || conv.participants?.[0]
           || conv.id;
 
-        if (!participantGroups[otherId]) {
-          participantGroups[otherId] = [];
+        const cleanPhone = (orderInfo?.phone || "").replace(/\D/g, "");
+        let groupKey = "";
+        if (cleanPhone.length >= 8) {
+          groupKey = `cust_phone:${cleanPhone.slice(-9)}`;
+        } else if (orderInfo?.name) {
+          const normName = orderInfo.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, " ").trim();
+          if (normName.length >= 3) {
+            groupKey = `cust_name:${normName}`;
+          }
         }
-        participantGroups[otherId].push(conv);
+        if (!groupKey) {
+          groupKey = orderInfo?.customer_id ? `cust_id:${orderInfo.customer_id}` : `part:${otherId}`;
+        }
+
+        if (!participantGroups[groupKey]) {
+          participantGroups[groupKey] = [];
+        }
+        participantGroups[groupKey].push(conv);
       });
 
       const allUnified = Object.values(participantGroups).map((group) => {

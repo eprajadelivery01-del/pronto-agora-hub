@@ -206,15 +206,34 @@ export default function ChatPage() {
       const participantIds = Array.from(new Set(
         conversations.flatMap((c: any) => c.participants || [])
       ));
-      
-      const { data } = await supabase
+      const orderIds = Array.from(new Set(
+        conversations.map((c: any) => c.order_id).filter(Boolean)
+      ));
+
+      let ordersData: any[] = [];
+      if (orderIds.length > 0) {
+        try {
+          const { data: oData } = await supabase
+            .from("orders")
+            .select("id, customer_id, user_id, customer:customers(id, user_id, name, phone)")
+            .in("id", orderIds);
+          ordersData = oData || [];
+        } catch (e) {
+          console.warn("[profilesMap] Erro ao buscar orders:", e);
+        }
+      }
+
+      const orderCustomerIds = ordersData.map((o) => o.customer_id).filter(Boolean);
+      const allCustomerLookupIds = Array.from(new Set([...participantIds, ...orderCustomerIds]));
+
+      const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, full_name, avatar_url, role")
+        .select("user_id, full_name, avatar_url, role, phone")
         .in("user_id", participantIds);
 
       const { data: companies } = await supabase
         .from("companies")
-        .select("id, user_id, name, logo_url")
+        .select("id, user_id, name, logo_url, phone")
         .or(`user_id.in.(${participantIds.join(',')}),id.in.(${participantIds.join(',')})`);
 
       const { data: drivers } = await supabase
@@ -222,42 +241,74 @@ export default function ChatPage() {
         .select("user_id")
         .in("user_id", participantIds);
 
-      const { data: customers } = await supabase
+      const { data: customers } = allCustomerLookupIds.length > 0 ? await supabase
         .from("customers")
         .select("id, user_id, name, phone")
-        .or(`user_id.in.(${participantIds.join(',')}),id.in.(${participantIds.join(',')})`);
+        .or(`user_id.in.(${allCustomerLookupIds.join(',')}),id.in.(${allCustomerLookupIds.join(',')})`)
+        : { data: [] };
 
       const map: Record<string, any> = {};
-      data?.forEach(p => {
-        map[p.user_id] = { ...p };
+
+      profiles?.forEach((p) => {
+        if (p.user_id) map[p.user_id] = { ...p };
       });
-      customers?.forEach(cust => {
+
+      ordersData.forEach((o) => {
+        const cust = o.customer;
+        const entry = {
+          order_id: o.id,
+          customer_id: o.customer_id || cust?.id,
+          user_id: o.user_id || cust?.user_id,
+          full_name: cust?.name,
+          phone: cust?.phone,
+          role: 'customer',
+        };
+        map[`order_${o.id}`] = entry;
+        if (o.customer_id) {
+          map[o.customer_id] = { ...(map[o.customer_id] || {}), ...entry, id: o.customer_id };
+        }
+        if (o.user_id) {
+          map[o.user_id] = { ...(map[o.user_id] || {}), ...entry };
+        }
+        if (cust?.id) {
+          map[cust.id] = { ...(map[cust.id] || {}), ...entry, id: cust.id };
+        }
+      });
+
+      customers?.forEach((cust) => {
         const idMap = (idToMap: string) => {
           if (!map[idToMap]) map[idToMap] = { user_id: idToMap };
           if (!map[idToMap].full_name || map[idToMap].full_name === 'Usuário' || map[idToMap].full_name.startsWith('Usuário #')) {
             map[idToMap].full_name = cust.name;
           }
+          if (cust.phone) map[idToMap].phone = cust.phone;
+          map[idToMap].customer_id = cust.id;
           map[idToMap].role = map[idToMap].role || 'customer';
         };
         if (cust.user_id) idMap(cust.user_id);
         if (cust.id) idMap(cust.id);
       });
-      companies?.forEach(c => {
+
+      companies?.forEach((c) => {
         const idMap = (idToMap: string) => {
           if (!map[idToMap]) map[idToMap] = { user_id: idToMap };
           map[idToMap].full_name = c.name;
           map[idToMap].avatar_url = c.logo_url;
+          if (c.phone) map[idToMap].phone = c.phone;
           map[idToMap].role = 'company';
+          map[idToMap].company_id = c.id;
         };
         if (c.user_id) idMap(c.user_id);
         if (c.id) idMap(c.id);
       });
-      drivers?.forEach(d => {
+
+      drivers?.forEach((d) => {
         if (d.user_id && d.user_id !== adminId) {
-          const profile = data?.find(p => p.user_id === d.user_id);
+          const profile = profiles?.find((p) => p.user_id === d.user_id);
           if (!map[d.user_id]) map[d.user_id] = { user_id: d.user_id };
           map[d.user_id].full_name = profile?.full_name || map[d.user_id].full_name || "Entregador";
           map[d.user_id].avatar_url = profile?.avatar_url || map[d.user_id].avatar_url || null;
+          if (profile?.phone) map[d.user_id].phone = profile.phone;
           map[d.user_id].role = 'driver';
         }
       });
@@ -273,14 +324,72 @@ export default function ChatPage() {
   });
 
   const getOtherParticipantId = (conv: any) => {
-    return conv.participants?.find((id: string) => id !== user?.id) || conv.participants?.[0];
+    if (!conv) return null;
+    return (
+      conv.participants?.find((id: string) => id && id !== user?.id && id !== companyData?.id) ||
+      conv.participants?.find((id: string) => id && id !== user?.id) ||
+      conv.participants?.[0] ||
+      null
+    );
+  };
+
+  const getParticipantGroupKey = (conv: any): string => {
+    if (!conv) return "unknown";
+
+    const otherId = getOtherParticipantId(conv);
+
+    // 1. Admin / Suporte
+    if (otherId && (otherId === adminId || profilesMap?.[otherId]?.role === 'admin' || conv.topic === 'suporte_admin')) {
+      return `admin:${adminId || otherId}`;
+    }
+
+    // 2. Extrair dados do cliente a partir da ordem ou do perfil
+    const orderInfo = conv.order_id ? profilesMap?.[`order_${conv.order_id}`] : null;
+    const otherProfile = otherId ? profilesMap?.[otherId] : null;
+
+    const phone = orderInfo?.phone || otherProfile?.phone;
+    const fullName = orderInfo?.full_name || otherProfile?.full_name || (conv.title !== 'Conversa' ? conv.title : null);
+    const customerId = orderInfo?.customer_id || otherProfile?.customer_id || otherProfile?.id;
+    const userId = orderInfo?.user_id || otherProfile?.user_id || (otherId && otherId !== user?.id && otherId !== companyData?.id ? otherId : null);
+
+    // Prioridade 1: Telefone único (ignora formatação / DDD)
+    const cleanPhone = (phone || "").replace(/\D/g, "");
+    if (cleanPhone.length >= 8) {
+      return `cust_phone:${cleanPhone.slice(-9)}`;
+    }
+
+    // Prioridade 2: Nome do cliente (normalizado)
+    if (fullName) {
+      const normName = fullName
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, " ")
+        .trim();
+
+      const genericWords = ["cliente", "usuario", "conversa", "conversas", "admin", "suporte", "entregador", "lojista", "loja"];
+      if (normName.length >= 3 && !genericWords.includes(normName)) {
+        return `cust_name:${normName}`;
+      }
+    }
+
+    // Prioridade 3: ID do cliente
+    if (customerId) {
+      return `cust_id:${customerId}`;
+    }
+
+    // Prioridade 4: ID do usuário
+    if (userId) {
+      return `cust_user:${userId}`;
+    }
+
+    return `fallback:${otherId || conv.id}`;
   };
 
   const getConvTitle = (conv: any) => {
-    const orderTag = conv.order_id ? `#${conv.order_id.slice(-6).toUpperCase()}` : null;
-
     let extractedTopic = null;
-    if (conv.messages && conv.messages.length > 0) {
+    if (conv?.messages && conv.messages.length > 0) {
       const firstMsg = [...conv.messages].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
       if (firstMsg?.content?.startsWith('[Assunto:')) {
         extractedTopic = firstMsg.content.replace('[Assunto:', '').replace(']', '').trim();
@@ -288,22 +397,27 @@ export default function ChatPage() {
     }
 
     const otherId = getOtherParticipantId(conv);
-    const otherProfile = profilesMap?.[otherId];
-    const customerName = otherProfile?.full_name || (otherId ? `Cliente #${otherId.slice(0, 4).toUpperCase()}` : null);
+    const orderInfo = conv?.order_id ? profilesMap?.[`order_${conv.order_id}`] : null;
+    const otherProfile = (otherId ? profilesMap?.[otherId] : null) || orderInfo;
+    const customerName = otherProfile?.full_name || orderInfo?.full_name || (otherId ? `Cliente #${otherId.slice(0, 4).toUpperCase()}` : null);
 
-    if (orderTag) {
-      return customerName ? `${customerName} (${orderTag})` : `Pedido ${orderTag}`;
+    if (otherProfile?.role === 'admin' || otherId === adminId) {
+      return 'Suporte É Pra Já';
     }
 
-    if (otherProfile?.full_name) {
-      return extractedTopic ? `${otherProfile.full_name} (${extractedTopic})` : otherProfile.full_name;
+    if (otherProfile?.role === 'driver') {
+      return customerName ? `${customerName} (Entregador)` : 'Entregador Parceiro';
     }
 
-    if (otherId) {
-      return extractedTopic || `Usuário #${otherId.slice(0, 6).toUpperCase()}`;
+    if (customerName) {
+      return customerName;
     }
 
-    return extractedTopic || (conv.title !== 'Conversa' ? conv.title : null) || conv.topic || "Conversa";
+    if (conv?.order_id) {
+      return `Pedido #${conv.order_id.slice(-6).toUpperCase()}`;
+    }
+
+    return extractedTopic || (conv?.title !== 'Conversa' ? conv?.title : null) || conv?.topic || "Conversa";
   };
 
   // Agrupa e unifica todas as conversas pelo mesmo participante/cliente (estilo WhatsApp)
@@ -313,15 +427,12 @@ export default function ChatPage() {
     const participantGroups: Record<string, any[]> = {};
 
     conversations.forEach((conv: any) => {
-      const otherId = conv.participants?.find((id: string) => id && id !== user?.id && id !== companyData?.id)
-        || conv.participants?.find((id: string) => id && id !== user?.id)
-        || conv.participants?.[0]
-        || conv.id;
+      const groupKey = getParticipantGroupKey(conv);
 
-      if (!participantGroups[otherId]) {
-        participantGroups[otherId] = [];
+      if (!participantGroups[groupKey]) {
+        participantGroups[groupKey] = [];
       }
-      participantGroups[otherId].push(conv);
+      participantGroups[groupKey].push(conv);
     });
 
     const unified = Object.values(participantGroups).map((group) => {
@@ -377,7 +488,7 @@ export default function ChatPage() {
 
       return lastMsgB - lastMsgA;
     });
-  }, [conversations, user?.id, companyData?.id]);
+  }, [conversations, user?.id, companyData?.id, profilesMap, adminId]);
 
   useEffect(() => {
     const handleUrlParams = async () => {
@@ -719,8 +830,15 @@ export default function ChatPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-semibold text-xs truncate">
-                            {otherProfile?.full_name || getConvTitle(conv)} {otherProfile?.role === 'driver' && <span className="text-[10px] font-normal text-muted-foreground ml-1">(Entregador)</span>}
-                            {conv.order_id && <span className="text-[10px] font-black text-primary uppercase ml-1">(#{conv.order_id.slice(-4)})</span>}
+                            {getConvTitle(conv)}
+                            {otherProfile?.role === 'driver' && (
+                              <span className="text-[10px] font-normal text-muted-foreground ml-1">(Entregador)</span>
+                            )}
+                            {conv.order_id && (
+                              <span className="text-[10px] font-black text-primary uppercase ml-1">
+                                (#{conv.order_id.slice(-4)}{conv.all_order_ids && conv.all_order_ids.length > 1 ? ` +${conv.all_order_ids.length - 1}` : ''})
+                              </span>
+                            )}
                           </span>
                           {lastMsg && (
                             <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 ml-1">
@@ -784,9 +902,30 @@ export default function ChatPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <span className="font-black text-sm block truncate">{getConvTitle(selectedConv)}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-black text-sm block truncate">{getConvTitle(selectedConv)}</span>
+                      {selectedConv?.all_order_ids && selectedConv.all_order_ids.length > 0 ? (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {selectedConv.all_order_ids.map((ordId: string) => (
+                            <span key={ordId} className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase">
+                              #{ordId.slice(-6).toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                      ) : selectedConv?.order_id ? (
+                        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase">
+                          #{selectedConv.order_id.slice(-6).toUpperCase()}
+                        </span>
+                      ) : null}
+                    </div>
                     <span className="text-[10px] font-bold text-primary uppercase tracking-widest block truncate">
-                      {profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'company' ? "Lojista Parceiro" : profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'driver' ? "Entregador Parceiro" : "Cliente"}
+                      {profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'company'
+                        ? "Lojista Parceiro"
+                        : profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'driver'
+                        ? "Entregador Parceiro"
+                        : profilesMap?.[getOtherParticipantId(selectedConv)]?.role === 'admin'
+                        ? "Administrador"
+                        : "Cliente"}
                     </span>
                   </div>
                 </div>
