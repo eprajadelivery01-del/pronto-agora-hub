@@ -281,7 +281,10 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col lg:flex-row overflow-hidden font-sans">
+    <div className={cn(
+      "bg-background flex flex-col lg:flex-row overflow-hidden font-sans",
+      fullHeight ? "h-screen max-h-screen" : "min-h-screen"
+    )}>
       {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -470,7 +473,10 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-muted/20 min-h-0">
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0 bg-muted/20 min-h-0",
+        fullHeight && "h-full max-h-full overflow-hidden"
+      )}>
         {/* Header */}
         <header 
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.85rem)' }}
@@ -689,12 +695,12 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
         <main className={cn(
           "flex-1 flex flex-col min-h-0",
           fullHeight 
-            ? "overflow-hidden p-3 lg:p-6 pb-4" 
+            ? "overflow-hidden p-0 h-full" 
             : "overflow-y-auto custom-scrollbar p-4 lg:p-8 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)]"
         )}>
           <div className={cn(
-            "max-w-7xl mx-auto w-full flex-1 min-h-0",
-            fullHeight ? "flex flex-col h-full" : "space-y-6"
+            "w-full flex-1 min-h-0",
+            fullHeight ? "flex flex-col h-full" : "max-w-7xl mx-auto space-y-6"
           )}>
             {children}
           </div>

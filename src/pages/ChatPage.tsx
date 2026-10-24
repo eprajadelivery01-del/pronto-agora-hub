@@ -587,7 +587,7 @@ export default function ChatPage() {
 
   return (
     <Layout title="Chat" subtitle="Central de atendimento e mensagens automáticas" fullHeight>
-      <div className="flex h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-7.5rem)] min-h-[480px] w-full min-w-0 bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+      <div className="flex flex-1 h-full w-full min-w-0 min-h-0 bg-card overflow-hidden">
         {/* Sidebar de Conversas */}
         <div className={cn(
           "w-full md:w-80 lg:w-96 shrink-0 border-r border-border flex flex-col bg-muted/20 min-w-0 overflow-hidden",
