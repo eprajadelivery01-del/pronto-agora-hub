@@ -274,12 +274,13 @@ export function useOrderAlerts() {
           { event: "INSERT", schema: "public", table: "orders" },
           (payload) => {
             const orderId = payload.new?.id;
-            console.log("[REALTIME ADMIN]", orderId);
+            console.log("[REALTIME ADMIN INSERT]", orderId);
             
             if (orderId && processedOrders.has(orderId)) return;
             if (orderId) processedOrders.add(orderId);
 
             playAlert();
+            startLoop();
             triggerDeviceVibration();
             sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
               body: "Novo pedido recebido no sistema marketplace.",
@@ -290,15 +291,38 @@ export function useOrderAlerts() {
               duration: 10000,
             });
             qc.invalidateQueries({ queryKey: ["orders"] });
+            qc.invalidateQueries({ queryKey: ["admin-orders-alert-check"] });
+            window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
           }
         )
+        .on("broadcast", { event: "new_order" }, (payload) => {
+          const ordId = payload?.payload?.orderId;
+          console.log("[REALTIME ADMIN BROADCAST]", ordId);
+          if (ordId && processedOrders.has(ordId)) return;
+          if (ordId) processedOrders.add(ordId);
+
+          playAlert();
+          startLoop();
+          triggerDeviceVibration();
+          sendNativeDeviceNotification("📦 NOVO PEDIDO RECEBIDO! 🛎️", {
+            body: "Novo pedido recebido no sistema marketplace.",
+            tag: `order-${ordId || Date.now()}`,
+          });
+          toast.success("📦 NOVO PEDIDO RECEBIDO!", {
+            description: "Acesse o painel para gerenciar.",
+            duration: 10000,
+          });
+          qc.invalidateQueries({ queryKey: ["orders"] });
+          qc.invalidateQueries({ queryKey: ["admin-orders-alert-check"] });
+          window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
+        })
         .subscribe();
 
       return () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user, hasRole, qc, playAlert]);
+  }, [user, hasRole, qc, playAlert, startLoop]);
 
   // Admin Alerts - POLLING (15s): Backup para garantir que administradores nunca percam novos pedidos mesmo com oscilações de rede
   const { data: adminPendingOrders = [] } = useQuery({
@@ -341,9 +365,10 @@ export function useOrderAlerts() {
           duration: 10000,
         });
         playAlert();
+        startLoop();
       }
     }
-  }, [hasAdminPending, adminPendingOrders, playAlert, hasRole]);
+  }, [hasAdminPending, adminPendingOrders, playAlert, startLoop, hasRole]);
 
   // Lojista Alerts - POLLING (15s): O polling serve EXCLUSIVAMENTE para garantir que o som da campainha continue tocando até que a loja aceite o pedido. O POLLING NUNCA CRIA NOTIFICAÇÕES VISUAIS DO SISTEMA!
   const { data: pendingOrders = [] } = useQuery({
@@ -433,6 +458,27 @@ export function useOrderAlerts() {
           window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
         }
       )
+      .on("broadcast", { event: "new_order" }, (payload) => {
+        const ordId = payload?.payload?.orderId;
+        console.log("[REALTIME LOJISTA BROADCAST]", ordId);
+        if (ordId && processedOrders.has(ordId)) return;
+        if (ordId) processedOrders.add(ordId);
+
+        playAlert();
+        startLoop();
+        triggerDeviceVibration();
+        sendNativeDeviceNotification("📦 Novo pedido recebido! 🛎️", {
+          body: "Acesse o app para aceitar e começar a preparar",
+          tag: `order-${ordId || Date.now()}`,
+        });
+        toast.success("📦 Novo pedido recebido! 🛎️", {
+          description: "Acesse o app para aceitar e começar a preparar.",
+          duration: 10000,
+        });
+        qc.invalidateQueries({ queryKey: ["orders-alert-check", companyId] });
+        qc.invalidateQueries({ queryKey: ["orders"] });
+        window.dispatchEvent(new CustomEvent('epraja-order-alert-triggered'));
+      })
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
