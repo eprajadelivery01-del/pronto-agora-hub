@@ -946,8 +946,8 @@ export default function ChatPage() {
 
       {/* Modal / Dialog de Configuração da Mensagem Automática */}
       <Dialog open={isAutoMessageDialogOpen} onOpenChange={setIsAutoMessageDialogOpen}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
-          <div className="p-6 border-b border-border bg-muted/20">
+        <DialogContent className="max-w-lg p-0 overflow-hidden rounded-3xl border border-border bg-card shadow-2xl flex flex-col max-h-[85vh] sm:max-h-[90vh]">
+          <div className="p-5 md:p-6 border-b border-border bg-muted/20 shrink-0">
             <DialogHeader className="space-y-1 text-left">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -965,7 +965,7 @@ export default function ChatPage() {
             </DialogHeader>
           </div>
 
-          <div className="p-6 space-y-5">
+          <div className="p-5 md:p-6 space-y-5 overflow-y-auto min-h-0 flex-1 custom-scrollbar">
             {/* Switch de Ativação */}
             <div className="rounded-2xl border border-border bg-muted/30 p-4 flex items-center justify-between gap-4">
               <div className="space-y-0.5">
@@ -1035,7 +1035,7 @@ export default function ChatPage() {
               <textarea
                 value={autoMessageText}
                 onChange={(e) => setAutoMessageText(e.target.value)}
-                rows={5}
+                rows={4}
                 placeholder="Escreva aqui a mensagem que seu cliente receberá..."
                 className="w-full p-3.5 rounded-xl border border-border bg-background text-xs md:text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none transition-all font-medium leading-relaxed"
               />
@@ -1047,7 +1047,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-end gap-2.5">
+          <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => setIsAutoMessageDialogOpen(false)}
