@@ -704,57 +704,80 @@ Deno.serve(async (req) => {
 
       const orderStatus = String(body.status || orderRecord?.status || "").toLowerCase();
       const isPendingNewOrder = orderStatus === "pending" || body.type === "new_order" || body.isNewOrder;
+      const isTargetMerchant = Boolean(companyId && (isPendingNewOrder || body.target === "merchant" || body.forMerchant));
 
       // Notificação de novo pedido para Lojista
-      if (companyId && (isPendingNewOrder || body.target === "merchant" || body.forMerchant)) {
+      if (isTargetMerchant) {
         title = `📦 NOVO PEDIDO RECEBIDO! 🛎️`;
         const orderNum = orderRecord?.order_number ? `#${orderRecord.order_number}` : (orderRecord?.id ? `#${String(orderRecord.id).slice(0, 5).toUpperCase()}` : "");
-        message = `Você recebeu um novo pedido ${orderNum}! Toque para aceitar e começar a preparar.`;
+        message = orderNum
+          ? `Você recebeu um novo pedido ${orderNum}! Toque para aceitar e começar a preparar.`
+          : `Você recebeu um novo pedido! Toque para aceitar e começar a preparar.`;
         extra.type = "new_order";
         extra.app = "lojista";
         extra.bundleId = "br.com.epraja.lojista";
         extra.route = "/business/orders";
         extra.companyId = String(companyId);
 
+        // 1. Token direto da empresa alvo em companies
         const { data: comp } = await supabase
           .from("companies")
-          .select("fcm_token")
+          .select("fcm_token, user_id")
           .eq("id", companyId)
           .maybeSingle();
         if (comp?.fcm_token) collect([{ token: comp.fcm_token }], "token");
 
-        const { data: devStoreTokens } = await supabase
-          .from("device_tokens")
-          .select("token")
-          .is("disabled_at", null)
-          .or("app.eq.lojista,bundle_id.eq.br.com.epraja.lojista");
-        collect(devStoreTokens as any[], "token");
-      }
+        // 2. Coleta IDs de usuários vinculados ESTRITAMENTE a esta loja (proprietário e operadores)
+        const storeUserIds = new Set<string>();
+        if (comp?.user_id) storeUserIds.add(String(comp.user_id));
 
-      // Notificação de pedido para Cliente (Marketplace)
-      if (customerId) {
-        const { data: devCust } = await supabase
-          .from("device_tokens")
-          .select("token")
-          .eq("customer_id", customerId)
-          .is("disabled_at", null);
-        collect(devCust as any[], "token");
+        const { data: storeProfiles } = await supabase
+          .from("profiles")
+          .select("id, fcm_token, user_id")
+          .or(`company_id.eq.${companyId},id.eq.${comp?.user_id || "00000000-0000-0000-0000-000000000000"}`);
 
-        const c = await supabase.from("customers").select("fcm_token").or(`id.eq.${customerId},user_id.eq.${customerId}`);
-        collect(c.data as any[], "fcm_token");
-      }
+        (storeProfiles ?? []).forEach((p: any) => {
+          if (p?.id) storeUserIds.add(String(p.id));
+          if (p?.user_id) storeUserIds.add(String(p.user_id));
+          if (p?.fcm_token) collect([{ token: p.fcm_token }], "token");
+        });
 
-      if (userId && !companyId && !isPendingNewOrder) {
-        const { data: devUser } = await supabase
-          .from("device_tokens")
-          .select("token")
-          .eq("user_id", userId)
-          .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma,app.is.null")
-          .is("disabled_at", null);
-        collect(devUser as any[], "token");
+        // 3. Tokens de aparelhos registrados para os usuários EXCLUSIVAMENTE desta loja
+        if (storeUserIds.size > 0) {
+          const { data: devStoreTokens } = await supabase
+            .from("device_tokens")
+            .select("token")
+            .is("disabled_at", null)
+            .in("user_id", Array.from(storeUserIds))
+            .or("app.eq.lojista,bundle_id.eq.br.com.epraja.lojista");
+          collect(devStoreTokens as any[], "token");
+        }
+      } else {
+        // Notificação de pedido para Cliente (Marketplace)
+        if (customerId) {
+          const { data: devCust } = await supabase
+            .from("device_tokens")
+            .select("token")
+            .eq("customer_id", customerId)
+            .is("disabled_at", null);
+          collect(devCust as any[], "token");
 
-        const c2 = await supabase.from("customers").select("fcm_token").eq("user_id", userId);
-        collect(c2.data as any[], "fcm_token");
+          const c = await supabase.from("customers").select("fcm_token").or(`id.eq.${customerId},user_id.eq.${customerId}`);
+          collect(c.data as any[], "fcm_token");
+        }
+
+        if (userId) {
+          const { data: devUser } = await supabase
+            .from("device_tokens")
+            .select("token")
+            .eq("user_id", userId)
+            .or("app.eq.marketplace,bundle_id.eq.br.com.epraja.appFma,app.is.null")
+            .is("disabled_at", null);
+          collect(devUser as any[], "token");
+
+          const c2 = await supabase.from("customers").select("fcm_token").eq("user_id", userId);
+          collect(c2.data as any[], "fcm_token");
+        }
       }
 
       tokens = Array.from(found);
