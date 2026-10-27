@@ -673,7 +673,7 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
           "flex-1 flex flex-col min-h-0",
           fullHeight 
             ? "overflow-hidden p-0 h-full" 
-            : "overflow-y-auto custom-scrollbar p-4 lg:p-8 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)]"
+            : "overflow-y-auto custom-scrollbar p-4 lg:p-8 pb-20 lg:pb-8"
         )}>
           <div className={cn(
             "w-full flex-1 min-h-0",
@@ -685,7 +685,7 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] left-1/2 -translate-x-1/2 z-50 lg:hidden bg-card/80 backdrop-blur-2xl border border-white/10 flex items-center gap-2 py-2 px-3 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5 animate-in slide-in-from-bottom-10 duration-700">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden bg-card/80 backdrop-blur-2xl border border-white/10 flex items-center gap-2 py-2 px-3 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5 animate-in slide-in-from-bottom-10 duration-700">
         {[
           { icon: Truck, href: "/business" },
           { icon: Bell, href: "/business/orders" },
