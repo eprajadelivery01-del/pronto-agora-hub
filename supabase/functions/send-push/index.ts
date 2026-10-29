@@ -790,6 +790,16 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Pedido de loja: remove aparelhos que pertencem a OUTRA loja
+      if (extra.app === "lojista" && extra.companyId && found.size > 0) {
+        const { data: otherComps } = await supabase
+          .from("companies")
+          .select("fcm_token")
+          .in("fcm_token", Array.from(found))
+          .neq("id", extra.companyId);
+        (otherComps ?? []).forEach((c: any) => c?.fcm_token && found.delete(String(c.fcm_token)));
+      }
+
       tokens = Array.from(found);
 
       // ── MODO MARKETING / BROADCAST SEGMENTADO ─────────────────────
