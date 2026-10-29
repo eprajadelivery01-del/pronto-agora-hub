@@ -454,6 +454,16 @@ Deno.serve(async (req) => {
 
       if (companyId || appType === "lojista" || explicitBundle === "br.com.epraja.lojista") {
         // 1. App Lojista
+        // Um aparelho pertence a UMA loja: desvincula este token de qualquer outra loja/usuário
+        const clrComp = companyId
+          ? await supabase.from("companies").update({ fcm_token: null }).eq("fcm_token", fcmToken).neq("id", companyId)
+          : await supabase.from("companies").update({ fcm_token: null }).eq("fcm_token", fcmToken);
+        outcome.companies_cleanup = clrComp.error ? `erro: ${clrComp.error.message}` : "ok";
+        const clrProf = userId
+          ? await supabase.from("profiles").update({ fcm_token: null }).eq("fcm_token", fcmToken).neq("id", userId)
+          : await supabase.from("profiles").update({ fcm_token: null }).eq("fcm_token", fcmToken);
+        outcome.profiles_cleanup = clrProf.error ? `erro: ${clrProf.error.message}` : "ok";
+
         if (companyId) {
           const comp = await supabase.from("companies").update({ fcm_token: fcmToken, updated_at: now }).eq("id", companyId);
           outcome.companies = comp.error ? `erro: ${comp.error.message}` : "ok";
