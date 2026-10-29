@@ -454,6 +454,16 @@ Deno.serve(async (req) => {
 
       if (companyId || appType === "lojista" || explicitBundle === "br.com.epraja.lojista") {
         // 1. App Lojista
+        // Um aparelho pertence a UMA loja: desvincula este token de qualquer outra loja/usuário
+        const clrComp = companyId
+          ? await supabase.from("companies").update({ fcm_token: null }).eq("fcm_token", fcmToken).neq("id", companyId)
+          : await supabase.from("companies").update({ fcm_token: null }).eq("fcm_token", fcmToken);
+        outcome.companies_cleanup = clrComp.error ? `erro: ${clrComp.error.message}` : "ok";
+        const clrProf = userId
+          ? await supabase.from("profiles").update({ fcm_token: null }).eq("fcm_token", fcmToken).neq("id", userId)
+          : await supabase.from("profiles").update({ fcm_token: null }).eq("fcm_token", fcmToken);
+        outcome.profiles_cleanup = clrProf.error ? `erro: ${clrProf.error.message}` : "ok";
+
         if (companyId) {
           const comp = await supabase.from("companies").update({ fcm_token: fcmToken, updated_at: now }).eq("id", companyId);
           outcome.companies = comp.error ? `erro: ${comp.error.message}` : "ok";
@@ -778,6 +788,16 @@ Deno.serve(async (req) => {
           const c2 = await supabase.from("customers").select("fcm_token").eq("user_id", userId);
           collect(c2.data as any[], "fcm_token");
         }
+      }
+
+      // Pedido de loja: remove aparelhos que pertencem a OUTRA loja
+      if (extra.app === "lojista" && extra.companyId && found.size > 0) {
+        const { data: otherComps } = await supabase
+          .from("companies")
+          .select("fcm_token")
+          .in("fcm_token", Array.from(found))
+          .neq("id", extra.companyId);
+        (otherComps ?? []).forEach((c: any) => c?.fcm_token && found.delete(String(c.fcm_token)));
       }
 
       tokens = Array.from(found);

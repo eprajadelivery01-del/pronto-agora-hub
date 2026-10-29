@@ -122,7 +122,7 @@ export function useDeliveries(params?: UseDeliveriesParams) {
             commission: fee,
             price: fee,
             delivery_fee: fee
-          }).eq("id", d.id).then(() => {}).catch(() => {});
+          }).eq("id", d.id).then(() => {}, () => {});
         }
       });
 
