@@ -102,7 +102,7 @@ export default function BusinessHomePage() {
       const { data, error } = await supabase
         .from("orders")
         .select(`
-          id, status, total, created_at, customer_id, delivery_id,
+          id, status, total, delivery_fee, created_at, customer_id, delivery_id,
           delivery_address, payment_method,
           customers (name),
           order_items (
