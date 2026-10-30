@@ -340,8 +340,9 @@ export async function createDeliveryRequest({ orderId, customValue }: { orderId:
 
   const existingDelivery = existingDeliveries && existingDeliveries.length > 0 ? existingDeliveries[0] : null;
 
-  const estimatedValue = Number(order.total || 0);
   const orderDeliveryFee = Number(order.delivery_fee) || 0;
+  // estimated_value = apenas produtos (order.total já inclui a taxa de entrega)
+  const estimatedValue = Math.max(0, Number(order.total || 0) - orderDeliveryFee);
   const driverFee = (customValue !== undefined && customValue !== null && customValue > 0)
     ? customValue
     : (orderDeliveryFee > 0 ? orderDeliveryFee : 6.00);
