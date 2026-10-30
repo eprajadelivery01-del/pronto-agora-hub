@@ -1,3 +1,4 @@
+import { getDeliveryProductValue } from "@/lib/delivery";
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, Plus, Truck, Clock, CheckCircle, Loader2, Package, Trash2, Pencil, MapPin, ShoppingBag, Zap, Wallet, Printer, Eye, User } from "lucide-react";
@@ -84,14 +85,8 @@ export default function BusinessHomePage() {
        return 0; 
     }
     
-    let productValue = Number(delivery.estimated_value || 0);
-    if (productValue === 0 && delivery.notes) {
-      const match = delivery.notes.match(/Total Produtos:\s*R\$\s*([\d,.]+)/);
-      if (match) {
-         productValue = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
-      }
-    }
-    
+    const linkedOrder = (marketplaceOrders || []).find((o: any) => (delivery.order_id && o.id === delivery.order_id) || o.delivery_id === delivery.id);
+    const productValue = getDeliveryProductValue(delivery, linkedOrder);
     const deliveryFee = getDeliveryFee(delivery);
     return productValue + deliveryFee;
   };
@@ -428,13 +423,8 @@ export default function BusinessHomePage() {
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return;
 
-    let productValue = overrideProductValue !== undefined ? overrideProductValue : Number(delivery.estimated_value || 0);
-    if (productValue === 0 && delivery.notes) {
-      const match = delivery.notes.match(/Total Produtos:\s*R\$\s*([\d,.]+)/);
-      if (match) {
-         productValue = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
-      }
-    }
+    const linkedOrderForPrint = (marketplaceOrders || []).find((o: any) => (delivery.order_id && o.id === delivery.order_id) || o.delivery_id === delivery.id);
+    const productValue = overrideProductValue !== undefined ? overrideProductValue : getDeliveryProductValue(delivery, linkedOrderForPrint);
 
     w.document.write(`
       <html><head><title>OS #${delivery.id.slice(0, 8)}</title>

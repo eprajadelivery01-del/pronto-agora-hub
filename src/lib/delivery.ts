@@ -71,3 +71,24 @@ export function formatDeliveryValueBRL(
   const fixed = formatDeliveryValue(d);
   return `R$ ${commaDecimal ? fixed.replace(".", ",") : fixed}`;
 }
+
+/**
+ * Valor dos PRODUTOS de uma entrega (sem a taxa de entrega).
+ * Pedidos do marketplace têm `orders.total` = produtos - desconto + taxa; corridas antigas
+ * gravavam esse total inteiro em `estimated_value`, o que fazia a taxa ser somada duas vezes.
+ */
+export function getDeliveryProductValue(delivery: any, linkedOrder?: any): number {
+  const orders = delivery?.orders;
+  const order = linkedOrder || (Array.isArray(orders) ? orders[0] : orders) || null;
+  if (order && order.total != null) {
+    const total = Number(order.total) || 0;
+    const fee = Number(order.delivery_fee) || 0;
+    return Math.max(0, total - fee);
+  }
+  let productValue = Number(delivery?.estimated_value || 0);
+  if (productValue === 0 && delivery?.notes) {
+    const match = String(delivery.notes).match(/Total Produtos:\s*R\$\s*([\d,.]+)/);
+    if (match) productValue = parseFloat(match[1].replace(/\./g, "").replace(",", ".")) || 0;
+  }
+  return productValue;
+}

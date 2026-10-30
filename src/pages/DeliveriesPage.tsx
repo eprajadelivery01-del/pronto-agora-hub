@@ -154,7 +154,7 @@ export default function DeliveriesPage() {
       const ordersArray = Array.isArray((delivery as any).orders) ? (delivery as any).orders : [(delivery as any).orders];
       if (ordersArray.length > 0) {
         const firstOrder = ordersArray[0];
-        if (productValue === 0) productValue = Number(firstOrder.total || 0);
+        productValue = Math.max(0, Number(firstOrder.total || 0) - (Number(firstOrder.delivery_fee) || 0));
         
         if (firstOrder.order_items && Array.isArray(firstOrder.order_items) && firstOrder.order_items.length > 0) {
           itemsHtml += `<hr/><div class="label" style="margin-top: 0;">Itens do Pedido</div>`;
