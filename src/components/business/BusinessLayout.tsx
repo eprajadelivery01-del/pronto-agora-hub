@@ -42,6 +42,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadChatCount } from "@/hooks/useUnreadChatCount";
+import { BonaSoftWatermark } from "@/components/shared/BonaSoftWatermark";
 
 interface BusinessLayoutProps {
   children: ReactNode;
@@ -680,6 +681,9 @@ export function BusinessLayout({ children, title, subtitle, fullHeight }: Busine
             fullHeight ? "flex flex-col h-full" : "max-w-7xl mx-auto space-y-6"
           )}>
             {children}
+            {!fullHeight && (
+              <BonaSoftWatermark containerClassName="mt-12 pb-6" />
+            )}
           </div>
         </main>
       </div>

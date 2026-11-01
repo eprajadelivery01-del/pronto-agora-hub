@@ -2,7 +2,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { MotoboysSidebar } from "@/components/admin/MotoboysSidebar";
 import { BikeIcon } from "@/components/icons/BikeIcon";
 import { NotificationsPanel } from "@/components/admin/NotificationsPanel";
-import { BonaSoftWatermark } from "@/components/shared/BonaSoftWatermark";
+
 import { useDeliveryStats, useDeliveries, getDeliveryFee } from "@/services/deliveries";
 import { useOnlineDrivers } from "@/services/drivers";
 import { useCompanies } from "@/services/companies";
@@ -215,8 +215,7 @@ export default function DashboardPage() {
           <NotificationsPanel />
         </div>
       </div>
-      {/* ── BONASOFT Watermark ── */}
-      <BonaSoftWatermark />
+
     </AdminLayout>
   );
 }

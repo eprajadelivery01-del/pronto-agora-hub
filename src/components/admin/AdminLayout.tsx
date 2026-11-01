@@ -3,6 +3,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { cn } from "@/lib/utils";
+import { BonaSoftWatermark } from "@/components/shared/BonaSoftWatermark";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -34,6 +35,9 @@ export function AdminLayout({ children, title, subtitle, fullHeight }: AdminLayo
         )}>
           <div className={cn("flex-1 min-h-0", fullHeight && "flex flex-col h-full w-full")}>
             {children}
+            {!fullHeight && (
+              <BonaSoftWatermark containerClassName="mt-12 pb-6" />
+            )}
           </div>
         </main>
       </div>

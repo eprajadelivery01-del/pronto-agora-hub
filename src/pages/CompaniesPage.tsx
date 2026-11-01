@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { EditCompanyDialog } from "@/components/admin/EditCompanyDialog";
-import { BonaSoftWatermark } from "@/components/shared/BonaSoftWatermark";
+
 import { GenerateInviteDialog } from "@/components/admin/GenerateInviteDialog";
 
 
@@ -154,8 +154,7 @@ export default function CompaniesPage() {
           onOpenChange={setEditOpen}
         />
       )}
-      {/* ── BONASOFT Watermark ── */}
-      <BonaSoftWatermark />
+
     </AdminLayout>
   );
 }

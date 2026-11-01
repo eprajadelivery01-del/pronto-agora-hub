@@ -69,3 +69,4 @@ export function BonaSoftWatermark({ className, containerClassName }: BonaSoftWat
     </div>
   );
 }
+
