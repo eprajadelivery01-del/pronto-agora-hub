@@ -410,18 +410,18 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
              </div>
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">CPF (Opcional)</label>
-               <input value={customerCpf} onChange={e => setCustomerCpf(maskCPF(e.target.value))} placeholder="000.000.000-00" className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold" />
+               <input id="delivery-customer-cpf" name="customer_cpf" value={customerCpf} onChange={e => setCustomerCpf(maskCPF(e.target.value))} placeholder="000.000.000-00" className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold" />
              </div>
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Telefone</label>
-               <input value={customerPhone} onChange={e => setCustomerPhone(maskPhone(e.target.value))} placeholder="(00) 00000-0000" className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold" />
+               <input id="delivery-customer-phone" name="customer_phone" value={customerPhone} onChange={e => setCustomerPhone(maskPhone(e.target.value))} placeholder="(00) 00000-0000" className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold" />
              </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Endereço de Entrega</label>
-              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro..." className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold text-lg" required />
+              <input id="delivery-address" name="delivery_address" value={address} onChange={e => setAddress(e.target.value)} placeholder="Rua, número, bairro..." className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-bold text-lg" required />
               
               <div className="flex gap-2 mt-2">
                 {[
@@ -459,11 +459,11 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Taxa de Entrega (R$)</label>
-               <input value={deliveryValue} readOnly className="w-full px-5 py-5 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-primary outline-none" />
+               <input id="delivery-fee" name="delivery_fee" value={deliveryValue} readOnly className="w-full px-5 py-5 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-primary outline-none" />
              </div>
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Valor do Produto (R$)</label>
-               <input value={collectValue} onChange={e => setCollectValue(e.target.value)} className="w-full px-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none" />
+               <input id="delivery-collect-value" name="collect_value" value={collectValue} onChange={e => setCollectValue(e.target.value)} className="w-full px-5 py-5 rounded-2xl border-2 border-warning/20 bg-warning/5 font-black text-2xl text-warning outline-none" />
              </div>
              <div className="space-y-1.5">
                <label className="text-[10px] font-black uppercase tracking-widest text-transparent ml-2 select-none">Pagamento</label>
@@ -497,6 +497,8 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
                     <div className="relative">
                       <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                       <input 
+                        id="product-search-input"
+                        name="product_search"
                         value={productSearch} 
                         onChange={e => setProductSearch(e.target.value)} 
                         placeholder="Buscar produto do catálogo..." 
@@ -552,6 +554,8 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Descreva os itens do pedido</label>
                     <textarea 
+                      id="manual-products-input"
+                      name="manual_products"
                       value={manualProducts} 
                       onChange={e => setManualProducts(e.target.value)} 
                       placeholder="Ex: 1x X-Tudo, 1x Coca-Cola 2L..." 
@@ -597,7 +601,7 @@ export default function NewDeliveryForm({ onClose, onSaved, initialData, company
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Observações para o Entregador</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ponto de referência, campainha..." className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-medium min-h-[100px] resize-none" />
+            <textarea id="delivery-notes" name="delivery_notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ponto de referência, campainha..." className="w-full px-5 py-4 rounded-2xl border border-border bg-background outline-none font-medium min-h-[100px] resize-none" />
           </div>
 
           <button type="submit" disabled={submitting || !selectedRegionId} className="w-full py-6 rounded-3xl bg-primary text-white text-xl font-black shadow-2xl shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-3">

@@ -64,6 +64,8 @@ export function DeliveryFiltersBar({ filters, onChange, resultCount }: Props) {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
+            id="delivery-filter-search"
+            name="filter_search"
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             placeholder="Buscar por cliente ou endereço..."
@@ -72,6 +74,8 @@ export function DeliveryFiltersBar({ filters, onChange, resultCount }: Props) {
         </div>
 
         <select
+          id="delivery-filter-status"
+          name="filter_status"
           value={filters.status}
           onChange={(e) => onChange({ ...filters, status: e.target.value as DeliveryStatusFilter })}
           className={selectClass}
@@ -83,6 +87,8 @@ export function DeliveryFiltersBar({ filters, onChange, resultCount }: Props) {
         </select>
 
         <select
+          id="delivery-filter-date"
+          name="filter_date"
           value={filters.date}
           onChange={(e) => onChange({ ...filters, date: e.target.value as DeliveryDateFilter })}
           className={selectClass}
@@ -94,6 +100,8 @@ export function DeliveryFiltersBar({ filters, onChange, resultCount }: Props) {
         </select>
 
         <select
+          id="delivery-filter-sort"
+          name="filter_sort"
           value={filters.sort}
           onChange={(e) => onChange({ ...filters, sort: e.target.value as DeliverySort })}
           className={selectClass}
