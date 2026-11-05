@@ -62,11 +62,10 @@ export function BonaSoftWatermark({ className, containerClassName }: BonaSoftWat
         )}
       >
         <BonaParticleAtom className="h-6 w-6 text-emerald-400 shrink-0" />
-        <span className="font-sans font-light tracking-[0.24em] text-sm sm:text-base leading-none text-zinc-800 dark:text-zinc-200 uppercase transition-colors">
+        <span className="font-sans font-light tracking-[0.28em] text-[10px] leading-none text-zinc-800 dark:text-zinc-200 uppercase transition-colors">
           BONASOFT
         </span>
       </a>
     </div>
   );
 }
-
